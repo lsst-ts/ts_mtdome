@@ -1,0 +1,632 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="http://lsst-sal.tuc.noao.edu/schema/SALCommandSet.xsl"?>
+<SALCommandSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="http://lsst-sal.tuc.noao.edu/schema/SALCommandSet.xsd">
+<SALCommand>
+    <EFDB_Topic>Dome_command_moveAz</EFDB_Topic>
+    <Alias>moveAz</Alias>
+    <item>
+        <EFDB_Name>azimuth</EFDB_Name>
+        <Description>Absolute positon angle for azimuth rotation in degrees</Description>
+        <IDL_Type>double</IDL_Type>
+        <Units>deg</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_moveEl</EFDB_Topic>
+    <Alias>moveEl</Alias>
+    <item>
+        <EFDB_Name>elevation</EFDB_Name>
+        <Description>Absolute position angle for elevation motion in degrees</Description>
+        <IDL_Type>double</IDL_Type>
+        <Units>deg</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_stopAz</EFDB_Topic>
+    <Alias>stopAz</Alias>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_stopEl</EFDB_Topic>
+    <Alias>stopEl</Alias>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_stop</EFDB_Topic>
+    <Alias>stop</Alias>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_crawlAz</EFDB_Topic>
+    <Alias>crawlAz</Alias>
+    <item>
+        <EFDB_Name>dirMotion</EFDB_Name>
+        <Description>Specifies de direction of crawl motion in azimuth: CW or CCW</Description>
+        <IDL_Type>string</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+    <item>
+        <EFDB_Name>azRate</EFDB_Name>
+        <Description>Specifies the speed of crawl motion in degrees per second</Description>
+        <IDL_Type>double</IDL_Type>
+        <Units>deg/second</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_crawlEl</EFDB_Topic>
+    <Alias>crawlEl</Alias>
+    <item>
+        <EFDB_Name>dirMotion</EFDB_Name>
+        <Description>Specifies de direction of crawl motion in elevation: UP or DOWN</Description>
+        <IDL_Type>string</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+    <item>
+        <EFDB_Name>elRate</EFDB_Name>
+        <Description>Specifies the speed of crawl motion in degrees per second</Description>
+        <IDL_Type>double</IDL_Type>
+        <Units>deg/second</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_setLouver</EFDB_Topic>
+    <Alias>setLouver</Alias>
+    <item>
+        <EFDB_Name>id</EFDB_Name>
+        <Description>Identification of louver to move</Description>
+        <IDL_Type>int</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+    <item>
+        <EFDB_Name>position</EFDB_Name>
+        <Description>The position to set the louver</Description>
+        <IDL_Type>int</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_closeLouvers</EFDB_Topic>
+    <Alias>closeLouvers</Alias>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_stopLouvers</EFDB_Topic>
+    <Alias>stopLouvers</Alias>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_openShutter</EFDB_Topic>
+    <Alias>openShutter</Alias>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_closeShutter</EFDB_Topic>
+    <Alias>closeShutter</Alias>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_stopShutter</EFDB_Topic>
+    <Alias>stopShutter</Alias>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_park</EFDB_Topic>
+    <Alias>park</Alias>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>Dome_command_setTemperature</EFDB_Topic>
+    <Alias>setTemperature</Alias>
+    <item>
+        <EFDB_Name>temperature</EFDB_Name>
+        <Description>Set the temperature to maintain in the dome heat sources</Description>
+        <IDL_Type>double</IDL_Type>
+        <Units>Celsius</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>AMCS_abort</EFDB_Topic>
+    <Alias>abort</Alias>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>AMCS_enable</EFDB_Topic>
+    <Alias>enable</Alias>
+    <Description>Transition from state Disabled to Enabled.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>AMCS_disable</EFDB_Topic>
+    <Alias>disable</Alias>
+    <Description>Transition from state Enabled to Disabled.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>AMCS_standby</EFDB_Topic>
+    <Alias>standby</Alias>
+    <Description>Transition from state Offline, Disabled or Fault to Standby.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>AMCS_exit</EFDB_Topic>
+    <Alias>exitControl</Alias>
+    <Description>Transition from state Standby to Offline. For CSCs that are not "externally commandable" this makes the CSC quit.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>AMCS_start</EFDB_Topic>
+    <Alias>start</Alias>
+    <Description>Transition from state Standby to Disable, in a specified configuration.</Description>
+    <item>
+        <EFDB_Name>settingsToApply</EFDB_Name>
+        <Description>Name of the selected settings set</Description>
+        <IDL_Type>string</IDL_Type>
+        <IDL_Size>256</IDL_Size>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>AMCS_enter</EFDB_Topic>
+    <Alias>enterControl</Alias>
+    <Description>Transition from state Offline to Standby. Only "externally commandable" CSCs support this command; other CSCs start in Standby state and quit when they go to Offline.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ApSCS_abort</EFDB_Topic>
+    <Alias>abort</Alias>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ApSCS_enable</EFDB_Topic>
+    <Alias>enable</Alias>
+    <Description>Transition from state Disabled to Enabled.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ApSCS_disable</EFDB_Topic>
+    <Alias>disable</Alias>
+    <Description>Transition from state Enabled to Disabled.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ApSCS_standby</EFDB_Topic>
+    <Alias>standby</Alias>
+    <Description>Transition from state Offline, Disabled or Fault to Standby.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ApSCS_exit</EFDB_Topic>
+    <Alias>exitControl</Alias>
+    <Description>Transition from state Standby to Offline. For CSCs that are not "externally commandable" this makes the CSC quit.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ApSCS_start</EFDB_Topic>
+    <Alias>start</Alias>
+    <Description>Transition from state Standby to Disable, in a specified configuration.</Description>
+    <item>
+        <EFDB_Name>settingsToApply</EFDB_Name>
+        <Description>Name of the selected settings set</Description>
+        <IDL_Type>string</IDL_Type>
+        <IDL_Size>256</IDL_Size>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ApSCS_enter</EFDB_Topic>
+    <Alias>enterControl</Alias>
+    <Description>Transition from state Offline to Standby. Only "externally commandable" CSCs support this command; other CSCs start in Standby state and quit when they go to Offline.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LCS_abort</EFDB_Topic>
+    <Alias>abort</Alias>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LCS_enable</EFDB_Topic>
+    <Alias>enable</Alias>
+    <Description>Transition from state Disabled to Enabled.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LCS_disable</EFDB_Topic>
+    <Alias>disable</Alias>
+    <Description>Transition from state Enabled to Disabled.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LCS_standby</EFDB_Topic>
+    <Alias>standby</Alias>
+    <Description>Transition from state Offline, Disabled or Fault to Standby.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LCS_exit</EFDB_Topic>
+    <Alias>exitControl</Alias>
+    <Description>Transition from state Standby to Offline. For CSCs that are not "externally commandable" this makes the CSC quit.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LCS_start</EFDB_Topic>
+    <Alias>start</Alias>
+    <Description>Transition from state Standby to Disable, in a specified configuration.</Description>
+    <item>
+        <EFDB_Name>settingsToApply</EFDB_Name>
+        <Description>Name of the selected settings set</Description>
+        <IDL_Type>string</IDL_Type>
+        <IDL_Size>256</IDL_Size>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LCS_enter</EFDB_Topic>
+    <Alias>enterControl</Alias>
+    <Description>Transition from state Offline to Standby. Only "externally commandable" CSCs support this command; other CSCs start in Standby state and quit when they go to Offline.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LWSCS_abort</EFDB_Topic>
+    <Alias>abort</Alias>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LWSCS_enable</EFDB_Topic>
+    <Alias>enable</Alias>
+    <Description>Transition from state Disabled to Enabled.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LWSCS_disable</EFDB_Topic>
+    <Alias>disable</Alias>
+    <Description>Transition from state Enabled to Disabled.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LWSCS_standby</EFDB_Topic>
+    <Alias>standby</Alias>
+    <Description>Transition from state Offline, Disabled or Fault to Standby.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LWSCS_exit</EFDB_Topic>
+    <Alias>exitControl</Alias>
+    <Description>Transition from state Standby to Offline. For CSCs that are not "externally commandable" this makes the CSC quit.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LWSCS_start</EFDB_Topic>
+    <Alias>start</Alias>
+    <Description>Transition from state Standby to Disable, in a specified configuration.</Description>
+    <item>
+        <EFDB_Name>settingsToApply</EFDB_Name>
+        <Description>Name of the selected settings set</Description>
+        <IDL_Type>string</IDL_Type>
+        <IDL_Size>256</IDL_Size>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>LWSCS_enter</EFDB_Topic>
+    <Alias>enterControl</Alias>
+    <Description>Transition from state Offline to Standby. Only "externally commandable" CSCs support this command; other CSCs start in Standby state and quit when they go to Offline.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ThCS_abort</EFDB_Topic>
+    <Alias>abort</Alias>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ThCS_enable</EFDB_Topic>
+    <Alias>enable</Alias>
+    <Description>Transition from state Disabled to Enabled.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ThCS_disable</EFDB_Topic>
+    <Alias>disable</Alias>
+    <Description>Transition from state Enabled to Disabled.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ThCS_standby</EFDB_Topic>
+    <Alias>standby</Alias>
+    <Description>Transition from state Offline, Disabled or Fault to Standby.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ThCS_exit</EFDB_Topic>
+    <Alias>exitControl</Alias>
+    <Description>Transition from state Standby to Offline. For CSCs that are not "externally commandable" this makes the CSC quit.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ThCS_start</EFDB_Topic>
+    <Alias>start</Alias>
+    <Description>Transition from state Standby to Disable, in a specified configuration.</Description>
+    <item>
+        <EFDB_Name>settingsToApply</EFDB_Name>
+        <Description>Name of the selected settings set</Description>
+        <IDL_Type>string</IDL_Type>
+        <IDL_Size>256</IDL_Size>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>ThCS_enter</EFDB_Topic>
+    <Alias>enterControl</Alias>
+    <Description>Transition from state Offline to Standby. Only "externally commandable" CSCs support this command; other CSCs start in Standby state and quit when they go to Offline.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>MonCS_abort</EFDB_Topic>
+    <Alias>abort</Alias>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>MonCS_enable</EFDB_Topic>
+    <Alias>enable</Alias>
+    <Description>Transition from state Disabled to Enabled.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>MonCS_disable</EFDB_Topic>
+    <Alias>disable</Alias>
+    <Description>Transition from state Enabled to Disabled.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>MonCS_standby</EFDB_Topic>
+    <Alias>standby</Alias>
+    <Description>Transition from state Offline, Disabled or Fault to Standby.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>MonCS_exit</EFDB_Topic>
+    <Alias>exitControl</Alias>
+    <Description>Transition from state Standby to Offline. For CSCs that are not "externally commandable" this makes the CSC quit.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>MonCS_start</EFDB_Topic>
+    <Alias>start</Alias>
+    <Description>Transition from state Standby to Disable, in a specified configuration.</Description>
+    <item>
+        <EFDB_Name>settingsToApply</EFDB_Name>
+        <Description>Name of the selected settings set</Description>
+        <IDL_Type>string</IDL_Type>
+        <IDL_Size>256</IDL_Size>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+<SALCommand>
+    <EFDB_Topic>MonCS_enter</EFDB_Topic>
+    <Alias>enterControl</Alias>
+    <Description>Transition from state Offline to Standby. Only "externally commandable" CSCs support this command; other CSCs start in Standby state and quit when they go to Offline.</Description>
+    <item>
+        <EFDB_Name>value</EFDB_Name>
+        <Description>Not used</Description>
+        <IDL_Type>boolean</IDL_Type>
+        <Units>unitless</Units>
+        <Count>1</Count>
+    </item>
+</SALCommand>
+</SALCommandSet>
