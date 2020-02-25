@@ -230,7 +230,6 @@ class MockDomeController:
 
     async def quit(self, writer):
         self.log.info("Received command 'quit'")
-        writer.write("quitting now\n".encode())
         await writer.drain()
         await self.stop()
 
