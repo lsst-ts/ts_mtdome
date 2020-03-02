@@ -20,6 +20,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .mock_controller import *
+from .dome_csc import *
 
 try:
     from .version import *

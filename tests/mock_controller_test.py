@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 import asynctest
-from lsst.ts import dcs
+from lsst.ts import Dome
 
 
 class MockTestCase(asynctest.TestCase):
@@ -11,7 +11,7 @@ class MockTestCase(asynctest.TestCase):
         self.port = 5000
         self.mock_ctrl = None
 
-        self.mock_ctrl = dcs.MockDomeController(port=self.port)
+        self.mock_ctrl = Dome.MockDomeController(port=self.port)
         asyncio.create_task(self.mock_ctrl.start())
         await asyncio.sleep(1)
 

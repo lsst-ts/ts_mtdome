@@ -4,10 +4,10 @@ This configuration only affects single-package Sphinx documentation builds.
 """
 
 from documenteer.sphinxconfig.stackconf import build_package_configs
-import lsst.ts.dcs
+import lsst.ts.Dome
 
 
 _g = globals()
 _g.update(build_package_configs(
     project_name='ts_dcs',
-    version=lsst.ts.dcs.version.__version__))
+    version=lsst.ts.Dome.version.__version__))
