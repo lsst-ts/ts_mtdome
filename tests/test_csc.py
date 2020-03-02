@@ -12,47 +12,47 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             simulation_mode=simulation_mode,
         )
 
-    async def test_do_Dome_command_crawlAz(self, id_data):
+    async def test_do_crawlAz(self):
         pass
 
-    async def test_do_Dome_command_crawlEl(self, id_data):
+    async def test_do_crawlEl(self):
         pass
 
-    async def test_do_Dome_command_moveAz(self, id_data):
+    async def test_do_moveAz(self):
         pass
 
-    async def test_do_Dome_command_moveEl(self, id_data):
+    async def test_do_moveEl(self):
         pass
 
-    async def test_do_Dome_command_park(self, id_data):
+    async def test_do_park(self):
         pass
 
-    async def test_do_Dome_command_setLouver(self, id_data):
+    async def test_do_setLouver(self):
         pass
 
-    async def test_do_Dome_command_closeLouvers(self, id_data):
+    async def test_do_closeLouvers(self):
         pass
 
-    async def test_do_Dome_command_stopLouvers(self, id_data):
+    async def test_do_stopLouvers(self):
         pass
 
-    async def test_do_Dome_command_closeShutter(self, id_data):
+    async def test_do_closeShutter(self):
         pass
 
-    async def test_do_Dome_command_openShutter(self, id_data):
+    async def test_do_openShutter(self):
         pass
 
-    async def test_do_Dome_command_stopShutter(self, id_data):
+    async def test_do_stopShutter(self):
         pass
 
-    async def test_do_Dome_command_stopAz(self, id_data):
+    async def test_do_stopAz(self):
         pass
 
-    async def test_do_Dome_command_stopEl(self, id_data):
+    async def test_do_stopEl(self):
         pass
 
-    async def test_do_Dome_command_stop(self, id_data):
+    async def test_do_stop(self):
         pass
 
-    async def test_do_Dome_command_setTemperature(self, id_data):
+    async def test_do_setTemperature(self):
         pass

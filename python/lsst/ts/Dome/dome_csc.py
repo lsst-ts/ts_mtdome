@@ -37,94 +37,109 @@ class DomeCsc(salobj.ConfigurableCsc):
             simulation_mode=simulation_mode,
         )
 
-    async def do_Dome_command_crawlAz(self, id_data):
+    async def do_crawlAz(self, data):
         """
         Crawl AZ
         """
+        self.assert_enabled("crawlAz")
         pass
 
-    async def do_Dome_command_crawlEl(self, id_data):
+    async def do_crawlEl(self, data):
         """
         Crawl El
         """
+        self.assert_enabled("crawlEl")
         pass
 
-    async def do_Dome_command_moveAz(self, id_data):
+    async def do_moveAz(self, data):
         """
         Move AZ
         """
+        self.assert_enabled("moveAz")
         pass
 
-    async def do_Dome_command_moveEl(self, id_data):
+    async def do_moveEl(self, data):
         """
         Move El
         """
+        self.assert_enabled("moveEl")
         pass
 
-    async def do_Dome_command_park(self, id_data):
+    async def do_park(self, data):
         """
         Park
         """
+        self.assert_enabled("park")
         pass
 
-    async def do_Dome_command_setLouver(self, id_data):
+    async def do_setLouver(self, data):
         """
         Set Louver
         """
+        self.assert_enabled("setLouver")
         pass
 
-    async def do_Dome_command_closeLouvers(self, id_data):
+    async def do_closeLouvers(self, data):
         """
         Close Louvers
         """
+        self.assert_enabled("closeLouvers")
         pass
 
-    async def do_Dome_command_stopLouvers(self, id_data):
+    async def do_stopLouvers(self, data):
         """
         Stop Louvers
         """
+        self.assert_enabled("stopLouvers")
         pass
 
-    async def do_Dome_command_closeShutter(self, id_data):
+    async def do_closeShutter(self, data):
         """
         Close Shutter
         """
+        self.assert_enabled("closeShutter")
         pass
 
-    async def do_Dome_command_openShutter(self, id_data):
+    async def do_openShutter(self, data):
         """
         Open Shutter
         """
+        self.assert_enabled("openShutter")
         pass
 
-    async def do_Dome_command_stopShutter(self, id_data):
+    async def do_stopShutter(self, data):
         """
         Stop Shutter
         """
+        self.assert_enabled("stopShutter")
         pass
 
-    async def do_Dome_command_stopAz(self, id_data):
+    async def do_stopAz(self, data):
         """
         Stop AZ
         """
+        self.assert_enabled("stopAz")
         pass
 
-    async def do_Dome_command_stopEl(self, id_data):
+    async def do_stopEl(self, data):
         """
         Stop El
         """
+        self.assert_enabled("stopEl")
         pass
 
-    async def do_Dome_command_stop(self, id_data):
+    async def do_stop(self, data):
         """
         Stop
         """
+        self.assert_enabled("stop")
         pass
 
-    async def do_Dome_command_setTemperature(self, id_data):
+    async def do_setTemperature(self, data):
         """
         Set Temperature
         """
+        self.assert_enabled("setTemperature")
         pass
 
     @staticmethod
