@@ -17,9 +17,7 @@ class MockTestCase(asynctest.TestCase):
 
         rw_coro = asyncio.open_connection(host="127.0.0.1", port=self.port)
         self.reader, self.writer = await asyncio.wait_for(rw_coro, timeout=5)
-        read_bytes = await asyncio.wait_for(
-            self.reader.read(n=100), timeout=5
-        )
+        read_bytes = await asyncio.wait_for(self.reader.read(n=100), timeout=5)
         read_str = read_bytes.decode()
         self.assertEqual(read_str, "Enter Command > ")
 
@@ -32,16 +30,14 @@ class MockTestCase(asynctest.TestCase):
     async def test_mock_controller(self):
         self.writer.write("status\n".encode())
         await self.writer.drain()
-        read_bytes = await asyncio.wait_for(
-            self.reader.read(n=10000), timeout=5
-        )
+        read_bytes = await asyncio.wait_for(self.reader.read(n=10000), timeout=5)
         read_str = read_bytes.decode()
-        self.assertTrue('AMCS: ' in read_str)
-        self.assertTrue('ApSCS: ' in read_str)
-        self.assertTrue('LCS: ' in read_str)
-        self.assertTrue('LWCS: ' in read_str)
-        self.assertTrue('ThCS: ' in read_str)
-        self.assertTrue('MonCS: ' in read_str)
+        self.assertTrue("AMCS: " in read_str)
+        self.assertTrue("ApSCS: " in read_str)
+        self.assertTrue("LCS: " in read_str)
+        self.assertTrue("LWCS: " in read_str)
+        self.assertTrue("ThCS: " in read_str)
+        self.assertTrue("MonCS: " in read_str)
 
 
 if __name__ == "__main__":

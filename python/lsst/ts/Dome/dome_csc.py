@@ -2,7 +2,7 @@
 import pathlib
 from lsst.ts import salobj
 
-__all__ = ['DomeCsc']
+__all__ = ["DomeCsc"]
 
 
 class DomeCsc(salobj.ConfigurableCsc):
@@ -11,16 +11,10 @@ class DomeCsc(salobj.ConfigurableCsc):
     """
 
     def __init__(
-            self,
-            config_dir=None,
-            initial_state=salobj.State.STANDBY,
-            simulation_mode=0,
+        self, config_dir=None, initial_state=salobj.State.STANDBY, simulation_mode=0,
     ):
         schema_path = (
-            pathlib.Path(__file__)
-            .resolve()
-            .parents[4]
-            .joinpath("schema", "Dome.yaml")
+            pathlib.Path(__file__).resolve().parents[4].joinpath("schema", "Dome.yaml")
         )
 
         self.reader = None
@@ -41,106 +35,106 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         Crawl AZ
         """
-        self.assert_enabled("crawlAz")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_crawlEl(self, data):
         """
         Crawl El
         """
-        self.assert_enabled("crawlEl")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_moveAz(self, data):
         """
         Move AZ
         """
-        self.assert_enabled("moveAz")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_moveEl(self, data):
         """
         Move El
         """
-        self.assert_enabled("moveEl")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_park(self, data):
         """
         Park
         """
-        self.assert_enabled("park")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_setLouver(self, data):
         """
         Set Louver
         """
-        self.assert_enabled("setLouver")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_closeLouvers(self, data):
         """
         Close Louvers
         """
-        self.assert_enabled("closeLouvers")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_stopLouvers(self, data):
         """
         Stop Louvers
         """
-        self.assert_enabled("stopLouvers")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_closeShutter(self, data):
         """
         Close Shutter
         """
-        self.assert_enabled("closeShutter")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_openShutter(self, data):
         """
         Open Shutter
         """
-        self.assert_enabled("openShutter")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_stopShutter(self, data):
         """
         Stop Shutter
         """
-        self.assert_enabled("stopShutter")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_stopAz(self, data):
         """
         Stop AZ
         """
-        self.assert_enabled("stopAz")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_stopEl(self, data):
         """
         Stop El
         """
-        self.assert_enabled("stopEl")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_stop(self, data):
         """
         Stop
         """
-        self.assert_enabled("stop")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     async def do_setTemperature(self, data):
         """
         Set Temperature
         """
-        self.assert_enabled("setTemperature")
-        pass
+        self.assert_enabled()
+        raise salobj.ExpectedError("Not implemented")
 
     @staticmethod
     def get_config_pkg():
