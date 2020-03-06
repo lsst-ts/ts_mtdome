@@ -2,9 +2,9 @@
 
 .. _lsst.ts.Dome:
 
-###########
+############
 lsst.ts.Dome
-###########
+############
 
 .. Paragraph that describes what this Python module does and links to related modules and frameworks.
 
@@ -24,7 +24,7 @@ Contributing
 ============
 
 ``lsst.ts.Dome`` is developed at https://github.com/lsst-ts/ts_Dome.
-You can find Jira issues for this module under the `ts_Dome <https://jira.lsstcorp.org/issues/?jql=project%20%3D%20DM%20AND%20component%20%3D%20ts_Dome>`_ component.
+You can find Jira issues for this module using `labels=ts_Dome <https://jira.lsstcorp.org/issues/?jql=project%20%3D%20DM%20AND%20labels%20%3D%20ts_Dome>`_.
 
 .. If there are topics related to developing this module (rather than using it), link to this from a toctree placed here.
 
