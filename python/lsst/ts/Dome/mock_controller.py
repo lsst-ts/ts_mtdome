@@ -33,22 +33,27 @@ class MockDomeController:
     ):
         self.port = port
         self._server = None
+        self._writer = None
         self.log = logging.getLogger("MockDomeController")
         # Dict of command: (has_argument, function).
         # The function is called with:
         # * No arguments, if `has_argument` False.
         # * The argument as a string, if `has_argument` is True.
         self.dispatch_dict = {
-            "status": (False, self.status),
-            "Dome_command_moveAz": (False, self.dome_command_move_az),
-            "Dome_command_moveEl": (False, self.dome_command_move_el),
-            "Dome_command_stopAz": (False, self.dome_command_stop_az),
-            "Dome_command_stopEl": (False, self.dome_command_stop_el),
-            "quit": (False, self.quit),
+            "status": self.status,
+            "moveAz": self.move_az,
+            "moveEl": self.move_el,
+            "stopAz": self.stop_az,
+            "stopEl": self.stop_el,
+            "quit": self.quit,
         }
         # Name of a command to report as failed once, the next time it is seen,
         # or None if no failures. Used to test CSC handling of failed commands.
         self.fail_command = None
+
+        self.az_current_position = 0
+        self.az_motion_position = 0
+        self.az_motion = "Stopped"
 
     async def start(self):
         """Start the TCP/IP server.
@@ -74,20 +79,20 @@ class MockDomeController:
         self.log.info("done closing")
 
     # noinspection PyMethodMayBeStatic
-    async def write(self, st, writer, append_newline=True):
-        """Write the string st
+    async def write(self, st):
+        """Write the string st appended with a newline character
         """
-        if append_newline:
-            st = f"{st}\n"
-
-        writer.write(st.encode())
-        await writer.drain()
+        st = f"{st}\n"
+        self._writer.write(st.encode())
+        await self._writer.drain()
 
     async def cmd_loop(self, reader, writer):
         """Execute commands and output replies."""
         self.log.info("cmd_loop begins")
-        await self.write("Enter Command > ", writer, append_newline=False)
+        self._writer = writer
+        await self.status()
         while True:
+            error_encountered = False
             line = await reader.readline()
             line = line.decode()
             if not line:
@@ -101,36 +106,52 @@ class MockDomeController:
             self.log.info(f"read command: {line!r}")
             if line:
                 try:
-                    items = line.split()
-                    cmd = items[-1]
+                    items = line.split(";")
+                    cmd = items[0]
                     if cmd not in self.dispatch_dict:
-                        raise KeyError(f"Unsupported command {cmd}")
+                        await self.write(f"ERROR: Unsupported command '{cmd}'")
+                        error_encountered = True
                     if cmd == self.fail_command:
                         self.fail_command = None
-                        outputs = [f"Command {cmd} failed by request"]
+                        outputs = [f"Command '{cmd}' failed by request"]
                     else:
-                        has_data, func = self.dispatch_dict[cmd]
-                        desired_len = 2 if has_data else 1
-                        if len(items) != desired_len:
-                            raise RuntimeError(
-                                f"{line} split into {len(items)} pieces; expected {desired_len}"
-                            )
-                        if has_data:
-                            outputs = await func(items[0], writer)
-                        else:
-                            outputs = await func(writer)
+                        func = self.dispatch_dict[cmd]
+                        kwargs = {}
+                        for item in items[1:]:
+                            arg = item.split("=")
+                            kwargs[arg[0]] = arg[1]
+                        outputs = await func(**kwargs)
                     if outputs:
                         for msg in outputs:
-                            await self.write(msg, writer)
+                            await self.write(msg)
                 except (KeyError, RuntimeError):
-                    self.log.exception(f"command {line} failed")
-            await self.write("Enter Command > ", writer, append_newline=False)
+                    self.log.exception(f"command '{line}' failed")
+                    await self.write(
+                        f"ERROR: Command '{line}' missing or incorrect parameter(s)."
+                    )
+                    error_encountered = True
+            if not error_encountered:
+                await self.write("OK")
 
-    async def status(self, writer):
+    async def status(self):
         self.log.info("Received command 'status'")
+        az_motion = "Stopped"
+        if self.az_motion != "Stopped":
+            az_motion = self.az_motion + " to position " + str(self.az_motion_position)
+            if self.az_current_position < self.az_motion_position:
+                self.az_current_position = self.az_current_position + 5
+                if self.az_current_position >= self.az_motion_position:
+                    self.az_current_position = self.az_motion_position
+                    self.az_motion = "Stopped"
+            else:
+                self.az_current_position = self.az_current_position - 5
+                if self.az_current_position <= self.az_motion_position:
+                    self.az_current_position = self.az_motion_position
+                    self.az_motion = "Stopped"
         await self.write(
             (
-                "AMCS: standby, positionError=0.0, positionActual=0.0, positionCmd=0.0, "
+                f"AMCS: {az_motion}, positionError=0.0, "
+                f"positionActual={self.az_current_position}, positionCmd=0.0, "
                 + "driveTorqueActual=[0.0, 0.0, 0.0, 0.0, 0.0], "
                 + "driveTorqueError=[0.0, 0.0, 0.0, 0.0, 0.0], "
                 + "driveTorqueCmd=[0.0, 0.0, 0.0, 0.0, 0.0], "
@@ -141,126 +162,25 @@ class MockDomeController:
                 + "resolverRaw=[0.0, 0.0, 0.0, 0.0, 0.0], "
                 + "resolverCalibrated=[0.0, 0.0, 0.0, 0.0, 0.0]"
             ),
-            writer,
-        )
-        await self.write(
-            (
-                "ApSCS: standby, positionError=0.0, positionActual=0.0, positionCmd=0.0, "
-                + "driveTorqueActual=[0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "driveTorqueError=[0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "driveTorqueCmd=[0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "driveCurrentActual=[0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "driveTempActual=[20.0, 20.0, 20.0, 20.0, 20.0], "
-                + "resolverRaw=[0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "resolverCalibrated=[0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "powerAbsortion=0.0"
-            ),
-            writer,
-        )
-        await self.write(
-            (
-                "LCS: standby, "
-                + "positionError=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "positionActual=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "positionCmd=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "driveTorqueActual=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "driveTorqueError=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "driveTorqueCmd=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "driveCurrentActual=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "driveTempActual=[20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, "
-                + "20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, "
-                + "20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, "
-                + "20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, "
-                + "20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, "
-                + "20.0], "
-                + "encoderHeadRaw=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "encoderHeadCalibrated=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "
-                + "0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "powerAbsortion=0.0"
-            ),
-            writer,
-        )
-        await self.write(
-            (
-                "LWCS: standby, positionError=0.0, positionActual=0.0, positionCmd=0.0, "
-                + "driveTorqueActual=[0.0, 0.0], "
-                + "driveTorqueError=[0.0, 0.0], "
-                + "driveTorqueCmd=[0.0, 0.0], "
-                + "driveCurrentActual=[0.0, 0.0], "
-                + "driveTempActual=[20.0, 20.0], "
-                + "encoderHeadRaw=[0.0, 0.0], "
-                + "encoderHeadCalibrated=[0.0, 0.0], "
-                + "resolverRaw=[0.0, 0.0], "
-                + "resolverCalibrated=[0.0, 0.0], "
-                + "powerAbsortion=0.0"
-            ),
-            writer,
-        )
-        await self.write(
-            (
-                "ThCS: standby, "
-                + "data=[20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, "
-                + "20.0, 20.0, 20.0, 20.0]"
-            ),
-            writer,
-        )
-        await self.write(
-            (
-                "MonCS: standby, "
-                + "data=[20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, "
-                + "20.0, 20.0, 20.0, 20.0]"
-            ),
-            writer,
         )
 
-    async def dome_command_move_az(self, writer):
-        self.log.info("Received command 'Dome_command_moveAz'")
-        await self.write("Dome_command_moveAz", writer)
+    async def move_az(self, **kwargs):
+        self.log.info(f"Received command 'moveAz' with arguments {kwargs}")
+        self.az_motion_position = float(kwargs["position"])
+        self.az_motion = "Moving"
 
-    async def dome_command_move_el(self, writer):
-        self.log.info("Received command 'Dome_command_moveEl'")
-        await self.write("Dome_command_moveEl", writer)
+    async def move_el(self, **kwargs):
+        self.log.info(f"Received command 'moveEl' with arguments {kwargs}")
 
-    async def dome_command_stop_az(self, writer):
-        self.log.info("Received command 'Dome_command_stopAz'")
-        await self.write("Dome_command_stopAz", writer)
+    async def stop_az(self):
+        self.log.info("Received command 'stopAz'")
+        self.az_motion = "Stopped"
 
-    async def dome_command_stop_el(self, writer):
-        self.log.info("Received command 'Dome_command_stopEl'")
-        await self.write("Dome_command_stopEl", writer)
+    async def stop_el(self):
+        self.log.info("Received command 'stopEl'")
 
-    async def quit(self, writer):
+    async def quit(self):
         self.log.info("Received command 'quit'")
-        await writer.drain()
         await self.stop()
 
 
