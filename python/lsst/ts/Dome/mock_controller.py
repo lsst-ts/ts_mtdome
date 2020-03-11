@@ -92,7 +92,7 @@ class MockDomeController:
         self._writer = writer
         await self.status()
         while True:
-            error_encountered = False
+            print_ok = True
             line = await reader.readline()
             line = line.decode()
             if not line:
@@ -104,13 +104,15 @@ class MockDomeController:
                 return
             line = line.strip()
             self.log.info(f"read command: {line!r}")
+            timeout = 20
             if line:
                 try:
                     items = line.split(";")
                     cmd = items[0]
                     if cmd not in self.dispatch_dict:
-                        await self.write(f"ERROR: Unsupported command '{cmd}'")
-                        error_encountered = True
+                        # CODE=2 in this case means "Unsupported command."
+                        await self.write("ERROR;CODE=2")
+                        print_ok = False
                     if cmd == self.fail_command:
                         self.fail_command = None
                         outputs = [f"Command '{cmd}' failed by request"]
@@ -121,17 +123,20 @@ class MockDomeController:
                             arg = item.split("=")
                             kwargs[arg[0]] = arg[1]
                         outputs = await func(**kwargs)
+                        if cmd == "status" or cmd == "quit":
+                            print_ok = False
+                        if cmd == "stopAz":
+                            timeout = 2
                     if outputs:
                         for msg in outputs:
                             await self.write(msg)
                 except (KeyError, RuntimeError):
                     self.log.exception(f"command '{line}' failed")
-                    await self.write(
-                        f"ERROR: Command '{line}' missing or incorrect parameter(s)."
-                    )
-                    error_encountered = True
-            if not error_encountered:
-                await self.write("OK")
+                    # CODE=3 in this case means "Missing or incorrect parameter(s)."
+                    await self.write("ERROR;CODE=3")
+                    print_ok = False
+            if print_ok:
+                await self.write(f"OK;Timeout={timeout}")
 
     async def status(self):
         self.log.info("Received command 'status'")
@@ -150,17 +155,22 @@ class MockDomeController:
                     self.az_motion = "Stopped"
         await self.write(
             (
-                f"AMCS: {az_motion}, positionError=0.0, "
-                f"positionActual={self.az_current_position}, positionCmd=0.0, "
-                + "driveTorqueActual=[0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "driveTorqueError=[0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "driveTorqueCmd=[0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "driveCurrentActual=[0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "driveTempActual=[20.0, 20.0, 20.0, 20.0, 20.0], "
-                + "encoderHeadRaw=[0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "encoderHeadCalibrated=[0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "resolverRaw=[0.0, 0.0, 0.0, 0.0, 0.0], "
-                + "resolverCalibrated=[0.0, 0.0, 0.0, 0.0, 0.0]"
+                f"OK;AMCS:{az_motion};positionError=0.0;"
+                f"positionActual={self.az_current_position};positionCmd=0.0;"
+                + "driveTorqueActual=[0.0,0.0,0.0,0.0,0.0];"
+                + "drivecd TorqueError=[0.0,0.0,0.0,0.0,0.0];"
+                + "driveTorqueCmd=[0.0,0.0,0.0,0.0,0.0];"
+                + "driveCurrentActual=[0.0,0.0,0.0,0.0,0.0];"
+                + "driveTempActual=[20.0,20.0,20.0,20.0,20.0];"
+                + "encoderHeadRaw=[0.0,0.0,0.0,0.0,0.0];"
+                + "encoderHeadCalibrated=[0.0,0.0,0.0,0.0,0.0];"
+                + "resolverRaw=[0.0,0.0,0.0,0.0,0.0];"
+                + "resolverCalibrated=[0.0,0.0,0.0,0.0,0.0];"
+                + "ApCS:TBD;"
+                + "LCS:TBD;"
+                + "LWCS:TBD;"
+                + "ThCS:TBD;"
+                + "MonCS:TBD;"
             ),
         )
 
