@@ -21,8 +21,8 @@ class MockTestCase(asynctest.TestCase):
             self.reader.readuntil("\n".encode()), timeout=5
         )
         read_str = read_bytes.decode()
-        self.assertTrue("AMCS: Stopped" in read_str)
-        self.assertFalse("MonCS: Stopped" in read_str)
+        self.assertTrue("AMCS:Stopped" in read_str)
+        self.assertFalse("MonCS:Stopped" in read_str)
 
     async def tearDown(self):
         if self.mock_ctrl:
@@ -37,7 +37,7 @@ class MockTestCase(asynctest.TestCase):
             self.reader.readuntil("\n".encode()), timeout=5
         )
         read_str = read_bytes.decode()
-        self.assertTrue("AMCS: " in read_str)
+        self.assertTrue("AMCS:" in read_str)
 
 
 if __name__ == "__main__":
