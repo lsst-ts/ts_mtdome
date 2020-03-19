@@ -42,61 +42,61 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             )
 
     async def test_do_moveAz(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_moveEl(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_stopAz(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_stopEl(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_stop(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_crawlAz(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_crawlEl(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_setLouver(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_closeLouvers(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_stopLouvers(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_openShutter(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_closeShutter(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_stopShutter(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_park(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_do_setTemperature(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_config(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_fans(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_inflate(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_status(self):
-        unittest.SkipTest("Not implemented")
+        raise unittest.SkipTest("Not implemented")
 
     async def test_bin_script(self):
         await self.check_bin_script(name="Dome", index=None, exe_name="run_dome.py")
