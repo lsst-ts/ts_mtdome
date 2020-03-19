@@ -168,6 +168,28 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
+    async def disconnect(self):
+        pass
+
+    async def connect(self):
+        pass
+
+    async def close_tasks(self):
+        """Disconnect from the TCP/IP controller, if connected, and stop
+        the mock controller, if running.
+        """
+        await super().close_tasks()
+        await self.disconnect()
+
+    async def configure(self, config):
+        self.config = config
+
+    async def implement_simulation_mode(self, simulation_mode):
+        if simulation_mode not in (0, 1):
+            raise salobj.ExpectedError(
+                f"Simulation_mode={simulation_mode} must be 0 or 1"
+            )
+
     @property
     def connected(self):
         if None in (self.reader, self.writer):
@@ -178,14 +200,12 @@ class DomeCsc(salobj.ConfigurableCsc):
     def get_config_pkg():
         return "ts_config_mttcs"
 
-    async def configure(self, config):
-        self.config = config
-
-    async def implement_simulation_mode(self, simulation_mode):
-        if simulation_mode not in (0, 1):
-            raise salobj.ExpectedError(
-                f"Simulation_mode={simulation_mode} must be 0 or 1"
-            )
+    @classmethod
+    def add_arguments(cls, parser):
+        super(DomeCsc, cls).add_arguments(parser)
+        parser.add_argument(
+            "-s", "--simulate", action="store_true", help="Run in simuation mode?"
+        )
 
     @classmethod
     def add_kwargs_from_args(cls, args, kwargs):
