@@ -36,134 +36,124 @@ class DomeCsc(salobj.ConfigurableCsc):
         )
 
     async def do_moveAz(self, data):
-        """
-        Move AZ
+        """ Move AZ
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_moveEl(self, data):
-        """
-        Move El
+        """ Move El
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_stopAz(self, data):
-        """
-        Stop AZ
+        """ Stop AZ
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_stopEl(self, data):
-        """
-        Stop El
+        """ Stop El
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_stop(self, data):
-        """
-        Stop
+        """ Stop
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_crawlAz(self, data):
-        """
-        Crawl AZ
+        """ Crawl AZ
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_crawlEl(self, data):
-        """
-        Crawl El
+        """ Crawl El
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_setLouver(self, data):
-        """
-        Set Louver
+        """ Set Louver
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_closeLouvers(self, data):
-        """
-        Close Louvers
+        """ Close Louvers
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_stopLouvers(self, data):
-        """
-        Stop Louvers
+        """ Stop Louvers
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_openShutter(self, data):
-        """
-        Open Shutter
+        """ Open Shutter
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_closeShutter(self, data):
-        """
-        Close Shutter
+        """ Close Shutter
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_stopShutter(self, data):
-        """
-        Stop Shutter
+        """ Stop Shutter
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_park(self, data):
-        """
-        Park
+        """ Park
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def do_setTemperature(self, data):
-        """
-        Set Temperature
+        """ Set Temperature
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def config(self, data):
-        """
-        Internal Config command
+        """ Config command not to be executed by SAL
+
+        This command will be used to send the values of one or more parameters to configure the lower level
+        components.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def fans(self, data):
-        """
-        Internal Fans command
+        """ Fans command not to be executed by SAL
+
+        This command will be used to switch on or off the fans in the dome.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def inflate(self, data):
-        """
-        Internal Inflate command
+        """ Inflate command not to be executed by SAL
+
+        This command will be used to inflate or deflate the inflatable seal.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def status(self, data):
-        """
-        Internal Status command
+        """ Status command not to be executed by SAL
+
+        This command will be used to request the full status of all lower level components.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")

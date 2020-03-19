@@ -1,6 +1,6 @@
 import asynctest
 
-# import unittest
+import unittest
 from lsst.ts import salobj
 from lsst.ts import Dome
 
@@ -42,58 +42,61 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             )
 
     async def test_do_moveAz(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_moveEl(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_stopAz(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_stopEl(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_stop(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_crawlAz(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_crawlEl(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_setLouver(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_closeLouvers(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_stopLouvers(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_openShutter(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_closeShutter(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_stopShutter(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_park(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_do_setTemperature(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_config(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_fans(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_inflate(self):
-        pass
+        unittest.SkipTest("Not implemented")
 
     async def test_status(self):
-        pass
+        unittest.SkipTest("Not implemented")
+
+    async def test_bin_script(self):
+        await self.check_bin_script(name="Dome", index=None, exe_name="run_dome.py")
