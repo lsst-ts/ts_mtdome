@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import yaml
 
 logging.basicConfig(level=logging.INFO)
 
@@ -82,8 +83,9 @@ class MockDomeController:
     async def write(self, st):
         """Write the string st appended with a newline character
         """
-        st = f"{st}\n"
+        st = st + "\r\n"
         self._writer.write(st.encode())
+        self.log.info(st)
         await self._writer.drain()
 
     async def cmd_loop(self, reader, writer):
@@ -93,35 +95,30 @@ class MockDomeController:
         await self.status()
         while True:
             print_ok = True
-            line = await reader.readline()
-            line = line.decode()
-            if not line:
-                # connection lost; close the writer and exit the loop
-                self.log.info("closing the writer")
-                writer.close()
-                self.log.info("stopping mock controller")
-                await self.stop()
-                return
-            line = line.strip()
-            self.log.info(f"read command: {line!r}")
+            line = await reader.readuntil("\r\n".encode())
+            line = line.decode().strip()
+            self.log.info(f"read command line: {line!r}")
             timeout = 20
             if line:
                 try:
-                    items = line.split(";")
-                    cmd = items[0]
+                    outputs = None
+                    items = yaml.safe_load(line)
+                    cmd = next(iter(items))
                     if cmd not in self.dispatch_dict:
                         # CODE=2 in this case means "Unsupported command."
-                        await self.write("ERROR;CODE=2")
+                        await self.write("ERROR:\n CODE: 2\n")
                         print_ok = False
-                    if cmd == self.fail_command:
+                    elif cmd == self.fail_command:
                         self.fail_command = None
                         outputs = [f"Command '{cmd}' failed by request"]
                     else:
                         func = self.dispatch_dict[cmd]
                         kwargs = {}
-                        for item in items[1:]:
-                            arg = item.split("=")
-                            kwargs[arg[0]] = arg[1]
+                        args = items[cmd]
+                        if args is not None:
+                            for arg in args:
+                                kwargs[arg] = args[arg]
+                        print(f"{cmd} : {kwargs}")
                         outputs = await func(**kwargs)
                         if cmd == "status" or cmd == "quit":
                             print_ok = False
@@ -133,10 +130,10 @@ class MockDomeController:
                 except (KeyError, RuntimeError):
                     self.log.exception(f"command '{line}' failed")
                     # CODE=3 in this case means "Missing or incorrect parameter(s)."
-                    await self.write("ERROR;CODE=3")
+                    await self.write("ERROR:\n CODE: 3\n")
                     print_ok = False
             if print_ok:
-                await self.write(f"OK;Timeout={timeout}")
+                await self.write(f"OK:\nTimeout: {timeout}\n")
 
     async def status(self):
         self.log.info("Received command 'status'")
@@ -153,26 +150,36 @@ class MockDomeController:
                 if self.az_current_position <= self.az_motion_position:
                     self.az_current_position = self.az_motion_position
                     self.az_motion = "Stopped"
-        await self.write(
-            (
-                f"OK;AMCS:{az_motion};positionError=0.0;"
-                f"positionActual={self.az_current_position};positionCmd=0.0;"
-                + "driveTorqueActual=[0.0,0.0,0.0,0.0,0.0];"
-                + "drivecd TorqueError=[0.0,0.0,0.0,0.0,0.0];"
-                + "driveTorqueCmd=[0.0,0.0,0.0,0.0,0.0];"
-                + "driveCurrentActual=[0.0,0.0,0.0,0.0,0.0];"
-                + "driveTempActual=[20.0,20.0,20.0,20.0,20.0];"
-                + "encoderHeadRaw=[0.0,0.0,0.0,0.0,0.0];"
-                + "encoderHeadCalibrated=[0.0,0.0,0.0,0.0,0.0];"
-                + "resolverRaw=[0.0,0.0,0.0,0.0,0.0];"
-                + "resolverCalibrated=[0.0,0.0,0.0,0.0,0.0];"
-                + "ApCS:TBD;"
-                + "LCS:TBD;"
-                + "LWCS:TBD;"
-                + "ThCS:TBD;"
-                + "MonCS:TBD;"
-            ),
-        )
+        amcs_state = {
+            "status": az_motion,
+            "positionError": 0.0,
+            "positionActual": self.az_current_position,
+            "positionCmd": 0.0,
+            "driveTorqueActual": [0.0, 0.0, 0.0, 0.0, 0.0],
+            "driveTorqueError": [0.0, 0.0, 0.0, 0.0, 0.0],
+            "driveTorqueCmd": [0.0, 0.0, 0.0, 0.0, 0.0],
+            "driveCurrentActual": [0.0, 0.0, 0.0, 0.0, 0.0],
+            "driveTempActual": [20.0, 20.0, 20.0, 20.0, 20.0],
+            "encoderHeadRaw": [0.0, 0.0, 0.0, 0.0, 0.0],
+            "encoderHeadCalibrated": [0.0, 0.0, 0.0, 0.0, 0.0],
+            "resolverRaw": [0.0, 0.0, 0.0, 0.0, 0.0],
+            "resolverCalibrated": [0.0, 0.0, 0.0, 0.0, 0.0],
+        }
+        apcs_state = "TBD"
+        lcs_state = "TBD"
+        lwcs_state = "TBD"
+        thcs_state = "TBD"
+        moncs_state = "TBD"
+        reply = {
+            "AMCS": amcs_state,
+            "ApCS": apcs_state,
+            "LCS": lcs_state,
+            "LWCS": lwcs_state,
+            "ThCS": thcs_state,
+            "MonCS": moncs_state,
+        }
+        data = yaml.safe_dump(reply, default_flow_style=None)
+        await self.write("OK:\n" + data)
 
     async def move_az(self, **kwargs):
         self.log.info(f"Received command 'moveAz' with arguments {kwargs}")
