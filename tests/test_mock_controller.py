@@ -20,7 +20,7 @@ class MockTestCase(asynctest.TestCase):
         rw_coro = asyncio.open_connection(host="127.0.0.1", port=self.port)
         self.reader, self.writer = await asyncio.wait_for(rw_coro, timeout=1)
         self.data = await self.read()
-        self.assertComponent("AMCS", {"status": "Stopped", "positionActual": 0})
+        self.assertComponent("AMCS", status="Stopped", positionActual=0)
         self.assertTBD("ApCS")
         self.assertTBD("LCS")
         self.assertTBD("LWCS")
@@ -28,29 +28,34 @@ class MockTestCase(asynctest.TestCase):
         self.assertTBD("MonCS")
 
     async def read(self):
-        """ Utility function to read a string from the reader and unmarshal it
+        """Utility function to read a string from the reader and unmarshal it
+        :return: A dictionary with objects representing the string read.
         """
-        read_bytes = await asyncio.wait_for(
-            self.reader.readuntil("\r\n".encode()), timeout=1
-        )
+        read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
         data = yaml.safe_load(read_bytes.decode())
         return data
 
     async def write(self, st):
-        """ Utility function to write a string to the writer
+        """Utility function to write a string to the writer
         """
-        self.writer.write(f"{st}\r\n".encode())
+        self.writer.write(st.encode() + b"\r\n")
         await self.writer.drain()
 
-    def assertComponent(self, component, expected):
-        """ Asserts that the values of the AMCS parameter data are as expected
+    def assertOK(self, timeout):
+        self.assertIn("OK", self.data)
+        self.assertEqual(self.data["OK"], None)
+        self.assertIn("Timeout", self.data)
+        self.assertEqual(self.data["Timeout"], timeout)
+
+    def assertComponent(self, component, **kwargs):
+        """Asserts that the values of the component parameter data are as expected
         """
         self.assertIn(component, self.data)
-        for key in expected.keys():
-            self.assertEqual(self.data[component][key], expected[key])
+        for key in kwargs.keys():
+            self.assertEqual(self.data[component][key], kwargs[key])
 
     def assertTBD(self, component):
-        """ Asserts that the values of the component parameter data are as expected
+        """Asserts that the values of the component parameter data are "TBD"
         """
         self.assertIn(component, self.data)
         self.assertEqual(self.data[component], "TBD")
@@ -64,7 +69,7 @@ class MockTestCase(asynctest.TestCase):
     async def test_status(self):
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertComponent("AMCS", {"status": "Stopped", "positionActual": 0})
+        self.assertComponent("AMCS", status="Stopped", positionActual=0)
         self.assertTBD("ApCS")
         self.assertTBD("LCS")
         self.assertTBD("LWCS")
@@ -74,47 +79,34 @@ class MockTestCase(asynctest.TestCase):
     async def test_moveAz(self):
         await self.write("moveAz:\n position: 10\n")
         self.data = await self.read()
-        self.assertIn("OK", self.data)
-        self.assertEqual(self.data["OK"], None)
-        self.assertIn("Timeout", self.data)
-        self.assertEqual(self.data["Timeout"], 20)
+        self.assertOK(20)
+        await self.write("status:\n")
+        self.data = await self.read()
+        self.assertComponent("AMCS", status="Moving to position 10.0", positionActual=5)
         await self.write("status:\n")
         self.data = await self.read()
         self.assertComponent(
-            "AMCS", {"status": "Moving to position 10.0", "positionActual": 5}
+            "AMCS", status="Moving to position 10.0", positionActual=10
         )
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertComponent(
-            "AMCS", {"status": "Moving to position 10.0", "positionActual": 10}
-        )
-        await self.write("status:\n")
-        self.data = await self.read()
-        self.assertComponent("AMCS", {"status": "Stopped", "positionActual": 10})
+        self.assertComponent("AMCS", status="Stopped", positionActual=10)
 
     async def test_stopAz(self):
         await self.write("moveAz:\n position: 10\n")
         self.data = await self.read()
-        self.assertIn("OK", self.data)
-        self.assertEqual(self.data["OK"], None)
-        self.assertIn("Timeout", self.data)
-        self.assertEqual(self.data["Timeout"], 20)
+        self.assertOK(20)
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertComponent(
-            "AMCS", {"status": "Moving to position 10.0", "positionActual": 5}
-        )
+        self.assertComponent("AMCS", status="Moving to position 10.0", positionActual=5)
 
         await self.write("stopAz:\n")
         self.data = await self.read()
-        self.assertIn("OK", self.data)
-        self.assertEqual(self.data["OK"], None)
-        self.assertIn("Timeout", self.data)
-        self.assertEqual(self.data["Timeout"], 2)
+        self.assertOK(2)
 
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertComponent("AMCS", {"status": "Stopped", "positionActual": 5})
+        self.assertComponent("AMCS", status="Stopped", positionActual=5)
 
 
 if __name__ == "__main__":

@@ -83,8 +83,7 @@ class MockDomeController:
     async def write(self, st):
         """Write the string st appended with a newline character
         """
-        st = st + "\r\n"
-        self._writer.write(st.encode())
+        self._writer.write(st.encode() + b"\r\n")
         self.log.info(st)
         await self._writer.drain()
 
@@ -95,13 +94,14 @@ class MockDomeController:
         await self.status()
         while True:
             print_ok = True
-            line = await reader.readuntil("\r\n".encode())
+            line = await reader.readuntil(b"\r\n")
             line = line.decode().strip()
             self.log.info(f"read command line: {line!r}")
             timeout = 20
             if line:
                 try:
                     outputs = None
+                    # demarshall the line into a dict of Python objects.
                     items = yaml.safe_load(line)
                     cmd = next(iter(items))
                     if cmd not in self.dispatch_dict:
