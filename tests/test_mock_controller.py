@@ -20,7 +20,7 @@ class MockTestCase(asynctest.TestCase):
         rw_coro = asyncio.open_connection(host="127.0.0.1", port=self.port)
         self.reader, self.writer = await asyncio.wait_for(rw_coro, timeout=1)
         self.data = await self.read()
-        self.assertComponent("AMCS", status="Stopped", positionActual=0)
+        self.assertReply("AMCS", status="Stopped", positionActual=0)
         self.assertTBD("ApCS")
         self.assertTBD("LCS")
         self.assertTBD("LWCS")
@@ -41,11 +41,7 @@ class MockTestCase(asynctest.TestCase):
         self.writer.write(st.encode() + b"\r\n")
         await self.writer.drain()
 
-    def assertOK(self, timeout):
-        self.assertIn("OK", self.data)
-        self.assertEqual(self.data["OK"]["Timeout"], timeout)
-
-    def assertComponent(self, component, **kwargs):
+    def assertReply(self, component, **kwargs):
         """Asserts that the values of the component parameter data are as expected
         """
         self.assertIn(component, self.data)
@@ -54,6 +50,8 @@ class MockTestCase(asynctest.TestCase):
 
     def assertTBD(self, component):
         """Asserts that the values of the component parameter data are "TBD"
+        This method will eventually disappear once the statuses of the other components contain meaningful
+        values.
         """
         self.assertIn(component, self.data)
         self.assertEqual(self.data[component], "TBD")
@@ -64,10 +62,20 @@ class MockTestCase(asynctest.TestCase):
         if self.writer:
             self.writer.close()
 
+    async def test_command_does_not_exist(self):
+        await self.write("non-existent_command:\n")
+        self.data = await self.read()
+        self.assertReply("ERROR", CODE=2)
+
+    async def test_missing_command_parameter(self):
+        await self.write("moveAz:\n")
+        self.data = await self.read()
+        self.assertReply("ERROR", CODE=3)
+
     async def test_status(self):
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertComponent("AMCS", status="Stopped", positionActual=0)
+        self.assertReply("AMCS", status="Stopped", positionActual=0)
         self.assertTBD("ApCS")
         self.assertTBD("LCS")
         self.assertTBD("LWCS")
@@ -77,34 +85,30 @@ class MockTestCase(asynctest.TestCase):
     async def test_moveAz(self):
         await self.write("moveAz:\n position: 10\n")
         self.data = await self.read()
-        self.assertOK(20)
+        self.assertReply("OK", Timeout=20)
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertComponent("AMCS", status="Moving to position 10.0", positionActual=5)
+        self.assertReply("AMCS", status="Moving to position 10.0", positionActual=5)
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertComponent(
-            "AMCS", status="Moving to position 10.0", positionActual=10
-        )
+        self.assertReply("AMCS", status="Moving to position 10.0", positionActual=10)
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertComponent("AMCS", status="Stopped", positionActual=10)
+        self.assertReply("AMCS", status="Stopped", positionActual=10)
 
     async def test_stopAz(self):
         await self.write("moveAz:\n position: 10\n")
         self.data = await self.read()
-        self.assertOK(20)
+        self.assertReply("OK", Timeout=20)
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertComponent("AMCS", status="Moving to position 10.0", positionActual=5)
-
+        self.assertReply("AMCS", status="Moving to position 10.0", positionActual=5)
         await self.write("stopAz:\n")
         self.data = await self.read()
-        self.assertOK(2)
-
+        self.assertReply("OK", Timeout=2)
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertComponent("AMCS", status="Stopped", positionActual=5)
+        self.assertReply("AMCS", status="Stopped", positionActual=5)
 
 
 if __name__ == "__main__":
