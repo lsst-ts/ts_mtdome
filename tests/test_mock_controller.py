@@ -43,9 +43,7 @@ class MockTestCase(asynctest.TestCase):
 
     def assertOK(self, timeout):
         self.assertIn("OK", self.data)
-        self.assertEqual(self.data["OK"], None)
-        self.assertIn("Timeout", self.data)
-        self.assertEqual(self.data["Timeout"], timeout)
+        self.assertEqual(self.data["OK"]["Timeout"], timeout)
 
     def assertComponent(self, component, **kwargs):
         """Asserts that the values of the component parameter data are as expected

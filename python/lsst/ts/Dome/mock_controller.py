@@ -133,7 +133,7 @@ class MockDomeController:
                     await self.write("ERROR:\n CODE: 3\n")
                     print_ok = False
             if print_ok:
-                await self.write(f"OK:\nTimeout: {timeout}\n")
+                await self.write(f"OK:\n Timeout: {timeout}\n")
 
     async def status(self):
         self.log.info("Received command 'status'")
