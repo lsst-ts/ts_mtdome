@@ -63,7 +63,7 @@ class MockDomeController:
 
         Parameters
         ----------
-        keep_running : boolean
+        keep_running : bool
             Used for command line testing and should generally be left to False.
         """
         self.log.info("Start called")
