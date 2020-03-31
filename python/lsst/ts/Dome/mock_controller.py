@@ -56,16 +56,22 @@ class MockDomeController:
         self.az_motion_position = 0
         self.az_motion = "Stopped"
 
-    async def start(self):
+    async def start(self, keep_running=False):
         """Start the TCP/IP server.
 
-        Set start_task done and start the command loop.
+        Start the command loop and make sure to keep running when instructed to do so.
+
+        Parameters
+        ----------
+        keep_running : bool
+            Used for command line testing and should generally be left to False.
         """
-        self.log.info("start called")
+        self.log.info("Start called")
         self._server = await asyncio.start_server(
             self.cmd_loop, host="127.0.0.1", port=self.port
         )
-        await self._server.serve_forever()
+        if keep_running:
+            await self._server.serve_forever()
 
     async def stop(self):
         """Stop the TCP/IP server.
@@ -75,9 +81,9 @@ class MockDomeController:
 
         server = self._server
         self._server = None
-        self.log.info("closing server")
+        self.log.info("Closing server")
         server.close()
-        self.log.info("done closing")
+        self.log.info("Done closing")
 
     # noinspection PyMethodMayBeStatic
     async def write(self, st):
@@ -89,14 +95,14 @@ class MockDomeController:
 
     async def cmd_loop(self, reader, writer):
         """Execute commands and output replies."""
-        self.log.info("cmd_loop begins")
+        self.log.info("The cmd_loop begins")
         self._writer = writer
         await self.status()
         while True:
             print_ok = True
             line = await reader.readuntil(b"\r\n")
             line = line.decode().strip()
-            self.log.info(f"read command line: {line!r}")
+            self.log.info(f"Read command line: {line!r}")
             timeout = 20
             if line:
                 try:
@@ -104,6 +110,7 @@ class MockDomeController:
                     # demarshall the line into a dict of Python objects.
                     items = yaml.safe_load(line)
                     cmd = next(iter(items))
+                    self.log.info(f"Trying to execute cmd {cmd}")
                     if cmd not in self.dispatch_dict:
                         # CODE=2 in this case means "Unsupported command."
                         await self.write("ERROR:\n CODE: 2\n")
@@ -128,7 +135,7 @@ class MockDomeController:
                         for msg in outputs:
                             await self.write(msg)
                 except (KeyError, RuntimeError):
-                    self.log.exception(f"command '{line}' failed")
+                    self.log.exception(f"Command '{line}' failed")
                     # CODE=3 in this case means "Missing or incorrect parameter(s)."
                     await self.write("ERROR:\n CODE: 3\n")
                     print_ok = False
@@ -205,7 +212,7 @@ async def main():
     port = 5000
     mock_ctrl = MockDomeController(port=port)
     logging.info("main")
-    await mock_ctrl.start()
+    await mock_ctrl.start(keep_running=True)
 
 
 if __name__ == "__main__":

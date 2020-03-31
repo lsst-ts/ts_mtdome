@@ -1,8 +1,14 @@
-# import asyncio
+__all__ = ["DomeCsc"]
+
+import asyncio
+import logging
 import pathlib
 from lsst.ts import salobj
+from .mock_controller import MockDomeController
 
-__all__ = ["DomeCsc"]
+logging.basicConfig(level=logging.INFO)
+
+_LOCAL_HOST = "127.0.0.1"
 
 
 class DomeCsc(salobj.ConfigurableCsc):
@@ -11,7 +17,11 @@ class DomeCsc(salobj.ConfigurableCsc):
     """
 
     def __init__(
-        self, config_dir=None, initial_state=salobj.State.STANDBY, simulation_mode=0,
+        self,
+        config_dir=None,
+        initial_state=salobj.State.STANDBY,
+        simulation_mode=0,
+        mock_port=None,
     ):
         schema_path = (
             pathlib.Path(__file__).resolve().parents[4].joinpath("schema", "Dome.yaml")
@@ -21,11 +31,8 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.writer = None
         self.config = None
 
-        # Tasks that are run to execute specific functionality.
-        self.status_task = salobj.make_done_future()
-        self.connect_task = salobj.make_done_future()
-
         self.mock_ctrl = None  # mock controller, or None if not constructed
+        self.mock_port = mock_port  # mock port, or None if not used
         super().__init__(
             name="Dome",
             index=0,
@@ -34,6 +41,89 @@ class DomeCsc(salobj.ConfigurableCsc):
             initial_state=initial_state,
             simulation_mode=simulation_mode,
         )
+        self.log.info("__init__")
+
+    async def connect(self):
+        """Connect to the dome controller's TCP/IP port.
+
+        Start the mock controller, if simulating.
+        """
+        self.log.info("connect")
+        self.log.info(self.config)
+        self.log.info(f"self.simulation_mode = {self.simulation_mode}")
+        if self.config is None:
+            raise RuntimeError("Not yet configured")
+        if self.connected:
+            raise RuntimeError("Already connected")
+        if self.simulation_mode == 1:
+            await self.start_mock_ctrl()
+            host = _LOCAL_HOST
+        else:
+            host = self.config.host
+        if self.simulation_mode != 0:
+            if self.mock_ctrl is None:
+                raise RuntimeError("In simulation mode but no mock controller found.")
+            port = self.mock_ctrl.port
+        else:
+            port = self.config.port
+        connect_coro = asyncio.open_connection(host=host, port=port)
+        self.reader, self.writer = await asyncio.wait_for(
+            connect_coro, timeout=self.config.connection_timeout
+        )
+        self.log.info("connected")
+
+    async def disconnect(self):
+        """Disconnect from the TCP/IP controller, if connected, and stop
+        the mock controller, if running.
+        """
+        self.log.debug("disconnect")
+        writer = self.writer
+        self.reader = None
+        self.writer = None
+        if writer:
+            try:
+                writer.write_eof()
+                await asyncio.wait_for(writer.drain(), timeout=2)
+            finally:
+                writer.close()
+        await self.stop_mock_ctrl()
+
+    async def start_mock_ctrl(self):
+        """Start the mock controller.
+
+        The simulation mode must be 1.
+        """
+        self.log.info("start_mock_ctrl")
+        try:
+            assert self.simulation_mode == 1
+            if self.mock_port is not None:
+                port = self.mock_port
+            else:
+                port = self.config.port
+            self.mock_ctrl = MockDomeController(port)
+            await asyncio.wait_for(self.mock_ctrl.start(), timeout=2)
+        except Exception as e:
+            err_msg = "Could not start mock controller"
+            self.log.exception(e)
+            self.fault(code=3, report=f"{err_msg}: {e}")
+            raise
+
+    async def stop_mock_ctrl(self):
+        """Stop the mock controller, if running.
+        """
+        self.log.info("stop_mock_ctrl")
+        mock_ctrl = self.mock_ctrl
+        self.mock_ctrl = None
+        if mock_ctrl:
+            await mock_ctrl.stop()
+
+    async def handle_summary_state(self):
+        self.log.info("handle_summary_state")
+        if self.disabled_or_enabled:
+            if not self.connected:
+                await self.connect()
+        else:
+            await self.disconnect()
 
     async def do_moveAz(self, data):
         """ Move AZ
@@ -157,12 +247,6 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
-
-    async def disconnect(self):
-        pass
-
-    async def connect(self):
-        pass
 
     async def close_tasks(self):
         """Disconnect from the TCP/IP controller, if connected, and stop
