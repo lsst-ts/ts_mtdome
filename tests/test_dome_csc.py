@@ -4,6 +4,8 @@ import unittest
 from lsst.ts import salobj
 from lsst.ts import Dome
 
+STD_TIMEOUT = 2  # standard command timeout (sec)
+
 
 class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
     def basic_make_csc(self, initial_state, config_dir, simulation_mode):
@@ -42,16 +44,46 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             )
 
     async def test_do_moveAz(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            desired_azimuth = 40
+            await self.remote.cmd_moveAz.set_start(
+                azimuth=desired_azimuth, timeout=STD_TIMEOUT
+            )
 
     async def test_do_moveEl(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            desired_elevation = 40
+            await self.remote.cmd_moveEl.set_start(
+                elevation=desired_elevation, timeout=STD_TIMEOUT
+            )
 
     async def test_do_stopAz(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.remote.cmd_stopAz.set_start()
 
     async def test_do_stopEl(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.remote.cmd_stopEl.set_start()
 
     async def test_do_stop(self):
         raise unittest.SkipTest("Not implemented")

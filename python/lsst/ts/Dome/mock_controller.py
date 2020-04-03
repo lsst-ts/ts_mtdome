@@ -52,9 +52,13 @@ class MockDomeController:
         # or None if no failures. Used to test CSC handling of failed commands.
         self.fail_command = None
 
+        # Variables to hold the status of the lower level components.
         self.az_current_position = 0
         self.az_motion_position = 0
         self.az_motion = "Stopped"
+        self.el_current_position = 0
+        self.el_motion_position = 0
+        self.el_motion = "Stopped"
 
     async def start(self, keep_running=False):
         """Start the TCP/IP server.
@@ -85,7 +89,6 @@ class MockDomeController:
         server.close()
         self.log.info("Done closing")
 
-    # noinspection PyMethodMayBeStatic
     async def write(self, st):
         """Write the string st appended with a newline character
         """
@@ -125,11 +128,10 @@ class MockDomeController:
                         if args is not None:
                             for arg in args:
                                 kwargs[arg] = args[arg]
-                        print(f"{cmd} : {kwargs}")
                         outputs = await func(**kwargs)
                         if cmd == "status" or cmd == "quit":
                             print_ok = False
-                        if cmd == "stopAz":
+                        if cmd == "stopAz" or cmd == "stopEl":
                             timeout = 2
                     if outputs:
                         for msg in outputs:
@@ -144,7 +146,26 @@ class MockDomeController:
 
     async def status(self):
         self.log.info("Received command 'status'")
+        amcs_state = self.determine_az_state()
+        apcs_state = self.determine_el_state()
+        lcs_state = "TBD"
+        lwcs_state = "TBD"
+        thcs_state = "TBD"
+        moncs_state = "TBD"
+        reply = {
+            "AMCS": amcs_state,
+            "ApCS": apcs_state,
+            "LCS": lcs_state,
+            "LWCS": lwcs_state,
+            "ThCS": thcs_state,
+            "MonCS": moncs_state,
+        }
+        data = yaml.safe_dump(reply, default_flow_style=None)
+        await self.write("OK:\n" + data)
+
+    def determine_az_state(self):
         az_motion = "Stopped"
+        self.log.info(f"self.az_motion = {self.az_motion}")
         if self.az_motion != "Stopped":
             az_motion = self.az_motion + " to position " + str(self.az_motion_position)
             if self.az_current_position < self.az_motion_position:
@@ -172,21 +193,38 @@ class MockDomeController:
             "resolverRaw": [0.0, 0.0, 0.0, 0.0, 0.0],
             "resolverCalibrated": [0.0, 0.0, 0.0, 0.0, 0.0],
         }
-        apcs_state = "TBD"
-        lcs_state = "TBD"
-        lwcs_state = "TBD"
-        thcs_state = "TBD"
-        moncs_state = "TBD"
-        reply = {
-            "AMCS": amcs_state,
-            "ApCS": apcs_state,
-            "LCS": lcs_state,
-            "LWCS": lwcs_state,
-            "ThCS": thcs_state,
-            "MonCS": moncs_state,
+        return amcs_state
+
+    def determine_el_state(self):
+        el_motion = "Stopped"
+        self.log.info(f"self.el_motion = {self.el_motion}")
+        if self.el_motion != "Stopped":
+            el_motion = self.el_motion + " to position " + str(self.el_motion_position)
+            if self.el_current_position < self.el_motion_position:
+                self.el_current_position = self.el_current_position + 5
+                if self.el_current_position >= self.el_motion_position:
+                    self.el_current_position = self.el_motion_position
+                    self.el_motion = "Stopped"
+            else:
+                self.el_current_position = self.el_current_position - 5
+                if self.el_current_position <= self.el_motion_position:
+                    self.el_current_position = self.el_motion_position
+                    self.el_motion = "Stopped"
+        apcs_state = {
+            "status": el_motion,
+            "positionError": 0.0,
+            "positionActual": self.el_current_position,
+            "positionCmd": 0.0,
+            "driveTorqueActual": [0.0, 0.0, 0.0, 0.0],
+            "driveTorqueError": [0.0, 0.0, 0.0, 0.0],
+            "driveTorqueCmd": [0.0, 0.0, 0.0, 0.0],
+            "driveCurrentActual": [0.0, 0.0, 0.0, 0.0],
+            "driveTempActual": [20.0, 20.0, 20.0, 20.0],
+            "resolverHeadRaw": [0.0, 0.0, 0.0, 0.0],
+            "resolverHeadCalibrated": [0.0, 0.0, 0.0, 0.0],
+            "powerAbsortion": 0.0,
         }
-        data = yaml.safe_dump(reply, default_flow_style=None)
-        await self.write("OK:\n" + data)
+        return apcs_state
 
     async def move_az(self, **kwargs):
         self.log.info(f"Received command 'moveAz' with arguments {kwargs}")
@@ -195,6 +233,8 @@ class MockDomeController:
 
     async def move_el(self, **kwargs):
         self.log.info(f"Received command 'moveEl' with arguments {kwargs}")
+        self.el_motion_position = float(kwargs["position"])
+        self.el_motion = "Moving"
 
     async def stop_az(self):
         self.log.info("Received command 'stopAz'")
@@ -202,6 +242,7 @@ class MockDomeController:
 
     async def stop_el(self):
         self.log.info("Received command 'stopEl'")
+        self.el_motion = "Stopped"
 
     async def quit(self):
         self.log.info("Received command 'quit'")
