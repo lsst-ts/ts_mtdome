@@ -21,7 +21,7 @@ class MockTestCase(asynctest.TestCase):
         self.reader, self.writer = await asyncio.wait_for(rw_coro, timeout=1)
         self.data = await self.read()
         self.assertReply("AMCS", status="Stopped", positionActual=0)
-        self.assertTBD("ApCS")
+        self.assertReply("ApCS", status="Stopped", positionActual=0)
         self.assertTBD("LCS")
         self.assertTBD("LWCS")
         self.assertTBD("ThCS")
@@ -76,7 +76,7 @@ class MockTestCase(asynctest.TestCase):
         await self.write("status:\n")
         self.data = await self.read()
         self.assertReply("AMCS", status="Stopped", positionActual=0)
-        self.assertTBD("ApCS")
+        self.assertReply("ApCS", status="Stopped", positionActual=0)
         self.assertTBD("LCS")
         self.assertTBD("LWCS")
         self.assertTBD("ThCS")
@@ -109,6 +109,34 @@ class MockTestCase(asynctest.TestCase):
         await self.write("status:\n")
         self.data = await self.read()
         self.assertReply("AMCS", status="Stopped", positionActual=5)
+
+    async def test_moveEl(self):
+        await self.write("moveEl:\n position: 10\n")
+        self.data = await self.read()
+        self.assertReply("OK", Timeout=20)
+        await self.write("status:\n")
+        self.data = await self.read()
+        self.assertReply("ApCS", status="Moving to position 10.0", positionActual=5)
+        await self.write("status:\n")
+        self.data = await self.read()
+        self.assertReply("ApCS", status="Moving to position 10.0", positionActual=10)
+        await self.write("status:\n")
+        self.data = await self.read()
+        self.assertReply("ApCS", status="Stopped", positionActual=10)
+
+    async def test_stopEl(self):
+        await self.write("moveEl:\n position: 10\n")
+        self.data = await self.read()
+        self.assertReply("OK", Timeout=20)
+        await self.write("status:\n")
+        self.data = await self.read()
+        self.assertReply("ApCS", status="Moving to position 10.0", positionActual=5)
+        await self.write("stopEl:\n")
+        self.data = await self.read()
+        self.assertReply("OK", Timeout=2)
+        await self.write("status:\n")
+        self.data = await self.read()
+        self.assertReply("ApCS", status="Stopped", positionActual=5)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ __all__ = ["DomeCsc"]
 import asyncio
 import logging
 import pathlib
+import yaml
 from lsst.ts import salobj
 from .mock_controller import MockDomeController
 
@@ -125,29 +126,43 @@ class DomeCsc(salobj.ConfigurableCsc):
         else:
             await self.disconnect()
 
+    async def write(self, cmd):
+        """Write the string st appended with a newline character
+        """
+        st = yaml.safe_dump(cmd, default_flow_style=None)
+        self.writer.write(st.encode() + b"\r\n")
+        self.log.info(st)
+        await self.writer.drain()
+
     async def do_moveAz(self, data):
         """ Move AZ
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"moveAz": {"position": data.azimuth}}
+        self.log.info(f"Moving Dome to position {data.azimuth}")
+        await self.write(cmd)
 
     async def do_moveEl(self, data):
         """ Move El
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"moveEl": {"position": data.elevation}}
+        self.log.info(f"Moving LWS to elevation {data.elevation}")
+        await self.write(cmd)
 
     async def do_stopAz(self, data):
         """ Stop AZ
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"stopAz": {}}
+        await self.write(cmd)
 
     async def do_stopEl(self, data):
         """ Stop El
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"stopEl": {}}
+        await self.write(cmd)
 
     async def do_stop(self, data):
         """ Stop
