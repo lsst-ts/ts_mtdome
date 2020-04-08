@@ -9,8 +9,12 @@ log = logging.getLogger("TaskScheduler")
 async def schedule_task_periodically(period, task):
     """Schedules a task periodically with no drift.
 
-    :param period: The period in (decimal) seconds at which to schedule the function.
-    :param task: The function to be scheduled periodically.
+    Parameters
+    ----------
+    period: int
+        The period in (decimal) seconds at which to schedule the function.
+    task: coroutine
+        The function to be scheduled periodically.
     """
     loop = asyncio.get_event_loop()
     log.info(f"run_status_loop = {run_status_loop}")

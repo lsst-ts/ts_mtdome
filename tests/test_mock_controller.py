@@ -30,14 +30,23 @@ class MockTestCase(asynctest.TestCase):
 
     async def read(self):
         """Utility function to read a string from the reader and unmarshal it
-        :return: A dictionary with objects representing the string read.
+
+        Returns
+        -------
+        data: `dictionary`
+            A dictionary with objects representing the string read.
         """
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
         data = yaml.safe_load(read_bytes.decode())
         return data
 
     async def write(self, st):
-        """Utility function to write a string to the writer
+        """Utility function to write a string to the writer.
+
+        Parameters
+        ----------
+        st: `string`
+            The string to write.
         """
         self.writer.write(st.encode() + b"\r\n")
         await self.writer.drain()
