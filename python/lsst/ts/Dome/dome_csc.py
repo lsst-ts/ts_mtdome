@@ -6,6 +6,7 @@ import pathlib
 import yaml
 from lsst.ts import salobj
 from .mock_controller import MockDomeController
+from lsst.ts.Dome import task_scheduler
 
 logging.basicConfig(level=logging.INFO)
 
@@ -13,8 +14,18 @@ _LOCAL_HOST = "127.0.0.1"
 
 
 class DomeCsc(salobj.ConfigurableCsc):
-    """
-    Upper level Commandable SAL Component to interface with the LSST Dome lower level components.
+    """Upper level Commandable SAL Component to interface with the LSST Dome lower level components.
+
+    Parameters
+    ----------
+    config_dir: `string`
+        The configuration directory
+    initial_state: `salobj.State`
+        The initial state of the CSC
+    simulation_mode: `int`
+        Simulation mode (1) or not (0)
+    mock_port: `int`
+        The port that the mock controller will listen on
     """
 
     def __init__(
@@ -32,6 +43,8 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.writer = None
         self.config = None
 
+        self.log = logging.getLogger("DomeCsc")
+
         self.mock_ctrl = None  # mock controller, or None if not constructed
         self.mock_port = mock_port  # mock port, or None if not used
         super().__init__(
@@ -42,6 +55,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             initial_state=initial_state,
             simulation_mode=simulation_mode,
         )
+
+        self.lower_level_status = None
+
         self.log.info("__init__")
 
     async def connect(self):
@@ -71,13 +87,21 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.reader, self.writer = await asyncio.wait_for(
             connect_coro, timeout=self.config.connection_timeout
         )
+
+        # Start polling for the status of the lower level components periodically.
+        # task_scheduler.run_status_loop = True
+        await task_scheduler.schedule_task_periodically(1, self.status)
+
         self.log.info("connected")
 
     async def disconnect(self):
-        """Disconnect from the TCP/IP controller, if connected, and stop
-        the mock controller, if running.
+        """Disconnect from the TCP/IP controller, if connected, and stop the mock controller, if running.
         """
         self.log.debug("disconnect")
+
+        # Stop polling for the status of the lower level components periodically.
+        task_scheduler.run_status_loop = False
+
         writer = self.writer
         self.reader = None
         self.writer = None
@@ -119,149 +143,256 @@ class DomeCsc(salobj.ConfigurableCsc):
             await mock_ctrl.stop()
 
     async def handle_summary_state(self):
+        """Override of the handle_summary_state function to connect or disconnect to the lower level components (or
+        the mock_controller) when needed.
+        """
         self.log.info("handle_summary_state")
+        # TODO It should be possible to always connect and not just in DISABLED or ENABLED state.
         if self.disabled_or_enabled:
             if not self.connected:
                 await self.connect()
         else:
             await self.disconnect()
 
+    async def read(self):
+        """Utility function to read a string from the reader and unmarshal it.
+
+        Returns
+        -------
+        data: `dictionary`
+            A dictionary with objects representing the string read.
+        """
+        read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
+        data = yaml.safe_load(read_bytes.decode())
+        return data
+
     async def write(self, cmd):
-        """Write the string st appended with a newline character
+        """Write the string st appended with a newline character.
         """
         st = yaml.safe_dump(cmd, default_flow_style=None)
         self.writer.write(st.encode() + b"\r\n")
         self.log.info(st)
         await self.writer.drain()
 
-    async def do_moveAz(self, data):
-        """ Move AZ
+    async def do_moveAz(self, _data):
+        """Move AZ.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"moveAz": {"position": data.azimuth}}
-        self.log.info(f"Moving Dome to position {data.azimuth}")
+        cmd = {"moveAz": {"azimuth": _data.azimuth}}
+        self.log.info(f"Moving Dome to azimuth {_data.azimuth}")
         await self.write(cmd)
 
-    async def do_moveEl(self, data):
-        """ Move El
+    async def do_moveEl(self, _data):
+        """Move El.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"moveEl": {"position": data.elevation}}
-        self.log.info(f"Moving LWS to elevation {data.elevation}")
+        cmd = {"moveEl": {"elevation": _data.elevation}}
+        self.log.info(f"Moving LWS to elevation {_data.elevation}")
         await self.write(cmd)
 
-    async def do_stopAz(self, data):
-        """ Stop AZ
+    async def do_stopAz(self, _data):
+        """Stop AZ.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         cmd = {"stopAz": {}}
         await self.write(cmd)
 
-    async def do_stopEl(self, data):
-        """ Stop El
+    async def do_stopEl(self, _data):
+        """Stop El.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         cmd = {"stopEl": {}}
         await self.write(cmd)
 
-    async def do_stop(self, data):
-        """ Stop
+    async def do_stop(self, _data):
+        """Stop.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_crawlAz(self, data):
-        """ Crawl AZ
+    async def do_crawlAz(self, _data):
+        """Crawl AZ.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_crawlEl(self, data):
-        """ Crawl El
+    async def do_crawlEl(self, _data):
+        """Crawl El.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_setLouver(self, data):
-        """ Set Louver
+    async def do_setLouver(self, _data):
+        """Set Louver.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_closeLouvers(self, data):
-        """ Close Louvers
+    async def do_closeLouvers(self, _data):
+        """Close Louvers.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_stopLouvers(self, data):
-        """ Stop Louvers
+    async def do_stopLouvers(self, _data):
+        """Stop Louvers.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_openShutter(self, data):
-        """ Open Shutter
+    async def do_openShutter(self, _data):
+        """Open Shutter.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_closeShutter(self, data):
-        """ Close Shutter
+    async def do_closeShutter(self, _data):
+        """Close Shutter.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_stopShutter(self, data):
-        """ Stop Shutter
+    async def do_stopShutter(self, _data):
+        """Stop Shutter.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_park(self, data):
-        """ Park
+    async def do_park(self, _data):
+        """Park.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_setTemperature(self, data):
-        """ Set Temperature
+    async def do_setTemperature(self, _data):
+        """Set Temperature.
+
+        Parameters
+        ----------
+        _data: `A SALOBJ data object`
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def config(self, data):
-        """ Config command not to be executed by SAL
+    async def config(self, _data):
+        """Config command not to be executed by SAL.
 
         This command will be used to send the values of one or more parameters to configure the lower level
         components.
+
+        Parameters
+        ----------
+        _data: `TBD`
+            The contents of this parameter will be defined soon.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def fans(self, data):
-        """ Fans command not to be executed by SAL
+    async def fans(self, _data):
+        """Fans command not to be executed by SAL.
 
         This command will be used to switch on or off the fans in the dome.
+
+        Parameters
+        ----------
+        _data: `TBD`
+            The contents of this parameter will be defined soon.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def inflate(self, data):
-        """ Inflate command not to be executed by SAL
+    async def inflate(self, _data):
+        """Inflate command not to be executed by SAL.
 
         This command will be used to inflate or deflate the inflatable seal.
+
+        Parameters
+        ----------
+        _data: `TBD`
+            The contents of this parameter will be defined soon.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def status(self, data):
-        """ Status command not to be executed by SAL
+    async def status(self):
+        """Status command not to be executed by SAL.
 
         This command will be used to request the full status of all lower level components.
         """
-        self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"status": {}}
+        await self.write(cmd)
+        self.lower_level_status = await self.read()
 
     async def close_tasks(self):
         """Disconnect from the TCP/IP controller, if connected, and stop
