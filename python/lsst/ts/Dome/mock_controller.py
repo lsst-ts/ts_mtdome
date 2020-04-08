@@ -53,11 +53,11 @@ class MockDomeController:
         self.fail_command = None
 
         # Variables to hold the status of the lower level components.
-        self.az_current_position = 0
-        self.az_motion_position = 0
+        self.az_current_azimuth = 0
+        self.az_motion_azimuth = 0
         self.az_motion = "Stopped"
-        self.el_current_position = 0
-        self.el_motion_position = 0
+        self.el_current_elevation = 0
+        self.el_motion_elevation = 0
         self.el_motion = "Stopped"
 
     async def start(self, keep_running=False):
@@ -167,21 +167,21 @@ class MockDomeController:
         az_motion = "Stopped"
         self.log.info(f"self.az_motion = {self.az_motion}")
         if self.az_motion != "Stopped":
-            az_motion = self.az_motion + " to position " + str(self.az_motion_position)
-            if self.az_current_position < self.az_motion_position:
-                self.az_current_position = self.az_current_position + 5
-                if self.az_current_position >= self.az_motion_position:
-                    self.az_current_position = self.az_motion_position
+            az_motion = self.az_motion + " to azimuth " + str(self.az_motion_azimuth)
+            if self.az_current_azimuth < self.az_motion_azimuth:
+                self.az_current_azimuth = self.az_current_azimuth + 5
+                if self.az_current_azimuth >= self.az_motion_azimuth:
+                    self.az_current_azimuth = self.az_motion_azimuth
                     self.az_motion = "Stopped"
             else:
-                self.az_current_position = self.az_current_position - 5
-                if self.az_current_position <= self.az_motion_position:
-                    self.az_current_position = self.az_motion_position
+                self.az_current_azimuth = self.az_current_azimuth - 5
+                if self.az_current_azimuth <= self.az_motion_azimuth:
+                    self.az_current_azimuth = self.az_motion_azimuth
                     self.az_motion = "Stopped"
         amcs_state = {
             "status": az_motion,
             "positionError": 0.0,
-            "positionActual": self.az_current_position,
+            "positionActual": self.az_current_azimuth,
             "positionCmd": 0.0,
             "driveTorqueActual": [0.0, 0.0, 0.0, 0.0, 0.0],
             "driveTorqueError": [0.0, 0.0, 0.0, 0.0, 0.0],
@@ -199,21 +199,23 @@ class MockDomeController:
         el_motion = "Stopped"
         self.log.info(f"self.el_motion = {self.el_motion}")
         if self.el_motion != "Stopped":
-            el_motion = self.el_motion + " to position " + str(self.el_motion_position)
-            if self.el_current_position < self.el_motion_position:
-                self.el_current_position = self.el_current_position + 5
-                if self.el_current_position >= self.el_motion_position:
-                    self.el_current_position = self.el_motion_position
+            el_motion = (
+                self.el_motion + " to elevation " + str(self.el_motion_elevation)
+            )
+            if self.el_current_elevation < self.el_motion_elevation:
+                self.el_current_elevation = self.el_current_elevation + 5
+                if self.el_current_elevation >= self.el_motion_elevation:
+                    self.el_current_elevation = self.el_motion_elevation
                     self.el_motion = "Stopped"
             else:
-                self.el_current_position = self.el_current_position - 5
-                if self.el_current_position <= self.el_motion_position:
-                    self.el_current_position = self.el_motion_position
+                self.el_current_elevation = self.el_current_elevation - 5
+                if self.el_current_elevation <= self.el_motion_elevation:
+                    self.el_current_elevation = self.el_motion_elevation
                     self.el_motion = "Stopped"
         apcs_state = {
             "status": el_motion,
             "positionError": 0.0,
-            "positionActual": self.el_current_position,
+            "positionActual": self.el_current_elevation,
             "positionCmd": 0.0,
             "driveTorqueActual": [0.0, 0.0, 0.0, 0.0],
             "driveTorqueError": [0.0, 0.0, 0.0, 0.0],
@@ -228,12 +230,12 @@ class MockDomeController:
 
     async def move_az(self, **kwargs):
         self.log.info(f"Received command 'moveAz' with arguments {kwargs}")
-        self.az_motion_position = float(kwargs["position"])
+        self.az_motion_azimuth = float(kwargs["azimuth"])
         self.az_motion = "Moving"
 
     async def move_el(self, **kwargs):
         self.log.info(f"Received command 'moveEl' with arguments {kwargs}")
-        self.el_motion_position = float(kwargs["position"])
+        self.el_motion_elevation = float(kwargs["elevation"])
         self.el_motion = "Moving"
 
     async def stop_az(self):

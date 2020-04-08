@@ -1,6 +1,7 @@
 import asynctest
-
+import status_assert_util as sau
 import unittest
+
 from lsst.ts import salobj
 from lsst.ts import Dome
 
@@ -128,7 +129,25 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
         raise unittest.SkipTest("Not implemented")
 
     async def test_status(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            # It should be possible to always execute the status command but the connection with the lower level
+            # components only gets made in DISABLED and ENABLED state so that's why the state gets set to ENABLED here.
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.csc.status()
+            sau.assertReply(
+                "AMCS", self.csc.lower_level_status, status="Stopped", positionActual=0
+            )
+            sau.assertReply(
+                "ApCS", self.csc.lower_level_status, status="Stopped", positionActual=0
+            )
+            sau.assertTBD("LCS", self.csc.lower_level_status)
+            sau.assertTBD("LWCS", self.csc.lower_level_status)
+            sau.assertTBD("ThCS", self.csc.lower_level_status)
+            sau.assertTBD("MonCS", self.csc.lower_level_status)
 
     async def test_bin_script(self):
         await self.check_bin_script(name="Dome", index=None, exe_name="run_dome.py")

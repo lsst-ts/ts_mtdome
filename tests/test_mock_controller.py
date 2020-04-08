@@ -1,5 +1,6 @@
 import asyncio
 import asynctest
+import status_assert_util as sau
 import yaml
 
 from lsst.ts import Dome
@@ -20,12 +21,12 @@ class MockTestCase(asynctest.TestCase):
         rw_coro = asyncio.open_connection(host="127.0.0.1", port=self.port)
         self.reader, self.writer = await asyncio.wait_for(rw_coro, timeout=1)
         self.data = await self.read()
-        self.assertReply("AMCS", status="Stopped", positionActual=0)
-        self.assertReply("ApCS", status="Stopped", positionActual=0)
-        self.assertTBD("LCS")
-        self.assertTBD("LWCS")
-        self.assertTBD("ThCS")
-        self.assertTBD("MonCS")
+        sau.assertReply("AMCS", self.data, status="Stopped", positionActual=0)
+        sau.assertReply("ApCS", self.data, status="Stopped", positionActual=0)
+        sau.assertTBD("LCS", self.data)
+        sau.assertTBD("LWCS", self.data)
+        sau.assertTBD("ThCS", self.data)
+        sau.assertTBD("MonCS", self.data)
 
     async def read(self):
         """Utility function to read a string from the reader and unmarshal it
@@ -41,21 +42,6 @@ class MockTestCase(asynctest.TestCase):
         self.writer.write(st.encode() + b"\r\n")
         await self.writer.drain()
 
-    def assertReply(self, component, **kwargs):
-        """Asserts that the values of the component parameter data are as expected
-        """
-        self.assertIn(component, self.data)
-        for key in kwargs.keys():
-            self.assertEqual(self.data[component][key], kwargs[key])
-
-    def assertTBD(self, component):
-        """Asserts that the values of the component parameter data are "TBD"
-        This method will eventually disappear once the statuses of the other components contain meaningful
-        values.
-        """
-        self.assertIn(component, self.data)
-        self.assertEqual(self.data[component], "TBD")
-
     async def tearDown(self):
         if self.mock_ctrl:
             await asyncio.wait_for(self.mock_ctrl.quit(), 5)
@@ -65,78 +51,90 @@ class MockTestCase(asynctest.TestCase):
     async def test_command_does_not_exist(self):
         await self.write("non-existent_command:\n")
         self.data = await self.read()
-        self.assertReply("ERROR", CODE=2)
+        sau.assertReply("ERROR", self.data, CODE=2)
 
     async def test_missing_command_parameter(self):
         await self.write("moveAz:\n")
         self.data = await self.read()
-        self.assertReply("ERROR", CODE=3)
+        sau.assertReply("ERROR", self.data, CODE=3)
 
     async def test_status(self):
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertReply("AMCS", status="Stopped", positionActual=0)
-        self.assertReply("ApCS", status="Stopped", positionActual=0)
-        self.assertTBD("LCS")
-        self.assertTBD("LWCS")
-        self.assertTBD("ThCS")
-        self.assertTBD("MonCS")
+        sau.assertReply("AMCS", self.data, status="Stopped", positionActual=0)
+        sau.assertReply("ApCS", self.data, status="Stopped", positionActual=0)
+        sau.assertTBD("LCS", self.data)
+        sau.assertTBD("LWCS", self.data)
+        sau.assertTBD("ThCS", self.data)
+        sau.assertTBD("MonCS", self.data)
 
     async def test_moveAz(self):
-        await self.write("moveAz:\n position: 10\n")
+        await self.write("moveAz:\n azimuth: 10\n")
         self.data = await self.read()
-        self.assertReply("OK", Timeout=20)
+        sau.assertReply("OK", self.data, Timeout=20)
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertReply("AMCS", status="Moving to position 10.0", positionActual=5)
+        sau.assertReply(
+            "AMCS", self.data, status="Moving to azimuth 10.0", positionActual=5
+        )
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertReply("AMCS", status="Moving to position 10.0", positionActual=10)
+        sau.assertReply(
+            "AMCS", self.data, status="Moving to azimuth 10.0", positionActual=10
+        )
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertReply("AMCS", status="Stopped", positionActual=10)
+        sau.assertReply("AMCS", self.data, status="Stopped", positionActual=10)
 
     async def test_stopAz(self):
-        await self.write("moveAz:\n position: 10\n")
+        await self.write("moveAz:\n azimuth: 10\n")
         self.data = await self.read()
-        self.assertReply("OK", Timeout=20)
+        sau.assertReply("OK", self.data, Timeout=20)
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertReply("AMCS", status="Moving to position 10.0", positionActual=5)
+        sau.assertReply(
+            "AMCS", self.data, status="Moving to azimuth 10.0", positionActual=5
+        )
         await self.write("stopAz:\n")
         self.data = await self.read()
-        self.assertReply("OK", Timeout=2)
+        sau.assertReply("OK", self.data, Timeout=2)
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertReply("AMCS", status="Stopped", positionActual=5)
+        sau.assertReply("AMCS", self.data, status="Stopped", positionActual=5)
 
     async def test_moveEl(self):
-        await self.write("moveEl:\n position: 10\n")
+        await self.write("moveEl:\n elevation: 10\n")
         self.data = await self.read()
-        self.assertReply("OK", Timeout=20)
+        sau.assertReply("OK", self.data, Timeout=20)
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertReply("ApCS", status="Moving to position 10.0", positionActual=5)
+        sau.assertReply(
+            "ApCS", self.data, status="Moving to elevation 10.0", positionActual=5
+        )
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertReply("ApCS", status="Moving to position 10.0", positionActual=10)
+        sau.assertReply(
+            "ApCS", self.data, status="Moving to elevation 10.0", positionActual=10
+        )
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertReply("ApCS", status="Stopped", positionActual=10)
+        sau.assertReply("ApCS", self.data, status="Stopped", positionActual=10)
 
     async def test_stopEl(self):
-        await self.write("moveEl:\n position: 10\n")
+        await self.write("moveEl:\n elevation: 10\n")
         self.data = await self.read()
-        self.assertReply("OK", Timeout=20)
+        sau.assertReply("OK", self.data, Timeout=20)
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertReply("ApCS", status="Moving to position 10.0", positionActual=5)
+        sau.assertReply(
+            "ApCS", self.data, status="Moving to elevation 10.0", positionActual=5
+        )
         await self.write("stopEl:\n")
         self.data = await self.read()
-        self.assertReply("OK", Timeout=2)
+        sau.assertReply("OK", self.data, Timeout=2)
         await self.write("status:\n")
         self.data = await self.read()
-        self.assertReply("ApCS", status="Stopped", positionActual=5)
+        sau.assertReply("ApCS", self.data, status="Stopped", positionActual=5)
 
 
 if __name__ == "__main__":
