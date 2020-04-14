@@ -1,13 +1,20 @@
 import asyncio
 import logging
+import time
 
 run_status_loop = True
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO
+)
 log = logging.getLogger("TaskScheduler")
 
 
 async def schedule_task_periodically(period, task):
     """Schedules a task periodically with no drift.
+
+    I rewrote this example a bit to make it work for me:
+
+    https://stackoverflow.com/a/48204092
 
     Parameters
     ----------
@@ -16,15 +23,14 @@ async def schedule_task_periodically(period, task):
     task: coroutine
         The function to be scheduled periodically.
     """
-    loop = asyncio.get_event_loop()
     log.info(f"run_status_loop = {run_status_loop}")
 
     def g_tick():
-        t = loop.time()
+        t = time.time()
         count = 0
         while run_status_loop:
             count += 1
-            yield max(t + count * period - loop.time(), 0)
+            yield max(t + count * period - time.time(), 0)
 
     g = g_tick()
 

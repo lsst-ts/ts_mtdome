@@ -20,13 +20,6 @@ class MockTestCase(asynctest.TestCase):
 
         rw_coro = asyncio.open_connection(host="127.0.0.1", port=self.port)
         self.reader, self.writer = await asyncio.wait_for(rw_coro, timeout=1)
-        self.data = await self.read()
-        sau.assertReply("AMCS", self.data, status="Stopped", positionActual=0)
-        sau.assertReply("ApCS", self.data, status="Stopped", positionActual=0)
-        sau.assertTBD("LCS", self.data)
-        sau.assertTBD("LWCS", self.data)
-        sau.assertTBD("ThCS", self.data)
-        sau.assertTBD("MonCS", self.data)
 
     async def read(self):
         """Utility function to read a string from the reader and unmarshal it

@@ -4,11 +4,14 @@ import asyncio
 import logging
 import pathlib
 import yaml
+from asyncio.streams import IncompleteReadError
 from lsst.ts import salobj
 from .mock_controller import MockDomeController
 from lsst.ts.Dome import task_scheduler
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO,
+)
 
 _LOCAL_HOST = "127.0.0.1"
 
@@ -47,6 +50,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         self.mock_ctrl = None  # mock controller, or None if not constructed
         self.mock_port = mock_port  # mock port, or None if not used
+        self.run_status_loop = True
         super().__init__(
             name="Dome",
             index=0,
@@ -89,15 +93,15 @@ class DomeCsc(salobj.ConfigurableCsc):
         )
 
         # Start polling for the status of the lower level components periodically.
-        # task_scheduler.run_status_loop = True
-        await task_scheduler.schedule_task_periodically(1, self.status)
+        task_scheduler.run_status_loop = self.run_status_loop
+        asyncio.ensure_future(task_scheduler.schedule_task_periodically(1, self.status))
 
         self.log.info("connected")
 
     async def disconnect(self):
         """Disconnect from the TCP/IP controller, if connected, and stop the mock controller, if running.
         """
-        self.log.debug("disconnect")
+        self.log.info("disconnect")
 
         # Stop polling for the status of the lower level components periodically.
         task_scheduler.run_status_loop = False
@@ -105,13 +109,16 @@ class DomeCsc(salobj.ConfigurableCsc):
         writer = self.writer
         self.reader = None
         self.writer = None
+        try:
+            await self.stop_mock_ctrl()
+        except IncompleteReadError:
+            pass
         if writer:
             try:
                 writer.write_eof()
                 await asyncio.wait_for(writer.drain(), timeout=2)
             finally:
                 writer.close()
-        await self.stop_mock_ctrl()
 
     async def start_mock_ctrl(self):
         """Start the mock controller.
@@ -143,8 +150,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             await mock_ctrl.stop()
 
     async def handle_summary_state(self):
-        """Override of the handle_summary_state function to connect or disconnect to the lower level components (or
-        the mock_controller) when needed.
+        """Override of the handle_summary_state function to connect or disconnect to the lower level
+        components (or the mock_controller) when needed.
         """
         self.log.info("handle_summary_state")
         # TODO It should be possible to always connect and not just in DISABLED or ENABLED state.
@@ -159,7 +166,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Returns
         -------
-        data: `dictionary`
+        data: `dict`
             A dictionary with objects representing the string read.
         """
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
@@ -393,6 +400,22 @@ class DomeCsc(salobj.ConfigurableCsc):
         cmd = {"status": {}}
         await self.write(cmd)
         self.lower_level_status = await self.read()
+        self.tel_domeADB_status.set_put(
+            positionError=self.lower_level_status["AMCS"]["positionError"],
+            positionActual=self.lower_level_status["AMCS"]["positionActual"],
+            positionCmd=self.lower_level_status["AMCS"]["positionCmd"],
+            driveTorqueActual=self.lower_level_status["AMCS"]["driveTorqueActual"],
+            driveTorqueError=self.lower_level_status["AMCS"]["driveTorqueError"],
+            driveTorqueCmd=self.lower_level_status["AMCS"]["driveTorqueCmd"],
+            driveCurrentActual=self.lower_level_status["AMCS"]["driveCurrentActual"],
+            driveTempActual=self.lower_level_status["AMCS"]["driveTempActual"],
+            encoderHeadRaw=self.lower_level_status["AMCS"]["encoderHeadRaw"],
+            encoderHeadCalibrated=self.lower_level_status["AMCS"][
+                "encoderHeadCalibrated"
+            ],
+            resolverRaw=self.lower_level_status["AMCS"]["resolverRaw"],
+            resolverCalibrated=self.lower_level_status["AMCS"]["resolverCalibrated"],
+        )
 
     async def close_tasks(self):
         """Disconnect from the TCP/IP controller, if connected, and stop
