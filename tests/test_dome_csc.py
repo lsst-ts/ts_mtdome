@@ -5,7 +5,6 @@ import unittest
 
 from lsst.ts import salobj
 from lsst.ts import Dome
-from lsst.ts.Dome import task_scheduler
 
 STD_TIMEOUT = 2  # standard command timeout (sec)
 
@@ -138,7 +137,6 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1,
         ):
-            task_scheduler.run_status_loop = True
             # It should be possible to always execute the status command but the connection with the lower
             # level components only gets made in DISABLED and ENABLED state so that's why the state gets
             # set to ENABLED here.

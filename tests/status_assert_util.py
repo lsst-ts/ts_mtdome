@@ -6,9 +6,9 @@ def assertReply(component, lower_level_status, **kwargs):
 
     Parameters
     ----------
-    component: `string`
+    component : `string`
         The name of the component to check the status of.
-    lower_level_status: `dictionary`
+    lower_level_status : `dictionary`
         The contents of the status to check.
     **kwargs
         Additional keyword arguments that contain the expected values.
@@ -26,9 +26,9 @@ def assertTBD(component, lower_level_status):
 
     Parameters
     ----------
-    component: `string`
+    component : `string`
         The name of the component to check the status of.
-    lower_level_status: `dictionary`
+    lower_level_status : `dictionary`
         The contents of the status to check.
     """
     tc = unittest.TestCase("__init__")

@@ -4,10 +4,9 @@ import asyncio
 import logging
 import pathlib
 import yaml
-from asyncio.streams import IncompleteReadError
+
 from lsst.ts import salobj
 from .mock_controller import MockDomeController
-from lsst.ts.Dome import task_scheduler
 
 _LOCAL_HOST = "127.0.0.1"
 
@@ -17,13 +16,13 @@ class DomeCsc(salobj.ConfigurableCsc):
 
     Parameters
     ----------
-    config_dir: `string`
+    config_dir : `string`
         The configuration directory
-    initial_state: `salobj.State`
+    initial_state : `salobj.State`
         The initial state of the CSC
-    simulation_mode: `int`
+    simulation_mode : `int`
         Simulation mode (1) or not (0)
-    mock_port: `int`
+    mock_port : `int`
         The port that the mock controller will listen on
     """
 
@@ -56,6 +55,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         )
 
         self.lower_level_status = None
+        self.status_task = None
 
         self.log.info("__init__")
 
@@ -88,8 +88,9 @@ class DomeCsc(salobj.ConfigurableCsc):
         )
 
         # Start polling for the status of the lower level components periodically.
-        task_scheduler.run_status_loop = True
-        asyncio.create_task(task_scheduler.schedule_task_periodically(1, self.status))
+        self.status_task = asyncio.create_task(
+            self.schedule_task_periodically(1, self.status)
+        )
 
         self.log.info("connected")
 
@@ -99,15 +100,13 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.log.info("disconnect")
 
         # Stop polling for the status of the lower level components periodically.
-        task_scheduler.run_status_loop = False
+        if self.status_task:
+            self.status_task.cancel()
 
         writer = self.writer
         self.reader = None
         self.writer = None
-        try:
-            await self.stop_mock_ctrl()
-        except IncompleteReadError:
-            pass
+        await self.stop_mock_ctrl()
         if writer:
             try:
                 writer.write_eof()
@@ -142,7 +141,10 @@ class DomeCsc(salobj.ConfigurableCsc):
         mock_ctrl = self.mock_ctrl
         self.mock_ctrl = None
         if mock_ctrl:
-            await mock_ctrl.stop()
+            try:
+                await mock_ctrl.stop()
+            except asyncio.IncompleteReadError:
+                pass
 
     async def handle_summary_state(self):
         """Override of the handle_summary_state function to connect or disconnect to the lower level
@@ -161,7 +163,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Returns
         -------
-        data: `dict`
+        data : `dict`
             A dictionary with objects representing the string read.
         """
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
@@ -181,7 +183,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -194,7 +196,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -207,7 +209,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -219,7 +221,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -231,7 +233,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -242,7 +244,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -253,7 +255,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -264,7 +266,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -275,7 +277,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -286,7 +288,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -297,7 +299,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -308,7 +310,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -319,7 +321,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -330,7 +332,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -341,7 +343,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `A SALOBJ data object`
+        _data : `A SALOBJ data object`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -355,7 +357,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `TBD`
+        _data : `TBD`
             The contents of this parameter will be defined soon.
         """
         self.assert_enabled()
@@ -368,7 +370,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `TBD`
+        _data : `TBD`
             The contents of this parameter will be defined soon.
         """
         self.assert_enabled()
@@ -381,7 +383,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data: `TBD`
+        _data : `TBD`
             The contents of this parameter will be defined soon.
         """
         self.assert_enabled()
@@ -406,17 +408,18 @@ class DomeCsc(salobj.ConfigurableCsc):
     # noinspection PyMethodMayBeStatic
     def remove_keys_from_dict(self, dict_with_too_many_keys, keys_to_remove):
         """
-        Remove the given keys (and their values) from the given dict.
+        Return a copy of a dict with specified items removed.
+
         Parameters
         ----------
-        dict_with_too_many_keys: `dict`
+        dict_with_too_many_keys : `dict`
             The dict where to remove the keys from.
-        keys_to_remove: `set`
-            The set of keys to remove.
+        keys_to_remove : `set`
+            The set of keys to remove. Keys that do not appear in `dict_with_too_many_keys` get skipped.
 
         Returns
         -------
-        dict_with_keys_removed: `dict`
+        dict_with_keys_removed : `dict`
             A dict with the same keys as the given dict but with the given keys removed.
         """
         dict_with_keys_removed = {
@@ -441,6 +444,21 @@ class DomeCsc(salobj.ConfigurableCsc):
             raise salobj.ExpectedError(
                 f"Simulation_mode={simulation_mode} must be 0 or 1"
             )
+
+    # noinspection PyMethodMayBeStatic
+    async def schedule_task_periodically(self, period, task):
+        """Schedules a task periodically.
+
+        Parameters
+        ----------
+        period : int
+            The period in (decimal) seconds at which to schedule the function.
+        task : coroutine
+            The function to be scheduled periodically.
+        """
+        while True:
+            await task()
+            await asyncio.sleep(period)
 
     @property
     def connected(self):
