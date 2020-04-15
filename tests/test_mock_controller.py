@@ -1,9 +1,14 @@
 import asyncio
 import asynctest
+import logging
 import status_assert_util as sau
 import yaml
 
 from lsst.ts import Dome
+
+logging.basicConfig(
+    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO
+)
 
 
 class MockTestCase(asynctest.TestCase):

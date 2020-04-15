@@ -9,10 +9,6 @@ from lsst.ts import salobj
 from .mock_controller import MockDomeController
 from lsst.ts.Dome import task_scheduler
 
-logging.basicConfig(
-    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO,
-)
-
 _LOCAL_HOST = "127.0.0.1"
 
 
@@ -50,7 +46,6 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         self.mock_ctrl = None  # mock controller, or None if not constructed
         self.mock_port = mock_port  # mock port, or None if not used
-        self.run_status_loop = True
         super().__init__(
             name="Dome",
             index=0,
@@ -93,8 +88,8 @@ class DomeCsc(salobj.ConfigurableCsc):
         )
 
         # Start polling for the status of the lower level components periodically.
-        task_scheduler.run_status_loop = self.run_status_loop
-        asyncio.ensure_future(task_scheduler.schedule_task_periodically(1, self.status))
+        task_scheduler.run_status_loop = True
+        asyncio.create_task(task_scheduler.schedule_task_periodically(1, self.status))
 
         self.log.info("connected")
 
@@ -400,22 +395,36 @@ class DomeCsc(salobj.ConfigurableCsc):
         cmd = {"status": {}}
         await self.write(cmd)
         self.lower_level_status = await self.read()
-        self.tel_domeADB_status.set_put(
-            positionError=self.lower_level_status["AMCS"]["positionError"],
-            positionActual=self.lower_level_status["AMCS"]["positionActual"],
-            positionCmd=self.lower_level_status["AMCS"]["positionCmd"],
-            driveTorqueActual=self.lower_level_status["AMCS"]["driveTorqueActual"],
-            driveTorqueError=self.lower_level_status["AMCS"]["driveTorqueError"],
-            driveTorqueCmd=self.lower_level_status["AMCS"]["driveTorqueCmd"],
-            driveCurrentActual=self.lower_level_status["AMCS"]["driveCurrentActual"],
-            driveTempActual=self.lower_level_status["AMCS"]["driveTempActual"],
-            encoderHeadRaw=self.lower_level_status["AMCS"]["encoderHeadRaw"],
-            encoderHeadCalibrated=self.lower_level_status["AMCS"][
-                "encoderHeadCalibrated"
-            ],
-            resolverRaw=self.lower_level_status["AMCS"]["resolverRaw"],
-            resolverCalibrated=self.lower_level_status["AMCS"]["resolverCalibrated"],
+
+        # Remove some keys because they are not reported in the telemetry.
+        amcs_keys_to_remove = {"status"}
+        telemetry = self.remove_keys_from_dict(
+            self.lower_level_status["AMCS"], amcs_keys_to_remove
         )
+        self.tel_domeADB_status.set_put(**telemetry)
+
+    # noinspection PyMethodMayBeStatic
+    def remove_keys_from_dict(self, dict_with_too_many_keys, keys_to_remove):
+        """
+        Remove the given keys (and their values) from the given dict.
+        Parameters
+        ----------
+        dict_with_too_many_keys: `dict`
+            The dict where to remove the keys from.
+        keys_to_remove: `set`
+            The set of keys to remove.
+
+        Returns
+        -------
+        dict_with_keys_removed: `dict`
+            A dict with the same keys as the given dict but with the given keys removed.
+        """
+        dict_with_keys_removed = {
+            x: dict_with_too_many_keys[x]
+            for x in dict_with_too_many_keys
+            if x not in keys_to_remove
+        }
+        return dict_with_keys_removed
 
     async def close_tasks(self):
         """Disconnect from the TCP/IP controller, if connected, and stop

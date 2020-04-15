@@ -1,4 +1,5 @@
 import asynctest
+import logging
 import status_assert_util as sau
 import unittest
 
@@ -7,6 +8,10 @@ from lsst.ts import Dome
 from lsst.ts.Dome import task_scheduler
 
 STD_TIMEOUT = 2  # standard command timeout (sec)
+
+logging.basicConfig(
+    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO
+)
 
 
 class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):

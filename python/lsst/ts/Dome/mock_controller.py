@@ -2,10 +2,6 @@ import asyncio
 import logging
 import yaml
 
-logging.basicConfig(
-    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO
-)
-
 
 class MockDomeController:
     """Mock DomeController that talks over TCP/IP.
