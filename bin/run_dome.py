@@ -18,7 +18,13 @@
 # GNU General Public License for more details.
 #
 import asyncio
+import logging
 
 from lsst.ts import Dome
+
+logging.basicConfig(
+    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO,
+)
+
 
 asyncio.run(Dome.DomeCsc.amain(index=None))

@@ -2,8 +2,6 @@ import asyncio
 import logging
 import yaml
 
-logging.basicConfig(level=logging.INFO)
-
 
 class MockDomeController:
     """Mock DomeController that talks over TCP/IP.
@@ -93,14 +91,13 @@ class MockDomeController:
         """Write the string st appended with a newline character
         """
         self._writer.write(st.encode() + b"\r\n")
-        self.log.info(st)
+        self.log.debug(st)
         await self._writer.drain()
 
     async def cmd_loop(self, reader, writer):
         """Execute commands and output replies."""
         self.log.info("The cmd_loop begins")
         self._writer = writer
-        await self.status()
         while True:
             print_ok = True
             line = await reader.readuntil(b"\r\n")
@@ -165,7 +162,7 @@ class MockDomeController:
 
     def determine_az_state(self):
         az_motion = "Stopped"
-        self.log.info(f"self.az_motion = {self.az_motion}")
+        self.log.debug(f"self.az_motion = {self.az_motion}")
         if self.az_motion != "Stopped":
             az_motion = self.az_motion + " to azimuth " + str(self.az_motion_azimuth)
             if self.az_current_azimuth < self.az_motion_azimuth:
@@ -197,7 +194,7 @@ class MockDomeController:
 
     def determine_el_state(self):
         el_motion = "Stopped"
-        self.log.info(f"self.el_motion = {self.el_motion}")
+        self.log.debug(f"self.el_motion = {self.el_motion}")
         if self.el_motion != "Stopped":
             el_motion = (
                 self.el_motion + " to elevation " + str(self.el_motion_elevation)
