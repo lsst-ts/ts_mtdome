@@ -143,6 +143,12 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         sau.assertReply("ApCS", self.data, status="Stopped", positionActual=5)
 
+    async def test_config(self):
+        config = {"AMCS": {"jmax": 0.1}}
+        await self.write(f"config:\n {config}\n")
+        self.data = await self.read()
+        sau.assertReply("OK", self.data, Timeout=20)
+
 
 if __name__ == "__main__":
     asynctest.main()

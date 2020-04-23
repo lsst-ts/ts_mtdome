@@ -2,9 +2,13 @@ __all__ = ["DomeCsc"]
 
 import asyncio
 import logging
+import math
 import pathlib
 import yaml
 
+from astropy import units as u
+
+from .configuration_limits import configuration_limits
 from lsst.ts import salobj
 from .mock_controller import MockDomeController
 
@@ -141,10 +145,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         mock_ctrl = self.mock_ctrl
         self.mock_ctrl = None
         if mock_ctrl:
-            try:
-                await mock_ctrl.stop()
-            except asyncio.IncompleteReadError:
-                pass
+            await mock_ctrl.stop()
 
     async def handle_summary_state(self):
         """Override of the handle_summary_state function to connect or disconnect to the lower level
@@ -349,7 +350,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def config(self, _data):
+    async def config_llcs(self, _data):
         """Config command not to be executed by SAL.
 
         This command will be used to send the values of one or more parameters to configure the lower level
@@ -361,7 +362,42 @@ class DomeCsc(salobj.ConfigurableCsc):
             The contents of this parameter will be defined soon.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+
+        # This code assumes that the configuration data is presented as a dictionary of dictionaries with
+        # one dictionary per lower level component. This means that we only need to check for unknown and
+        # too large parameters and then send all to the lower level components.
+        # Loop over all systems.
+        for llc in _data:
+            llc_config = _data[llc]
+            llc_limits = configuration_limits[llc]
+
+            # Loop over each provided config parameter.
+            for param in llc_config:
+                param_value = llc_config[param]
+                # Keep original value for potential error message.
+                param_value_orig = param_value
+
+                # Check if the parameter is known.
+                if param in llc_limits:
+                    llc_limit = llc_limits[param]["upper_limit"]
+                    # Convert from degrees to radians if necessary.
+                    if u.rad in llc_limit.unit.bases:
+                        self.log.info(
+                            f"Converting unit for {param} from degrees to radians."
+                        )
+                        param_value = math.radians(param_value)
+                    if param_value > llc_limit.value:
+                        raise salobj.AckError(
+                            f"The value {param_value_orig} for the param {param} in system "
+                            f"{llc} is larger than the limit {math.degrees(llc_limit.value)}.",
+                            "",
+                        )
+                else:
+                    raise salobj.AckError(
+                        f"The the param {param} in system " f"{llc} is unknown.", "",
+                    )
+        cmd = {"config": _data}
+        await self.write(cmd)
 
     async def fans(self, _data):
         """Fans command not to be executed by SAL.

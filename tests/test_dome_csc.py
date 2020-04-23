@@ -125,7 +125,35 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
         raise unittest.SkipTest("Not implemented")
 
     async def test_config(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1,
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+
+            # All values are below the limits.
+            config = {
+                "AMCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+                "LWSCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+            }
+            await self.csc.config_llcs(config)
+
+            # The value of AMCS amax is too high.
+            config = {
+                "AMCS": {"jmax": 1.0, "amax": 1.0, "vmax": 1.0},
+                "LWSCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+            }
+            with salobj.assertRaisesAckError():
+                await self.csc.config_llcs(config)
+
+            # The param AMCS smax doesn't exist.
+            config = {
+                "AMCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0, "smax": 1.0},
+                "LWSCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+            }
+            with salobj.assertRaisesAckError():
+                await self.csc.config_llcs(config)
 
     async def test_fans(self):
         raise unittest.SkipTest("Not implemented")
