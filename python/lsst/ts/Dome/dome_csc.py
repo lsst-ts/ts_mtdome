@@ -392,6 +392,9 @@ class DomeCsc(salobj.ConfigurableCsc):
                             f"{llc} is larger than the limit {math.degrees(llc_limit.value)}.",
                             "",
                         )
+                    else:
+                        # Make sure that the value (possibly converted from degrees to radians) is stored.
+                        _data[llc][param] = param_value
                 else:
                     raise salobj.AckError(
                         f"The the param {param} in system " f"{llc} is unknown.", "",
