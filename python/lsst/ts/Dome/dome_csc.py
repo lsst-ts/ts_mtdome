@@ -183,178 +183,178 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.log.info(st)
         await self.writer.drain()
 
-    async def do_moveAz(self, _data):
+    async def do_moveAz(self, data):
         """Move AZ.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"moveAz": {"azimuth": _data.azimuth}}
-        self.log.info(f"Moving Dome to azimuth {_data.azimuth}")
+        cmd = {"moveAz": {"azimuth": data.azimuth}}
+        self.log.info(f"Moving Dome to azimuth {data.azimuth}")
         await self.write(cmd)
 
-    async def do_moveEl(self, _data):
+    async def do_moveEl(self, data):
         """Move El.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"moveEl": {"elevation": _data.elevation}}
-        self.log.info(f"Moving LWS to elevation {_data.elevation}")
+        cmd = {"moveEl": {"elevation": data.elevation}}
+        self.log.info(f"Moving LWS to elevation {data.elevation}")
         await self.write(cmd)
 
-    async def do_stopAz(self, _data):
+    async def do_stopAz(self, data):
         """Stop AZ.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         cmd = {"stopAz": {}}
         await self.write(cmd)
 
-    async def do_stopEl(self, _data):
+    async def do_stopEl(self, data):
         """Stop El.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         cmd = {"stopEl": {}}
         await self.write(cmd)
 
-    async def do_stop(self, _data):
+    async def do_stop(self, data):
         """Stop.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_crawlAz(self, _data):
+    async def do_crawlAz(self, data):
         """Crawl AZ.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_crawlEl(self, _data):
+    async def do_crawlEl(self, data):
         """Crawl El.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_setLouver(self, _data):
+    async def do_setLouver(self, data):
         """Set Louver.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_closeLouvers(self, _data):
+    async def do_closeLouvers(self, data):
         """Close Louvers.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_stopLouvers(self, _data):
+    async def do_stopLouvers(self, data):
         """Stop Louvers.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_openShutter(self, _data):
+    async def do_openShutter(self, data):
         """Open Shutter.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_closeShutter(self, _data):
+    async def do_closeShutter(self, data):
         """Close Shutter.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_stopShutter(self, _data):
+    async def do_stopShutter(self, data):
         """Stop Shutter.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_park(self, _data):
+    async def do_park(self, data):
         """Park.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def do_setTemperature(self, _data):
+    async def do_setTemperature(self, data):
         """Set Temperature.
 
         Parameters
         ----------
-        _data : A SALOBJ data object
+        data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
-    async def config_llcs(self, _data):
+    async def config_llcs(self, data):
         """Config command not to be executed by SAL.
 
         This command will be used to send the values of one or more parameters to configure the lower level
@@ -362,7 +362,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `TBD`
+        data : `TBD`
             The contents of this parameter will be defined soon.
         """
 
@@ -373,14 +373,14 @@ class DomeCsc(salobj.ConfigurableCsc):
         # Loop over all systems.
         configuration_parameters = {}
 
-        amcs_configuration_parameters = _data["AMCS"]
+        amcs_configuration_parameters = data["AMCS"]
         configuration_parameters[
             "AMCS"
         ] = self.amcl.validate_and_convert_from_degrees_to_radians(
             amcs_configuration_parameters
         )
 
-        lwscs_configuration_parameters = _data["LWSCS"]
+        lwscs_configuration_parameters = data["LWSCS"]
         configuration_parameters[
             "LWSCS"
         ] = self.lwscl.validate_and_convert_from_degrees_to_radians(
@@ -390,26 +390,26 @@ class DomeCsc(salobj.ConfigurableCsc):
         cmd = {"config": configuration_parameters}
         await self.write(cmd)
 
-    async def fans(self, _data):
+    async def fans(self, data):
         """Fans command not to be executed by SAL.
 
         This command will be used to switch on or off the fans in the dome.
 
         Parameters
         ----------
-        _data : `TBD`
+        data : `TBD`
             The contents of this parameter will be defined soon.
         """
         raise salobj.ExpectedError("Not implemented")
 
-    async def inflate(self, _data):
+    async def inflate(self, data):
         """Inflate command not to be executed by SAL.
 
         This command will be used to inflate or deflate the inflatable seal.
 
         Parameters
         ----------
-        _data : `TBD`
+        data : `TBD`
             The contents of this parameter will be defined soon.
         """
         raise salobj.ExpectedError("Not implemented")
