@@ -188,8 +188,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         cmd = {"moveAz": {"azimuth": _data.azimuth}}
@@ -201,8 +201,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         cmd = {"moveEl": {"elevation": _data.elevation}}
@@ -214,8 +214,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         cmd = {"stopAz": {}}
@@ -226,8 +226,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         cmd = {"stopEl": {}}
@@ -238,8 +238,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -249,8 +249,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -260,8 +260,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -271,8 +271,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -282,8 +282,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -293,8 +293,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -304,8 +304,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -315,8 +315,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -326,8 +326,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -337,8 +337,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -348,8 +348,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ configuration_parameters object`
-            Contains the configuration_parameters as defined in the SAL XML file.
+        _data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
