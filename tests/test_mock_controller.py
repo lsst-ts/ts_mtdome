@@ -31,7 +31,7 @@ class MockTestCase(asynctest.TestCase):
 
         Returns
         -------
-        data : `dictionary`
+        configuration_parameters : `dictionary`
             A dictionary with objects representing the string read.
         """
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)

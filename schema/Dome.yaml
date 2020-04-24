@@ -20,7 +20,7 @@ properties:
     exclusiveMinimum: 0
     default: 10
   read_timeout:
-    description: Time limit for reading data from the TCP/IP interface (sec)
+    description: Time limit for reading configuration_parameters from the TCP/IP interface (sec)
     type: number
     exclusiveMinimum: 0
     default: 10

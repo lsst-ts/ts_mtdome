@@ -2,13 +2,14 @@ __all__ = ["DomeCsc"]
 
 import asyncio
 import logging
-import math
 import pathlib
 import yaml
 
-from astropy import units as u
+from .llc_configuration_limits.amcs_configuration_limits import AmcsConfigurationLimits
+from .llc_configuration_limits.lwscs_configuration_limits import (
+    LwscsConfigurationLimits,
+)
 
-from .configuration_limits import configuration_limits
 from lsst.ts import salobj
 from .mock_controller import MockDomeController
 
@@ -60,6 +61,9 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         self.lower_level_status = None
         self.status_task = None
+
+        self.amcl = AmcsConfigurationLimits()
+        self.lwscl = LwscsConfigurationLimits()
 
         self.log.info("__init__")
 
@@ -164,7 +168,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Returns
         -------
-        data : `dict`
+        configuration_parameters : `dict`
             A dictionary with objects representing the string read.
         """
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
@@ -184,8 +188,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         cmd = {"moveAz": {"azimuth": _data.azimuth}}
@@ -197,8 +201,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         cmd = {"moveEl": {"elevation": _data.elevation}}
@@ -210,8 +214,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         cmd = {"stopAz": {}}
@@ -222,8 +226,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         cmd = {"stopEl": {}}
@@ -234,8 +238,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -245,8 +249,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -256,8 +260,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -267,8 +271,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -278,8 +282,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -289,8 +293,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -300,8 +304,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -311,8 +315,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -322,8 +326,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -333,8 +337,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -344,8 +348,8 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        _data : `A SALOBJ data object`
-            Contains the data as defined in the SAL XML file.
+        _data : `A SALOBJ configuration_parameters object`
+            Contains the configuration_parameters as defined in the SAL XML file.
         """
         self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
@@ -361,45 +365,29 @@ class DomeCsc(salobj.ConfigurableCsc):
         _data : `TBD`
             The contents of this parameter will be defined soon.
         """
-        self.assert_enabled()
 
-        # This code assumes that the configuration data is presented as a dictionary of dictionaries with
-        # one dictionary per lower level component. This means that we only need to check for unknown and
-        # too large parameters and then send all to the lower level components.
+        # This code assumes that the configuration configuration_parameters is presented as a dictionary of
+        # dictionaries with one dictionary per lower level component. This means that we only need to check
+        # for unknown and too large parameters and then send all to the lower level components.
+
         # Loop over all systems.
-        for llc in _data:
-            llc_config = _data[llc]
-            llc_limits = configuration_limits[llc]
+        configuration_parameters = {}
 
-            # Loop over each provided config parameter.
-            for param in llc_config:
-                param_value = llc_config[param]
-                # Keep original value for potential error message.
-                param_value_orig = param_value
+        amcs_configuration_parameters = _data["AMCS"]
+        configuration_parameters[
+            "AMCS"
+        ] = self.amcl.validate_and_convert_from_degrees_to_radians(
+            amcs_configuration_parameters
+        )
 
-                # Check if the parameter is known.
-                if param in llc_limits:
-                    llc_limit = llc_limits[param]["upper_limit"]
-                    # Convert from degrees to radians if necessary.
-                    if u.rad in llc_limit.unit.bases:
-                        self.log.info(
-                            f"Converting unit for {param} from degrees to radians."
-                        )
-                        param_value = math.radians(param_value)
-                    if param_value > llc_limit.value:
-                        raise salobj.AckError(
-                            f"The value {param_value_orig} for the param {param} in system "
-                            f"{llc} is larger than the limit {math.degrees(llc_limit.value)}.",
-                            "",
-                        )
-                    else:
-                        # Make sure that the value (possibly converted from degrees to radians) is stored.
-                        _data[llc][param] = param_value
-                else:
-                    raise salobj.AckError(
-                        f"The the param {param} in system " f"{llc} is unknown.", "",
-                    )
-        cmd = {"config": _data}
+        lwscs_configuration_parameters = _data["LWSCS"]
+        configuration_parameters[
+            "LWSCS"
+        ] = self.lwscl.validate_and_convert_from_degrees_to_radians(
+            lwscs_configuration_parameters
+        )
+
+        cmd = {"config": configuration_parameters}
         await self.write(cmd)
 
     async def fans(self, _data):
@@ -412,7 +400,6 @@ class DomeCsc(salobj.ConfigurableCsc):
         _data : `TBD`
             The contents of this parameter will be defined soon.
         """
-        self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def inflate(self, _data):
@@ -425,7 +412,6 @@ class DomeCsc(salobj.ConfigurableCsc):
         _data : `TBD`
             The contents of this parameter will be defined soon.
         """
-        self.assert_enabled()
         raise salobj.ExpectedError("Not implemented")
 
     async def status(self):

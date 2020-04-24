@@ -249,7 +249,7 @@ class MockDomeController:
         self.el_motion = "Stopped"
 
     async def config(self, **kwargs):
-        self.log.info(f"Received command 'moveAz' with arguments {kwargs}")
+        self.log.info(f"Received command 'config' with arguments {kwargs}")
 
     async def quit(self):
         self.log.info("Received command 'quit'")

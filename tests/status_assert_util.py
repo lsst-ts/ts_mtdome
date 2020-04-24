@@ -2,7 +2,7 @@ import unittest
 
 
 def assertReply(component, lower_level_status, **kwargs):
-    """Asserts that the values of the component parameter data are as expected.
+    """Asserts that the values of the component parameter configuration_parameters are as expected.
 
     Parameters
     ----------
@@ -20,7 +20,7 @@ def assertReply(component, lower_level_status, **kwargs):
 
 
 def assertTBD(component, lower_level_status):
-    """Asserts that the values of the component parameter data are "TBD"
+    """Asserts that the values of the component parameter configuration_parameters are "TBD"
     This method will eventually disappear once the statuses of the other components contain meaningful.
     values.
 

@@ -14,7 +14,7 @@ logging.basicConfig(
 
 
 class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
-    def basic_make_csc(self, initial_state, config_dir, simulation_mode):
+    def basic_make_csc(self, initial_state, config_dir, simulation_mode, **kwargs):
         return Dome.DomeCsc(
             initial_state=initial_state,
             config_dir=config_dir,
@@ -144,16 +144,18 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 "AMCS": {"jmax": 1.0, "amax": 1.0, "vmax": 1.0},
                 "LWSCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
             }
-            with salobj.assertRaisesAckError():
-                await self.csc.config_llcs(config)
+            await self.csc.config_llcs(config)
 
             # The param AMCS smax doesn't exist.
             config = {
                 "AMCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0, "smax": 1.0},
                 "LWSCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
             }
-            with salobj.assertRaisesAckError():
+            try:
                 await self.csc.config_llcs(config)
+                self.fail("Expected a KeyError.")
+            except KeyError:
+                pass
 
     async def test_fans(self):
         raise unittest.SkipTest("Not implemented")
