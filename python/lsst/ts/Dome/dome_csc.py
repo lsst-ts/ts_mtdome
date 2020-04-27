@@ -374,16 +374,12 @@ class DomeCsc(salobj.ConfigurableCsc):
         configuration_parameters = {}
 
         amcs_configuration_parameters = data["AMCS"]
-        configuration_parameters[
-            "AMCS"
-        ] = self.amcl.validate_and_convert_from_degrees_to_radians(
+        configuration_parameters["AMCS"] = self.amcl.validate(
             amcs_configuration_parameters
         )
 
         lwscs_configuration_parameters = data["LWSCS"]
-        configuration_parameters[
-            "LWSCS"
-        ] = self.lwscl.validate_and_convert_from_degrees_to_radians(
+        configuration_parameters["LWSCS"] = self.lwscl.validate(
             lwscs_configuration_parameters
         )
 

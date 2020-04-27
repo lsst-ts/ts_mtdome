@@ -40,12 +40,6 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                     "openShutter",
                     "closeShutter",
                     "stopShutter",
-                    "park",
-                    "setTemperature",
-                    "config",
-                    "fans",
-                    "inflate",
-                    "status",
                 )
             )
 
@@ -144,11 +138,26 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 "AMCS": {"jmax": 1.0, "amax": 1.0, "vmax": 1.0},
                 "LWSCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
             }
-            await self.csc.config_llcs(config)
+            try:
+                await self.csc.config_llcs(config)
+                self.fail("Expected a ValueError.")
+            except ValueError:
+                pass
 
             # The param AMCS smax doesn't exist.
             config = {
                 "AMCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0, "smax": 1.0},
+                "LWSCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+            }
+            try:
+                await self.csc.config_llcs(config)
+                self.fail("Expected a KeyError.")
+            except KeyError:
+                pass
+
+            # No parameter can be missing.
+            config = {
+                "AMCS": {"jmax": 1.0, "amax": 0.5},
                 "LWSCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
             }
             try:

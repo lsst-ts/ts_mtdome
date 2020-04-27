@@ -10,5 +10,5 @@ class AbstractLlcConfigurationLimits(ABC):
     """
 
     @abstractmethod
-    def validate_and_convert_from_degrees_to_radians(self, configuration_parameters):
+    def validate(self, configuration_parameters):
         pass
