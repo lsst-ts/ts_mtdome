@@ -31,7 +31,7 @@ class MockTestCase(asynctest.TestCase):
 
         Returns
         -------
-        data : `dictionary`
+        configuration_parameters : `dict`
             A dictionary with objects representing the string read.
         """
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
@@ -43,7 +43,7 @@ class MockTestCase(asynctest.TestCase):
 
         Parameters
         ----------
-        st : `string`
+        st : `str`
             The string to write.
         """
         self.writer.write(st.encode() + b"\r\n")
@@ -142,6 +142,12 @@ class MockTestCase(asynctest.TestCase):
         await self.write("status:\n")
         self.data = await self.read()
         sau.assertReply("ApCS", self.data, status="Stopped", positionActual=5)
+
+    async def test_config(self):
+        config = {"AMCS": {"jmax": 0.1}}
+        await self.write(f"config:\n {config}\n")
+        self.data = await self.read()
+        sau.assertReply("OK", self.data, Timeout=20)
 
 
 if __name__ == "__main__":

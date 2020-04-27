@@ -21,6 +21,7 @@
 
 from .dome_csc import *
 from .mock_controller import *
+from .llc_configuration_limits import *
 
 try:
     from .version import *

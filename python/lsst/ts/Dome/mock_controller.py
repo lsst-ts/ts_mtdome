@@ -44,6 +44,7 @@ class MockDomeController:
             "moveEl": self.move_el,
             "stopAz": self.stop_az,
             "stopEl": self.stop_el,
+            "config": self.config,
             "quit": self.quit,
         }
         # Name of a command to report as failed once, the next time it is seen,
@@ -99,11 +100,15 @@ class MockDomeController:
         self.log.info("The cmd_loop begins")
         self._writer = writer
         while True:
-            print_ok = True
-            line = await reader.readuntil(b"\r\n")
-            line = line.decode().strip()
-            self.log.info(f"Read command line: {line!r}")
             timeout = 20
+            print_ok = True
+            line = None
+            try:
+                line = await reader.readuntil(b"\r\n")
+                line = line.decode().strip()
+                self.log.info(f"Read command line: {line!r}")
+            except asyncio.IncompleteReadError:
+                pass
             if line:
                 try:
                     outputs = None
@@ -242,6 +247,9 @@ class MockDomeController:
     async def stop_el(self):
         self.log.info("Received command 'stopEl'")
         self.el_motion = "Stopped"
+
+    async def config(self, **kwargs):
+        self.log.info(f"Received command 'config' with arguments {kwargs}")
 
     async def quit(self):
         self.log.info("Received command 'quit'")
