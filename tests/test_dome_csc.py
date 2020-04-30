@@ -40,7 +40,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                     "openShutter",
                     "closeShutter",
                     "stopShutter",
-                )
+                    "park",
+                    "setTemperature",
+                ),
             )
 
     async def test_do_moveAz(self):
@@ -187,10 +189,10 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 "AMCS", self.csc.lower_level_status, status="Stopped", positionActual=0
             )
             sau.assertReply(
-                "ApCS", self.csc.lower_level_status, status="Stopped", positionActual=0
+                "LWSCS", self.csc.lower_level_status, status="Stopped", positionActual=0
             )
             sau.assertTBD("LCS", self.csc.lower_level_status)
-            sau.assertTBD("LWCS", self.csc.lower_level_status)
+            sau.assertTBD("ApCS", self.csc.lower_level_status)
             sau.assertTBD("ThCS", self.csc.lower_level_status)
             sau.assertTBD("MonCS", self.csc.lower_level_status)
 

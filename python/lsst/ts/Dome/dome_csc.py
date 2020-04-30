@@ -156,32 +156,32 @@ class DomeCsc(salobj.ConfigurableCsc):
         components (or the mock_controller) when needed.
         """
         self.log.info("handle_summary_state")
-        # TODO It should be possible to always connect and not just in DISABLED or ENABLED state.
         if self.disabled_or_enabled:
             if not self.connected:
                 await self.connect()
         else:
             await self.disconnect()
 
-    async def read(self):
-        """Utility function to read a string from the reader and unmarshal it.
+    async def write_then_read_reply(self, cmd):
+        """Write the string st appended with a newline character.
+
+        Parameters
+        ----------
+        cmd: `dict`
+            A yaml-style dict containing a command and possibly its parameters.
 
         Returns
         -------
         configuration_parameters : `dict`
             A dictionary with objects representing the string read.
-        """
+         """
+        st = yaml.safe_dump(cmd, default_flow_style=None)
+        self.log.info(f"Sending command {st}")
+        self.writer.write(st.encode() + b"\r\n")
+        await self.writer.drain()
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
         data = yaml.safe_load(read_bytes.decode())
         return data
-
-    async def write(self, cmd):
-        """Write the string st appended with a newline character.
-        """
-        st = yaml.safe_dump(cmd, default_flow_style=None)
-        self.writer.write(st.encode() + b"\r\n")
-        self.log.info(st)
-        await self.writer.drain()
 
     async def do_moveAz(self, data):
         """Move AZ.
@@ -194,7 +194,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         cmd = {"moveAz": {"azimuth": data.azimuth}}
         self.log.info(f"Moving Dome to azimuth {data.azimuth}")
-        await self.write(cmd)
+        await self.write_then_read_reply(cmd)
 
     async def do_moveEl(self, data):
         """Move El.
@@ -207,7 +207,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         cmd = {"moveEl": {"elevation": data.elevation}}
         self.log.info(f"Moving LWS to elevation {data.elevation}")
-        await self.write(cmd)
+        await self.write_then_read_reply(cmd)
 
     async def do_stopAz(self, data):
         """Stop AZ.
@@ -219,7 +219,10 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         cmd = {"stopAz": {}}
-        await self.write(cmd)
+        await self.write_then_read_reply(cmd)
+        self.log.info(self.status_task)
+        await asyncio.sleep(2)
+        self.log.info(self.status_task)
 
     async def do_stopEl(self, data):
         """Stop El.
@@ -231,7 +234,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         cmd = {"stopEl": {}}
-        await self.write(cmd)
+        await self.write_then_read_reply(cmd)
 
     async def do_stop(self, data):
         """Stop.
@@ -242,7 +245,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"stop": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_crawlAz(self, data):
         """Crawl AZ.
@@ -253,7 +257,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"crawlAz": {"dirMotion": data.dirMotion, "azRate": data.azRate}}
+        await self.write_then_read_reply(cmd)
 
     async def do_crawlEl(self, data):
         """Crawl El.
@@ -264,7 +269,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"crawlAz": {"dirMotion": data.dirMotion, "elRate": data.elRate}}
+        await self.write_then_read_reply(cmd)
 
     async def do_setLouver(self, data):
         """Set Louver.
@@ -275,7 +281,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"setLouver": {"dirMotion": data.dirMotion, "elRate": data.elRate}}
+        await self.write_then_read_reply(cmd)
 
     async def do_closeLouvers(self, data):
         """Close Louvers.
@@ -286,7 +293,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"closeLouvers": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_stopLouvers(self, data):
         """Stop Louvers.
@@ -297,7 +305,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"stopLouvers": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_openShutter(self, data):
         """Open Shutter.
@@ -308,7 +317,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"openShutter": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_closeShutter(self, data):
         """Close Shutter.
@@ -319,7 +329,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"closeShutter": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_stopShutter(self, data):
         """Stop Shutter.
@@ -330,7 +341,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"stopShutter": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_park(self, data):
         """Park.
@@ -341,7 +353,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"park": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_setTemperature(self, data):
         """Set Temperature.
@@ -352,7 +365,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"setTemperature": {"temperature": data.temperature}}
+        await self.write_then_read_reply(cmd)
 
     async def config_llcs(self, data):
         """Config command not to be executed by SAL.
@@ -384,7 +398,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         )
 
         cmd = {"config": configuration_parameters}
-        await self.write(cmd)
+        await self.write_then_read_reply(cmd)
 
     async def fans(self, data):
         """Fans command not to be executed by SAL.
@@ -396,7 +410,8 @@ class DomeCsc(salobj.ConfigurableCsc):
         data : `TBD`
             The contents of this parameter will be defined soon.
         """
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"fans": {"action": data.action}}
+        await self.write_then_read_reply(cmd)
 
     async def inflate(self, data):
         """Inflate command not to be executed by SAL.
@@ -408,7 +423,8 @@ class DomeCsc(salobj.ConfigurableCsc):
         data : `TBD`
             The contents of this parameter will be defined soon.
         """
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"inflate": {"action": data.action}}
+        await self.write_then_read_reply(cmd)
 
     async def status(self):
         """Status command not to be executed by SAL.
@@ -416,8 +432,8 @@ class DomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of all lower level components.
         """
         cmd = {"status": {}}
-        await self.write(cmd)
-        self.lower_level_status = await self.read()
+        self.lower_level_status = await self.write_then_read_reply(cmd)
+        self.log.info(self.lower_level_status)
 
         # Remove some keys because they are not reported in the telemetry.
         amcs_keys_to_remove = {"status"}
@@ -478,6 +494,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             The function to be scheduled periodically.
         """
         while True:
+            self.log.info(f"Executing task {task}.")
             await task()
             await asyncio.sleep(period)
 

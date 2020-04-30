@@ -16,7 +16,13 @@ def assertReply(component, lower_level_status, **kwargs):
     tc = unittest.TestCase("__init__")
     tc.assertIn(component, lower_level_status)
     for key in kwargs.keys():
-        tc.assertEqual(lower_level_status[component][key], kwargs[key])
+        # A dict here indicates a range that the valiue should be between
+        if isinstance(kwargs[key], list):
+            tc.assertGreaterEqual(
+                lower_level_status[component][key], kwargs[key][0]
+            ) and tc.assertLessEqual(lower_level_status[component][key], kwargs[key][1])
+        else:
+            tc.assertEqual(lower_level_status[component][key], kwargs[key])
 
 
 def assertTBD(component, lower_level_status):

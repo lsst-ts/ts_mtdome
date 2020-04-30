@@ -2,6 +2,9 @@ import asyncio
 import logging
 import yaml
 
+from .mock_llc_statuses.mock_azcs_status import MockAzcsStatus
+from .mock_llc_statuses.mock_lwscs_status import MockLwscsStatus
+
 
 class MockDomeController:
     """Mock DomeController that talks over TCP/IP.
@@ -33,6 +36,7 @@ class MockDomeController:
         self.port = port
         self._server = None
         self._writer = None
+        self.do_cmd_loop = True
         self.log = logging.getLogger("MockDomeController")
         # Dict of command: (has_argument, function).
         # The function is called with:
@@ -44,20 +48,30 @@ class MockDomeController:
             "moveEl": self.move_el,
             "stopAz": self.stop_az,
             "stopEl": self.stop_el,
+            "stop": self.stop,
+            "crawlAz": self.crawlAz,
+            "crawlEl": self.crawlEl,
+            "setLouver": self.setLouver,
+            "closeLouvers": self.closeLouvers,
+            "stopLouvers": self.stopLouvers,
+            "openShutter": self.openShutter,
+            "closeShutter": self.closeShutter,
+            "stopShutter": self.stopShutter,
             "config": self.config,
+            "park": self.park,
+            "setTemperature": self.setTemperature,
+            "fans": self.fans,
+            "inflate": self.inflate,
             "quit": self.quit,
         }
         # Name of a command to report as failed once, the next time it is seen,
         # or None if no failures. Used to test CSC handling of failed commands.
         self.fail_command = None
-
         # Variables to hold the status of the lower level components.
-        self.az_current_azimuth = 0
-        self.az_motion_azimuth = 0
-        self.az_motion = "Stopped"
-        self.el_current_elevation = 0
-        self.el_motion_elevation = 0
-        self.el_motion = "Stopped"
+        self.az = MockAzcsStatus()
+        self.az_motion_task = None
+        self.lws = MockLwscsStatus()
+        self.lws_motion_task = None
 
     async def start(self, keep_running=False):
         """Start the TCP/IP server.
@@ -73,12 +87,20 @@ class MockDomeController:
         self._server = await asyncio.start_server(
             self.cmd_loop, host="127.0.0.1", port=self.port
         )
+        self.log.info("Starting LLCs")
+        self.az_motion_task = asyncio.create_task(self.az.start())
+        self.lws_motion_task = asyncio.create_task(self.lws.start())
+
         if keep_running:
             await self._server.serve_forever()
 
     async def stop(self):
-        """Stop the TCP/IP server.
+        """Stop the mock lower level components and the TCP/IP server.
         """
+        self.az_motion_task.cancel()
+        self.lws_motion_task.cancel()
+        self.do_cmd_loop = False
+
         if self._server is None:
             return
 
@@ -99,7 +121,8 @@ class MockDomeController:
         """Execute commands and output replies."""
         self.log.info("The cmd_loop begins")
         self._writer = writer
-        while True:
+        while self.do_cmd_loop:
+            self.log.info("cmd_loop")
             timeout = 20
             print_ok = True
             line = None
@@ -143,113 +166,113 @@ class MockDomeController:
                     # CODE=3 in this case means "Missing or incorrect parameter(s)."
                     await self.write("ERROR:\n CODE: 3\n")
                     print_ok = False
-            if print_ok:
-                await self.write(f"OK:\n Timeout: {timeout}\n")
+                if print_ok:
+                    await self.write(f"OK:\n Timeout: {timeout}\n")
 
     async def status(self):
         self.log.info("Received command 'status'")
-        amcs_state = self.determine_az_state()
-        apcs_state = self.determine_el_state()
+        amcs_state = self.az.amcs_state
+        apcs_state = "TBD"
         lcs_state = "TBD"
-        lwcs_state = "TBD"
+        lwscs_state = self.lws.lwscs_state
         thcs_state = "TBD"
         moncs_state = "TBD"
         reply = {
             "AMCS": amcs_state,
             "ApCS": apcs_state,
             "LCS": lcs_state,
-            "LWCS": lwcs_state,
+            "LWSCS": lwscs_state,
             "ThCS": thcs_state,
             "MonCS": moncs_state,
         }
         data = yaml.safe_dump(reply, default_flow_style=None)
         await self.write("OK:\n" + data)
 
-    def determine_az_state(self):
-        az_motion = "Stopped"
-        self.log.debug(f"self.az_motion = {self.az_motion}")
-        if self.az_motion != "Stopped":
-            az_motion = self.az_motion + " to azimuth " + str(self.az_motion_azimuth)
-            if self.az_current_azimuth < self.az_motion_azimuth:
-                self.az_current_azimuth = self.az_current_azimuth + 5
-                if self.az_current_azimuth >= self.az_motion_azimuth:
-                    self.az_current_azimuth = self.az_motion_azimuth
-                    self.az_motion = "Stopped"
-            else:
-                self.az_current_azimuth = self.az_current_azimuth - 5
-                if self.az_current_azimuth <= self.az_motion_azimuth:
-                    self.az_current_azimuth = self.az_motion_azimuth
-                    self.az_motion = "Stopped"
-        amcs_state = {
-            "status": az_motion,
-            "positionError": 0.0,
-            "positionActual": self.az_current_azimuth,
-            "positionCmd": 0.0,
-            "driveTorqueActual": [0.0, 0.0, 0.0, 0.0, 0.0],
-            "driveTorqueError": [0.0, 0.0, 0.0, 0.0, 0.0],
-            "driveTorqueCmd": [0.0, 0.0, 0.0, 0.0, 0.0],
-            "driveCurrentActual": [0.0, 0.0, 0.0, 0.0, 0.0],
-            "driveTempActual": [20.0, 20.0, 20.0, 20.0, 20.0],
-            "encoderHeadRaw": [0.0, 0.0, 0.0, 0.0, 0.0],
-            "encoderHeadCalibrated": [0.0, 0.0, 0.0, 0.0, 0.0],
-            "resolverRaw": [0.0, 0.0, 0.0, 0.0, 0.0],
-            "resolverCalibrated": [0.0, 0.0, 0.0, 0.0, 0.0],
-        }
-        return amcs_state
-
-    def determine_el_state(self):
-        el_motion = "Stopped"
-        self.log.debug(f"self.el_motion = {self.el_motion}")
-        if self.el_motion != "Stopped":
-            el_motion = (
-                self.el_motion + " to elevation " + str(self.el_motion_elevation)
-            )
-            if self.el_current_elevation < self.el_motion_elevation:
-                self.el_current_elevation = self.el_current_elevation + 5
-                if self.el_current_elevation >= self.el_motion_elevation:
-                    self.el_current_elevation = self.el_motion_elevation
-                    self.el_motion = "Stopped"
-            else:
-                self.el_current_elevation = self.el_current_elevation - 5
-                if self.el_current_elevation <= self.el_motion_elevation:
-                    self.el_current_elevation = self.el_motion_elevation
-                    self.el_motion = "Stopped"
-        apcs_state = {
-            "status": el_motion,
-            "positionError": 0.0,
-            "positionActual": self.el_current_elevation,
-            "positionCmd": 0.0,
-            "driveTorqueActual": [0.0, 0.0, 0.0, 0.0],
-            "driveTorqueError": [0.0, 0.0, 0.0, 0.0],
-            "driveTorqueCmd": [0.0, 0.0, 0.0, 0.0],
-            "driveCurrentActual": [0.0, 0.0, 0.0, 0.0],
-            "driveTempActual": [20.0, 20.0, 20.0, 20.0],
-            "resolverHeadRaw": [0.0, 0.0, 0.0, 0.0],
-            "resolverHeadCalibrated": [0.0, 0.0, 0.0, 0.0],
-            "powerAbsortion": 0.0,
-        }
-        return apcs_state
-
     async def move_az(self, **kwargs):
         self.log.info(f"Received command 'moveAz' with arguments {kwargs}")
-        self.az_motion_azimuth = float(kwargs["azimuth"])
-        self.az_motion = "Moving"
+
+        # No conversion from radians to degrees needed since both the commands and the mock az controller
+        # use degrees.
+        await self.az.moveAz(azimuth=float(kwargs["azimuth"]))
 
     async def move_el(self, **kwargs):
         self.log.info(f"Received command 'moveEl' with arguments {kwargs}")
-        self.el_motion_elevation = float(kwargs["elevation"])
-        self.el_motion = "Moving"
+
+        # No conversion from radians to degrees needed since both the commands and the mock az controller
+        # use degrees.
+        await self.lws.moveEl(elevation=float(kwargs["elevation"]))
 
     async def stop_az(self):
         self.log.info("Received command 'stopAz'")
-        self.az_motion = "Stopped"
+        self.az.motion = "Stopped"
 
     async def stop_el(self):
         self.log.info("Received command 'stopEl'")
-        self.el_motion = "Stopped"
+        self.lws.motion = "Stopped"
+
+    async def crawlAz(self, **kwargs):
+        self.log.info(f"Received command 'crawlAz' with arguments {kwargs}")
+
+        # No conversion from radians to degrees needed since both the commands and the mock az controller
+        # use degrees.
+        await self.az.crawlAz(
+            direction=kwargs["dirMotion"], velocity=float(kwargs["azRate"])
+        )
+
+    async def crawlEl(self, **kwargs):
+        self.log.info(f"Received command 'crawlEl' with arguments {kwargs}")
+        await self.lws.crawlEl(
+            direction=kwargs["dirMotion"], velocity=float(kwargs["elRate"])
+        )
+
+    async def setLouver(self, **kwargs):
+        self.log.info(f"Received command 'setLouver' with arguments {kwargs}")
+
+    async def closeLouvers(self):
+        self.log.info(f"Received command 'closeLouvers'")
+
+    async def stopLouvers(self):
+        self.log.info(f"Received command 'stopLouvers'")
+
+    async def openShutter(self):
+        self.log.info(f"Received command 'openShutter'")
+
+    async def closeShutter(self):
+        self.log.info(f"Received command 'closeShutter'")
+
+    async def stopShutter(self):
+        self.log.info(f"Received command 'stopShutter'")
 
     async def config(self, **kwargs):
         self.log.info(f"Received command 'config' with arguments {kwargs}")
+        if kwargs["AMCS"]:
+            amcs_config = kwargs["AMCS"]
+            if amcs_config["jmax"]:
+                self.az.jmax = amcs_config["jmax"]
+            if amcs_config["amax"]:
+                self.az.amax = amcs_config["amax"]
+            if amcs_config["vmax"]:
+                self.az.vmax = amcs_config["vmax"]
+        if kwargs["LWSCS"]:
+            lwscs_config = kwargs["LWSCS"]
+            if lwscs_config["jmax"]:
+                self.lws.jmax = lwscs_config["jmax"]
+            if lwscs_config["amax"]:
+                self.lws.amax = lwscs_config["amax"]
+            if lwscs_config["vmax"]:
+                self.lws.vmax = lwscs_config["vmax"]
+
+    async def park(self):
+        self.log.info(f"Received command 'park'")
+
+    async def setTemperature(self, **kwargs):
+        self.log.info(f"Received command 'setTemperature' with arguments {kwargs}")
+
+    async def fans(self, **kwargs):
+        self.log.info(f"Received command 'fans' with arguments {kwargs}")
+
+    async def inflate(self, **kwargs):
+        self.log.info(f"Received command 'inflate' with arguments {kwargs}")
 
     async def quit(self):
         self.log.info("Received command 'quit'")

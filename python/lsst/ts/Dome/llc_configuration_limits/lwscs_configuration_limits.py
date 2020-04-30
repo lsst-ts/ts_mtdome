@@ -18,9 +18,9 @@ class LwscsConfigurationLimits(CommonAmcsAndLwsCsConfigurationParameters):
     """
 
     def __init__(self):
-        self.jmax = 3.0  # Maximum jerk in deg/s^3
-        self.amax = 0.75  # Maximum acceleration in deg/s^2
-        self.vmax = 1.5  # Maximum velocity in deg/s
+        self.jmax = 3.5  # Maximum jerk in deg/s^3
+        self.amax = 0.875  # Maximum acceleration in deg/s^2
+        self.vmax = 1.75  # Maximum velocity in deg/s
 
     def validate(self, configuration_parameters):
         """Validate the data are against the configuration limits of the lower level component.
