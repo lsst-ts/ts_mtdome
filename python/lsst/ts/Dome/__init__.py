@@ -20,8 +20,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .dome_csc import *
-from .mock_controller import *
 from .llc_configuration_limits import *
+from .mock_controller import *
+from .mock_llc_statuses import *
 
 try:
     from .version import *

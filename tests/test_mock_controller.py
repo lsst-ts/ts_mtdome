@@ -69,9 +69,9 @@ class MockTestCase(asynctest.TestCase):
         await self.write("status:\n")
         self.data = await self.read()
         sau.assertReply("AMCS", self.data, status="Stopped", positionActual=0)
-        sau.assertReply("ApCS", self.data, status="Stopped", positionActual=0)
+        sau.assertReply("LWSCS", self.data, status="Stopped", positionActual=0)
         sau.assertTBD("LCS", self.data)
-        sau.assertTBD("LWCS", self.data)
+        sau.assertTBD("ApCS", self.data)
         sau.assertTBD("ThCS", self.data)
         sau.assertTBD("MonCS", self.data)
 
@@ -79,72 +79,89 @@ class MockTestCase(asynctest.TestCase):
         await self.write("moveAz:\n azimuth: 10\n")
         self.data = await self.read()
         sau.assertReply("OK", self.data, Timeout=20)
+        await asyncio.sleep(1)
         await self.write("status:\n")
         self.data = await self.read()
-        sau.assertReply(
-            "AMCS", self.data, status="Moving to azimuth 10.0", positionActual=5
-        )
+        sau.assertReply("AMCS", self.data, status="Moving", positionActual=[0.5, 1.5])
+        await asyncio.sleep(1)
         await self.write("status:\n")
         self.data = await self.read()
-        sau.assertReply(
-            "AMCS", self.data, status="Moving to azimuth 10.0", positionActual=10
-        )
+        sau.assertReply("AMCS", self.data, status="Moving", positionActual=[1.0, 2.0])
+        await asyncio.sleep(5)
         await self.write("status:\n")
         self.data = await self.read()
         sau.assertReply("AMCS", self.data, status="Stopped", positionActual=10)
+
+    async def test_crawlAz(self):
+        await self.write("crawlAz:\n dirMotion: CW\n azRate: 0.1")
+        self.data = await self.read()
+        sau.assertReply("OK", self.data, Timeout=20)
+        await asyncio.sleep(1)
+        await self.write("status:\n")
+        self.data = await self.read()
+        sau.assertReply(
+            "AMCS", self.data, status="Crawling", positionActual=[0.05, 0.15]
+        )
 
     async def test_stopAz(self):
         await self.write("moveAz:\n azimuth: 10\n")
         self.data = await self.read()
         sau.assertReply("OK", self.data, Timeout=20)
+        await asyncio.sleep(1)
         await self.write("status:\n")
         self.data = await self.read()
-        sau.assertReply(
-            "AMCS", self.data, status="Moving to azimuth 10.0", positionActual=5
-        )
+        sau.assertReply("AMCS", self.data, status="Moving", positionActual=[0.5, 1.5])
         await self.write("stopAz:\n")
+        await asyncio.sleep(0.2)
         self.data = await self.read()
         sau.assertReply("OK", self.data, Timeout=2)
         await self.write("status:\n")
         self.data = await self.read()
-        sau.assertReply("AMCS", self.data, status="Stopped", positionActual=5)
+        sau.assertReply("AMCS", self.data, status="Stopped", positionActual=[1.0, 1.7])
 
     async def test_moveEl(self):
-        await self.write("moveEl:\n elevation: 10\n")
+        await self.write("moveEl:\n elevation: 5\n")
         self.data = await self.read()
         sau.assertReply("OK", self.data, Timeout=20)
+        await asyncio.sleep(1)
         await self.write("status:\n")
         self.data = await self.read()
         sau.assertReply(
-            "ApCS", self.data, status="Moving to elevation 10.0", positionActual=5
+            "LWSCS", self.data, status="Moving", positionActual=[1.5, 2.0],
         )
+        await asyncio.sleep(1)
         await self.write("status:\n")
         self.data = await self.read()
-        sau.assertReply(
-            "ApCS", self.data, status="Moving to elevation 10.0", positionActual=10
-        )
+        print(f"WOUTERRRRR {self.data}")
+        sau.assertReply("LWSCS", self.data, status="Moving", positionActual=[3.0, 4.0])
+        await asyncio.sleep(1)
         await self.write("status:\n")
         self.data = await self.read()
-        sau.assertReply("ApCS", self.data, status="Stopped", positionActual=10)
+        sau.assertReply("LWSCS", self.data, status="Stopped", positionActual=5)
 
     async def test_stopEl(self):
-        await self.write("moveEl:\n elevation: 10\n")
+        await self.write("moveEl:\n elevation: 5\n")
         self.data = await self.read()
         sau.assertReply("OK", self.data, Timeout=20)
+        await asyncio.sleep(1)
         await self.write("status:\n")
         self.data = await self.read()
         sau.assertReply(
-            "ApCS", self.data, status="Moving to elevation 10.0", positionActual=5
+            "LWSCS", self.data, status="Moving", positionActual=[1.5, 2.0],
         )
         await self.write("stopEl:\n")
         self.data = await self.read()
         sau.assertReply("OK", self.data, Timeout=2)
+        await asyncio.sleep(1)
         await self.write("status:\n")
         self.data = await self.read()
-        sau.assertReply("ApCS", self.data, status="Stopped", positionActual=5)
+        sau.assertReply("LWSCS", self.data, status="Stopped", positionActual=[1.5, 2.0])
 
     async def test_config(self):
-        config = {"AMCS": {"jmax": 0.1}}
+        config = {
+            "AMCS": {"jmax": 3.0, "amax": 0.75, "vmax": 1.5},
+            "LWSCS": {"jmax": 3.5, "amax": 0.875, "vmax": 1.75},
+        }
         await self.write(f"config:\n {config}\n")
         self.data = await self.read()
         sau.assertReply("OK", self.data, Timeout=20)
