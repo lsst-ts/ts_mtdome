@@ -88,37 +88,122 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.remote.cmd_stopEl.set_start()
 
     async def test_do_stop(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.remote.cmd_stop.set_start()
 
     async def test_do_crawlAz(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            desired_direction = "CW"
+            desired_velocity = 0.1
+            await self.remote.cmd_crawlAz.set_start(
+                dirMotion=desired_direction,
+                azRate=desired_velocity,
+                timeout=STD_TIMEOUT,
+            )
 
     async def test_do_crawlEl(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            desired_direction = "UP"
+            desired_velocity = 0.1
+            await self.remote.cmd_crawlEl.set_start(
+                dirMotion=desired_direction,
+                elRate=desired_velocity,
+                timeout=STD_TIMEOUT,
+            )
 
     async def test_do_setLouver(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            desired_id = 5
+            desired_position = 60
+            await self.remote.cmd_setLouver.set_start(
+                id=desired_id, position=desired_position, timeout=STD_TIMEOUT,
+            )
 
     async def test_do_closeLouvers(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.remote.cmd_closeLouvers.set_start()
 
     async def test_do_stopLouvers(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.remote.cmd_stopLouvers.set_start()
 
     async def test_do_openShutter(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.remote.cmd_openShutter.set_start()
 
     async def test_do_closeShutter(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.remote.cmd_closeShutter.set_start()
 
     async def test_do_stopShutter(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.remote.cmd_stopShutter.set_start()
 
     async def test_do_park(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.remote.cmd_park.set_start()
 
     async def test_do_setTemperature(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            desired_temperature = 10.0
+            await self.remote.cmd_setTemperature.set_start(
+                temperature=desired_temperature, timeout=STD_TIMEOUT,
+            )
 
     async def test_config(self):
         async with self.make_csc(
@@ -189,12 +274,133 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 "AMCS", self.csc.lower_level_status, status="Stopped", positionActual=0
             )
             sau.assertReply(
+                "ApSCS", self.csc.lower_level_status, status="Closed", positionActual=0
+            )
+            sau.assertReply(
+                "LCS",
+                self.csc.lower_level_status,
+                status=[
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                    "Closed",
+                ],
+                positionActual=[
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+            )
+            sau.assertReply(
                 "LWSCS", self.csc.lower_level_status, status="Stopped", positionActual=0
             )
-            sau.assertTBD("LCS", self.csc.lower_level_status)
-            sau.assertTBD("ApCS", self.csc.lower_level_status)
-            sau.assertTBD("ThCS", self.csc.lower_level_status)
-            sau.assertTBD("MonCS", self.csc.lower_level_status)
+            sau.assertReply(
+                "MonCS",
+                self.csc.lower_level_status,
+                status="Disabled",
+                data=[
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+            )
+            sau.assertReply(
+                "ThCS",
+                self.csc.lower_level_status,
+                status="Disabled",
+                data=[
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+            )
 
     async def test_bin_script(self):
         await self.check_bin_script(name="Dome", index=None, exe_name="run_dome.py")

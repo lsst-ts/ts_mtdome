@@ -82,13 +82,9 @@ class DomeCsc(salobj.ConfigurableCsc):
         if self.simulation_mode == 1:
             await self.start_mock_ctrl()
             host = _LOCAL_HOST
-        else:
-            host = self.config.host
-        if self.simulation_mode != 0:
-            if self.mock_ctrl is None:
-                raise RuntimeError("In simulation mode but no mock controller found.")
             port = self.mock_ctrl.port
         else:
+            host = self.config.host
             port = self.config.port
         connect_coro = asyncio.open_connection(host=host, port=port)
         self.reader, self.writer = await asyncio.wait_for(
@@ -135,7 +131,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             else:
                 port = self.config.port
             self.mock_ctrl = MockDomeController(port)
-            await asyncio.wait_for(self.mock_ctrl.start(), timeout=2)
+            await asyncio.wait_for(self.mock_ctrl.start(), timeout=20)
         except Exception as e:
             err_msg = "Could not start mock controller"
             self.log.exception(e)
@@ -281,7 +277,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"setLouver": {"dirMotion": data.dirMotion, "elRate": data.elRate}}
+        cmd = {"setLouver": {"id": data.id, "position": data.position}}
         await self.write_then_read_reply(cmd)
 
     async def do_closeLouvers(self, data):
@@ -376,15 +372,23 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        data : `TBD`
-            The contents of this parameter will be defined soon.
+        data : `dict`
+            A dictinary with arguments to the function call. It should contain keys for all lower level
+            components to be configured with values that are dicts with keys for all the parameters that
+            need to be configured. The structure is
+            "AMCS":
+                "jmax"
+                "amax"
+                "vmax"
+            "LWSCS":
+                "jmax"
+                "amax"
+                "vmax"
+
+        It is assumed that the configuration configuration_parameters is presented as a dictionary of
+        dictionaries with one dictionary per lower level component. This means that we only need to check
+        for unknown and too large parameters and then send all to the lower level components.
         """
-
-        # This code assumes that the configuration configuration_parameters is presented as a dictionary of
-        # dictionaries with one dictionary per lower level component. This means that we only need to check
-        # for unknown and too large parameters and then send all to the lower level components.
-
-        # Loop over all systems.
         configuration_parameters = {}
 
         amcs_configuration_parameters = data["AMCS"]
@@ -407,10 +411,11 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        data : `TBD`
-            The contents of this parameter will be defined soon.
+        data : `dict`
+            A dictinary with arguments to the function call. It should contain the key "action" with a
+            string value (ON or OFF).
         """
-        cmd = {"fans": {"action": data.action}}
+        cmd = {"fans": {"action": data["action"]}}
         await self.write_then_read_reply(cmd)
 
     async def inflate(self, data):
@@ -420,10 +425,11 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        data : `TBD`
-            The contents of this parameter will be defined soon.
+        data : `dict`
+            A dictinary with arguments to the function call. It should contain the key "action" with a
+            string value (ON or OFF).
         """
-        cmd = {"inflate": {"action": data.action}}
+        cmd = {"inflate": {"action": data["action"]}}
         await self.write_then_read_reply(cmd)
 
     async def status(self):
@@ -436,11 +442,31 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.log.info(self.lower_level_status)
 
         # Remove some keys because they are not reported in the telemetry.
-        amcs_keys_to_remove = {"status"}
-        telemetry = self.remove_keys_from_dict(
-            self.lower_level_status["AMCS"], amcs_keys_to_remove
+        keys_to_remove = {"status"}
+        adb_telemetry = self.remove_keys_from_dict(
+            self.lower_level_status["AMCS"], keys_to_remove
         )
-        self.tel_domeADB_status.set_put(**telemetry)
+        self.tel_domeADB_status.set_put(**adb_telemetry)
+        aps_telemetry = self.remove_keys_from_dict(
+            self.lower_level_status["ApSCS"], keys_to_remove
+        )
+        self.tel_domeAPS_status.set_put(**aps_telemetry)
+        l_telemetry = self.remove_keys_from_dict(
+            self.lower_level_status["LCS"], keys_to_remove
+        )
+        self.tel_domeLouvers_status.set_put(**l_telemetry)
+        lws_telemetry = self.remove_keys_from_dict(
+            self.lower_level_status["LWSCS"], keys_to_remove
+        )
+        self.tel_domeLWS_status.set_put(**lws_telemetry)
+        mon_telemetry = self.remove_keys_from_dict(
+            self.lower_level_status["MonCS"], keys_to_remove
+        )
+        self.tel_domeMONCS_status.set_put(**mon_telemetry)
+        th_telemetry = self.remove_keys_from_dict(
+            self.lower_level_status["ThCS"], keys_to_remove
+        )
+        self.tel_domeTHCS_status.set_put(**th_telemetry)
 
     # noinspection PyMethodMayBeStatic
     def remove_keys_from_dict(self, dict_with_too_many_keys, keys_to_remove):
