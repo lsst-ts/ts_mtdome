@@ -162,16 +162,14 @@ class DomeCsc(salobj.ConfigurableCsc):
         Parameters
         ----------
         cmd: `dict`
-            A dict compatible with yaml.safe_dump containing a command and possibly its parameters. It
-            should take the form {"cmd":\n "param1": value1\n "param2": value2\n} with zero, one or more
+            A dict of the form {"cmd": {"param1": value1, "param2": value2}} with zero, one or more
             parameters.
 
         Returns
         -------
         configuration_parameters : `dict`
-            A dict compatible with yaml.safe_dump containing objects representing the string read. It will
-            be of the form {"reply":\n "param1": value1\n "param2": value2\n} where "reply" can for in
-            stance be "OK" or "ERROR".
+            A dict of the form {"reply": {"param1": value1, "param2": value2}} where "reply" can for
+            instance be "OK" or "ERROR".
          """
         st = yaml.safe_dump(cmd, default_flow_style=None)
         self.log.info(f"Sending command {st}")
@@ -179,6 +177,8 @@ class DomeCsc(salobj.ConfigurableCsc):
         await self.writer.drain()
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
         data = yaml.safe_load(read_bytes.decode())
+
+        # TODO Add error handling. See Jira issue DM-24765.
         return data
 
     async def do_moveAz(self, data):
@@ -372,7 +372,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         Parameters
         ----------
         data : `dict`
-            A dictinary with arguments to the function call. It should contain keys for all lower level
+            A dictionary with arguments to the function call. It should contain keys for all lower level
             components to be configured with values that are dicts with keys for all the parameters that
             need to be configured. The structure is
             "AMCS":
@@ -384,9 +384,11 @@ class DomeCsc(salobj.ConfigurableCsc):
                 "amax"
                 "vmax"
 
-        It is assumed that the configuration configuration_parameters is presented as a dictionary of
-        dictionaries with one dictionary per lower level component. This means that we only need to check
-        for unknown and too large parameters and then send all to the lower level components.
+        It is assumed that configuration_parameters is presented as a dictionary of dictionaries with one
+        dictionary per lower level component. This means that we only need to check for unknown and too
+        large parameters and then send all to the lower level components. An example would be
+
+        {"AMCS": {"amax": 5, "jmax": 4}, "LWSCS": {"vmax": 5, "jmax": 4}}
         """
         configuration_parameters = {}
 
@@ -411,7 +413,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         Parameters
         ----------
         data : `dict`
-            A dictinary with arguments to the function call. It should contain the key "action" with a
+            A dictionary with arguments to the function call. It should contain the key "action" with a
             string value (ON or OFF).
         """
         cmd = {"fans": {"action": data["action"]}}
@@ -425,7 +427,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         Parameters
         ----------
         data : `dict`
-            A dictinary with arguments to the function call. It should contain the key "action" with a
+            A dictionary with arguments to the function call. It should contain the key "action" with a
             string value (ON or OFF).
         """
         cmd = {"inflate": {"action": data["action"]}}
@@ -440,32 +442,39 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.lower_level_status = await self.write_then_read_reply(cmd)
         self.log.info(self.lower_level_status)
 
+        self.prepare_and_send_telemetry(
+            self.lower_level_status["AMCS"], self.tel_domeADB_status
+        )
+        self.prepare_and_send_telemetry(
+            self.lower_level_status["ApSCS"], self.tel_domeAPS_status
+        )
+        self.prepare_and_send_telemetry(
+            self.lower_level_status["LCS"], self.tel_domeLouvers_status
+        )
+        self.prepare_and_send_telemetry(
+            self.lower_level_status["LWSCS"], self.tel_domeLWS_status
+        )
+        self.prepare_and_send_telemetry(
+            self.lower_level_status["MonCS"], self.tel_domeMONCS_status
+        )
+        self.prepare_and_send_telemetry(
+            self.lower_level_status["ThCS"], self.tel_domeTHCS_status
+        )
+
+    def prepare_and_send_telemetry(self, lower_level_status, telemetry_function):
+        """Prepares the telemetry for sending using the provided status and sends it.
+
+        Parameters
+        ----------
+        lower_level_status: `dict`
+            The lower level status dict to extract the telemetry from.
+        telemetry_function: func
+            The SAL function that send the specific telemetry.
+        """
         # Remove some keys because they are not reported in the telemetry.
         keys_to_remove = {"status"}
-        adb_telemetry = self.remove_keys_from_dict(
-            self.lower_level_status["AMCS"], keys_to_remove
-        )
-        self.tel_domeADB_status.set_put(**adb_telemetry)
-        aps_telemetry = self.remove_keys_from_dict(
-            self.lower_level_status["ApSCS"], keys_to_remove
-        )
-        self.tel_domeAPS_status.set_put(**aps_telemetry)
-        l_telemetry = self.remove_keys_from_dict(
-            self.lower_level_status["LCS"], keys_to_remove
-        )
-        self.tel_domeLouvers_status.set_put(**l_telemetry)
-        lws_telemetry = self.remove_keys_from_dict(
-            self.lower_level_status["LWSCS"], keys_to_remove
-        )
-        self.tel_domeLWS_status.set_put(**lws_telemetry)
-        mon_telemetry = self.remove_keys_from_dict(
-            self.lower_level_status["MonCS"], keys_to_remove
-        )
-        self.tel_domeMONCS_status.set_put(**mon_telemetry)
-        th_telemetry = self.remove_keys_from_dict(
-            self.lower_level_status["ThCS"], keys_to_remove
-        )
-        self.tel_domeTHCS_status.set_put(**th_telemetry)
+        telemetry = self.remove_keys_from_dict(lower_level_status, keys_to_remove)
+        telemetry_function.set_put(**telemetry)
 
     # noinspection PyMethodMayBeStatic
     def remove_keys_from_dict(self, dict_with_too_many_keys, keys_to_remove):

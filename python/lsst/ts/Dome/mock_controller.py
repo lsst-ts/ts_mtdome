@@ -236,7 +236,7 @@ class MockDomeController:
         Parameters
         ----------
         kwargs: `dict`
-            A dictinary with arguments to the function call. It should contain the key "azimuth" with a
+            A dictionary with arguments to the function call. It should contain the key "azimuth" with a
             float value.
         """
         self.log.debug(f"Received command 'moveAz' with arguments {kwargs}")
@@ -251,7 +251,7 @@ class MockDomeController:
         Parameters
         ----------
         kwargs: `dict`
-            A dictinary with arguments to the function call. It should contain the key "elevation" with a
+            A dictionary with arguments to the function call. It should contain the key "elevation" with a
             float value.
         """
         self.log.debug(f"Received command 'moveEl' with arguments {kwargs}")
@@ -286,7 +286,7 @@ class MockDomeController:
         Parameters
         ----------
         kwargs: `dict`
-            A dictinary with arguments to the function call. It should contain the key "dirMotion" with a
+            A dictionary with arguments to the function call. It should contain the key "dirMotion" with a
             string value (CW or CCW) and the key "azRate" with a float value.
         """
         self.log.debug(f"Received command 'crawlAz' with arguments {kwargs}")
@@ -303,7 +303,7 @@ class MockDomeController:
         Parameters
         ----------
         kwargs: `dict`
-            A dictinary with arguments to the function call. It should contain the key "dirMotion" with a
+            A dictionary with arguments to the function call. It should contain the key "dirMotion" with a
             string value (UP or DOWN) and the key "elRate" with a float value.
         """
         self.log.info(f"Received command 'crawlEl' with arguments {kwargs}")
@@ -317,7 +317,7 @@ class MockDomeController:
         Parameters
         ----------
         kwargs: `dict`
-            A dictinary with arguments to the function call. It should contain the key "id" with an int
+            A dictionary with arguments to the function call. It should contain the key "id" with an int
             value and the key "position" with a float value.
         """
         self.log.info(f"Received command 'setLouver' with arguments {kwargs}")
@@ -361,7 +361,7 @@ class MockDomeController:
         Parameters
         ----------
         kwargs: `dict`
-            A dictinary with arguments to the function call. It should contain keys for all lower level
+            A dictionary with arguments to the function call. It should contain keys for all lower level
             components to be configured with values that are dicts with keys for all the parameters that
             need to be configured. The structure is
             "AMCS":
@@ -406,7 +406,7 @@ class MockDomeController:
         Parameters
         ----------
         kwargs: `dict`
-            A dictinary with arguments to the function call. It should contain the key "temperature" with a
+            A dictionary with arguments to the function call. It should contain the key "temperature" with a
             float value.
         """
         self.log.info(f"Received command 'setTemperature' with arguments {kwargs}")
@@ -418,7 +418,7 @@ class MockDomeController:
         Parameters
         ----------
         kwargs: `dict`
-            A dictinary with arguments to the function call. It should contain the key "action" with a
+            A dictionary with arguments to the function call. It should contain the key "action" with a
             string value (ON or OFF).
         """
         self.log.info(f"Received command 'fans' with arguments {kwargs}")
@@ -429,7 +429,7 @@ class MockDomeController:
         Parameters
         ----------
         kwargs: `dict`
-            A dictinary with arguments to the function call. It should contain the key "action" with a
+            A dictionary with arguments to the function call. It should contain the key "action" with a
             string value (ON or OFF).
         """
         self.log.info(f"Received command 'inflate' with arguments {kwargs}")
