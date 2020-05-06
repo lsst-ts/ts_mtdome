@@ -5,8 +5,7 @@ import logging
 import pathlib
 import yaml
 
-from .llc_configuration_limits.amcs_limits import AmcsLimits
-from .llc_configuration_limits.lwscs_limits import LwscsLimits
+from .llc_configuration_limits import AmcsLimits, LwscsLimits
 
 from lsst.ts import salobj
 from .mock_controller import MockDomeController
