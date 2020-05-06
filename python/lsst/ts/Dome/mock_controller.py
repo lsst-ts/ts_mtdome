@@ -2,12 +2,12 @@ import asyncio
 import logging
 import yaml
 
-from .mock_llc_statuses.mock_amcs_status import MockAmcsStatus
-from .mock_llc_statuses.mock_apscs_status import MockApscsStatus
-from .mock_llc_statuses.mock_lcs_status import MockLcsStatus
-from .mock_llc_statuses.mock_lwscs_status import MockLwscsStatus
-from .mock_llc_statuses.mock_moncs_status import MockMoncsStatus
-from .mock_llc_statuses.mock_thcs_status import MockThcsStatus
+from .mock_llc_statuses.amcs_status import MockAmcsStatus
+from .mock_llc_statuses.apscs_status import MockApscsStatus
+from .mock_llc_statuses.lcs_status import MockLcsStatus
+from .mock_llc_statuses.lwscs_status import MockLwscsStatus
+from .mock_llc_statuses.moncs_status import MockMoncsStatus
+from .mock_llc_statuses.thcs_status import MockThcsStatus
 
 
 class MockDomeController:

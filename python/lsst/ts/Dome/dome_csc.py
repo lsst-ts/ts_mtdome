@@ -5,10 +5,8 @@ import logging
 import pathlib
 import yaml
 
-from .llc_configuration_limits.amcs_configuration_limits import AmcsConfigurationLimits
-from .llc_configuration_limits.lwscs_configuration_limits import (
-    LwscsConfigurationLimits,
-)
+from .llc_configuration_limits.amcs_limits import AmcsLimits
+from .llc_configuration_limits.lwscs_limits import LwscsLimits
 
 from lsst.ts import salobj
 from .mock_controller import MockDomeController
@@ -62,8 +60,8 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.lower_level_status = None
         self.status_task = None
 
-        self.amcl = AmcsConfigurationLimits()
-        self.lwscl = LwscsConfigurationLimits()
+        self.amcs_limits = AmcsLimits()
+        self.lwscs_limits = LwscsLimits()
 
         self.log.info("__init__")
 
@@ -159,17 +157,21 @@ class DomeCsc(salobj.ConfigurableCsc):
             await self.disconnect()
 
     async def write_then_read_reply(self, cmd):
-        """Write the string st appended with a newline character.
+        """Write the cmd string appended with a newline character and then read the reply to the command.
 
         Parameters
         ----------
         cmd: `dict`
-            A yaml-style dict containing a command and possibly its parameters.
+            A dict compatible with yaml.safe_dump containing a command and possibly its parameters. It
+            should take the form {"cmd":\n "param1": value1\n "param2": value2\n} with zero, one or more
+            parameters.
 
         Returns
         -------
         configuration_parameters : `dict`
-            A dictionary with objects representing the string read.
+            A dict compatible with yaml.safe_dump containing objects representing the string read. It will
+            be of the form {"reply":\n "param1": value1\n "param2": value2\n} where "reply" can for in
+            stance be "OK" or "ERROR".
          """
         st = yaml.safe_dump(cmd, default_flow_style=None)
         self.log.info(f"Sending command {st}")
@@ -216,9 +218,6 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         cmd = {"stopAz": {}}
         await self.write_then_read_reply(cmd)
-        self.log.info(self.status_task)
-        await asyncio.sleep(2)
-        self.log.info(self.status_task)
 
     async def do_stopEl(self, data):
         """Stop El.
@@ -392,12 +391,12 @@ class DomeCsc(salobj.ConfigurableCsc):
         configuration_parameters = {}
 
         amcs_configuration_parameters = data["AMCS"]
-        configuration_parameters["AMCS"] = self.amcl.validate(
+        configuration_parameters["AMCS"] = self.amcs_limits.validate(
             amcs_configuration_parameters
         )
 
         lwscs_configuration_parameters = data["LWSCS"]
-        configuration_parameters["LWSCS"] = self.lwscl.validate(
+        configuration_parameters["LWSCS"] = self.lwscs_limits.validate(
             lwscs_configuration_parameters
         )
 

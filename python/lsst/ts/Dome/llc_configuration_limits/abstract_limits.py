@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class AbstractLlcConfigurationLimits(ABC):
+class AbstractLimits(ABC):
     """An abstract base class for holding the configuration limits for the lower level components. The
     class holds common methods and constant values.
 

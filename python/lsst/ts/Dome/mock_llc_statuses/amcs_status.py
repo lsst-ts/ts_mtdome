@@ -2,9 +2,7 @@ import logging
 import math
 
 from .base_mock_status import BaseMockStatus
-from lsst.ts.Dome.llc_configuration_limits.amcs_configuration_limits import (
-    AmcsConfigurationLimits,
-)
+from lsst.ts.Dome.llc_configuration_limits.amcs_limits import AmcsLimits
 
 
 class MockAmcsStatus(BaseMockStatus):
@@ -20,12 +18,12 @@ class MockAmcsStatus(BaseMockStatus):
     def __init__(self, period):
         super().__init__()
         self.log = logging.getLogger("MockAzcsStatus")
-        self.az_limits = AmcsConfigurationLimits()
+        self.amcs_limits = AmcsLimits()
         self.period = period
         # default values which may be overriden by calling moveAz, crawlAz of config
-        self.jmax = self.az_limits.jmax
-        self.amax = self.az_limits.amax
-        self.vmax = self.az_limits.vmax
+        self.jmax = self.amcs_limits.jmax
+        self.amax = self.amcs_limits.amax
+        self.vmax = self.amcs_limits.vmax
         # variables helping with the state of the mock AZ motion
         self.motion_velocity = self.vmax
         self.motion_direction = "CW"

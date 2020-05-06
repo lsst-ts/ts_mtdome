@@ -1,9 +1,7 @@
 import logging
 
 from .base_mock_status import BaseMockStatus
-from lsst.ts.Dome.llc_configuration_limits.lwscs_configuration_limits import (
-    LwscsConfigurationLimits,
-)
+from lsst.ts.Dome.llc_configuration_limits.lwscs_limits import LwscsLimits
 
 
 class MockLwscsStatus(BaseMockStatus):
@@ -19,12 +17,12 @@ class MockLwscsStatus(BaseMockStatus):
     def __init__(self, period):
         super().__init__()
         self.log = logging.getLogger("MockLwscsStatus")
-        self.lws_limits = LwscsConfigurationLimits()
+        self.lwscs_limits = LwscsLimits()
         self.period = period
         # default values which may be overriden by calling moveEl, crawlEl of config
-        self.jmax = self.lws_limits.jmax
-        self.amax = self.lws_limits.amax
-        self.vmax = self.lws_limits.vmax
+        self.jmax = self.lwscs_limits.jmax
+        self.amax = self.lwscs_limits.amax
+        self.vmax = self.lwscs_limits.vmax
         # variables helping with the state of the mock EL motion
         self.motion_velocity = self.vmax
         self.motion_direction = "UP"
