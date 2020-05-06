@@ -11,6 +11,7 @@ from lsst.ts import salobj
 from .mock_controller import MockDomeController
 
 _LOCAL_HOST = "127.0.0.1"
+_TIMEOUT = 20  # timeout in s to be used by this module
 
 
 class DomeCsc(salobj.ConfigurableCsc):
@@ -128,7 +129,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             else:
                 port = self.config.port
             self.mock_ctrl = MockDomeController(port)
-            await asyncio.wait_for(self.mock_ctrl.start(), timeout=20)
+            await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
 
         except Exception as e:
             err_msg = "Could not start mock controller"
