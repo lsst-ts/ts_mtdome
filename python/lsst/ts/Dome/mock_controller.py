@@ -97,6 +97,11 @@ class MockDomeController:
         self._server = await asyncio.start_server(
             self.cmd_loop, host="127.0.0.1", port=self.port
         )
+        # Request the assigned port from the server so the code starting the mock controller can use it to
+        # connect.
+        if self.port == 0:
+            self.port = self._server.sockets[0].getsockname()[1]
+
         self.log.info("Starting LLCs")
         self.status_task = asyncio.create_task(self.run_status_task())
 

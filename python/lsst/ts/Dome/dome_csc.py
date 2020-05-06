@@ -129,6 +129,7 @@ class DomeCsc(salobj.ConfigurableCsc):
                 port = self.config.port
             self.mock_ctrl = MockDomeController(port)
             await asyncio.wait_for(self.mock_ctrl.start(), timeout=20)
+
         except Exception as e:
             err_msg = "Could not start mock controller"
             self.log.exception(e)

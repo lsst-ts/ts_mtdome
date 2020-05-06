@@ -15,7 +15,7 @@ class MockTestCase(asynctest.TestCase):
     async def setUp(self):
         self.ctrl = None
         self.writer = None
-        self.port = 5000
+        self.port = 0
         self.mock_ctrl = None
         self.data = None
         self.log = logging.getLogger("MockTestCase")
@@ -23,6 +23,8 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl = Dome.MockDomeController(port=self.port)
         asyncio.create_task(self.mock_ctrl.start())
         await asyncio.sleep(1)
+        # Request the assigned port from the mock controller.
+        self.port = self.mock_ctrl.port
 
         rw_coro = asyncio.open_connection(host="127.0.0.1", port=self.port)
         self.reader, self.writer = await asyncio.wait_for(rw_coro, timeout=1)

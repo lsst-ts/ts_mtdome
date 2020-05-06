@@ -19,6 +19,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             initial_state=initial_state,
             config_dir=config_dir,
             simulation_mode=simulation_mode,
+            mock_port=0,
         )
 
     async def test_standard_state_transitions(self):
