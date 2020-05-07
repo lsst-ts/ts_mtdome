@@ -2,9 +2,7 @@ from .common_amcs_and_lwscs_limits import CommonAmcsAndLwscsLimits
 
 
 class LwscsLimits(CommonAmcsAndLwscsLimits):
-    """This class holds the limits of the configuration values for the LWSCS lower level component. It will
-    validate any set of configuration parameters againt these limits. It will also convert any
-    configuration parameter values expressed in deg/s^n to rad/s^n (with n = 1, 2 or 3).
+    """This class holds the limits of the configuration values for the LWSCS lower level component.
 
     Hardcoded parameters:
     jmax : `float` (optional)

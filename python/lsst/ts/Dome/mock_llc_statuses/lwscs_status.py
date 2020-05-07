@@ -4,7 +4,7 @@ from .base_mock_status import BaseMockStatus
 from lsst.ts.Dome.llc_configuration_limits.lwscs_limits import LwscsLimits
 
 
-class MockLwscsStatus(BaseMockStatus):
+class LwscsStatus(BaseMockStatus):
     """Represents the status of the Light and Wind Screen Control System in simulation mode.
 
     Parameters
@@ -45,6 +45,7 @@ class MockLwscsStatus(BaseMockStatus):
     async def determine_status(self):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         if self.status != "Stopped":
             elevation_step = self.motion_velocity * self.period
             if self.motion_direction == "UP":
@@ -84,6 +85,7 @@ class MockLwscsStatus(BaseMockStatus):
             The elevation (deg) to move to. 0 means point to the horizon and 180 point to the zenith. These
             limits are not checked.
         """
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.position_cmd = elevation
         self.motion_velocity = self.vmax
         self.status = "Moving"
@@ -104,6 +106,7 @@ class MockLwscsStatus(BaseMockStatus):
             The velocity (deg/s) at which to crawl. The velocity is not checked against the velocity limits
             for the light and wind screen.
         """
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.motion_direction = direction
         self.motion_velocity = velocity
         self.status = "Crawling"

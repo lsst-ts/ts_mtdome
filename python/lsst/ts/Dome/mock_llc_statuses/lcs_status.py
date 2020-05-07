@@ -3,7 +3,7 @@ import logging
 from .base_mock_status import BaseMockStatus
 
 
-class MockLcsStatus(BaseMockStatus):
+class LcsStatus(BaseMockStatus):
     """Represents the status of the Louvers Control System in simulation mode.
     """
 
@@ -677,6 +677,7 @@ class MockLcsStatus(BaseMockStatus):
             The position (deg) to set the louver to. 0 means closed, 180 means wide open. These limits are
             not checked.
         """
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.status[louver_id] = "Open"
         self.position_actual[louver_id] = position
         self.position_cmd[louver_id] = position

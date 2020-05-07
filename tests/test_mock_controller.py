@@ -728,6 +728,22 @@ class MockTestCase(asynctest.TestCase):
             ],
         )
 
+    async def test_inflate(self):
+        await self.write("inflate:\n action: True\n")
+        self.data = await self.read()
+        sau.assertReply("OK", self.data, Timeout=20)
+        # The status of the inflatable seal is not part of the output of amcs status so this is the only
+        # way to check the result of executing the inflate command
+        self.assertTrue(self.mock_ctrl.amcs.seal_inflated)
+
+    async def test_fans(self):
+        await self.write("fans:\n action: True\n")
+        self.data = await self.read()
+        sau.assertReply("OK", self.data, Timeout=20)
+        # The status of the fans is not part of the output of amcs status so this is the only way to check
+        # the result of executing the fans command
+        self.assertTrue(self.mock_ctrl.amcs.fans_enabled)
+
     async def test_status(self):
         await self.write("status:\n")
         self.data = await self.read()

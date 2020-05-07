@@ -2,12 +2,8 @@ import asyncio
 import logging
 import yaml
 
-from .mock_llc_statuses.amcs_status import MockAmcsStatus
-from .mock_llc_statuses.apscs_status import MockApscsStatus
-from .mock_llc_statuses.lcs_status import MockLcsStatus
-from .mock_llc_statuses.lwscs_status import MockLwscsStatus
-from .mock_llc_statuses.moncs_status import MockMoncsStatus
-from .mock_llc_statuses.thcs_status import MockThcsStatus
+from . import mock_llc_statuses
+from .error_code import ErrorCode
 
 
 class MockDomeController:
@@ -73,12 +69,12 @@ class MockDomeController:
         self.period = 0.1
 
         # Variables to hold the status of the lower level components.
-        self.amcs = MockAmcsStatus(period=self.period)
-        self.apscs = MockApscsStatus()
-        self.lcs = MockLcsStatus()
-        self.lwscs = MockLwscsStatus(period=self.period)
-        self.moncs = MockMoncsStatus()
-        self.thcs = MockThcsStatus()
+        self.amcs = mock_llc_statuses.AmcsStatus(period=self.period)
+        self.apscs = mock_llc_statuses.ApscsStatus()
+        self.lcs = mock_llc_statuses.LcsStatus()
+        self.lwscs = mock_llc_statuses.LwscsStatus(period=self.period)
+        self.moncs = mock_llc_statuses.MoncsStatus()
+        self.thcs = mock_llc_statuses.ThcsStatus()
 
         self.do_cmd_loop = True
         self.do_status_loop = True
@@ -153,6 +149,16 @@ class MockDomeController:
         self.log.debug(st)
         await self._writer.drain()
 
+    async def write_error(self, code):
+        """Generic method for writing errors.
+
+        Parameters
+        ----------
+        code: `ErrorCode`
+            The error code to write.
+        """
+        await self.write(f"ERROR:\n CODE: {code.value}\n")
+
     async def cmd_loop(self, reader, writer):
         """Execute commands and output replies.
 
@@ -184,9 +190,9 @@ class MockDomeController:
                     cmd = next(iter(items))
                     self.log.debug(f"Trying to execute cmd {cmd}")
                     if cmd not in self.dispatch_dict:
-                        self.log.exception(f"Command '{line}' unknown")
+                        self.log.error(f"Command '{line}' unknown")
                         # CODE=2 in this case means "Unsupported command."
-                        await self.write("ERROR:\n CODE: 2\n")
+                        await self.write_error(ErrorCode.UNSUPPORTED_COMMAND)
                         print_ok = False
                     elif cmd == self.fail_command:
                         self.fail_command = None
@@ -207,9 +213,9 @@ class MockDomeController:
                         for msg in outputs:
                             await self.write(msg)
                 except (KeyError, RuntimeError):
-                    self.log.exception(f"Command '{line}' failed")
+                    self.log.error(f"Command '{line}' failed")
                     # CODE=3 in this case means "Missing or incorrect parameter(s)."
-                    await self.write("ERROR:\n CODE: 3\n")
+                    await self.write_error(ErrorCode.INCORRECT_PARAMETER)
                     print_ok = False
                 if print_ok:
                     await self.write(f"OK:\n Timeout: {timeout}\n")
@@ -248,6 +254,7 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use degrees.
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         await self.amcs.moveAz(azimuth=float(kwargs["azimuth"]))
 
     async def move_el(self, **kwargs):
@@ -263,6 +270,7 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use degrees.
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         await self.lwscs.moveEl(elevation=float(kwargs["elevation"]))
 
     async def stop_az(self):
@@ -298,6 +306,7 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use degrees.
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         await self.amcs.crawlAz(
             direction=kwargs["dirMotion"], velocity=float(kwargs["azRate"])
         )
@@ -312,6 +321,10 @@ class MockDomeController:
             string value (UP or DOWN) and the key "elRate" with a float value.
         """
         self.log.info(f"Received command 'crawlEl' with arguments {kwargs}")
+
+        # No conversion from radians to degrees needed since both the commands and the mock az controller
+        # use degrees.
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         await self.lwscs.crawlEl(
             direction=kwargs["dirMotion"], velocity=float(kwargs["elRate"])
         )
@@ -326,6 +339,10 @@ class MockDomeController:
             value and the key "position" with a float value.
         """
         self.log.info(f"Received command 'setLouver' with arguments {kwargs}")
+
+        # No conversion from radians to degrees needed since both the commands and the mock az controller
+        # use degrees.
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         await self.lcs.setLouver(
             louver_id=int(kwargs["id"]), position=int(kwargs["position"])
         )
@@ -380,24 +397,20 @@ class MockDomeController:
 
             It is assumed that the values of the configuration parameters are validated to lie within the
             limits before being passed on to this function.
+            It is assumed that all configuration parameters are present and that their values represent the
+            value to set even unchanged.
         """
         self.log.info(f"Received command 'config' with arguments {kwargs}")
-        if kwargs["AMCS"]:
-            amcs_config = kwargs["AMCS"]
-            if amcs_config["jmax"]:
-                self.amcs.jmax = amcs_config["jmax"]
-            if amcs_config["amax"]:
-                self.amcs.amax = amcs_config["amax"]
-            if amcs_config["vmax"]:
-                self.amcs.vmax = amcs_config["vmax"]
-        if kwargs["LWSCS"]:
-            lwscs_config = kwargs["LWSCS"]
-            if lwscs_config["jmax"]:
-                self.lwscs.jmax = lwscs_config["jmax"]
-            if lwscs_config["amax"]:
-                self.lwscs.amax = lwscs_config["amax"]
-            if lwscs_config["vmax"]:
-                self.lwscs.vmax = lwscs_config["vmax"]
+        amcs_config = kwargs.get("AMCS")
+        if amcs_config:
+            for field in ("jmax", "amax", "vmax"):
+                if field in amcs_config:
+                    setattr(self, field, amcs_config[field])
+        lwscs_config = kwargs.get("LWSCS")
+        if lwscs_config:
+            for field in ("jmax", "amax", "vmax"):
+                if field in lwscs_config:
+                    setattr(self, field, lwscs_config[field])
 
     async def park(self):
         """Mock parking the dome.
@@ -417,17 +430,6 @@ class MockDomeController:
         self.log.info(f"Received command 'setTemperature' with arguments {kwargs}")
         await self.thcs.setTemperature(temperature=float(kwargs["temperature"]))
 
-    async def fans(self, **kwargs):
-        """Mock switching on or off the fans in the dome.
-
-        Parameters
-        ----------
-        kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "action" with a
-            string value (ON or OFF).
-        """
-        self.log.info(f"Received command 'fans' with arguments {kwargs}")
-
     async def inflate(self, **kwargs):
         """Mock inflating or deflating the inflatable seal.
 
@@ -435,9 +437,22 @@ class MockDomeController:
         ----------
         kwargs: `dict`
             A dictionary with arguments to the function call. It should contain the key "action" with a
-            string value (ON or OFF).
+            boolean value.
         """
         self.log.info(f"Received command 'inflate' with arguments {kwargs}")
+        await self.amcs.inflate(action=kwargs["action"])
+
+    async def fans(self, **kwargs):
+        """Mock enabling or disabling the fans in the dome.
+
+        Parameters
+        ----------
+        kwargs: `dict`
+            A dictionary with arguments to the function call. It should contain the key "action" with a
+            boolean value.
+        """
+        self.log.info(f"Received command 'fans' with arguments {kwargs}")
+        await self.amcs.fans(action=kwargs["action"])
 
 
 async def main():

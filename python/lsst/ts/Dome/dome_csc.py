@@ -133,7 +133,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         except Exception as e:
             err_msg = "Could not start mock controller"
-            self.log.exception(e)
+            self.log.error(e)
             self.fault(code=3, report=f"{err_msg}: {e}")
             raise
 
@@ -172,6 +172,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             A dict of the form {"reply": {"param1": value1, "param2": value2}} where "reply" can for
             instance be "OK" or "ERROR".
          """
+        # TODO Create a function that takes the command and its parameters and returns a yaml
+        #  representation of it so all do_XXX functions below can be simplified. DM-24776
         st = yaml.safe_dump(cmd, default_flow_style=None)
         self.log.info(f"Sending command {st}")
         self.writer.write(st.encode() + b"\r\n")
@@ -191,6 +193,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         cmd = {"moveAz": {"azimuth": data.azimuth}}
         self.log.info(f"Moving Dome to azimuth {data.azimuth}")
         await self.write_then_read_reply(cmd)
@@ -204,6 +207,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         cmd = {"moveEl": {"elevation": data.elevation}}
         self.log.info(f"Moving LWS to elevation {data.elevation}")
         await self.write_then_read_reply(cmd)
@@ -253,6 +257,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         cmd = {"crawlAz": {"dirMotion": data.dirMotion, "azRate": data.azRate}}
         await self.write_then_read_reply(cmd)
 
@@ -265,6 +270,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         cmd = {"crawlAz": {"dirMotion": data.dirMotion, "elRate": data.elRate}}
         await self.write_then_read_reply(cmd)
 
@@ -277,6 +283,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         cmd = {"setLouver": {"id": data.id, "position": data.position}}
         await self.write_then_read_reply(cmd)
 
@@ -375,21 +382,20 @@ class DomeCsc(salobj.ConfigurableCsc):
         data : `dict`
             A dictionary with arguments to the function call. It should contain keys for all lower level
             components to be configured with values that are dicts with keys for all the parameters that
-            need to be configured. The structure is
-            "AMCS":
-                "jmax"
-                "amax"
-                "vmax"
-            "LWSCS":
-                "jmax"
-                "amax"
-                "vmax"
+            need to be configured. The structure is::
+                "AMCS":
+                    "jmax"
+                    "amax"
+                    "vmax"
+                "LWSCS":
+                    "jmax"
+                    "amax"
+                    "vmax"
 
         It is assumed that configuration_parameters is presented as a dictionary of dictionaries with one
         dictionary per lower level component. This means that we only need to check for unknown and too
-        large parameters and then send all to the lower level components. An example would be
-
-        {"AMCS": {"amax": 5, "jmax": 4}, "LWSCS": {"vmax": 5, "jmax": 4}}
+        large parameters and then send all to the lower level components. An example would be::
+            {"AMCS": {"amax": 5, "jmax": 4}, "LWSCS": {"vmax": 5, "jmax": 4}}
         """
         configuration_parameters = {}
 

@@ -3,7 +3,7 @@ import logging
 from .base_mock_status import BaseMockStatus
 
 
-class MockThcsStatus(BaseMockStatus):
+class ThcsStatus(BaseMockStatus):
     """Represents the status of the Thermal Control System in simulation mode.
     """
 

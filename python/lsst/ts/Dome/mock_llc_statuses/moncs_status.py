@@ -3,7 +3,7 @@ import logging
 from .base_mock_status import BaseMockStatus
 
 
-class MockMoncsStatus(BaseMockStatus):
+class MoncsStatus(BaseMockStatus):
     """Represents the status of the Monitor Control System in simulation mode.
     """
 

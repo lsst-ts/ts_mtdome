@@ -5,7 +5,7 @@ from .base_mock_status import BaseMockStatus
 from lsst.ts.Dome.llc_configuration_limits.amcs_limits import AmcsLimits
 
 
-class MockAmcsStatus(BaseMockStatus):
+class AmcsStatus(BaseMockStatus):
     """Represents the status of the Azimuth Motion Control System in simulation mode.
 
     Parameters
@@ -27,6 +27,8 @@ class MockAmcsStatus(BaseMockStatus):
         # variables helping with the state of the mock AZ motion
         self.motion_velocity = self.vmax
         self.motion_direction = "CW"
+        self.seal_inflated = False
+        self.fans_enabled = False
         # variables holding the status of the mock AZ motion
         self.status = "Stopped"
         self.position_error = 0.0
@@ -45,6 +47,7 @@ class MockAmcsStatus(BaseMockStatus):
     async def determine_status(self):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         if self.status != "Stopped":
             azimuth_step = self.motion_velocity * self.period
             if self.motion_direction == "CW":
@@ -90,6 +93,7 @@ class MockAmcsStatus(BaseMockStatus):
         azimuth: `float`
             The azimuth to move to.
         """
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.position_cmd = azimuth
         self.motion_velocity = self.vmax
         self.status = "Moving"
@@ -110,6 +114,7 @@ class MockAmcsStatus(BaseMockStatus):
             The velocity (deg/s) at which to crawl. The velocity is not checked against the velocity limits
             for the dome.
         """
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.motion_direction = direction
         self.motion_velocity = velocity
         self.status = "Crawling"
@@ -130,3 +135,27 @@ class MockAmcsStatus(BaseMockStatus):
         self.motion_velocity = self.vmax
         self.status = "Parking"
         self.motion_direction = "CCW"
+
+    async def inflate(self, action):
+        """Inflate or deflate the inflatable seal.
+
+        This is a placeholder for now until it becomes clear what this command is supposed to do.
+
+        Parameters
+        ----------
+        action: `bool`
+            The value should be True or False but the value doesn't get validated here.
+        """
+        self.seal_inflated = action
+
+    async def fans(self, action):
+        """Enable or disable the fans in the dome.
+
+        This is a placeholder for now until it becomes clear what this command is supposed to do.
+
+        Parameters
+        ----------
+        action: `bool`
+            The value should be True or False but the value doesn't get validated here.
+        """
+        self.fans_enabled = action

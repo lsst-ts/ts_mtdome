@@ -6,6 +6,9 @@ DEGREES_TO_RADIANS = math.pi / 180.0
 
 
 class CommonAmcsAndLwscsLimits(AbstractLimits):
+    """Helper class that handles parameter limits common between AMCS and LWSCS.
+    """
+
     @abstractmethod
     def validate(self, configuration_parameters):
         pass

@@ -3,7 +3,7 @@ import logging
 from .base_mock_status import BaseMockStatus
 
 
-class MockApscsStatus(BaseMockStatus):
+class ApscsStatus(BaseMockStatus):
     """Represents the status of the Aperture Shutter Control System in simulation mode.
     """
 
@@ -46,6 +46,7 @@ class MockApscsStatus(BaseMockStatus):
     async def openShutter(self):
         """Mock opening of the shutter.
         """
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.log.info(f"Received command 'openShutter'")
         self.status = "Open"
         self.position_actual = 90.0

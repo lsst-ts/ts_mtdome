@@ -2,9 +2,7 @@ from .common_amcs_and_lwscs_limits import CommonAmcsAndLwscsLimits
 
 
 class AmcsLimits(CommonAmcsAndLwscsLimits):
-    """This class holds the limits of the configuration values for the AMCS lower level component. It will
-    validate any set of configuration parameters againt these limits. It will also convert any
-    configuration parameter values expressed in deg/s^n to rad/s^n (with n = 1, 2 or 3).
+    """This class holds the limits of the configuration values for the AMCS lower level component.
 
     Hardcoded parameters:
     jmax : `float` (optional)
@@ -16,6 +14,7 @@ class AmcsLimits(CommonAmcsAndLwscsLimits):
     """
 
     def __init__(self):
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.jmax = 3.0  # Maximum jerk in deg/s^3
         self.amax = 0.75  # Maximum acceleration in deg/s^2
         self.vmax = 1.5  # Maximum velocity in deg/s
@@ -37,6 +36,7 @@ class AmcsLimits(CommonAmcsAndLwscsLimits):
         """
         # This dict will hold the converted values which we will return at the end of thius function if all
         # validations are passed.
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         converted_configuration_parameters = self.validate_common_parameters(
             configuration_parameters,
             {"jmax": self.jmax, "amax": self.amax, "vmax": self.vmax},
