@@ -1,6 +1,5 @@
 import asynctest
 import logging
-import status_assert_util as sau
 import unittest
 
 from lsst.ts import salobj
@@ -104,7 +103,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            desired_direction = "CW"
+            desired_direction = Dome.AzcsMotionDirection.CW.value
             desired_velocity = 0.1
             await self.remote.cmd_crawlAz.set_start(
                 dirMotion=desired_direction,
@@ -119,7 +118,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            desired_direction = "UP"
+            desired_direction = Dome.LwcsMotionDirection.UP.value
             desired_velocity = 0.1
             await self.remote.cmd_crawlEl.set_start(
                 dirMotion=desired_direction,
@@ -216,15 +215,15 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             # All values are below the limits.
             config = {
-                "AMCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
-                "LWSCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+                Dome.LlcName.AMCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+                Dome.LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
             }
             await self.csc.config_llcs(config)
 
             # The value of AMCS amax is too high.
             config = {
-                "AMCS": {"jmax": 1.0, "amax": 1.0, "vmax": 1.0},
-                "LWSCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+                Dome.LlcName.AMCS.value: {"jmax": 1.0, "amax": 1.0, "vmax": 1.0},
+                Dome.LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
             }
             try:
                 await self.csc.config_llcs(config)
@@ -234,8 +233,13 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             # The param AMCS smax doesn't exist.
             config = {
-                "AMCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0, "smax": 1.0},
-                "LWSCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+                Dome.LlcName.AMCS.value: {
+                    "jmax": 1.0,
+                    "amax": 0.5,
+                    "vmax": 1.0,
+                    "smax": 1.0,
+                },
+                Dome.LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
             }
             try:
                 await self.csc.config_llcs(config)
@@ -245,8 +249,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             # No parameter can be missing.
             config = {
-                "AMCS": {"jmax": 1.0, "amax": 0.5},
-                "LWSCS": {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+                Dome.LlcName.AMCS.value: {"jmax": 1.0, "amax": 0.5},
+                Dome.LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
             }
             try:
                 await self.csc.config_llcs(config)
@@ -271,136 +275,53 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 remote=self.remote, state=salobj.State.ENABLED
             )
             await self.csc.status()
-            sau.assertReply(
-                "AMCS", self.csc.lower_level_status, status="Stopped", positionActual=0
+
+            amcs_status = self.csc.lower_level_status[Dome.LlcName.AMCS.value]
+            self.assertEqual(
+                amcs_status["status"], Dome.LlcStatus.STOPPED.value,
             )
-            sau.assertReply(
-                "ApSCS", self.csc.lower_level_status, status="Closed", positionActual=0
+            self.assertEqual(
+                amcs_status["positionActual"], 0,
             )
-            sau.assertReply(
-                "LCS",
-                self.csc.lower_level_status,
-                status=[
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                    "Closed",
-                ],
-                positionActual=[
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                ],
+
+            apscs_status = self.csc.lower_level_status[Dome.LlcName.APSCS.value]
+            self.assertEqual(
+                apscs_status["status"], Dome.LlcStatus.CLOSED.value,
             )
-            sau.assertReply(
-                "LWSCS", self.csc.lower_level_status, status="Stopped", positionActual=0
+            self.assertEqual(
+                apscs_status["positionActual"], 0,
             )
-            sau.assertReply(
-                "MonCS",
-                self.csc.lower_level_status,
-                status="Disabled",
-                data=[
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                ],
+
+            lcs_status = self.csc.lower_level_status[Dome.LlcName.LCS.value]
+            self.assertEqual(
+                lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * 34,
             )
-            sau.assertReply(
-                "ThCS",
-                self.csc.lower_level_status,
-                status="Disabled",
-                data=[
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                ],
+            self.assertEqual(
+                lcs_status["positionActual"], [0.0] * 34,
+            )
+
+            lwscs_status = self.csc.lower_level_status[Dome.LlcName.LWSCS.value]
+            self.assertEqual(
+                lwscs_status["status"], Dome.LlcStatus.STOPPED.value,
+            )
+            self.assertEqual(
+                lwscs_status["positionActual"], 0,
+            )
+
+            moncs_status = self.csc.lower_level_status[Dome.LlcName.MONCS.value]
+            self.assertEqual(
+                moncs_status["status"], Dome.LlcStatus.DISABLED.value,
+            )
+            self.assertEqual(
+                moncs_status["data"], [0.0] * 16,
+            )
+
+            thcs_status = self.csc.lower_level_status[Dome.LlcName.THCS.value]
+            self.assertEqual(
+                thcs_status["status"], Dome.LlcStatus.DISABLED.value,
+            )
+            self.assertEqual(
+                thcs_status["data"], [0.0] * 16,
             )
 
     async def test_bin_script(self):

@@ -2,7 +2,9 @@ import logging
 import math
 
 from .base_mock_status import BaseMockStatus
-from lsst.ts.Dome.llc_configuration_limits.amcs_limits import AmcsLimits
+from ..llc_configuration_limits.amcs_limits import AmcsLimits
+from ..azcs_motion_direction import AzcsMotionDirection as motion_dir
+from ..llc_status import LlcStatus
 
 
 class AmcsStatus(BaseMockStatus):
@@ -26,46 +28,46 @@ class AmcsStatus(BaseMockStatus):
         self.vmax = self.amcs_limits.vmax
         # variables helping with the state of the mock AZ motion
         self.motion_velocity = self.vmax
-        self.motion_direction = "CW"
+        self.motion_direction = motion_dir.CW.value
         self.seal_inflated = False
         self.fans_enabled = False
         # variables holding the status of the mock AZ motion
-        self.status = "Stopped"
+        self.status = LlcStatus.STOPPED.value
         self.position_error = 0.0
         self.position_actual = 0
         self.position_cmd = 0
-        self.drive_torque_actual = [0.0, 0.0, 0.0, 0.0, 0.0]
-        self.drive_torque_error = [0.0, 0.0, 0.0, 0.0, 0.0]
-        self.drive_torque_cmd = [0.0, 0.0, 0.0, 0.0, 0.0]
-        self.drive_current_actual = [0.0, 0.0, 0.0, 0.0, 0.0]
-        self.drive_temp_actual = [20.0, 20.0, 20.0, 20.0, 20.0]
-        self.encoder_head_raw = [0.0, 0.0, 0.0, 0.0, 0.0]
-        self.encoder_head_calibrated = [0.0, 0.0, 0.0, 0.0, 0.0]
-        self.resolver_raw = [0.0, 0.0, 0.0, 0.0, 0.0]
-        self.resolver_calibrated = [0.0, 0.0, 0.0, 0.0, 0.0]
+        self.drive_torque_actual = [0.0] * 5
+        self.drive_torque_error = [0.0] * 5
+        self.drive_torque_cmd = [0.0] * 5
+        self.drive_current_actual = [0.0] * 5
+        self.drive_temp_actual = [20.0] * 5
+        self.encoder_head_raw = [0.0] * 5
+        self.encoder_head_calibrated = [0.0] * 5
+        self.resolver_raw = [0.0] * 5
+        self.resolver_calibrated = [0.0] * 5
 
     async def determine_status(self):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
         # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
-        if self.status != "Stopped":
+        if self.status != LlcStatus.STOPPED.value:
             azimuth_step = self.motion_velocity * self.period
-            if self.motion_direction == "CW":
+            if self.motion_direction == motion_dir.CW.value:
                 self.position_actual = self.position_actual + azimuth_step
                 if self.position_actual >= self.position_cmd:
                     self.position_actual = self.position_cmd
-                    if self.status == "Moving":
-                        self.status = "Stopped"
+                    if self.status == LlcStatus.MOVING.value:
+                        self.status = LlcStatus.STOPPED.value
                     else:
-                        self.status = "Parked"
+                        self.status = LlcStatus.PARKED.value
             else:
                 self.position_actual = self.position_actual - azimuth_step
                 if self.position_actual <= self.position_cmd:
                     self.position_actual = self.position_cmd
-                    if self.status == "Moving":
-                        self.status = "Stopped"
+                    if self.status == LlcStatus.MOVING.value:
+                        self.status = LlcStatus.STOPPED.value
                     else:
-                        self.status = "Parked"
+                        self.status = LlcStatus.PARKED.value
         self.llc_status = {
             "status": self.status,
             "positionError": self.position_error,
@@ -96,11 +98,11 @@ class AmcsStatus(BaseMockStatus):
         # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.position_cmd = azimuth
         self.motion_velocity = self.vmax
-        self.status = "Moving"
+        self.status = LlcStatus.MOVING.value
         if self.position_cmd >= self.position_actual:
-            self.motion_direction = "CW"
+            self.motion_direction = motion_dir.CW.value
         else:
-            self.motion_direction = "CCW"
+            self.motion_direction = motion_dir.CCW.value
 
     async def crawlAz(self, direction, velocity):
         """Mock crawling of the dome in the given direction at the given velocity.
@@ -117,8 +119,8 @@ class AmcsStatus(BaseMockStatus):
         # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.motion_direction = direction
         self.motion_velocity = velocity
-        self.status = "Crawling"
-        if self.motion_direction == "CW":
+        self.status = LlcStatus.CRAWLING.value
+        if self.motion_direction == motion_dir.CW.value:
             self.position_cmd = math.inf
         else:
             self.position_cmd = -math.inf
@@ -126,15 +128,15 @@ class AmcsStatus(BaseMockStatus):
     async def stopAz(self):
         """Mock stopping all motion of the dome.
         """
-        self.status = "Stopped"
+        self.status = LlcStatus.STOPPED.value
 
     async def park(self):
         """Mock parking of the dome, meaning that it will be moved to azimuth 0.
         """
         self.position_cmd = 0.0
         self.motion_velocity = self.vmax
-        self.status = "Parking"
-        self.motion_direction = "CCW"
+        self.status = LlcStatus.PARKING.value
+        self.motion_direction = motion_dir.CCW.value
 
     async def inflate(self, action):
         """Inflate or deflate the inflatable seal.

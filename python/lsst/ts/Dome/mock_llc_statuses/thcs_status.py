@@ -1,6 +1,7 @@
 import logging
 
 from .base_mock_status import BaseMockStatus
+from ..llc_status import LlcStatus
 
 
 class ThcsStatus(BaseMockStatus):
@@ -11,25 +12,8 @@ class ThcsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockThcsStatus")
         # variables holding the status of the mock Louvres
-        self.status = "Disabled"
-        self.data = [
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-        ]
+        self.status = LlcStatus.DISABLED.value
+        self.data = [0.0] * 16
 
     async def determine_status(self):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
@@ -50,22 +34,5 @@ class ThcsStatus(BaseMockStatus):
             The preferred temperature (deg). In reality this should be a realistic temperature in the range
             of about -30 C to +40 C but the provided temperature is not checked against this range.
         """
-        self.status = "Enabled"
-        self.data = [
-            temperature,
-            temperature,
-            temperature,
-            temperature,
-            temperature,
-            temperature,
-            temperature,
-            temperature,
-            temperature,
-            temperature,
-            temperature,
-            temperature,
-            temperature,
-            temperature,
-            temperature,
-            temperature,
-        ]
+        self.status = LlcStatus.ENABLED.value
+        self.data = [temperature] * 16

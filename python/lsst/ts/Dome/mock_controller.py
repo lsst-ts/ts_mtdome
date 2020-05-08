@@ -4,6 +4,7 @@ import yaml
 
 from . import mock_llc_statuses
 from .error_code import ErrorCode
+from .llc_name import LlcName
 
 
 class MockDomeController:
@@ -67,6 +68,9 @@ class MockDomeController:
         self.fail_command = None
         self.status_task = None
         self.period = 0.1
+        # Timeouts used by this class and by its unit test
+        self.long_timeout = 20
+        self.short_timeout = 2
 
         # Variables to hold the status of the lower level components.
         self.amcs = mock_llc_statuses.AmcsStatus(period=self.period)
@@ -77,7 +81,6 @@ class MockDomeController:
         self.thcs = mock_llc_statuses.ThcsStatus()
 
         self.do_cmd_loop = True
-        self.do_status_loop = True
 
     async def start(self, keep_running=False):
         """Start the TCP/IP server.
@@ -122,7 +125,7 @@ class MockDomeController:
     async def run_status_task(self):
         """Run a loop every "period" seconds to determine the status of the lower level components.
         """
-        while self.do_status_loop:
+        while True:
             await self.amcs.determine_status()
             await self.apscs.determine_status()
             await self.lcs.determine_status()
@@ -134,7 +137,6 @@ class MockDomeController:
     async def stop_status_task(self):
         """Stop the status task loop.
         """
-        self.do_status_loop = False
         self.status_task.cancel()
 
     async def write(self, st):
@@ -173,7 +175,7 @@ class MockDomeController:
         self._writer = writer
         while self.do_cmd_loop:
             self.log.info("Waiting for next command.")
-            timeout = 20
+            timeout = self.long_timeout
             print_ok = True
             line = None
             try:
@@ -181,7 +183,7 @@ class MockDomeController:
                 line = line.decode().strip()
                 self.log.debug(f"Read command line: {line!r}")
             except asyncio.IncompleteReadError:
-                pass
+                return
             if line:
                 try:
                     outputs = None
@@ -208,7 +210,7 @@ class MockDomeController:
                         if cmd == "status":
                             print_ok = False
                         if cmd == "stopAz" or cmd == "stopEl":
-                            timeout = 2
+                            timeout = self.short_timeout
                     if outputs:
                         for msg in outputs:
                             await self.write(msg)
@@ -231,18 +233,18 @@ class MockDomeController:
         moncs_state = self.moncs.llc_status
         thcs_state = self.thcs.llc_status
         reply = {
-            "AMCS": amcs_state,
-            "ApSCS": apcs_state,
-            "LCS": lcs_state,
-            "LWSCS": lwscs_state,
-            "ThCS": thcs_state,
-            "MonCS": moncs_state,
+            LlcName.AMCS.value: amcs_state,
+            LlcName.APSCS.value: apcs_state,
+            LlcName.LCS.value: lcs_state,
+            LlcName.LWSCS.value: lwscs_state,
+            LlcName.MONCS.value: moncs_state,
+            LlcName.THCS.value: thcs_state,
         }
         data = yaml.safe_dump(reply, default_flow_style=None)
         await self.write("OK:\n" + data)
 
     async def move_az(self, **kwargs):
-        """Mock moving the dome.
+        """Move the dome.
 
         Parameters
         ----------
@@ -258,7 +260,7 @@ class MockDomeController:
         await self.amcs.moveAz(azimuth=float(kwargs["azimuth"]))
 
     async def move_el(self, **kwargs):
-        """Mock moving the light and wind screen.
+        """Move the light and wind screen.
 
         Parameters
         ----------
@@ -274,19 +276,19 @@ class MockDomeController:
         await self.lwscs.moveEl(elevation=float(kwargs["elevation"]))
 
     async def stop_az(self):
-        """Mock stopping all dome motion.
+        """Stop all dome motion.
         """
         self.log.debug("Received command 'stopAz'")
         await self.amcs.stopAz()
 
     async def stop_el(self):
-        """Mock stopping all light and wind screen motion.
+        """Stop all light and wind screen motion.
         """
         self.log.debug("Received command 'stopEl'")
         await self.lwscs.stopEl()
 
     async def stop_llc(self):
-        """Stop moving all lower level components.
+        """Move all lower level components.
         """
         await self.stop_az()
         await self.stop_el()
@@ -294,7 +296,7 @@ class MockDomeController:
         await self.stopLouvers()
 
     async def crawlAz(self, **kwargs):
-        """Mock crawling the dome.
+        """Crawl the dome.
 
         Parameters
         ----------
@@ -312,7 +314,7 @@ class MockDomeController:
         )
 
     async def crawlEl(self, **kwargs):
-        """Mock crawling the light and wind screen.
+        """Crawl the light and wind screen.
 
         Parameters
         ----------
@@ -330,7 +332,7 @@ class MockDomeController:
         )
 
     async def setLouver(self, **kwargs):
-        """Mock setting the position of a louver.
+        """Set the position of a louver.
 
         Parameters
         ----------
@@ -348,37 +350,37 @@ class MockDomeController:
         )
 
     async def closeLouvers(self):
-        """Mock closing all louvers.
+        """Close all louvers.
         """
         self.log.info(f"Received command 'closeLouvers'")
         await self.lcs.closeLouvers()
 
     async def stopLouvers(self):
-        """Mock stopping the motion of all louvers.
+        """Stop the motion of all louvers.
         """
         self.log.info(f"Received command 'stopLouvers'")
         await self.lcs.stopLouvers()
 
     async def openShutter(self):
-        """Mock opening the shutter.
+        """Open the shutter.
         """
         self.log.info(f"Received command 'openShutter'")
         await self.apscs.openShutter()
 
     async def closeShutter(self):
-        """Mock closing the shutter.
+        """Close the shutter.
         """
         self.log.info(f"Received command 'closeShutter'")
         await self.apscs.closeShutter()
 
     async def stopShutter(self):
-        """Mock stopping the motion of the shutter.
+        """Stop the motion of the shutter.
         """
         self.log.info(f"Received command 'stopShutter'")
         await self.apscs.stopShutter()
 
     async def config(self, **kwargs):
-        """Mock configure the lower level components.
+        """Configure the lower level components.
 
         Parameters
         ----------
@@ -401,25 +403,25 @@ class MockDomeController:
             value to set even unchanged.
         """
         self.log.info(f"Received command 'config' with arguments {kwargs}")
-        amcs_config = kwargs.get("AMCS")
+        amcs_config = kwargs.get(LlcName.AMCS.value)
         if amcs_config:
             for field in ("jmax", "amax", "vmax"):
                 if field in amcs_config:
                     setattr(self, field, amcs_config[field])
-        lwscs_config = kwargs.get("LWSCS")
+        lwscs_config = kwargs.get(LlcName.LWSCS.value)
         if lwscs_config:
             for field in ("jmax", "amax", "vmax"):
                 if field in lwscs_config:
                     setattr(self, field, lwscs_config[field])
 
     async def park(self):
-        """Mock parking the dome.
+        """Park the dome.
         """
         self.log.info(f"Received command 'park'")
         await self.amcs.park()
 
     async def setTemperature(self, **kwargs):
-        """Mock setting the preferred temperature in the dome.
+        """Set the preferred temperature in the dome.
 
         Parameters
         ----------
@@ -431,7 +433,7 @@ class MockDomeController:
         await self.thcs.setTemperature(temperature=float(kwargs["temperature"]))
 
     async def inflate(self, **kwargs):
-        """Mock inflating or deflating the inflatable seal.
+        """Inflate or deflate the inflatable seal.
 
         Parameters
         ----------
@@ -443,7 +445,7 @@ class MockDomeController:
         await self.amcs.inflate(action=kwargs["action"])
 
     async def fans(self, **kwargs):
-        """Mock enabling or disabling the fans in the dome.
+        """Enable or disable the fans in the dome.
 
         Parameters
         ----------
@@ -458,6 +460,7 @@ class MockDomeController:
 async def main():
     """Main method that gets executed in stand alone mode.
     """
+    # An arbitrarily chosen port. Nothing special about it.
     port = 5000
     mock_ctrl = MockDomeController(port=port)
     logging.info("main")

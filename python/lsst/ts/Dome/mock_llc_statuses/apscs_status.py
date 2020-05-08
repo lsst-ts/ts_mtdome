@@ -1,6 +1,7 @@
 import logging
 
 from .base_mock_status import BaseMockStatus
+from ..llc_status import LlcStatus
 
 
 class ApscsStatus(BaseMockStatus):
@@ -11,17 +12,17 @@ class ApscsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockApscsStatus")
         # variables holding the status of the mock Aperture Shutter
-        self.status = "Closed"
+        self.status = LlcStatus.CLOSED.value
         self.position_error = 0.0
         self.position_actual = 0.0
         self.position_cmd = 0.0
-        self.drive_torque_actual = [0.0, 0.0, 0.0, 0.0]
-        self.drive_torque_error = [0.0, 0.0, 0.0, 0.0]
-        self.drive_torque_cmd = [0.0, 0.0, 0.0, 0.0]
-        self.drive_current_actual = [0.0, 0.0, 0.0, 0.0]
-        self.drive_temp_actual = [0.0, 0.0, 0.0, 0.0]
-        self.resolver_head_raw = [0.0, 0.0, 0.0, 0.0]
-        self.resolver_head_calibrated = [0.0, 0.0, 0.0, 0.0]
+        self.drive_torque_actual = [0.0] * 4
+        self.drive_torque_error = [0.0] * 4
+        self.drive_torque_cmd = [0.0] * 4
+        self.drive_current_actual = [0.0] * 4
+        self.drive_temp_actual = [0.0] * 4
+        self.resolver_head_raw = [0.0] * 4
+        self.resolver_head_calibrated = [0.0] * 4
         self.power_absortion = 0.0
 
     async def determine_status(self):
@@ -48,7 +49,7 @@ class ApscsStatus(BaseMockStatus):
         """
         # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.log.info(f"Received command 'openShutter'")
-        self.status = "Open"
+        self.status = LlcStatus.OPEN.value
         self.position_actual = 90.0
         self.position_cmd = 90.0
 
@@ -56,7 +57,7 @@ class ApscsStatus(BaseMockStatus):
         """Mock closing of the shutter.
         """
         self.log.info(f"Received command 'closeShutter'")
-        self.status = "Closed"
+        self.status = LlcStatus.CLOSED.value
         self.position_actual = 0.0
         self.position_cmd = 0.0
 
@@ -64,4 +65,4 @@ class ApscsStatus(BaseMockStatus):
         """Mock stopping all motion of the shutter.
         """
         self.log.info(f"Received command 'stopShutter'")
-        self.status = "Stopped"
+        self.status = LlcStatus.STOPPED.value

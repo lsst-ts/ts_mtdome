@@ -1,7 +1,9 @@
 import logging
 
 from .base_mock_status import BaseMockStatus
-from lsst.ts.Dome.llc_configuration_limits.lwscs_limits import LwscsLimits
+from ..llc_configuration_limits.lwscs_limits import LwscsLimits
+from ..lwscs_motion_direction import LwcsMotionDirection as motion_dir
+from ..llc_status import LlcStatus
 
 
 class LwscsStatus(BaseMockStatus):
@@ -25,9 +27,9 @@ class LwscsStatus(BaseMockStatus):
         self.vmax = self.lwscs_limits.vmax
         # variables helping with the state of the mock EL motion
         self.motion_velocity = self.vmax
-        self.motion_direction = "UP"
+        self.motion_direction = motion_dir.UP.value
         # variables holding the status of the mock EL motion
-        self.status = "Stopped"
+        self.status = LlcStatus.STOPPED.value
         self.position_error = 0.0
         self.position_actual = 0
         self.position_cmd = 0
@@ -46,18 +48,18 @@ class LwscsStatus(BaseMockStatus):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
         # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
-        if self.status != "Stopped":
+        if self.status != LlcStatus.STOPPED.value:
             elevation_step = self.motion_velocity * self.period
-            if self.motion_direction == "UP":
+            if self.motion_direction == motion_dir.UP.value:
                 self.position_actual = self.position_actual + elevation_step
                 if self.position_actual >= self.position_cmd:
                     self.position_actual = self.position_cmd
-                    self.status = "Stopped"
+                    self.status = LlcStatus.STOPPED.value
             else:
                 self.position_actual = self.position_actual - elevation_step
                 if self.position_actual <= self.position_cmd:
                     self.position_actual = self.position_cmd
-                    self.status = "Stopped"
+                    self.status = LlcStatus.STOPPED.value
         self.llc_status = {
             "status": self.status,
             "positionError": self.position_error,
@@ -88,11 +90,11 @@ class LwscsStatus(BaseMockStatus):
         # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.position_cmd = elevation
         self.motion_velocity = self.vmax
-        self.status = "Moving"
+        self.status = LlcStatus.MOVING.value
         if self.position_cmd >= self.position_actual:
-            self.motion_direction = "UP"
+            self.motion_direction = motion_dir.UP.value
         else:
-            self.motion_direction = "DOWN"
+            self.motion_direction = motion_dir.DOWN.value
 
     async def crawlEl(self, direction, velocity):
         """Mock crawling of the light and wind screen in the given direction at the given velocity.
@@ -109,11 +111,11 @@ class LwscsStatus(BaseMockStatus):
         # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.motion_direction = direction
         self.motion_velocity = velocity
-        self.status = "Crawling"
-        if self.motion_direction == "UP":
+        self.status = LlcStatus.CRAWLING.value
+        if self.motion_direction == motion_dir.UP.value:
             self.position_cmd = 90
         else:
             self.position_cmd = 0
 
     async def stopEl(self):
-        self.status = "Stopped"
+        self.status = LlcStatus.STOPPED.value

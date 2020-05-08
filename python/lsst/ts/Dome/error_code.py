@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import IntEnum
 
 
-class ErrorCode(Enum):
+class ErrorCode(IntEnum):
     """`Enum` with error codes.
     """
 

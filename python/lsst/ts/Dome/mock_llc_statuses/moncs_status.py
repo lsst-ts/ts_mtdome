@@ -1,6 +1,7 @@
 import logging
 
 from .base_mock_status import BaseMockStatus
+from ..llc_status import LlcStatus
 
 
 class MoncsStatus(BaseMockStatus):
@@ -11,25 +12,8 @@ class MoncsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockMoncsStatus")
         # variables holding the status of the mock Louvres
-        self.status = "Disabled"
-        self.data = [
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-        ]
+        self.status = LlcStatus.DISABLED.value
+        self.data = [0.0] * 16
 
     async def determine_status(self):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.

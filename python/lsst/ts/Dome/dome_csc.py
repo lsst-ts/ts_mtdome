@@ -6,8 +6,8 @@ import pathlib
 import yaml
 
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
-
 from lsst.ts import salobj
+from .llc_name import LlcName
 from .mock_controller import MockDomeController
 
 _LOCAL_HOST = "127.0.0.1"
@@ -383,6 +383,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             A dictionary with arguments to the function call. It should contain keys for all lower level
             components to be configured with values that are dicts with keys for all the parameters that
             need to be configured. The structure is::
+
                 "AMCS":
                     "jmax"
                     "amax"
@@ -395,17 +396,19 @@ class DomeCsc(salobj.ConfigurableCsc):
         It is assumed that configuration_parameters is presented as a dictionary of dictionaries with one
         dictionary per lower level component. This means that we only need to check for unknown and too
         large parameters and then send all to the lower level components. An example would be::
+
             {"AMCS": {"amax": 5, "jmax": 4}, "LWSCS": {"vmax": 5, "jmax": 4}}
+
         """
         configuration_parameters = {}
 
-        amcs_configuration_parameters = data["AMCS"]
-        configuration_parameters["AMCS"] = self.amcs_limits.validate(
+        amcs_configuration_parameters = data[LlcName.AMCS.value]
+        configuration_parameters[LlcName.AMCS.value] = self.amcs_limits.validate(
             amcs_configuration_parameters
         )
 
-        lwscs_configuration_parameters = data["LWSCS"]
-        configuration_parameters["LWSCS"] = self.lwscs_limits.validate(
+        lwscs_configuration_parameters = data[LlcName.LWSCS.value]
+        configuration_parameters[LlcName.LWSCS.value] = self.lwscs_limits.validate(
             lwscs_configuration_parameters
         )
 
@@ -450,22 +453,22 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.log.info(self.lower_level_status)
 
         self.prepare_and_send_telemetry(
-            self.lower_level_status["AMCS"], self.tel_domeADB_status
+            self.lower_level_status[LlcName.AMCS.value], self.tel_domeADB_status
         )
         self.prepare_and_send_telemetry(
-            self.lower_level_status["ApSCS"], self.tel_domeAPS_status
+            self.lower_level_status[LlcName.APSCS.value], self.tel_domeAPS_status
         )
         self.prepare_and_send_telemetry(
-            self.lower_level_status["LCS"], self.tel_domeLouvers_status
+            self.lower_level_status[LlcName.LCS.value], self.tel_domeLouvers_status
         )
         self.prepare_and_send_telemetry(
-            self.lower_level_status["LWSCS"], self.tel_domeLWS_status
+            self.lower_level_status[LlcName.LWSCS.value], self.tel_domeLWS_status
         )
         self.prepare_and_send_telemetry(
-            self.lower_level_status["MonCS"], self.tel_domeMONCS_status
+            self.lower_level_status[LlcName.MONCS.value], self.tel_domeMONCS_status
         )
         self.prepare_and_send_telemetry(
-            self.lower_level_status["ThCS"], self.tel_domeTHCS_status
+            self.lower_level_status[LlcName.THCS.value], self.tel_domeTHCS_status
         )
 
     def prepare_and_send_telemetry(self, lower_level_status, telemetry_function):
