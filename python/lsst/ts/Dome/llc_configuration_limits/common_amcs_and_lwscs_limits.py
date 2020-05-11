@@ -1,11 +1,14 @@
 from abc import abstractmethod
-from .abstract_llc_configuration_limits import AbstractLlcConfigurationLimits
+from .abstract_limits import AbstractLimits
 import math
 
 DEGREES_TO_RADIANS = math.pi / 180.0
 
 
-class CommonAmcsAndLwsCsConfigurationParameters(AbstractLlcConfigurationLimits):
+class CommonAmcsAndLwscsLimits(AbstractLimits):
+    """Helper class that handles parameter limits common between AMCS and LWSCS.
+    """
+
     @abstractmethod
     def validate(self, configuration_parameters):
         pass

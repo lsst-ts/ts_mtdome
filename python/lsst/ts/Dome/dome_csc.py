@@ -5,15 +5,13 @@ import logging
 import pathlib
 import yaml
 
-from .llc_configuration_limits.amcs_configuration_limits import AmcsConfigurationLimits
-from .llc_configuration_limits.lwscs_configuration_limits import (
-    LwscsConfigurationLimits,
-)
-
+from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from lsst.ts import salobj
+from .llc_name import LlcName
 from .mock_controller import MockDomeController
 
 _LOCAL_HOST = "127.0.0.1"
+_TIMEOUT = 20  # timeout in s to be used by this module
 
 
 class DomeCsc(salobj.ConfigurableCsc):
@@ -62,8 +60,8 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.lower_level_status = None
         self.status_task = None
 
-        self.amcl = AmcsConfigurationLimits()
-        self.lwscl = LwscsConfigurationLimits()
+        self.amcs_limits = AmcsLimits()
+        self.lwscs_limits = LwscsLimits()
 
         self.log.info("__init__")
 
@@ -82,13 +80,9 @@ class DomeCsc(salobj.ConfigurableCsc):
         if self.simulation_mode == 1:
             await self.start_mock_ctrl()
             host = _LOCAL_HOST
-        else:
-            host = self.config.host
-        if self.simulation_mode != 0:
-            if self.mock_ctrl is None:
-                raise RuntimeError("In simulation mode but no mock controller found.")
             port = self.mock_ctrl.port
         else:
+            host = self.config.host
             port = self.config.port
         connect_coro = asyncio.open_connection(host=host, port=port)
         self.reader, self.writer = await asyncio.wait_for(
@@ -135,10 +129,11 @@ class DomeCsc(salobj.ConfigurableCsc):
             else:
                 port = self.config.port
             self.mock_ctrl = MockDomeController(port)
-            await asyncio.wait_for(self.mock_ctrl.start(), timeout=2)
+            await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
+
         except Exception as e:
             err_msg = "Could not start mock controller"
-            self.log.exception(e)
+            self.log.error(e)
             self.fault(code=3, report=f"{err_msg}: {e}")
             raise
 
@@ -156,32 +151,38 @@ class DomeCsc(salobj.ConfigurableCsc):
         components (or the mock_controller) when needed.
         """
         self.log.info("handle_summary_state")
-        # TODO It should be possible to always connect and not just in DISABLED or ENABLED state.
         if self.disabled_or_enabled:
             if not self.connected:
                 await self.connect()
         else:
             await self.disconnect()
 
-    async def read(self):
-        """Utility function to read a string from the reader and unmarshal it.
+    async def write_then_read_reply(self, cmd):
+        """Write the cmd string appended with a newline character and then read the reply to the command.
+
+        Parameters
+        ----------
+        cmd: `dict`
+            A dict of the form {"cmd": {"param1": value1, "param2": value2}} with zero, one or more
+            parameters.
 
         Returns
         -------
         configuration_parameters : `dict`
-            A dictionary with objects representing the string read.
-        """
+            A dict of the form {"reply": {"param1": value1, "param2": value2}} where "reply" can for
+            instance be "OK" or "ERROR".
+         """
+        # TODO Create a function that takes the command and its parameters and returns a yaml
+        #  representation of it so all do_XXX functions below can be simplified. DM-24776
+        st = yaml.safe_dump(cmd, default_flow_style=None)
+        self.log.info(f"Sending command {st}")
+        self.writer.write(st.encode() + b"\r\n")
+        await self.writer.drain()
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
         data = yaml.safe_load(read_bytes.decode())
-        return data
 
-    async def write(self, cmd):
-        """Write the string st appended with a newline character.
-        """
-        st = yaml.safe_dump(cmd, default_flow_style=None)
-        self.writer.write(st.encode() + b"\r\n")
-        self.log.info(st)
-        await self.writer.drain()
+        # TODO Add error handling. See Jira issue DM-24765.
+        return data
 
     async def do_moveAz(self, data):
         """Move AZ.
@@ -192,9 +193,10 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         cmd = {"moveAz": {"azimuth": data.azimuth}}
         self.log.info(f"Moving Dome to azimuth {data.azimuth}")
-        await self.write(cmd)
+        await self.write_then_read_reply(cmd)
 
     async def do_moveEl(self, data):
         """Move El.
@@ -205,9 +207,10 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         cmd = {"moveEl": {"elevation": data.elevation}}
         self.log.info(f"Moving LWS to elevation {data.elevation}")
-        await self.write(cmd)
+        await self.write_then_read_reply(cmd)
 
     async def do_stopAz(self, data):
         """Stop AZ.
@@ -219,7 +222,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         cmd = {"stopAz": {}}
-        await self.write(cmd)
+        await self.write_then_read_reply(cmd)
 
     async def do_stopEl(self, data):
         """Stop El.
@@ -231,7 +234,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         cmd = {"stopEl": {}}
-        await self.write(cmd)
+        await self.write_then_read_reply(cmd)
 
     async def do_stop(self, data):
         """Stop.
@@ -242,7 +245,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"stop": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_crawlAz(self, data):
         """Crawl AZ.
@@ -253,7 +257,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
+        cmd = {"crawlAz": {"dirMotion": data.dirMotion, "azRate": data.azRate}}
+        await self.write_then_read_reply(cmd)
 
     async def do_crawlEl(self, data):
         """Crawl El.
@@ -264,7 +270,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
+        cmd = {"crawlAz": {"dirMotion": data.dirMotion, "elRate": data.elRate}}
+        await self.write_then_read_reply(cmd)
 
     async def do_setLouver(self, data):
         """Set Louver.
@@ -275,7 +283,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
+        cmd = {"setLouver": {"id": data.id, "position": data.position}}
+        await self.write_then_read_reply(cmd)
 
     async def do_closeLouvers(self, data):
         """Close Louvers.
@@ -286,7 +296,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"closeLouvers": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_stopLouvers(self, data):
         """Stop Louvers.
@@ -297,7 +308,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"stopLouvers": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_openShutter(self, data):
         """Open Shutter.
@@ -308,7 +320,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"openShutter": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_closeShutter(self, data):
         """Close Shutter.
@@ -319,7 +332,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"closeShutter": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_stopShutter(self, data):
         """Stop Shutter.
@@ -330,7 +344,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"stopShutter": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_park(self, data):
         """Park.
@@ -341,7 +356,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"park": {}}
+        await self.write_then_read_reply(cmd)
 
     async def do_setTemperature(self, data):
         """Set Temperature.
@@ -352,7 +368,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"setTemperature": {"temperature": data.temperature}}
+        await self.write_then_read_reply(cmd)
 
     async def config_llcs(self, data):
         """Config command not to be executed by SAL.
@@ -362,29 +379,41 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        data : `TBD`
-            The contents of this parameter will be defined soon.
+        data : `dict`
+            A dictionary with arguments to the function call. It should contain keys for all lower level
+            components to be configured with values that are dicts with keys for all the parameters that
+            need to be configured. The structure is::
+
+                "AMCS":
+                    "jmax"
+                    "amax"
+                    "vmax"
+                "LWSCS":
+                    "jmax"
+                    "amax"
+                    "vmax"
+
+        It is assumed that configuration_parameters is presented as a dictionary of dictionaries with one
+        dictionary per lower level component. This means that we only need to check for unknown and too
+        large parameters and then send all to the lower level components. An example would be::
+
+            {"AMCS": {"amax": 5, "jmax": 4}, "LWSCS": {"vmax": 5, "jmax": 4}}
+
         """
-
-        # This code assumes that the configuration configuration_parameters is presented as a dictionary of
-        # dictionaries with one dictionary per lower level component. This means that we only need to check
-        # for unknown and too large parameters and then send all to the lower level components.
-
-        # Loop over all systems.
         configuration_parameters = {}
 
-        amcs_configuration_parameters = data["AMCS"]
-        configuration_parameters["AMCS"] = self.amcl.validate(
+        amcs_configuration_parameters = data[LlcName.AMCS.value]
+        configuration_parameters[LlcName.AMCS.value] = self.amcs_limits.validate(
             amcs_configuration_parameters
         )
 
-        lwscs_configuration_parameters = data["LWSCS"]
-        configuration_parameters["LWSCS"] = self.lwscl.validate(
+        lwscs_configuration_parameters = data[LlcName.LWSCS.value]
+        configuration_parameters[LlcName.LWSCS.value] = self.lwscs_limits.validate(
             lwscs_configuration_parameters
         )
 
         cmd = {"config": configuration_parameters}
-        await self.write(cmd)
+        await self.write_then_read_reply(cmd)
 
     async def fans(self, data):
         """Fans command not to be executed by SAL.
@@ -393,10 +422,12 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        data : `TBD`
-            The contents of this parameter will be defined soon.
+        data : `dict`
+            A dictionary with arguments to the function call. It should contain the key "action" with a
+            string value (ON or OFF).
         """
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"fans": {"action": data["action"]}}
+        await self.write_then_read_reply(cmd)
 
     async def inflate(self, data):
         """Inflate command not to be executed by SAL.
@@ -405,10 +436,12 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        data : `TBD`
-            The contents of this parameter will be defined soon.
+        data : `dict`
+            A dictionary with arguments to the function call. It should contain the key "action" with a
+            string value (ON or OFF).
         """
-        raise salobj.ExpectedError("Not implemented")
+        cmd = {"inflate": {"action": data["action"]}}
+        await self.write_then_read_reply(cmd)
 
     async def status(self):
         """Status command not to be executed by SAL.
@@ -416,15 +449,42 @@ class DomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of all lower level components.
         """
         cmd = {"status": {}}
-        await self.write(cmd)
-        self.lower_level_status = await self.read()
+        self.lower_level_status = await self.write_then_read_reply(cmd)
+        self.log.info(self.lower_level_status)
 
-        # Remove some keys because they are not reported in the telemetry.
-        amcs_keys_to_remove = {"status"}
-        telemetry = self.remove_keys_from_dict(
-            self.lower_level_status["AMCS"], amcs_keys_to_remove
+        self.prepare_and_send_telemetry(
+            self.lower_level_status[LlcName.AMCS.value], self.tel_domeADB_status
         )
-        self.tel_domeADB_status.set_put(**telemetry)
+        self.prepare_and_send_telemetry(
+            self.lower_level_status[LlcName.APSCS.value], self.tel_domeAPS_status
+        )
+        self.prepare_and_send_telemetry(
+            self.lower_level_status[LlcName.LCS.value], self.tel_domeLouvers_status
+        )
+        self.prepare_and_send_telemetry(
+            self.lower_level_status[LlcName.LWSCS.value], self.tel_domeLWS_status
+        )
+        self.prepare_and_send_telemetry(
+            self.lower_level_status[LlcName.MONCS.value], self.tel_domeMONCS_status
+        )
+        self.prepare_and_send_telemetry(
+            self.lower_level_status[LlcName.THCS.value], self.tel_domeTHCS_status
+        )
+
+    def prepare_and_send_telemetry(self, lower_level_status, telemetry_function):
+        """Prepares the telemetry for sending using the provided status and sends it.
+
+        Parameters
+        ----------
+        lower_level_status: `dict`
+            The lower level status dict to extract the telemetry from.
+        telemetry_function: func
+            The SAL function that send the specific telemetry.
+        """
+        # Remove some keys because they are not reported in the telemetry.
+        keys_to_remove = {"status"}
+        telemetry = self.remove_keys_from_dict(lower_level_status, keys_to_remove)
+        telemetry_function.set_put(**telemetry)
 
     # noinspection PyMethodMayBeStatic
     def remove_keys_from_dict(self, dict_with_too_many_keys, keys_to_remove):
@@ -478,6 +538,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             The function to be scheduled periodically.
         """
         while True:
+            self.log.info(f"Executing task {task}.")
             await task()
             await asyncio.sleep(period)
 
