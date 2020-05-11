@@ -6,6 +6,9 @@ from lsst.ts import salobj
 from lsst.ts import Dome
 
 STD_TIMEOUT = 2  # standard command timeout (sec)
+NUM_LOUVERS = 34
+NUM_MON_SENSORS = 16
+NUM_THERMO_SENSORS = 16
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO
@@ -294,10 +297,10 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             lcs_status = self.csc.lower_level_status[Dome.LlcName.LCS.value]
             self.assertEqual(
-                lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * 34,
+                lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * NUM_LOUVERS,
             )
             self.assertEqual(
-                lcs_status["positionActual"], [0.0] * 34,
+                lcs_status["positionActual"], [0.0] * NUM_LOUVERS,
             )
 
             lwscs_status = self.csc.lower_level_status[Dome.LlcName.LWSCS.value]
@@ -313,7 +316,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 moncs_status["status"], Dome.LlcStatus.DISABLED.value,
             )
             self.assertEqual(
-                moncs_status["data"], [0.0] * 16,
+                moncs_status["data"], [0.0] * NUM_MON_SENSORS,
             )
 
             thcs_status = self.csc.lower_level_status[Dome.LlcName.THCS.value]
@@ -321,7 +324,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 thcs_status["status"], Dome.LlcStatus.DISABLED.value,
             )
             self.assertEqual(
-                thcs_status["data"], [0.0] * 16,
+                thcs_status["data"], [0.0] * NUM_THERMO_SENSORS,
             )
 
     async def test_bin_script(self):

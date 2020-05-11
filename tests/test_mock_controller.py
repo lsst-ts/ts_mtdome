@@ -9,6 +9,10 @@ logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO
 )
 
+NUM_LOUVERS = 34
+NUM_MON_SENSORS = 16
+NUM_THERMO_SENSORS = 16
+
 
 class MockTestCase(asynctest.TestCase):
     async def setUp(self):
@@ -286,7 +290,7 @@ class MockTestCase(asynctest.TestCase):
         )
         status = self.data[Dome.LlcName.LCS.value]
         self.assertEqual(
-            status["status"], [Dome.LlcStatus.STOPPED.value] * 34,
+            status["status"], [Dome.LlcStatus.STOPPED.value] * NUM_LOUVERS,
         )
         status = self.data[Dome.LlcName.LWSCS.value]
         self.assertEqual(
@@ -326,13 +330,15 @@ class MockTestCase(asynctest.TestCase):
             lcs_status["status"],
             [Dome.LlcStatus.CLOSED.value] * louver_id
             + [Dome.LlcStatus.OPEN.value]
-            + [Dome.LlcStatus.CLOSED.value] * 28,
+            + [Dome.LlcStatus.CLOSED.value] * (NUM_LOUVERS - louver_id - 1),
         )
         self.assertEqual(
-            lcs_status["positionActual"], [0.0] * louver_id + [90.0] + [0.0] * 28,
+            lcs_status["positionActual"],
+            [0.0] * louver_id + [90.0] + [0.0] * (NUM_LOUVERS - louver_id - 1),
         )
         self.assertEqual(
-            lcs_status["positionCmd"], [0.0] * louver_id + [90.0] + [0.0] * 28,
+            lcs_status["positionCmd"],
+            [0.0] * louver_id + [90.0] + [0.0] * (NUM_LOUVERS - louver_id - 1),
         )
 
     async def test_closeLouvers(self):
@@ -345,13 +351,13 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         lcs_status = self.data[Dome.LlcName.LCS.value]
         self.assertEqual(
-            lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * 34,
+            lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * NUM_LOUVERS,
         )
         self.assertEqual(
-            lcs_status["positionActual"], [0.0] * 34,
+            lcs_status["positionActual"], [0.0] * NUM_LOUVERS,
         )
         self.assertEqual(
-            lcs_status["positionCmd"], [0.0] * 34,
+            lcs_status["positionCmd"], [0.0] * NUM_LOUVERS,
         )
 
     async def test_stopLouvers(self):
@@ -370,13 +376,15 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         lcs_status = self.data[Dome.LlcName.LCS.value]
         self.assertEqual(
-            lcs_status["status"], [Dome.LlcStatus.STOPPED.value] * 34,
+            lcs_status["status"], [Dome.LlcStatus.STOPPED.value] * NUM_LOUVERS,
         )
         self.assertEqual(
-            lcs_status["positionActual"], [0.0] * louver_id + [90.0] + [0.0] * 28,
+            lcs_status["positionActual"],
+            [0.0] * louver_id + [90.0] + [0.0] * (NUM_LOUVERS - louver_id - 1),
         )
         self.assertEqual(
-            lcs_status["positionCmd"], [0.0] * louver_id + [90.0] + [0.0] * 28,
+            lcs_status["positionCmd"],
+            [0.0] * louver_id + [90.0] + [0.0] * (NUM_LOUVERS - louver_id - 1),
         )
 
     async def test_openShutter(self):
@@ -489,7 +497,7 @@ class MockTestCase(asynctest.TestCase):
             thcs_status["status"], Dome.LlcStatus.ENABLED.value,
         )
         self.assertEqual(
-            thcs_status["data"], [temperature] * 16,
+            thcs_status["data"], [temperature] * NUM_THERMO_SENSORS,
         )
 
     async def test_inflate(self):
@@ -529,10 +537,10 @@ class MockTestCase(asynctest.TestCase):
 
         lcs_status = self.data[Dome.LlcName.LCS.value]
         self.assertEqual(
-            lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * 34,
+            lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * NUM_LOUVERS,
         )
         self.assertEqual(
-            lcs_status["positionActual"], [0.0] * 34,
+            lcs_status["positionActual"], [0.0] * NUM_LOUVERS,
         )
 
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -548,7 +556,7 @@ class MockTestCase(asynctest.TestCase):
             moncs_status["status"], Dome.LlcStatus.DISABLED.value,
         )
         self.assertEqual(
-            moncs_status["data"], [0.0] * 16,
+            moncs_status["data"], [0.0] * NUM_MON_SENSORS,
         )
 
         thcs_status = self.data[Dome.LlcName.THCS.value]
@@ -556,7 +564,7 @@ class MockTestCase(asynctest.TestCase):
             thcs_status["status"], Dome.LlcStatus.DISABLED.value,
         )
         self.assertEqual(
-            thcs_status["data"], [0.0] * 16,
+            thcs_status["data"], [0.0] * NUM_THERMO_SENSORS,
         )
 
 

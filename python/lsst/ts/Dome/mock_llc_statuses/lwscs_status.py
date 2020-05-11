@@ -1,9 +1,12 @@
 import logging
+import numpy as np
 
 from .base_mock_status import BaseMockStatus
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
 from ..lwscs_motion_direction import LwcsMotionDirection as motion_dir
 from ..llc_status import LlcStatus
+
+NUM_MOTORS = 2
 
 
 class LwscsStatus(BaseMockStatus):
@@ -33,15 +36,15 @@ class LwscsStatus(BaseMockStatus):
         self.position_error = 0.0
         self.position_actual = 0
         self.position_cmd = 0
-        self.drive_torque_actual = [0.0, 0.0]
-        self.drive_torque_error = [0.0, 0.0]
-        self.drive_torque_cmd = [0.0, 0.0]
-        self.drive_current_actual = [0.0, 0.0]
-        self.drive_temp_actual = [20.0, 20.0]
-        self.encoder_head_raw = [0.0, 0.0]
-        self.encoder_head_calibrated = [0.0, 0.0]
-        self.resolver_raw = [0.0, 0.0]
-        self.resolver_calibrated = [0.0, 0.0]
+        self.drive_torque_actual = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_torque_error = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_torque_cmd = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_temp_actual = np.full(NUM_MOTORS, 20.0, dtype=float)
+        self.encoder_head_raw = np.zeros(NUM_MOTORS, dtype=float)
+        self.encoder_head_calibrated = np.zeros(NUM_MOTORS, dtype=float)
+        self.resolver_raw = np.zeros(NUM_MOTORS, dtype=float)
+        self.resolver_calibrated = np.zeros(NUM_MOTORS, dtype=float)
         self.power_absortion = 0.0
 
     async def determine_status(self):
@@ -65,15 +68,15 @@ class LwscsStatus(BaseMockStatus):
             "positionError": self.position_error,
             "positionActual": self.position_actual,
             "positionCmd": self.position_cmd,
-            "driveTorqueActual": self.drive_torque_actual,
-            "driveTorqueError": self.drive_torque_error,
-            "driveTorqueCmd": self.drive_torque_cmd,
-            "driveCurrentActual": self.drive_current_actual,
-            "driveTempActual": self.drive_temp_actual,
-            "encoderHeadRaw": self.encoder_head_raw,
-            "encoderHeadCalibrated": self.encoder_head_calibrated,
-            "resolverRaw": self.resolver_raw,
-            "resolverCalibrated": self.resolver_calibrated,
+            "driveTorqueActual": self.drive_torque_actual.tolist(),
+            "driveTorqueError": self.drive_torque_error.tolist(),
+            "driveTorqueCmd": self.drive_torque_cmd.tolist(),
+            "driveCurrentActual": self.drive_current_actual.tolist(),
+            "driveTempActual": self.drive_temp_actual.tolist(),
+            "encoderHeadRaw": self.encoder_head_raw.tolist(),
+            "encoderHeadCalibrated": self.encoder_head_calibrated.tolist(),
+            "resolverRaw": self.resolver_raw.tolist(),
+            "resolverCalibrated": self.resolver_calibrated.tolist(),
             "powerAbsortion": self.power_absortion,
         }
         self.log.debug(f"lwscs_state = {self.llc_status}")

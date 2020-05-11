@@ -80,8 +80,6 @@ class MockDomeController:
         self.moncs = mock_llc_statuses.MoncsStatus()
         self.thcs = mock_llc_statuses.ThcsStatus()
 
-        self.do_cmd_loop = True
-
     async def start(self, keep_running=False):
         """Start the TCP/IP server.
 
@@ -111,7 +109,6 @@ class MockDomeController:
         """Stop the mock lower level components and the TCP/IP server.
         """
         await self.stop_status_task()
-        self.do_cmd_loop = False
 
         if self._server is None:
             return
@@ -173,7 +170,7 @@ class MockDomeController:
         """
         self.log.info("The cmd_loop begins")
         self._writer = writer
-        while self.do_cmd_loop:
+        while True:
             self.log.info("Waiting for next command.")
             timeout = self.long_timeout
             print_ok = True
@@ -387,15 +384,16 @@ class MockDomeController:
         kwargs: `dict`
             A dictionary with arguments to the function call. It should contain keys for all lower level
             components to be configured with values that are dicts with keys for all the parameters that
-            need to be configured. The structure is
-            "AMCS":
-                "jmax"
-                "amax"
-                "vmax"
-            "LWSCS":
-                "jmax"
-                "amax"
-                "vmax"
+            need to be configured. The structure is::
+
+                "AMCS":
+                    "jmax"
+                    "amax"
+                    "vmax"
+                "LWSCS":
+                    "jmax"
+                    "amax"
+                    "vmax"
 
             It is assumed that the values of the configuration parameters are validated to lie within the
             limits before being passed on to this function.

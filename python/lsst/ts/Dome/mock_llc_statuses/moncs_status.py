@@ -1,7 +1,10 @@
 import logging
+import numpy as np
 
 from .base_mock_status import BaseMockStatus
 from ..llc_status import LlcStatus
+
+NUM_SENSORS = 16
 
 
 class MoncsStatus(BaseMockStatus):
@@ -13,13 +16,13 @@ class MoncsStatus(BaseMockStatus):
         self.log = logging.getLogger("MockMoncsStatus")
         # variables holding the status of the mock Louvres
         self.status = LlcStatus.DISABLED.value
-        self.data = [0.0] * 16
+        self.data = np.zeros(NUM_SENSORS, dtype=float)
 
     async def determine_status(self):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
         self.llc_status = {
             "status": self.status,
-            "data": self.data,
+            "data": self.data.tolist(),
         }
         self.log.debug(f"moncs_state = {self.llc_status}")

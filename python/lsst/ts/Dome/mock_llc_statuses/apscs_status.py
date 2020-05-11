@@ -1,7 +1,10 @@
 import logging
+import numpy as np
 
 from .base_mock_status import BaseMockStatus
 from ..llc_status import LlcStatus
+
+NUM_MOTORS = 4
 
 
 class ApscsStatus(BaseMockStatus):
@@ -16,13 +19,13 @@ class ApscsStatus(BaseMockStatus):
         self.position_error = 0.0
         self.position_actual = 0.0
         self.position_cmd = 0.0
-        self.drive_torque_actual = [0.0] * 4
-        self.drive_torque_error = [0.0] * 4
-        self.drive_torque_cmd = [0.0] * 4
-        self.drive_current_actual = [0.0] * 4
-        self.drive_temp_actual = [0.0] * 4
-        self.resolver_head_raw = [0.0] * 4
-        self.resolver_head_calibrated = [0.0] * 4
+        self.drive_torque_actual = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_torque_error = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_torque_cmd = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_temp_actual = np.full(NUM_MOTORS, 20.0, dtype=float)
+        self.resolver_head_raw = np.zeros(NUM_MOTORS, dtype=float)
+        self.resolver_head_calibrated = np.zeros(NUM_MOTORS, dtype=float)
         self.power_absortion = 0.0
 
     async def determine_status(self):
@@ -33,13 +36,13 @@ class ApscsStatus(BaseMockStatus):
             "positionError": self.position_error,
             "positionActual": self.position_actual,
             "positionCmd": self.position_cmd,
-            "driveTorqueActual": self.drive_torque_actual,
-            "driveTorqueError": self.drive_torque_error,
-            "driveTorqueCmd": self.drive_torque_cmd,
-            "driveCurrentActual": self.drive_current_actual,
-            "driveTempActual": self.drive_temp_actual,
-            "resolverHeadRaw": self.resolver_head_raw,
-            "resolverHeadCalibrated": self.resolver_head_calibrated,
+            "driveTorqueActual": self.drive_torque_actual.tolist(),
+            "driveTorqueError": self.drive_torque_error.tolist(),
+            "driveTorqueCmd": self.drive_torque_cmd.tolist(),
+            "driveCurrentActual": self.drive_current_actual.tolist(),
+            "driveTempActual": self.drive_temp_actual.tolist(),
+            "resolverHeadRaw": self.resolver_head_raw.tolist(),
+            "resolverHeadCalibrated": self.resolver_head_calibrated.tolist(),
             "powerAbsortion": self.power_absortion,
         }
         self.log.debug(f"apcs_state = {self.llc_status}")

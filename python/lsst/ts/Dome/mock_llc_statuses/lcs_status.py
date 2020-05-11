@@ -1,7 +1,11 @@
 import logging
+import numpy as np
 
 from .base_mock_status import BaseMockStatus
 from ..llc_status import LlcStatus
+
+NUM_LOUVERS = 34
+NUM_MOTORS = 68
 
 
 class LcsStatus(BaseMockStatus):
@@ -12,34 +16,34 @@ class LcsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockLcsStatus")
         # variables holding the status of the mock Louvres
-        self.status = [LlcStatus.CLOSED.value] * 34
-        self.position_error = [0.0] * 34
-        self.position_actual = [0.0] * 34
-        self.position_cmd = [0.0] * 34
-        self.drive_torque_actual = [0.0] * 68
-        self.drive_torque_error = [0.0] * 68
-        self.drive_torque_cmd = [0.0] * 68
-        self.drive_current_actual = [0.0] * 68
-        self.drive_temp_actual = [20.0] * 68
-        self.encoder_head_raw = [0.0] * 68
-        self.encoder_head_calibrated = [0.0] * 68
+        self.status = np.full(NUM_LOUVERS, LlcStatus.CLOSED.value, dtype=object)
+        self.position_error = np.zeros(NUM_LOUVERS, dtype=float)
+        self.position_actual = np.zeros(NUM_LOUVERS, dtype=float)
+        self.position_cmd = np.zeros(NUM_LOUVERS, dtype=float)
+        self.drive_torque_actual = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_torque_error = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_torque_cmd = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_temp_actual = np.full(NUM_MOTORS, 20.0, dtype=float)
+        self.encoder_head_raw = np.zeros(NUM_MOTORS, dtype=float)
+        self.encoder_head_calibrated = np.zeros(NUM_MOTORS, dtype=float)
         self.power_absortion = 0.0
 
     async def determine_status(self):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
         self.llc_status = {
-            "status": self.status,
-            "positionError": self.position_error,
-            "positionActual": self.position_actual,
-            "positionCmd": self.position_cmd,
-            "driveTorqueActual": self.drive_torque_actual,
-            "driveTorqueError": self.drive_torque_error,
-            "driveTorqueCmd": self.drive_torque_cmd,
-            "driveCurrentActual": self.drive_current_actual,
-            "driveTempActual": self.drive_temp_actual,
-            "encoderHeadRaw": self.encoder_head_raw,
-            "encoderHeadCalibrated": self.encoder_head_calibrated,
+            "status": self.status.tolist(),
+            "positionError": self.position_error.tolist(),
+            "positionActual": self.position_actual.tolist(),
+            "positionCmd": self.position_cmd.tolist(),
+            "driveTorqueActual": self.drive_torque_actual.tolist(),
+            "driveTorqueError": self.drive_torque_error.tolist(),
+            "driveTorqueCmd": self.drive_torque_cmd.tolist(),
+            "driveCurrentActual": self.drive_current_actual.tolist(),
+            "driveTempActual": self.drive_temp_actual.tolist(),
+            "encoderHeadRaw": self.encoder_head_raw.tolist(),
+            "encoderHeadCalibrated": self.encoder_head_calibrated.tolist(),
             "powerAbsortion": self.power_absortion,
         }
         self.log.debug(f"lcs_state = {self.llc_status}")
@@ -61,11 +65,11 @@ class LcsStatus(BaseMockStatus):
         self.position_cmd[louver_id] = position
 
     async def closeLouvers(self):
-        self.status = [LlcStatus.CLOSED.value] * 34
-        self.position_actual = [0.0] * 34
-        self.position_cmd = [0.0] * 34
+        self.status[:] = LlcStatus.CLOSED.value
+        self.position_actual[:] = 0.0
+        self.position_cmd[:] = 0.0
 
     async def stopLouvers(self):
         """Mock stopping all motion of all louvers.
         """
-        self.status = [LlcStatus.STOPPED.value] * 34
+        self.status[:] = LlcStatus.STOPPED.value
