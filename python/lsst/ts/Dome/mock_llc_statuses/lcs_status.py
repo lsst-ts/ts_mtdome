@@ -4,8 +4,8 @@ import numpy as np
 from .base_mock_status import BaseMockStatus
 from ..llc_status import LlcStatus
 
-NUM_LOUVERS = 34
-NUM_MOTORS = 68
+_NUM_LOUVERS = 34
+_NUM_MOTORS = 68
 
 
 class LcsStatus(BaseMockStatus):
@@ -16,17 +16,17 @@ class LcsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockLcsStatus")
         # variables holding the status of the mock Louvres
-        self.status = np.full(NUM_LOUVERS, LlcStatus.CLOSED.value, dtype=object)
-        self.position_error = np.zeros(NUM_LOUVERS, dtype=float)
-        self.position_actual = np.zeros(NUM_LOUVERS, dtype=float)
-        self.position_cmd = np.zeros(NUM_LOUVERS, dtype=float)
-        self.drive_torque_actual = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_torque_error = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_torque_cmd = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_temp_actual = np.full(NUM_MOTORS, 20.0, dtype=float)
-        self.encoder_head_raw = np.zeros(NUM_MOTORS, dtype=float)
-        self.encoder_head_calibrated = np.zeros(NUM_MOTORS, dtype=float)
+        self.status = np.full(_NUM_LOUVERS, LlcStatus.CLOSED.value, dtype=object)
+        self.position_error = np.zeros(_NUM_LOUVERS, dtype=float)
+        self.position_actual = np.zeros(_NUM_LOUVERS, dtype=float)
+        self.position_cmd = np.zeros(_NUM_LOUVERS, dtype=float)
+        self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_torque_error = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_torque_cmd = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_current_actual = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_temp_actual = np.full(_NUM_MOTORS, 20.0, dtype=float)
+        self.encoder_head_raw = np.zeros(_NUM_MOTORS, dtype=float)
+        self.encoder_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
         self.power_absortion = 0.0
 
     async def determine_status(self):
@@ -55,7 +55,7 @@ class LcsStatus(BaseMockStatus):
         ----------
         louver_id: `int`
             The ID of the louver to set the position for. A zero based ID is assumed.
-        position: `int`
+        position: `float`
             The position (deg) to set the louver to. 0 means closed, 180 means wide open. These limits are
             not checked.
         """

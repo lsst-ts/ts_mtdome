@@ -1,10 +1,12 @@
 import logging
+import math
 import numpy as np
 
 from .base_mock_status import BaseMockStatus
 from ..llc_status import LlcStatus
 
-NUM_MOTORS = 4
+_NUM_MOTORS = 4
+_DEGREES_TO_RADIANS = math.pi / 180.0
 
 
 class ApscsStatus(BaseMockStatus):
@@ -19,13 +21,13 @@ class ApscsStatus(BaseMockStatus):
         self.position_error = 0.0
         self.position_actual = 0.0
         self.position_cmd = 0.0
-        self.drive_torque_actual = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_torque_error = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_torque_cmd = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_temp_actual = np.full(NUM_MOTORS, 20.0, dtype=float)
-        self.resolver_head_raw = np.zeros(NUM_MOTORS, dtype=float)
-        self.resolver_head_calibrated = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_torque_error = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_torque_cmd = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_current_actual = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_temp_actual = np.full(_NUM_MOTORS, 20.0, dtype=float)
+        self.resolver_head_raw = np.zeros(_NUM_MOTORS, dtype=float)
+        self.resolver_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
         self.power_absortion = 0.0
 
     async def determine_status(self):
@@ -50,11 +52,10 @@ class ApscsStatus(BaseMockStatus):
     async def openShutter(self):
         """Mock opening of the shutter.
         """
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.log.info(f"Received command 'openShutter'")
         self.status = LlcStatus.OPEN.value
-        self.position_actual = 90.0
-        self.position_cmd = 90.0
+        self.position_actual = 90.0 * _DEGREES_TO_RADIANS
+        self.position_cmd = 90.0 * _DEGREES_TO_RADIANS
 
     async def closeShutter(self):
         """Mock closing of the shutter.

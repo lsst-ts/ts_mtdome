@@ -2,7 +2,7 @@ from abc import abstractmethod
 from .abstract_limits import AbstractLimits
 import math
 
-DEGREES_TO_RADIANS = math.pi / 180.0
+_DEGREES_TO_RADIANS = math.pi / 180.0
 
 
 class CommonAmcsAndLwscsLimits(AbstractLimits):
@@ -37,9 +37,12 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
 
         for key in common_limits.keys():
             # Validate the provided value  against the limit.
-            if configuration_parameters[key] <= common_limits[key]:
+            if (
+                configuration_parameters[key] * _DEGREES_TO_RADIANS
+                <= common_limits[key]
+            ):
                 converted_configuration_parameters[key] = (
-                    common_limits[key] * DEGREES_TO_RADIANS
+                    common_limits[key] * _DEGREES_TO_RADIANS
                 )
             else:
                 # If the value is larger than the limit, raise a ValueError

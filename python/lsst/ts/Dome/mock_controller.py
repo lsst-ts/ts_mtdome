@@ -253,7 +253,6 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use degrees.
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         await self.amcs.moveAz(azimuth=float(kwargs["azimuth"]))
 
     async def move_el(self, **kwargs):
@@ -269,7 +268,6 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use degrees.
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         await self.lwscs.moveEl(elevation=float(kwargs["elevation"]))
 
     async def stop_az(self):
@@ -305,7 +303,6 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use degrees.
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         await self.amcs.crawlAz(
             direction=kwargs["dirMotion"], velocity=float(kwargs["azRate"])
         )
@@ -323,7 +320,6 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use degrees.
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         await self.lwscs.crawlEl(
             direction=kwargs["dirMotion"], velocity=float(kwargs["elRate"])
         )
@@ -341,9 +337,8 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use degrees.
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         await self.lcs.setLouver(
-            louver_id=int(kwargs["id"]), position=int(kwargs["position"])
+            louver_id=int(kwargs["id"]), position=float(kwargs["position"])
         )
 
     async def closeLouvers(self):

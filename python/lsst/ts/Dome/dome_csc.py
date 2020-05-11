@@ -3,6 +3,8 @@ __all__ = ["DomeCsc"]
 import asyncio
 import logging
 import pathlib
+import math
+import numpy as np
 import yaml
 
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
@@ -12,6 +14,10 @@ from .mock_controller import MockDomeController
 
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout in s to be used by this module
+_DEGREES_TO_RADIANS = math.pi / 180.0
+_RADIANS_TO_DEGREES = 180.0 / math.pi
+_KEYS_TO_REMOVE = {"status"}
+_KEYS_IN_RADIANS = {"positionError", "positionActual", "positionCmd"}
 
 
 class DomeCsc(salobj.ConfigurableCsc):
@@ -193,8 +199,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
-        cmd = {"moveAz": {"azimuth": data.azimuth}}
+        cmd = {"moveAz": {"azimuth": data.azimuth * _DEGREES_TO_RADIANS}}
         self.log.info(f"Moving Dome to azimuth {data.azimuth}")
         await self.write_then_read_reply(cmd)
 
@@ -207,8 +212,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
-        cmd = {"moveEl": {"elevation": data.elevation}}
+        cmd = {"moveEl": {"elevation": data.elevation * _DEGREES_TO_RADIANS}}
         self.log.info(f"Moving LWS to elevation {data.elevation}")
         await self.write_then_read_reply(cmd)
 
@@ -257,8 +261,12 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
-        cmd = {"crawlAz": {"dirMotion": data.dirMotion, "azRate": data.azRate}}
+        cmd = {
+            "crawlAz": {
+                "dirMotion": data.dirMotion,
+                "azRate": data.azRate * _DEGREES_TO_RADIANS,
+            }
+        }
         await self.write_then_read_reply(cmd)
 
     async def do_crawlEl(self, data):
@@ -270,8 +278,12 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
-        cmd = {"crawlAz": {"dirMotion": data.dirMotion, "elRate": data.elRate}}
+        cmd = {
+            "crawlAz": {
+                "dirMotion": data.dirMotion,
+                "elRate": data.elRate * _DEGREES_TO_RADIANS,
+            }
+        }
         await self.write_then_read_reply(cmd)
 
     async def do_setLouver(self, data):
@@ -283,8 +295,12 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
-        cmd = {"setLouver": {"id": data.id, "position": data.position}}
+        cmd = {
+            "setLouver": {
+                "id": data.id,
+                "position": data.position * _DEGREES_TO_RADIANS,
+            }
+        }
         await self.write_then_read_reply(cmd)
 
     async def do_closeLouvers(self, data):
@@ -482,12 +498,11 @@ class DomeCsc(salobj.ConfigurableCsc):
             The SAL function that send the specific telemetry.
         """
         # Remove some keys because they are not reported in the telemetry.
-        keys_to_remove = {"status"}
-        telemetry = self.remove_keys_from_dict(lower_level_status, keys_to_remove)
+        telemetry = self.remove_keys_from_dict(lower_level_status)
         telemetry_function.set_put(**telemetry)
 
     # noinspection PyMethodMayBeStatic
-    def remove_keys_from_dict(self, dict_with_too_many_keys, keys_to_remove):
+    def remove_keys_from_dict(self, dict_with_too_many_keys):
         """
         Return a copy of a dict with specified items removed.
 
@@ -495,8 +510,6 @@ class DomeCsc(salobj.ConfigurableCsc):
         ----------
         dict_with_too_many_keys : `dict`
             The dict where to remove the keys from.
-        keys_to_remove : `set`
-            The set of keys to remove. Keys that do not appear in `dict_with_too_many_keys` get skipped.
 
         Returns
         -------
@@ -506,9 +519,32 @@ class DomeCsc(salobj.ConfigurableCsc):
         dict_with_keys_removed = {
             x: dict_with_too_many_keys[x]
             for x in dict_with_too_many_keys
-            if x not in keys_to_remove
+            if x not in _KEYS_TO_REMOVE
         }
         return dict_with_keys_removed
+
+    # noinspection PyMethodMayBeStatic
+    def convert_telemetry_radians_to_degrees(self, telemetry_in_radians):
+        telemetry_in_degrees = {}
+        for key in telemetry_in_radians.keys():
+            if key in _KEYS_IN_RADIANS:
+                telemetry_in_degrees[key] = (
+                    telemetry_in_radians[key] * _RADIANS_TO_DEGREES
+                )
+            else:
+                telemetry_in_degrees[key] = telemetry_in_radians[key]
+        return telemetry_in_degrees
+
+    # noinspection PyMethodMayBeStatic
+    def convert_telemetry_list_radians_to_degrees(self, telemetry_in_radians):
+        telemetry_in_degrees = {}
+        for key in telemetry_in_radians.keys():
+            if key in _KEYS_IN_RADIANS:
+                arr = np.array(telemetry_in_radians[key])
+                telemetry_in_degrees[key] = (arr * _RADIANS_TO_DEGREES).tolist()
+            else:
+                telemetry_in_degrees[key] = telemetry_in_radians[key]
+        return telemetry_in_degrees
 
     async def close_tasks(self):
         """Disconnect from the TCP/IP controller, if connected, and stop

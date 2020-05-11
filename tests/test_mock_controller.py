@@ -1,6 +1,7 @@
 import asyncio
 import asynctest
 import logging
+import math
 import yaml
 
 from lsst.ts import Dome
@@ -9,9 +10,10 @@ logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO
 )
 
-NUM_LOUVERS = 34
-NUM_MON_SENSORS = 16
-NUM_THERMO_SENSORS = 16
+_DEGREES_TO_RADIANS = math.pi / 180.0
+_NUM_LOUVERS = 34
+_NUM_MON_SENSORS = 16
+_NUM_THERMO_SENSORS = 16
 
 
 class MockTestCase(asynctest.TestCase):
@@ -72,7 +74,8 @@ class MockTestCase(asynctest.TestCase):
         self.assertEqual(self.data["ERROR"]["CODE"], 3)
 
     async def test_moveAz(self):
-        await self.write("moveAz:\n azimuth: 10\n")
+        target_azimuth = 10 * _DEGREES_TO_RADIANS
+        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -85,10 +88,10 @@ class MockTestCase(asynctest.TestCase):
             amcs_status["status"], Dome.LlcStatus.MOVING.value,
         )
         self.assertGreaterEqual(
-            amcs_status["positionActual"], 0.5,
+            amcs_status["positionActual"], 0.5 * _DEGREES_TO_RADIANS,
         )
         self.assertLessEqual(
-            amcs_status["positionActual"], 1.5,
+            amcs_status["positionActual"], 1.5 * _DEGREES_TO_RADIANS,
         )
 
         # Give some time to the mock device to move.
@@ -100,10 +103,10 @@ class MockTestCase(asynctest.TestCase):
             amcs_status["status"], Dome.LlcStatus.MOVING.value,
         )
         self.assertGreaterEqual(
-            amcs_status["positionActual"], 2.5,
+            amcs_status["positionActual"], 2.5 * _DEGREES_TO_RADIANS,
         )
         self.assertLessEqual(
-            amcs_status["positionActual"], 3.5,
+            amcs_status["positionActual"], 3.5 * _DEGREES_TO_RADIANS,
         )
 
         # Give some time to the mock device to reach the commanded position.
@@ -115,11 +118,12 @@ class MockTestCase(asynctest.TestCase):
             amcs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
         self.assertEqual(
-            amcs_status["positionActual"], 10.0,
+            amcs_status["positionActual"], 10.0 * _DEGREES_TO_RADIANS,
         )
 
     async def test_crawlAz(self):
-        await self.write("crawlAz:\n dirMotion: CW\n azRate: 0.1")
+        target_rate = 0.1 * _DEGREES_TO_RADIANS
+        await self.write(f"crawlAz:\n dirMotion: CW\n azRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to move
@@ -131,14 +135,15 @@ class MockTestCase(asynctest.TestCase):
             amcs_status["status"], Dome.LlcStatus.CRAWLING.value,
         )
         self.assertGreaterEqual(
-            amcs_status["positionActual"], 0.05,
+            amcs_status["positionActual"], 0.05 * _DEGREES_TO_RADIANS,
         )
         self.assertLessEqual(
-            amcs_status["positionActual"], 0.15,
+            amcs_status["positionActual"], 0.15 * _DEGREES_TO_RADIANS,
         )
 
     async def test_stopAz(self):
-        await self.write("moveAz:\n azimuth: 10\n")
+        target_azimuth = 10 * _DEGREES_TO_RADIANS
+        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -151,10 +156,10 @@ class MockTestCase(asynctest.TestCase):
             amcs_status["status"], Dome.LlcStatus.MOVING.value,
         )
         self.assertGreaterEqual(
-            amcs_status["positionActual"], 0.5,
+            amcs_status["positionActual"], 0.5 * _DEGREES_TO_RADIANS,
         )
         self.assertLessEqual(
-            amcs_status["positionActual"], 1.5,
+            amcs_status["positionActual"], 1.5 * _DEGREES_TO_RADIANS,
         )
 
         await self.write("stopAz:\n")
@@ -169,14 +174,15 @@ class MockTestCase(asynctest.TestCase):
             amcs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
         self.assertGreaterEqual(
-            amcs_status["positionActual"], 1.0,
+            amcs_status["positionActual"], 1.0 * _DEGREES_TO_RADIANS,
         )
         self.assertLessEqual(
-            amcs_status["positionActual"], 1.7,
+            amcs_status["positionActual"], 1.7 * _DEGREES_TO_RADIANS,
         )
 
     async def test_moveEl(self):
-        await self.write("moveEl:\n elevation: 5\n")
+        target_elevation = 5 * _DEGREES_TO_RADIANS
+        await self.write(f"moveEl:\n elevation: {target_elevation}\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to move.
@@ -188,10 +194,10 @@ class MockTestCase(asynctest.TestCase):
             lwscs_status["status"], Dome.LlcStatus.MOVING.value,
         )
         self.assertGreaterEqual(
-            lwscs_status["positionActual"], 1.5,
+            lwscs_status["positionActual"], 1.5 * _DEGREES_TO_RADIANS,
         )
         self.assertLessEqual(
-            lwscs_status["positionActual"], 2.0,
+            lwscs_status["positionActual"], 2.0 * _DEGREES_TO_RADIANS,
         )
 
         # Give some time to the mock device to move.
@@ -203,10 +209,10 @@ class MockTestCase(asynctest.TestCase):
             lwscs_status["status"], Dome.LlcStatus.MOVING.value,
         )
         self.assertGreaterEqual(
-            lwscs_status["positionActual"], 3.0,
+            lwscs_status["positionActual"], 3.0 * _DEGREES_TO_RADIANS,
         )
         self.assertLessEqual(
-            lwscs_status["positionActual"], 4.0,
+            lwscs_status["positionActual"], 4.0 * _DEGREES_TO_RADIANS,
         )
 
         # Give some time to the mock device to reach the commanded position.
@@ -218,11 +224,12 @@ class MockTestCase(asynctest.TestCase):
             lwscs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
         self.assertEqual(
-            lwscs_status["positionActual"], 5.0,
+            lwscs_status["positionActual"], 5.0 * _DEGREES_TO_RADIANS,
         )
 
     async def test_stopEl(self):
-        await self.write("moveEl:\n elevation: 5\n")
+        target_elevation = 5 * _DEGREES_TO_RADIANS
+        await self.write(f"moveEl:\n elevation: {target_elevation}\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -235,10 +242,10 @@ class MockTestCase(asynctest.TestCase):
             lwscs_status["status"], Dome.LlcStatus.MOVING.value,
         )
         self.assertGreaterEqual(
-            lwscs_status["positionActual"], 1.5,
+            lwscs_status["positionActual"], 1.5 * _DEGREES_TO_RADIANS,
         )
         self.assertLessEqual(
-            lwscs_status["positionActual"], 2.0,
+            lwscs_status["positionActual"], 2.0 * _DEGREES_TO_RADIANS,
         )
 
         await self.write("stopEl:\n")
@@ -254,17 +261,19 @@ class MockTestCase(asynctest.TestCase):
             lwscs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
         self.assertGreaterEqual(
-            lwscs_status["positionActual"], 1.5,
+            lwscs_status["positionActual"], 1.5 * _DEGREES_TO_RADIANS,
         )
         self.assertLessEqual(
-            lwscs_status["positionActual"], 2.0,
+            lwscs_status["positionActual"], 2.0 * _DEGREES_TO_RADIANS,
         )
 
     async def test_stop(self):
-        await self.write("moveAz:\n azimuth: 10\n")
+        target_azimuth = 10 * _DEGREES_TO_RADIANS
+        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
-        await self.write("moveEl:\n elevation: 5\n")
+        target_elevation = 5 * _DEGREES_TO_RADIANS
+        await self.write(f"moveEl:\n elevation: {target_elevation}\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         await self.write("setLouver:\n id: 5\n position: 90.0\n")
@@ -290,7 +299,7 @@ class MockTestCase(asynctest.TestCase):
         )
         status = self.data[Dome.LlcName.LCS.value]
         self.assertEqual(
-            status["status"], [Dome.LlcStatus.STOPPED.value] * NUM_LOUVERS,
+            status["status"], [Dome.LlcStatus.STOPPED.value] * _NUM_LOUVERS,
         )
         status = self.data[Dome.LlcName.LWSCS.value]
         self.assertEqual(
@@ -298,7 +307,8 @@ class MockTestCase(asynctest.TestCase):
         )
 
     async def test_crawlEl(self):
-        await self.write("crawlEl:\n dirMotion: UP\n elRate: 0.1")
+        target_rate = 0.1 * _DEGREES_TO_RADIANS
+        await self.write(f"crawlEl:\n dirMotion: UP\n elRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to move.
@@ -310,15 +320,18 @@ class MockTestCase(asynctest.TestCase):
             lwscs_status["status"], Dome.LlcStatus.CRAWLING.value,
         )
         self.assertGreaterEqual(
-            lwscs_status["positionActual"], 0.05,
+            lwscs_status["positionActual"], 0.05 * _DEGREES_TO_RADIANS,
         )
         self.assertLessEqual(
-            lwscs_status["positionActual"], 0.15,
+            lwscs_status["positionActual"], 0.15 * _DEGREES_TO_RADIANS,
         )
 
     async def test_setLouver(self):
         louver_id = 5
-        await self.write(f"setLouver:\n id: {louver_id}\n position: 90\n")
+        target_position = 90 * _DEGREES_TO_RADIANS
+        await self.write(
+            f"setLouver:\n id: {louver_id}\n position: {target_position}\n"
+        )
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to open.
@@ -330,15 +343,19 @@ class MockTestCase(asynctest.TestCase):
             lcs_status["status"],
             [Dome.LlcStatus.CLOSED.value] * louver_id
             + [Dome.LlcStatus.OPEN.value]
-            + [Dome.LlcStatus.CLOSED.value] * (NUM_LOUVERS - louver_id - 1),
+            + [Dome.LlcStatus.CLOSED.value] * (_NUM_LOUVERS - louver_id - 1),
         )
         self.assertEqual(
             lcs_status["positionActual"],
-            [0.0] * louver_id + [90.0] + [0.0] * (NUM_LOUVERS - louver_id - 1),
+            [0.0] * louver_id
+            + [target_position]
+            + [0.0] * (_NUM_LOUVERS - louver_id - 1),
         )
         self.assertEqual(
             lcs_status["positionCmd"],
-            [0.0] * louver_id + [90.0] + [0.0] * (NUM_LOUVERS - louver_id - 1),
+            [0.0] * louver_id
+            + [target_position]
+            + [0.0] * (_NUM_LOUVERS - louver_id - 1),
         )
 
     async def test_closeLouvers(self):
@@ -351,18 +368,21 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         lcs_status = self.data[Dome.LlcName.LCS.value]
         self.assertEqual(
-            lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * NUM_LOUVERS,
+            lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * _NUM_LOUVERS,
         )
         self.assertEqual(
-            lcs_status["positionActual"], [0.0] * NUM_LOUVERS,
+            lcs_status["positionActual"], [0.0] * _NUM_LOUVERS,
         )
         self.assertEqual(
-            lcs_status["positionCmd"], [0.0] * NUM_LOUVERS,
+            lcs_status["positionCmd"], [0.0] * _NUM_LOUVERS,
         )
 
     async def test_stopLouvers(self):
         louver_id = 5
-        await self.write(f"setLouver:\n id: {louver_id}\n position: 90.0\n")
+        target_position = 90 * _DEGREES_TO_RADIANS
+        await self.write(
+            f"setLouver:\n id: {louver_id}\n position: {target_position}\n"
+        )
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to open.
@@ -376,15 +396,19 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         lcs_status = self.data[Dome.LlcName.LCS.value]
         self.assertEqual(
-            lcs_status["status"], [Dome.LlcStatus.STOPPED.value] * NUM_LOUVERS,
+            lcs_status["status"], [Dome.LlcStatus.STOPPED.value] * _NUM_LOUVERS,
         )
         self.assertEqual(
             lcs_status["positionActual"],
-            [0.0] * louver_id + [90.0] + [0.0] * (NUM_LOUVERS - louver_id - 1),
+            [0.0] * louver_id
+            + [target_position]
+            + [0.0] * (_NUM_LOUVERS - louver_id - 1),
         )
         self.assertEqual(
             lcs_status["positionCmd"],
-            [0.0] * louver_id + [90.0] + [0.0] * (NUM_LOUVERS - louver_id - 1),
+            [0.0] * louver_id
+            + [target_position]
+            + [0.0] * (_NUM_LOUVERS - louver_id - 1),
         )
 
     async def test_openShutter(self):
@@ -400,10 +424,10 @@ class MockTestCase(asynctest.TestCase):
             apscs_status["status"], Dome.LlcStatus.OPEN.value,
         )
         self.assertEqual(
-            apscs_status["positionActual"], 90.0,
+            apscs_status["positionActual"], 90.0 * _DEGREES_TO_RADIANS,
         )
         self.assertEqual(
-            apscs_status["positionCmd"], 90.0,
+            apscs_status["positionCmd"], 90.0 * _DEGREES_TO_RADIANS,
         )
 
     async def test_closeShutter(self):
@@ -443,23 +467,32 @@ class MockTestCase(asynctest.TestCase):
             apscs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
         self.assertEqual(
-            apscs_status["positionActual"], 90.0,
+            apscs_status["positionActual"], 90.0 * _DEGREES_TO_RADIANS,
         )
         self.assertEqual(
-            apscs_status["positionCmd"], 90.0,
+            apscs_status["positionCmd"], 90.0 * _DEGREES_TO_RADIANS,
         )
 
     async def test_config(self):
         config = {
-            Dome.LlcName.AMCS.value: {"jmax": 3.0, "amax": 0.75, "vmax": 1.5},
-            Dome.LlcName.LWSCS.value: {"jmax": 3.5, "amax": 0.875, "vmax": 1.75},
+            Dome.LlcName.AMCS.value: {
+                "jmax": 3.0 * _DEGREES_TO_RADIANS,
+                "amax": 0.75 * _DEGREES_TO_RADIANS,
+                "vmax": 1.5 * _DEGREES_TO_RADIANS,
+            },
+            Dome.LlcName.LWSCS.value: {
+                "jmax": 3.5 * _DEGREES_TO_RADIANS,
+                "amax": 0.875 * _DEGREES_TO_RADIANS,
+                "vmax": 1.75 * _DEGREES_TO_RADIANS,
+            },
         }
         await self.write(f"config:\n {config}\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
     async def test_park(self):
-        await self.write("moveAz:\n azimuth: 10\n")
+        target_azimuth = 1 * _DEGREES_TO_RADIANS
+        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to move.
@@ -497,7 +530,7 @@ class MockTestCase(asynctest.TestCase):
             thcs_status["status"], Dome.LlcStatus.ENABLED.value,
         )
         self.assertEqual(
-            thcs_status["data"], [temperature] * NUM_THERMO_SENSORS,
+            thcs_status["data"], [temperature] * _NUM_THERMO_SENSORS,
         )
 
     async def test_inflate(self):
@@ -537,10 +570,10 @@ class MockTestCase(asynctest.TestCase):
 
         lcs_status = self.data[Dome.LlcName.LCS.value]
         self.assertEqual(
-            lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * NUM_LOUVERS,
+            lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * _NUM_LOUVERS,
         )
         self.assertEqual(
-            lcs_status["positionActual"], [0.0] * NUM_LOUVERS,
+            lcs_status["positionActual"], [0.0] * _NUM_LOUVERS,
         )
 
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -556,7 +589,7 @@ class MockTestCase(asynctest.TestCase):
             moncs_status["status"], Dome.LlcStatus.DISABLED.value,
         )
         self.assertEqual(
-            moncs_status["data"], [0.0] * NUM_MON_SENSORS,
+            moncs_status["data"], [0.0] * _NUM_MON_SENSORS,
         )
 
         thcs_status = self.data[Dome.LlcName.THCS.value]
@@ -564,7 +597,7 @@ class MockTestCase(asynctest.TestCase):
             thcs_status["status"], Dome.LlcStatus.DISABLED.value,
         )
         self.assertEqual(
-            thcs_status["data"], [0.0] * NUM_THERMO_SENSORS,
+            thcs_status["data"], [0.0] * _NUM_THERMO_SENSORS,
         )
 
 
