@@ -6,7 +6,7 @@ from ..llc_configuration_limits.lwscs_limits import LwscsLimits
 from ..lwscs_motion_direction import LwcsMotionDirection as motion_dir
 from ..llc_status import LlcStatus
 
-NUM_MOTORS = 2
+_NUM_MOTORS = 2
 
 
 class LwscsStatus(BaseMockStatus):
@@ -36,15 +36,15 @@ class LwscsStatus(BaseMockStatus):
         self.position_error = 0.0
         self.position_actual = 0
         self.position_cmd = 0
-        self.drive_torque_actual = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_torque_error = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_torque_cmd = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_temp_actual = np.full(NUM_MOTORS, 20.0, dtype=float)
-        self.encoder_head_raw = np.zeros(NUM_MOTORS, dtype=float)
-        self.encoder_head_calibrated = np.zeros(NUM_MOTORS, dtype=float)
-        self.resolver_raw = np.zeros(NUM_MOTORS, dtype=float)
-        self.resolver_calibrated = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_torque_error = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_torque_cmd = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_current_actual = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_temp_actual = np.full(_NUM_MOTORS, 20.0, dtype=float)
+        self.encoder_head_raw = np.zeros(_NUM_MOTORS, dtype=float)
+        self.encoder_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
+        self.resolver_raw = np.zeros(_NUM_MOTORS, dtype=float)
+        self.resolver_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
         self.power_absortion = 0.0
 
     async def determine_status(self):

@@ -7,7 +7,7 @@ from ..llc_configuration_limits.amcs_limits import AmcsLimits
 from ..azcs_motion_direction import AzcsMotionDirection as motion_dir
 from ..llc_status import LlcStatus
 
-NUM_MOTORS = 5
+_NUM_MOTORS = 5
 
 
 class AmcsStatus(BaseMockStatus):
@@ -39,15 +39,15 @@ class AmcsStatus(BaseMockStatus):
         self.position_error = 0.0
         self.position_actual = 0
         self.position_cmd = 0
-        self.drive_torque_actual = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_torque_error = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_torque_cmd = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
-        self.drive_temp_actual = np.full(NUM_MOTORS, 20.0, dtype=float)
-        self.encoder_head_raw = np.zeros(NUM_MOTORS, dtype=float)
-        self.encoder_head_calibrated = np.zeros(NUM_MOTORS, dtype=float)
-        self.resolver_raw = np.zeros(NUM_MOTORS, dtype=float)
-        self.resolver_calibrated = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_torque_error = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_torque_cmd = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_current_actual = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_temp_actual = np.full(_NUM_MOTORS, 20.0, dtype=float)
+        self.encoder_head_raw = np.zeros(_NUM_MOTORS, dtype=float)
+        self.encoder_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
+        self.resolver_raw = np.zeros(_NUM_MOTORS, dtype=float)
+        self.resolver_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
 
     async def determine_status(self):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
@@ -98,7 +98,6 @@ class AmcsStatus(BaseMockStatus):
         azimuth: `float`
             The azimuth to move to.
         """
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.position_cmd = azimuth
         self.motion_velocity = self.vmax
         self.status = LlcStatus.MOVING.value
@@ -119,7 +118,6 @@ class AmcsStatus(BaseMockStatus):
             The velocity (deg/s) at which to crawl. The velocity is not checked against the velocity limits
             for the dome.
         """
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         self.motion_direction = direction
         self.motion_velocity = velocity
         self.status = LlcStatus.CRAWLING.value
