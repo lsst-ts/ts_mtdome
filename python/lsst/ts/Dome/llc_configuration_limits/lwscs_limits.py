@@ -2,8 +2,6 @@ import math
 
 from .common_amcs_and_lwscs_limits import CommonAmcsAndLwscsLimits
 
-_DEGREES_TO_RADIANS = math.pi / 180.0
-
 
 class LwscsLimits(CommonAmcsAndLwscsLimits):
     """This class holds the limits of the configuration values for the LWSCS lower level component.
@@ -18,9 +16,9 @@ class LwscsLimits(CommonAmcsAndLwscsLimits):
     """
 
     def __init__(self):
-        self.jmax = 3.5 * _DEGREES_TO_RADIANS  # Maximum jerk in rad/s^3
-        self.amax = 0.875 * _DEGREES_TO_RADIANS  # Maximum acceleration in rad/s^2
-        self.vmax = 1.75 * _DEGREES_TO_RADIANS  # Maximum velocity in rad/s
+        self.jmax = math.radians(3.5)  # Maximum jerk in rad/s^3
+        self.amax = math.radians(0.875)  # Maximum acceleration in rad/s^2
+        self.vmax = math.radians(1.75)  # Maximum velocity in rad/s
 
     def validate(self, configuration_parameters):
         """Validate the data are against the configuration limits of the lower level component.

@@ -2,8 +2,6 @@ from abc import abstractmethod
 from .abstract_limits import AbstractLimits
 import math
 
-_DEGREES_TO_RADIANS = math.pi / 180.0
-
 
 class CommonAmcsAndLwscsLimits(AbstractLimits):
     """Helper class that handles parameter limits common between AMCS and LWSCS.
@@ -37,12 +35,9 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
 
         for key in common_limits.keys():
             # Validate the provided value  against the limit.
-            if (
-                configuration_parameters[key] * _DEGREES_TO_RADIANS
-                <= common_limits[key]
-            ):
-                converted_configuration_parameters[key] = (
-                    common_limits[key] * _DEGREES_TO_RADIANS
+            if math.radians(configuration_parameters[key]) <= common_limits[key]:
+                converted_configuration_parameters[key] = math.radians(
+                    common_limits[key]
                 )
             else:
                 # If the value is larger than the limit, raise a ValueError

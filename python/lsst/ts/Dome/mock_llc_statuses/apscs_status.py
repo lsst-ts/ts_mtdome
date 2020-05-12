@@ -6,7 +6,6 @@ from .base_mock_status import BaseMockStatus
 from ..llc_status import LlcStatus
 
 _NUM_MOTORS = 4
-_DEGREES_TO_RADIANS = math.pi / 180.0
 
 
 class ApscsStatus(BaseMockStatus):
@@ -54,8 +53,8 @@ class ApscsStatus(BaseMockStatus):
         """
         self.log.info(f"Received command 'openShutter'")
         self.status = LlcStatus.OPEN.value
-        self.position_actual = 90.0 * _DEGREES_TO_RADIANS
-        self.position_cmd = 90.0 * _DEGREES_TO_RADIANS
+        self.position_actual = math.radians(90.0)
+        self.position_cmd = math.radians(90.0)
 
     async def closeShutter(self):
         """Mock closing of the shutter.

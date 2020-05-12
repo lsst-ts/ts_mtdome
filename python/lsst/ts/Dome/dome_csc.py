@@ -4,6 +4,7 @@ import asyncio
 import logging
 import pathlib
 import math
+
 import numpy as np
 import yaml
 
@@ -14,8 +15,6 @@ from .mock_controller import MockDomeController
 
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout in s to be used by this module
-_DEGREES_TO_RADIANS = math.pi / 180.0
-_RADIANS_TO_DEGREES = 180.0 / math.pi
 _KEYS_TO_REMOVE = {"status"}
 _KEYS_IN_RADIANS = {"positionError", "positionActual", "positionCmd"}
 
@@ -199,7 +198,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"moveAz": {"azimuth": data.azimuth * _DEGREES_TO_RADIANS}}
+        cmd = {"moveAz": {"azimuth": math.radians(data.azimuth)}}
         self.log.info(f"Moving Dome to azimuth {data.azimuth}")
         await self.write_then_read_reply(cmd)
 
@@ -212,7 +211,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"moveEl": {"elevation": data.elevation * _DEGREES_TO_RADIANS}}
+        cmd = {"moveEl": {"elevation": math.radians(data.elevation)}}
         self.log.info(f"Moving LWS to elevation {data.elevation}")
         await self.write_then_read_reply(cmd)
 
@@ -264,7 +263,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         cmd = {
             "crawlAz": {
                 "dirMotion": data.dirMotion,
-                "azRate": data.azRate * _DEGREES_TO_RADIANS,
+                "azRate": math.radians(data.azRate),
             }
         }
         await self.write_then_read_reply(cmd)
@@ -279,9 +278,9 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         cmd = {
-            "crawlAz": {
+            "crawlEl": {
                 "dirMotion": data.dirMotion,
-                "elRate": data.elRate * _DEGREES_TO_RADIANS,
+                "elRate": math.radians(data.elRate),
             }
         }
         await self.write_then_read_reply(cmd)
@@ -295,12 +294,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {
-            "setLouver": {
-                "id": data.id,
-                "position": data.position * _DEGREES_TO_RADIANS,
-            }
-        }
+        cmd = {"setLouver": {"id": data.id, "position": math.radians(data.position)}}
         await self.write_then_read_reply(cmd)
 
     async def do_closeLouvers(self, data):
@@ -528,10 +522,9 @@ class DomeCsc(salobj.ConfigurableCsc):
         telemetry_in_degrees = {}
         for key in telemetry_in_radians.keys():
             if key in _KEYS_IN_RADIANS:
-                telemetry_in_degrees[key] = (
-                    telemetry_in_radians[key] * _RADIANS_TO_DEGREES
-                )
+                telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
             else:
+                # No conversion needed since the value does not express an angle
                 telemetry_in_degrees[key] = telemetry_in_radians[key]
         return telemetry_in_degrees
 
@@ -540,9 +533,11 @@ class DomeCsc(salobj.ConfigurableCsc):
         telemetry_in_degrees = {}
         for key in telemetry_in_radians.keys():
             if key in _KEYS_IN_RADIANS:
-                arr = np.array(telemetry_in_radians[key])
-                telemetry_in_degrees[key] = (arr * _RADIANS_TO_DEGREES).tolist()
+                telemetry_in_degrees[key] = np.degrees(
+                    np.array(telemetry_in_radians[key])
+                )
             else:
+                # No conversion needed since the value does not express an angle
                 telemetry_in_degrees[key] = telemetry_in_radians[key]
         return telemetry_in_degrees
 
