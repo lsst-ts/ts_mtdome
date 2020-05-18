@@ -178,7 +178,7 @@ class MockDomeController:
             try:
                 line = await reader.readuntil(b"\r\n")
                 line = line.decode().strip()
-                self.log.debug(f"Read command line: {line!r}")
+                self.log.info(f"Read command line: {line!r}")
             except asyncio.IncompleteReadError:
                 return
             if line:

@@ -1,4 +1,6 @@
 import logging
+import math
+
 import numpy as np
 
 from .base_mock_status import BaseMockStatus
@@ -116,7 +118,7 @@ class LwscsStatus(BaseMockStatus):
         self.motion_velocity = velocity
         self.status = LlcStatus.CRAWLING.value
         if self.motion_direction == motion_dir.UP.value:
-            self.position_cmd = 90
+            self.position_cmd = math.radians(90)
         else:
             self.position_cmd = 0
 
