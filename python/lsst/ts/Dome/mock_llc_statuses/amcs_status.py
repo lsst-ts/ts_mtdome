@@ -1,5 +1,6 @@
 import logging
 import math
+
 import numpy as np
 
 from .base_mock_status import BaseMockStatus
@@ -122,9 +123,9 @@ class AmcsStatus(BaseMockStatus):
         self.motion_velocity = velocity
         self.status = LlcStatus.CRAWLING.value
         if self.motion_direction == motion_dir.CW.value:
-            self.position_cmd = math.inf
+            self.position_cmd = math.radians(720)
         else:
-            self.position_cmd = -math.inf
+            self.position_cmd = math.radians(-360)
 
     async def stopAz(self):
         """Mock stopping all motion of the dome.

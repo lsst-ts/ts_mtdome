@@ -271,21 +271,33 @@ class MockTestCase(asynctest.TestCase):
         await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
         target_elevation = math.radians(5)
         await self.write(f"moveEl:\n elevation: {target_elevation}\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
-        await self.write("setLouver:\n id: 5\n position: 90.0\n")
+
+        louver_id = 5
+        target_position = math.radians(90)
+        await self.write(
+            f"setLouver:\n id: {louver_id}\n position: {target_position}\n"
+        )
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
         await self.write("openShutter:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
+        # Give some time to the mock devices to move.
+        await asyncio.sleep(0.2)
+
         await self.write("stop:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
-        # Give some time to the mock devices to move.
-        await asyncio.sleep(1)
+
+        # Give some time to the mock devices to stop moving.
+        await asyncio.sleep(0.2)
         await self.write("status:\n")
         self.data = await self.read()
         status = self.data[Dome.LlcName.AMCS.value]

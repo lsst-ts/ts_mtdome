@@ -8,6 +8,7 @@ import math
 import numpy as np
 import yaml
 
+from .error_code import ErrorCode
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from lsst.ts import salobj
 from .llc_name import LlcName
@@ -155,7 +156,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         """Override of the handle_summary_state function to connect or disconnect to the lower level
         components (or the mock_controller) when needed.
         """
-        self.log.info("handle_summary_state")
+        self.log.info(f"handle_summary_state {salobj.State(self.summary_state).name}")
         if self.disabled_or_enabled:
             if not self.connected:
                 await self.connect()
@@ -186,7 +187,13 @@ class DomeCsc(salobj.ConfigurableCsc):
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
         data = yaml.safe_load(read_bytes.decode())
 
-        # TODO Add error handling. See Jira issue DM-24765.
+        if "ERROR" in data.keys():
+            self.log.error(f"Received ERROR {data}.")
+            if ErrorCode(data["ERROR"]["CODE"]) == ErrorCode.INCORRECT_PARAMETER:
+                raise ValueError(f"The command {cmd} contains an incorrect parameter.")
+            elif ErrorCode(data["ERROR"]["CODE"]) == ErrorCode.UNSUPPORTED_COMMAND:
+                raise KeyError(f"The command {cmd} is unsupported.")
+
         return data
 
     async def do_moveAz(self, data):
@@ -462,38 +469,58 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.lower_level_status = await self.write_then_read_reply(cmd)
         self.log.info(self.lower_level_status)
 
-        self.prepare_and_send_telemetry(
+        self.convert_telemetry_radians_to_degrees_and_send(
             self.lower_level_status[LlcName.AMCS.value], self.tel_domeADB_status
         )
-        self.prepare_and_send_telemetry(
+        self.convert_telemetry_radians_to_degrees_and_send(
             self.lower_level_status[LlcName.APSCS.value], self.tel_domeAPS_status
         )
-        self.prepare_and_send_telemetry(
+        self.convert_telemetry_list_radians_to_degrees_and_send(
             self.lower_level_status[LlcName.LCS.value], self.tel_domeLouvers_status
         )
-        self.prepare_and_send_telemetry(
+        self.convert_telemetry_radians_to_degrees_and_send(
             self.lower_level_status[LlcName.LWSCS.value], self.tel_domeLWS_status
         )
-        self.prepare_and_send_telemetry(
+        self.convert_telemetry_radians_to_degrees_and_send(
             self.lower_level_status[LlcName.MONCS.value], self.tel_domeMONCS_status
         )
-        self.prepare_and_send_telemetry(
+        self.convert_telemetry_radians_to_degrees_and_send(
             self.lower_level_status[LlcName.THCS.value], self.tel_domeTHCS_status
         )
 
-    def prepare_and_send_telemetry(self, lower_level_status, telemetry_function):
-        """Prepares the telemetry for sending using the provided status and sends it.
-
-        Parameters
-        ----------
-        lower_level_status: `dict`
-            The lower level status dict to extract the telemetry from.
-        telemetry_function: func
-            The SAL function that send the specific telemetry.
-        """
+    # noinspection PyMethodMayBeStatic
+    def convert_telemetry_radians_to_degrees_and_send(
+        self, telemetry_in_radians, telemetry_function
+    ):
+        telemetry_in_degrees = {}
+        for key in telemetry_in_radians.keys():
+            if key in _KEYS_IN_RADIANS:
+                telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
+            else:
+                # No conversion needed since the value does not express an angle
+                telemetry_in_degrees[key] = telemetry_in_radians[key]
         # Remove some keys because they are not reported in the telemetry.
-        telemetry = self.remove_keys_from_dict(lower_level_status)
-        telemetry_function.set_put(**telemetry)
+        telemetry = self.remove_keys_from_dict(telemetry_in_degrees)
+        # Send the telemetry.
+        self.send_telemetry(telemetry, telemetry_function)
+
+    # noinspection PyMethodMayBeStatic
+    def convert_telemetry_list_radians_to_degrees_and_send(
+        self, telemetry_in_radians, telemetry_function
+    ):
+        telemetry_in_degrees = {}
+        for key in telemetry_in_radians.keys():
+            if key in _KEYS_IN_RADIANS:
+                telemetry_in_degrees[key] = np.degrees(
+                    np.array(telemetry_in_radians[key])
+                )
+            else:
+                # No conversion needed since the value does not express an angle
+                telemetry_in_degrees[key] = telemetry_in_radians[key]
+        # Remove some keys because they are not reported in the telemetry.
+        telemetry = self.remove_keys_from_dict(telemetry_in_degrees)
+        # Send the telemetry.
+        self.send_telemetry(telemetry, telemetry_function)
 
     # noinspection PyMethodMayBeStatic
     def remove_keys_from_dict(self, dict_with_too_many_keys):
@@ -518,28 +545,18 @@ class DomeCsc(salobj.ConfigurableCsc):
         return dict_with_keys_removed
 
     # noinspection PyMethodMayBeStatic
-    def convert_telemetry_radians_to_degrees(self, telemetry_in_radians):
-        telemetry_in_degrees = {}
-        for key in telemetry_in_radians.keys():
-            if key in _KEYS_IN_RADIANS:
-                telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
-            else:
-                # No conversion needed since the value does not express an angle
-                telemetry_in_degrees[key] = telemetry_in_radians[key]
-        return telemetry_in_degrees
+    def send_telemetry(self, telemetry, telemetry_function):
+        """Prepares the telemetry for sending using the provided status and sends it.
 
-    # noinspection PyMethodMayBeStatic
-    def convert_telemetry_list_radians_to_degrees(self, telemetry_in_radians):
-        telemetry_in_degrees = {}
-        for key in telemetry_in_radians.keys():
-            if key in _KEYS_IN_RADIANS:
-                telemetry_in_degrees[key] = np.degrees(
-                    np.array(telemetry_in_radians[key])
-                )
-            else:
-                # No conversion needed since the value does not express an angle
-                telemetry_in_degrees[key] = telemetry_in_radians[key]
-        return telemetry_in_degrees
+        Parameters
+        ----------
+        telemetry: `dict`
+            The lower level telemetry to extract the telemetry from.
+        telemetry_function: func
+            The SAL function that send the specific telemetry.
+        """
+        # Remove some keys because they are not reported in the telemetry.
+        telemetry_function.set_put(**telemetry)
 
     async def close_tasks(self):
         """Disconnect from the TCP/IP controller, if connected, and stop

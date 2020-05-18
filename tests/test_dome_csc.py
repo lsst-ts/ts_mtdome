@@ -1,6 +1,5 @@
 import asynctest
 import logging
-import unittest
 
 from lsst.ts import salobj
 from lsst.ts import Dome
@@ -47,6 +46,38 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                     "setTemperature",
                 ),
             )
+
+    async def test_unsupported_command(self):
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            # This command is not supported by the DomeCsc so an Error should be returned by the
+            # controller leading to a KeyError in DomeCsc
+            cmd = {"unsupported_command": {}}
+            try:
+                await self.csc.write_then_read_reply(cmd)
+                self.fail("Expected a KeyError.")
+            except KeyError:
+                pass
+
+    async def test_incorrect_parameter(self):
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            # This command is supported by the DomeCsc but it takes an argument so an Error should be returned
+            # by the controller leading to a ValueError in DomeCsc
+            cmd = {"moveAz": {}}
+            try:
+                await self.csc.write_then_read_reply(cmd)
+                self.fail("Expected a ValueError.")
+            except ValueError:
+                pass
 
     async def test_do_moveAz(self):
         async with self.make_csc(
@@ -262,10 +293,24 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 pass
 
     async def test_fans(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            cmd = {"fans": {"action": "True"}}
+            await self.csc.write_then_read_reply(cmd)
 
     async def test_inflate(self):
-        raise unittest.SkipTest("Not implemented")
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            cmd = {"inflate": {"action": "True"}}
+            await self.csc.write_then_read_reply(cmd)
 
     async def test_status(self):
         async with self.make_csc(
