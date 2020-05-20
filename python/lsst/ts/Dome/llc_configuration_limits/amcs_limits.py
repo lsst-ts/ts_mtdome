@@ -6,6 +6,8 @@ from .common_amcs_and_lwscs_limits import CommonAmcsAndLwscsLimits
 class AmcsLimits(CommonAmcsAndLwscsLimits):
     """This class holds the limits of the configuration values for the AMCS lower level component.
 
+    Parameters
+    ----------
     Hardcoded parameters:
     jmax : `float` (optional)
         Maximum jerk, in deg/s^3
@@ -35,6 +37,7 @@ class AmcsLimits(CommonAmcsAndLwscsLimits):
         converted_configuration_parameters: `dict`
             The converted configuration parameters.
         """
+
         # This dict will hold the converted values which we will return at the end of thius function if all
         # validations are passed.
         converted_configuration_parameters = self.validate_common_parameters(

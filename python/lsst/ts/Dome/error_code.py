@@ -1,8 +1,8 @@
-from enum import IntEnum
+import enum
 
 
-class ErrorCode(IntEnum):
-    """`Enum` with error codes.
+class ErrorCode(enum.Enum):
+    """`enum` with error codes.
     """
 
     UNSUPPORTED_COMMAND = 2

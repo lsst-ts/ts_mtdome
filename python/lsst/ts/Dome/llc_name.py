@@ -1,7 +1,7 @@
-from enum import Enum
+import enum
 
 
-class LlcName(Enum):
+class LlcName(enum.Enum):
     AMCS = "AMCS"
     APSCS = "ApSCS"
     LCS = "LCS"
