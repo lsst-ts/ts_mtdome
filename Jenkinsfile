@@ -94,7 +94,22 @@ pipeline {
             // The path of xml needed by JUnit is relative to
             // the workspace.
             junit 'tests/results/results.xml'
-        }
+            sh "docker exec -u saluser \${container_name} sh -c \"" +
+                "source ~/.setup.sh && " +
+                "cd /home/saluser/repo/ && " +
+                "setup ts_Dome -t saluser && " +
+                "package-docs build\""
+            script {
+                def RESULT = sh returnStatus: true, script: "docker exec -u saluser \${container_name} sh -c \"" +
+                    "source ~/.setup.sh && " +
+                    "cd /home/saluser/repo/ && " +
+                    "setup ts_Dome -t saluser && " +
+                    "ltd upload --product ts-dome --git-ref \${GIT_BRANCH} --dir doc/_build/html\""
+                if ( RESULT != 0 ) {
+                    unstable("Failed to push documentation.")
+                }
+             }
+         }
         cleanup {
             sh """
                 docker exec -u root --privileged \${container_name} sh -c \"chmod -R a+rw /home/saluser/repo/ \"
