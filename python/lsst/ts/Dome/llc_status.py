@@ -1,8 +1,8 @@
-from enum import Enum
+import enum
 
 
-class LlcStatus(Enum):
-    """`Enum` with the statuses for the Lower Level components.
+class LlcStatus(enum.Enum):
+    """`enum` with the statuses for the Lower Level components.
     """
 
     CLOSED = "Closed"

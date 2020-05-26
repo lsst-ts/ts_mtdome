@@ -9,7 +9,5 @@ import lsst.ts.Dome
 
 _g = globals()
 _g.update(
-    build_package_configs(
-        project_name="ts_Dome", version=lsst.ts.Dome.version.__version__
-    )
+    build_package_configs(project_name="ts_Dome", version=lsst.ts.Dome.__version__)
 )

@@ -1,8 +1,8 @@
-from enum import Enum
+import enum
 
 
-class AzcsMotionDirection(Enum):
-    """`Enum` with motion directions for AZCS.
+class AzcsMotionDirection(enum.Enum):
+    """`enum` with motion directions for AZCS.
     """
 
     CW = "CW"

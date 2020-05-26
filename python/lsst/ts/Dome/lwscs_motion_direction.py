@@ -1,8 +1,8 @@
-from enum import Enum
+import enum
 
 
-class LwcsMotionDirection(Enum):
-    """`Enum` with motion directions for LWSCS.
+class LwcsMotionDirection(enum.Enum):
+    """`enum` with motion directions for LWSCS.
     """
 
     UP = "UP"
