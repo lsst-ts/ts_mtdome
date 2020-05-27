@@ -2,17 +2,28 @@ import asyncio
 import asynctest
 import logging
 import math
+from unittest.mock import MagicMock
+
 import yaml
 
 from lsst.ts import Dome
 
 logging.basicConfig(
-    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO
+    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
 )
 
 _NUM_LOUVERS = 34
 _NUM_MON_SENSORS = 16
 _NUM_THERMO_SENSORS = 16
+
+
+# MagicMock doesn't support async coroutines and AsyncMock is not available in Python 3.7 but only in 3.8
+# This is a way to provide a future that can be returned by a mock method and that can awaited in the
+# calling code.
+def async_return(result):
+    f = asyncio.Future()
+    f.set_result(result)
+    return f
 
 
 class MockTestCase(asynctest.TestCase):
@@ -25,6 +36,11 @@ class MockTestCase(asynctest.TestCase):
         self.log = logging.getLogger("MockTestCase")
 
         self.mock_ctrl = Dome.MockDomeController(port=port)
+        # Replace the determine_time_diff method with a mock method that returns a Future so the original
+        # determine_time_diff method doesn't get called and the original calling code still gets something
+        # to await. Where necessary the test code will set the time_diff value on the mock_ctrl object to
+        # make sure that the mock_ctrl object behaves as if that amount of time has passed.
+        self.mock_ctrl.determine_time_diff = MagicMock(return_value=async_return(None))
         asyncio.create_task(self.mock_ctrl.start())
         await asyncio.sleep(1)
         # Request the assigned port from the mock controller.
@@ -79,7 +95,7 @@ class MockTestCase(asynctest.TestCase):
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
         # Give some time to the mock device to move.
-        await asyncio.sleep(1)
+        self.mock_ctrl.time_diff = 1.0
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
@@ -94,7 +110,7 @@ class MockTestCase(asynctest.TestCase):
         )
 
         # Give some time to the mock device to move.
-        await asyncio.sleep(1)
+        self.mock_ctrl.time_diff = 1.0
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
@@ -109,7 +125,7 @@ class MockTestCase(asynctest.TestCase):
         )
 
         # Give some time to the mock device to reach the commanded position.
-        await asyncio.sleep(5)
+        self.mock_ctrl.time_diff = 5.0
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
@@ -126,7 +142,7 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to move
-        await asyncio.sleep(1)
+        self.mock_ctrl.time_diff = 1.0
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
@@ -147,7 +163,7 @@ class MockTestCase(asynctest.TestCase):
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
         # Give some time to the mock device to move
-        await asyncio.sleep(1)
+        self.mock_ctrl.time_diff = 1.0
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
@@ -163,7 +179,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write("stopAz:\n")
         # Give some time to the mock device to stop moving.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.short_timeout)
         await self.write("status:\n")
@@ -185,7 +201,7 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to move.
-        await asyncio.sleep(1)
+        self.mock_ctrl.time_diff = 1.0
         await self.write("status:\n")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -200,7 +216,7 @@ class MockTestCase(asynctest.TestCase):
         )
 
         # Give some time to the mock device to move.
-        await asyncio.sleep(1)
+        self.mock_ctrl.time_diff = 1.0
         await self.write("status:\n")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -215,7 +231,7 @@ class MockTestCase(asynctest.TestCase):
         )
 
         # Give some time to the mock device to reach the commanded position.
-        await asyncio.sleep(1)
+        self.mock_ctrl.time_diff = 1.0
         await self.write("status:\n")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -233,7 +249,7 @@ class MockTestCase(asynctest.TestCase):
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
         # Give some time to the mock device to move.
-        await asyncio.sleep(1)
+        self.mock_ctrl.time_diff = 1.0
         await self.write("status:\n")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -252,7 +268,7 @@ class MockTestCase(asynctest.TestCase):
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.short_timeout)
 
         # Give some time to the mock device to stop moving.
-        await asyncio.sleep(0.1)
+        self.mock_ctrl.time_diff = 0.1
         await self.write("status:\n")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -290,14 +306,14 @@ class MockTestCase(asynctest.TestCase):
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
         # Give some time to the mock devices to move.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
 
         await self.write("stop:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
         # Give some time to the mock devices to stop moving.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
         await self.write("status:\n")
         self.data = await self.read()
         status = self.data[Dome.LlcName.AMCS.value]
@@ -323,7 +339,7 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to move.
-        await asyncio.sleep(1)
+        self.mock_ctrl.time_diff = 1.0
         await self.write("status:\n")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -346,7 +362,7 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to open.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
         await self.write("status:\n")
         self.data = await self.read()
         lcs_status = self.data[Dome.LlcName.LCS.value]
@@ -374,7 +390,7 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to close.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
         await self.write("status:\n")
         self.data = await self.read()
         lcs_status = self.data[Dome.LlcName.LCS.value]
@@ -397,12 +413,12 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to open.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
         await self.write("stopLouvers:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to stop.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
         await self.write("status:\n")
         self.data = await self.read()
         lcs_status = self.data[Dome.LlcName.LCS.value]
@@ -427,7 +443,7 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to open.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
         await self.write("status:\n")
         self.data = await self.read()
         apscs_status = self.data[Dome.LlcName.APSCS.value]
@@ -446,7 +462,7 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to close.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
         await self.write("status:\n")
         self.data = await self.read()
         apscs_status = self.data[Dome.LlcName.APSCS.value]
@@ -465,12 +481,12 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to open.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
         await self.write("stopShutter:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to stop.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
         await self.write("status:\n")
         self.data = await self.read()
         apscs_status = self.data[Dome.LlcName.APSCS.value]
@@ -507,12 +523,12 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to move.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
         await self.write("park:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to park.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
@@ -532,7 +548,7 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # Give some time to the mock device to set the temperature.
-        await asyncio.sleep(0.2)
+        self.mock_ctrl.time_diff = 0.2
         await self.write("status:\n")
         self.data = await self.read()
         self.log.info(f"data = {self.data}")

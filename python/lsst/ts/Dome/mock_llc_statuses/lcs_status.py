@@ -29,7 +29,7 @@ class LcsStatus(BaseMockStatus):
         self.encoder_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
         self.power_absortion = 0.0
 
-    async def determine_status(self):
+    async def determine_status(self, time_diff):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
         self.llc_status = {

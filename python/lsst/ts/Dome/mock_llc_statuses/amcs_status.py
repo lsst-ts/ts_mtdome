@@ -13,19 +13,12 @@ _NUM_MOTORS = 5
 
 class AmcsStatus(BaseMockStatus):
     """Represents the status of the Azimuth Motion Control System in simulation mode.
-
-    Parameters
-    ----------
-    period: `float`
-        The period in decimal seconds determining how often the status of this Lower Level Component will
-        be updated.
     """
 
-    def __init__(self, period):
+    def __init__(self):
         super().__init__()
         self.log = logging.getLogger("MockAzcsStatus")
         self.amcs_limits = AmcsLimits()
-        self.period = period
         # default values which may be overriden by calling moveAz, crawlAz of config
         self.jmax = self.amcs_limits.jmax
         self.amax = self.amcs_limits.amax
@@ -50,12 +43,12 @@ class AmcsStatus(BaseMockStatus):
         self.resolver_raw = np.zeros(_NUM_MOTORS, dtype=float)
         self.resolver_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
 
-    async def determine_status(self):
+    async def determine_status(self, time_diff):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
         # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
         if self.status != LlcStatus.STOPPED.value:
-            azimuth_step = self.motion_velocity * self.period
+            azimuth_step = self.motion_velocity * time_diff
             if self.motion_direction == motion_dir.CW.value:
                 self.position_actual = self.position_actual + azimuth_step
                 if self.position_actual >= self.position_cmd:

@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import time
+
 import yaml
 
 from . import mock_llc_statuses
@@ -66,17 +68,18 @@ class MockDomeController:
         # Name of a command to report as failed once, the next time it is seen,
         # or None if no failures. Used to test CSC handling of failed commands.
         self.fail_command = None
-        self.status_task = None
-        self.period = 0.1
         # Timeouts used by this class and by its unit test
         self.long_timeout = 20
         self.short_timeout = 2
+        # Time keeping variables
+        self.previous_time_sec = 0
+        self.time_diff = 0
 
         # Variables to hold the status of the lower level components.
-        self.amcs = mock_llc_statuses.AmcsStatus(period=self.period)
+        self.amcs = mock_llc_statuses.AmcsStatus()
         self.apscs = mock_llc_statuses.ApscsStatus()
         self.lcs = mock_llc_statuses.LcsStatus()
-        self.lwscs = mock_llc_statuses.LwscsStatus(period=self.period)
+        self.lwscs = mock_llc_statuses.LwscsStatus()
         self.moncs = mock_llc_statuses.MoncsStatus()
         self.thcs = mock_llc_statuses.ThcsStatus()
 
@@ -100,7 +103,6 @@ class MockDomeController:
             self.port = self._server.sockets[0].getsockname()[1]
 
         self.log.info("Starting LLCs")
-        self.status_task = asyncio.create_task(self.run_status_task())
 
         if keep_running:
             await self._server.serve_forever()
@@ -108,8 +110,6 @@ class MockDomeController:
     async def stop(self):
         """Stop the mock lower level components and the TCP/IP server.
         """
-        await self.stop_status_task()
-
         if self._server is None:
             return
 
@@ -118,23 +118,6 @@ class MockDomeController:
         self.log.info("Closing server")
         server.close()
         self.log.info("Done closing")
-
-    async def run_status_task(self):
-        """Run a loop every "period" seconds to determine the status of the lower level components.
-        """
-        while True:
-            await self.amcs.determine_status()
-            await self.apscs.determine_status()
-            await self.lcs.determine_status()
-            await self.lwscs.determine_status()
-            await self.moncs.determine_status()
-            await self.thcs.determine_status()
-            await asyncio.sleep(self.period)
-
-    async def stop_status_task(self):
-        """Stop the status task loop.
-        """
-        self.status_task.cancel()
 
     async def write(self, st):
         """Write the string appended with a newline character.
@@ -223,6 +206,8 @@ class MockDomeController:
         """Request the status from the lower level components and write them in reply.
         """
         self.log.debug("Received command 'status'")
+        await self.determine_time_diff()
+        await self.determine_statuses()
         amcs_state = self.amcs.llc_status
         apcs_state = self.apscs.llc_status
         lcs_state = self.lcs.llc_status
@@ -239,6 +224,32 @@ class MockDomeController:
         }
         data = yaml.safe_dump(reply, default_flow_style=None)
         await self.write("OK:\n" + data)
+
+    async def determine_statuses(self):
+        """Determine the status of the lower level components.
+        """
+        self.log.debug(f"self.time_diff = {self.time_diff}")
+        await self.amcs.determine_status(self.time_diff)
+        await self.apscs.determine_status(self.time_diff)
+        await self.lcs.determine_status(self.time_diff)
+        await self.lwscs.determine_status(self.time_diff)
+        await self.moncs.determine_status(self.time_diff)
+        await self.thcs.determine_status(self.time_diff)
+
+    async def determine_time_diff(self):
+        """Determine the time difference since the previous call.
+
+        This function skips the calculation in case self.unit_test_mode is True because then the time
+        difference will be set by the unit test to speed it up.
+        """
+        current_time_sec = time.monotonic()
+        if self.previous_time_sec > 0:
+            self.time_diff = current_time_sec - self.previous_time_sec
+            self.log.debug(
+                f"current_time_sec = {current_time_sec}, self.previous_time_sec = "
+                f"{self.previous_time_sec}, self.time_diff = {self.time_diff}"
+            )
+        self.previous_time_sec = current_time_sec
 
     async def move_az(self, **kwargs):
         """Move the dome.

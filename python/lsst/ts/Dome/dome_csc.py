@@ -178,8 +178,6 @@ class DomeCsc(salobj.ConfigurableCsc):
             A dict of the form {"reply": {"param1": value1, "param2": value2}} where "reply" can for
             instance be "OK" or "ERROR".
          """
-        # TODO Create a function that takes the command and its parameters and returns a yaml
-        #  representation of it so all do_XXX functions below can be simplified. DM-24776
         st = yaml.safe_dump(cmd, default_flow_style=None)
         self.log.info(f"Sending command {st}")
         self.writer.write(st.encode() + b"\r\n")

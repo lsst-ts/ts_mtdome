@@ -10,7 +10,7 @@ NUM_MON_SENSORS = 16
 NUM_THERMO_SENSORS = 16
 
 logging.basicConfig(
-    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO
+    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
 )
 
 

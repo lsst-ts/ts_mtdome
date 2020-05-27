@@ -10,8 +10,13 @@ class BaseMockStatus(ABC):
         self.llc_status = {}
 
     @abstractmethod
-    async def determine_status(self):
+    async def determine_status(self, time_diff):
         """Abstract method that determines the status of the Lower Level Component to be implemented by all
         concrete sub-classes.
+
+        Parameters
+        ----------
+        time_diff: `float`
+            The time difference since the last call.
         """
         pass
