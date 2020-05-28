@@ -18,9 +18,14 @@ class MoncsStatus(BaseMockStatus):
         self.status = LlcStatus.DISABLED.value
         self.data = np.zeros(_NUM_SENSORS, dtype=float)
 
-    async def determine_status(self, time_diff):
+    async def determine_status(self, current_tai):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
+        time_diff = current_tai - self.command_time_tai
+        self.log.debug(
+            f"current_tai = {current_tai}, self.command_time_tai = {self.command_time_tai}, "
+            f"time_diff = {time_diff}"
+        )
         self.llc_status = {
             "status": self.status,
             "data": self.data.tolist(),

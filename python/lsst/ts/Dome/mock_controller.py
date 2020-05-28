@@ -1,9 +1,9 @@
 import asyncio
 import logging
-import time
 
 import yaml
 
+from lsst.ts import salobj
 from . import mock_llc_statuses
 from .error_code import ErrorCode
 from .llc_name import LlcName
@@ -71,9 +71,8 @@ class MockDomeController:
         # Timeouts used by this class and by its unit test
         self.long_timeout = 20
         self.short_timeout = 2
-        # Time keeping variables
-        self.previous_time_sec = 0
-        self.time_diff = 0
+        # Time keeping
+        self.current_tai = 0
 
         # Variables to hold the status of the lower level components.
         self.amcs = mock_llc_statuses.AmcsStatus()
@@ -206,7 +205,7 @@ class MockDomeController:
         """Request the status from the lower level components and write them in reply.
         """
         self.log.debug("Received command 'status'")
-        await self.determine_time_diff()
+        await self.determine_current_tai()
         await self.determine_statuses()
         amcs_state = self.amcs.llc_status
         apcs_state = self.apscs.llc_status
@@ -228,28 +227,18 @@ class MockDomeController:
     async def determine_statuses(self):
         """Determine the status of the lower level components.
         """
-        self.log.debug(f"self.time_diff = {self.time_diff}")
-        await self.amcs.determine_status(self.time_diff)
-        await self.apscs.determine_status(self.time_diff)
-        await self.lcs.determine_status(self.time_diff)
-        await self.lwscs.determine_status(self.time_diff)
-        await self.moncs.determine_status(self.time_diff)
-        await self.thcs.determine_status(self.time_diff)
+        self.log.debug(f"self.current_tai = {self.current_tai}")
+        await self.amcs.determine_status(self.current_tai)
+        await self.apscs.determine_status(self.current_tai)
+        await self.lcs.determine_status(self.current_tai)
+        await self.lwscs.determine_status(self.current_tai)
+        await self.moncs.determine_status(self.current_tai)
+        await self.thcs.determine_status(self.current_tai)
 
-    async def determine_time_diff(self):
+    async def determine_current_tai(self):
         """Determine the time difference since the previous call.
-
-        This function skips the calculation in case self.unit_test_mode is True because then the time
-        difference will be set by the unit test to speed it up.
         """
-        current_time_sec = time.monotonic()
-        if self.previous_time_sec > 0:
-            self.time_diff = current_time_sec - self.previous_time_sec
-            self.log.debug(
-                f"current_time_sec = {current_time_sec}, self.previous_time_sec = "
-                f"{self.previous_time_sec}, self.time_diff = {self.time_diff}"
-            )
-        self.previous_time_sec = current_time_sec
+        self.current_tai = salobj.current_tai()
 
     async def move_az(self, **kwargs):
         """Move the dome.

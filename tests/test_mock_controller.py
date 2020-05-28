@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import yaml
 
 from lsst.ts import Dome
+from lsst.ts import salobj
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
@@ -36,11 +37,13 @@ class MockTestCase(asynctest.TestCase):
         self.log = logging.getLogger("MockTestCase")
 
         self.mock_ctrl = Dome.MockDomeController(port=port)
-        # Replace the determine_time_diff method with a mock method that returns a Future so the original
-        # determine_time_diff method doesn't get called and the original calling code still gets something
-        # to await. Where necessary the test code will set the time_diff value on the mock_ctrl object to
+        # Replace the determine_current_tai method with a mock method that returns a Future so the original
+        # determine_current_tai method doesn't get called and the original calling code still gets something
+        # to await. Where necessary the test code will set the current_tai value on the mock_ctrl object to
         # make sure that the mock_ctrl object behaves as if that amount of time has passed.
-        self.mock_ctrl.determine_time_diff = MagicMock(return_value=async_return(None))
+        self.mock_ctrl.determine_current_tai = MagicMock(
+            return_value=async_return(None)
+        )
         asyncio.create_task(self.mock_ctrl.start())
         await asyncio.sleep(1)
         # Request the assigned port from the mock controller.
@@ -94,8 +97,13 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device status TAI time to the mock controller time for easier control
+        self.mock_ctrl.amcs.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to move.
-        self.mock_ctrl.time_diff = 1.0
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
+
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
@@ -110,7 +118,7 @@ class MockTestCase(asynctest.TestCase):
         )
 
         # Give some time to the mock device to move.
-        self.mock_ctrl.time_diff = 1.0
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
@@ -125,7 +133,7 @@ class MockTestCase(asynctest.TestCase):
         )
 
         # Give some time to the mock device to reach the commanded position.
-        self.mock_ctrl.time_diff = 5.0
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 5.0
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
@@ -141,8 +149,14 @@ class MockTestCase(asynctest.TestCase):
         await self.write(f"crawlAz:\n dirMotion: CW\n azRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
-        # Give some time to the mock device to move
-        self.mock_ctrl.time_diff = 1.0
+
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device status TAI time to the mock controller time for easier control
+        self.mock_ctrl.amcs.command_time_tai = self.mock_ctrl.current_tai
+        # Give some time to the mock device to move.
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
+
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
@@ -162,8 +176,13 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
-        # Give some time to the mock device to move
-        self.mock_ctrl.time_diff = 1.0
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device status TAI time to the mock controller time for easier control
+        self.mock_ctrl.amcs.command_time_tai = self.mock_ctrl.current_tai
+        # Give some time to the mock device to move.
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
+
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
@@ -179,9 +198,10 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write("stopAz:\n")
         # Give some time to the mock device to stop moving.
-        self.mock_ctrl.time_diff = 0.2
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.short_timeout)
+
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
@@ -200,8 +220,14 @@ class MockTestCase(asynctest.TestCase):
         await self.write(f"moveEl:\n elevation: {target_elevation}\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device status TAI time to the mock controller time for easier control
+        self.mock_ctrl.lwscs.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to move.
-        self.mock_ctrl.time_diff = 1.0
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
+
         await self.write("status:\n")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -216,7 +242,7 @@ class MockTestCase(asynctest.TestCase):
         )
 
         # Give some time to the mock device to move.
-        self.mock_ctrl.time_diff = 1.0
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
         await self.write("status:\n")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -231,7 +257,7 @@ class MockTestCase(asynctest.TestCase):
         )
 
         # Give some time to the mock device to reach the commanded position.
-        self.mock_ctrl.time_diff = 1.0
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
         await self.write("status:\n")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -248,8 +274,13 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device status TAI time to the mock controller time for easier control
+        self.mock_ctrl.lwscs.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to move.
-        self.mock_ctrl.time_diff = 1.0
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
+
         await self.write("status:\n")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -268,7 +299,7 @@ class MockTestCase(asynctest.TestCase):
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.short_timeout)
 
         # Give some time to the mock device to stop moving.
-        self.mock_ctrl.time_diff = 0.1
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
         await self.write("status:\n")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -305,15 +336,22 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
-        # Give some time to the mock devices to move.
-        self.mock_ctrl.time_diff = 0.2
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device statuses TAI time to the mock controller time for easier control
+        self.mock_ctrl.amcs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.apscs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.lcs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.lwscs.command_time_tai = self.mock_ctrl.current_tai
+        # Give some time to the mock device to move.
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
 
         await self.write("stop:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
         # Give some time to the mock devices to stop moving.
-        self.mock_ctrl.time_diff = 0.2
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
         await self.write("status:\n")
         self.data = await self.read()
         status = self.data[Dome.LlcName.AMCS.value]
@@ -338,8 +376,14 @@ class MockTestCase(asynctest.TestCase):
         await self.write(f"crawlEl:\n dirMotion: UP\n elRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device statuses TAI time to the mock controller time for easier control
+        self.mock_ctrl.lwscs.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to move.
-        self.mock_ctrl.time_diff = 1.0
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
+
         await self.write("status:\n")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
@@ -361,8 +405,14 @@ class MockTestCase(asynctest.TestCase):
         )
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device statuses TAI time to the mock controller time for easier control
+        self.mock_ctrl.lcs.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to open.
-        self.mock_ctrl.time_diff = 0.2
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
+
         await self.write("status:\n")
         self.data = await self.read()
         lcs_status = self.data[Dome.LlcName.LCS.value]
@@ -389,8 +439,14 @@ class MockTestCase(asynctest.TestCase):
         await self.write("closeLouvers:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device statuses TAI time to the mock controller time for easier control
+        self.mock_ctrl.lcs.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to close.
-        self.mock_ctrl.time_diff = 0.2
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
+
         await self.write("status:\n")
         self.data = await self.read()
         lcs_status = self.data[Dome.LlcName.LCS.value]
@@ -412,13 +468,21 @@ class MockTestCase(asynctest.TestCase):
         )
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device statuses TAI time to the mock controller time for easier control
+        self.mock_ctrl.lcs.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to open.
-        self.mock_ctrl.time_diff = 0.2
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
+
         await self.write("stopLouvers:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
         # Give some time to the mock device to stop.
-        self.mock_ctrl.time_diff = 0.2
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
+
         await self.write("status:\n")
         self.data = await self.read()
         lcs_status = self.data[Dome.LlcName.LCS.value]
@@ -442,8 +506,14 @@ class MockTestCase(asynctest.TestCase):
         await self.write("openShutter:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device statuses TAI time to the mock controller time for easier control
+        self.mock_ctrl.apscs.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to open.
-        self.mock_ctrl.time_diff = 0.2
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
+
         await self.write("status:\n")
         self.data = await self.read()
         apscs_status = self.data[Dome.LlcName.APSCS.value]
@@ -461,8 +531,14 @@ class MockTestCase(asynctest.TestCase):
         await self.write("closeShutter:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device statuses TAI time to the mock controller time for easier control
+        self.mock_ctrl.apscs.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to close.
-        self.mock_ctrl.time_diff = 0.2
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
+
         await self.write("status:\n")
         self.data = await self.read()
         apscs_status = self.data[Dome.LlcName.APSCS.value]
@@ -480,13 +556,21 @@ class MockTestCase(asynctest.TestCase):
         await self.write("openShutter:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device statuses TAI time to the mock controller time for easier control
+        self.mock_ctrl.apscs.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to open.
-        self.mock_ctrl.time_diff = 0.2
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
+
         await self.write("stopShutter:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
         # Give some time to the mock device to stop.
-        self.mock_ctrl.time_diff = 0.2
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
+
         await self.write("status:\n")
         self.data = await self.read()
         apscs_status = self.data[Dome.LlcName.APSCS.value]
@@ -522,13 +606,21 @@ class MockTestCase(asynctest.TestCase):
         await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device statuses TAI time to the mock controller time for easier control
+        self.mock_ctrl.amcs.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to move.
-        self.mock_ctrl.time_diff = 0.2
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
+
         await self.write("park:\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
         # Give some time to the mock device to park.
-        self.mock_ctrl.time_diff = 0.2
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
+
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
@@ -547,8 +639,14 @@ class MockTestCase(asynctest.TestCase):
         await self.write(f"setTemperature:\n temperature: {temperature}\n")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
+
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = salobj.current_tai()
+        # Set the mock device statuses TAI time to the mock controller time for easier control
+        self.mock_ctrl.thcs.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to set the temperature.
-        self.mock_ctrl.time_diff = 0.2
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
+
         await self.write("status:\n")
         self.data = await self.read()
         self.log.info(f"data = {self.data}")
