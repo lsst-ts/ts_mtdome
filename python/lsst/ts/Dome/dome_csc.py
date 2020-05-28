@@ -163,14 +163,21 @@ class DomeCsc(salobj.ConfigurableCsc):
         else:
             await self.disconnect()
 
-    async def write_then_read_reply(self, cmd):
+    async def write_then_read_reply(self, cmd, **params):
         """Write the cmd string appended with a newline character and then read the reply to the command.
+
+        The command and parameters will first be transformed to a dict of the form::
+
+            {"cmd": {"param1": value1, "param2": value2}}
+
+        with zero, one or more parameters.
 
         Parameters
         ----------
-        cmd: `dict`
-            A dict of the form {"cmd": {"param1": value1, "param2": value2}} with zero, one or more
-            parameters.
+        cmd: `str`
+            The command to write.
+        **params:
+            The parameters for the command cmd. This may be empty.
 
         Returns
         -------
@@ -178,7 +185,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             A dict of the form {"reply": {"param1": value1, "param2": value2}} where "reply" can for
             instance be "OK" or "ERROR".
          """
-        st = yaml.safe_dump(cmd, default_flow_style=None)
+        st = yaml.safe_dump({cmd: params}, default_flow_style=None)
         self.log.info(f"Sending command {st}")
         self.writer.write(st.encode() + b"\r\n")
         await self.writer.drain()
@@ -203,9 +210,8 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"moveAz": {"azimuth": math.radians(data.azimuth)}}
         self.log.info(f"Moving Dome to azimuth {data.azimuth}")
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply("moveAz", azimuth=math.radians(data.azimuth))
 
     async def do_moveEl(self, data):
         """Move El.
@@ -216,9 +222,10 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"moveEl": {"elevation": math.radians(data.elevation)}}
         self.log.info(f"Moving LWS to elevation {data.elevation}")
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply(
+            "moveEl", elevation=math.radians(data.elevation)
+        )
 
     async def do_stopAz(self, data):
         """Stop AZ.
@@ -229,8 +236,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"stopAz": {}}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply("stopAz")
 
     async def do_stopEl(self, data):
         """Stop El.
@@ -241,8 +247,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"stopEl": {}}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply("stopEl")
 
     async def do_stop(self, data):
         """Stop.
@@ -253,8 +258,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"stop": {}}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply("stop")
 
     async def do_crawlAz(self, data):
         """Crawl AZ.
@@ -265,13 +269,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {
-            "crawlAz": {
-                "dirMotion": data.dirMotion,
-                "azRate": math.radians(data.azRate),
-            }
-        }
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply(
+            "crawlAz", dirMotion=data.dirMotion, azRate=math.radians(data.azRate)
+        )
 
     async def do_crawlEl(self, data):
         """Crawl El.
@@ -282,13 +282,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {
-            "crawlEl": {
-                "dirMotion": data.dirMotion,
-                "elRate": math.radians(data.elRate),
-            }
-        }
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply(
+            "crawlEl", dirMotion=data.dirMotion, elRate=math.radians(data.elRate)
+        )
 
     async def do_setLouver(self, data):
         """Set Louver.
@@ -299,8 +295,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"setLouver": {"id": data.id, "position": math.radians(data.position)}}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply(
+            "setLouver", id=data.id, position=math.radians(data.position)
+        )
 
     async def do_closeLouvers(self, data):
         """Close Louvers.
@@ -311,8 +308,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"closeLouvers": {}}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply("closeLouvers")
 
     async def do_stopLouvers(self, data):
         """Stop Louvers.
@@ -323,8 +319,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"stopLouvers": {}}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply("stopLouvers")
 
     async def do_openShutter(self, data):
         """Open Shutter.
@@ -335,8 +330,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"openShutter": {}}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply("openShutter")
 
     async def do_closeShutter(self, data):
         """Close Shutter.
@@ -347,8 +341,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"closeShutter": {}}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply("closeShutter")
 
     async def do_stopShutter(self, data):
         """Stop Shutter.
@@ -359,8 +352,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"stopShutter": {}}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply("stopShutter")
 
     async def do_park(self, data):
         """Park.
@@ -371,8 +363,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"park": {}}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply("park")
 
     async def do_setTemperature(self, data):
         """Set Temperature.
@@ -383,8 +374,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        cmd = {"setTemperature": {"temperature": data.temperature}}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply("setTemperature", temperature=data.temperature)
 
     async def config_llcs(self, data):
         """Config command not to be executed by SAL.
@@ -415,20 +405,15 @@ class DomeCsc(salobj.ConfigurableCsc):
             {"AMCS": {"amax": 5, "jmax": 4}, "LWSCS": {"vmax": 5, "jmax": 4}}
 
         """
-        configuration_parameters = {}
-
         amcs_configuration_parameters = data[LlcName.AMCS.value]
-        configuration_parameters[LlcName.AMCS.value] = self.amcs_limits.validate(
-            amcs_configuration_parameters
-        )
+        amcs_config_params = self.amcs_limits.validate(amcs_configuration_parameters)
 
         lwscs_configuration_parameters = data[LlcName.LWSCS.value]
-        configuration_parameters[LlcName.LWSCS.value] = self.lwscs_limits.validate(
-            lwscs_configuration_parameters
-        )
+        lwscs_config_params = self.lwscs_limits.validate(lwscs_configuration_parameters)
 
-        cmd = {"config": configuration_parameters}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply(
+            "config", AMCS=amcs_config_params, LWCS=lwscs_config_params
+        )
 
     async def fans(self, data):
         """Fans command not to be executed by SAL.
@@ -441,8 +426,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             A dictionary with arguments to the function call. It should contain the key "action" with a
             string value (ON or OFF).
         """
-        cmd = {"fans": {"action": data["action"]}}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply("fans", action=data["action"])
 
     async def inflate(self, data):
         """Inflate command not to be executed by SAL.
@@ -455,16 +439,14 @@ class DomeCsc(salobj.ConfigurableCsc):
             A dictionary with arguments to the function call. It should contain the key "action" with a
             string value (ON or OFF).
         """
-        cmd = {"inflate": {"action": data["action"]}}
-        await self.write_then_read_reply(cmd)
+        await self.write_then_read_reply("inflate", action=data["action"])
 
     async def status(self):
         """Status command not to be executed by SAL.
 
         This command will be used to request the full status of all lower level components.
         """
-        cmd = {"status": {}}
-        self.lower_level_status = await self.write_then_read_reply(cmd)
+        self.lower_level_status = await self.write_then_read_reply("status")
         self.log.info(self.lower_level_status)
 
         self.convert_telemetry_radians_to_degrees_and_send(
