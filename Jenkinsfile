@@ -46,10 +46,9 @@ pipeline {
         stage("Checkout xml") {
             steps {
                 script {
-                    latest_full_tag = sh(returnStdout:  true, script: "git ls-remote --tags https://github.com/lsst-ts/ts_xml | grep refs\\/tags\\/v[0-9] | tail -n 1").trim()
-                    latest_tag = latest_full_tag.replaceFirst(/.*refs\//, "").replaceFirst(/\^.*/, "")
+                    latest_tag = sh(returnStdout:  true, script: "git ls-remote --tags https://github.com/lsst-ts/ts_xml | grep refs\\//v[0-9] | tail -n 1 | sed 's/.*\\///' | sed 's/\\^.*//'").trim()
                     sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_xml && /home/saluser/.checkout_repo.sh tags/\${latest_tag} && git pull\"
+                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_xml && /home/saluser/.checkout_repo.sh \${latest_tag} && git pull\"
                     """
                 }
             }
