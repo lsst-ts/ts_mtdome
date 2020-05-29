@@ -45,7 +45,7 @@ pipeline {
         }
         stage("Checkout xml") {
             steps {
-                latest_tag = sh(returnStdout:  true, script: "git ls-remote --tags https://github.com/lsst-ts/ts_xml | grep refs\\/tags\\/v[0-9] | tail -n 1 | sed 's/.*\\///' | sed 's/\\^.*//'").trim()
+                latest_tag = sh(returnStdout:  true, script: "git ls-remote --tags https://github.com/lsst-ts/ts_xml | grep refs\\/tags\\/v[0-9] | tail -n 1 | sed 's/\.*\\///' | sed 's/\\^\.*//'").trim()
                 script {
                     sh """
                     docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_xml && /home/saluser/.checkout_repo.sh tags/\${latest_tag} && git pull\"
