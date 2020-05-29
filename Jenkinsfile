@@ -4,7 +4,6 @@ pipeline {
         container_name = "c_${BUILD_ID}_${JENKINS_NODE_COOKIE}"
         user_ci = credentials('lsst-io')
         work_branches = "${GIT_BRANCH} ${CHANGE_BRANCH} develop"
-        ts_xml_latest_tag = sh(returnStdout:  true, script: "git ls-remote --tags https://github.com/lsst-ts/ts_xml | grep refs\\/tags\\/v[0-9] | tail -n 1 | sed 's/.*refs\\///' | sed 's/\\^.*//'").trim()
     }
     stages {
         stage("Pulling image.") {
@@ -48,7 +47,7 @@ pipeline {
             steps {
                 script {
                     sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_xml && git checkout \${ts_xml_latest_tag} -b latest\"
+                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_xml && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
                     """
                 }
             }
