@@ -1,8 +1,8 @@
 import asyncio
 import asynctest
+from asynctest.mock import CoroutineMock
 import logging
 import math
-from unittest.mock import MagicMock
 
 import yaml
 
@@ -18,15 +18,6 @@ _NUM_MON_SENSORS = 16
 _NUM_THERMO_SENSORS = 16
 
 
-# MagicMock doesn't support async coroutines and AsyncMock is not available in Python 3.7 but only in 3.8
-# This is a way to provide a future that can be returned by a mock method and that can awaited in the
-# calling code.
-def async_return(result):
-    f = asyncio.Future()
-    f.set_result(result)
-    return f
-
-
 class MockTestCase(asynctest.TestCase):
     async def setUp(self):
         self.ctrl = None
@@ -37,13 +28,10 @@ class MockTestCase(asynctest.TestCase):
         self.log = logging.getLogger("MockTestCase")
 
         self.mock_ctrl = Dome.MockDomeController(port=port)
-        # Replace the determine_current_tai method with a mock method that returns a Future so the original
-        # determine_current_tai method doesn't get called and the original calling code still gets something
-        # to await. Where necessary the test code will set the current_tai value on the mock_ctrl object to
-        # make sure that the mock_ctrl object behaves as if that amount of time has passed.
-        self.mock_ctrl.determine_current_tai = MagicMock(
-            return_value=async_return(None)
-        )
+        # Replace the determine_current_tai method with a mock method so that the current_tai value on the
+        # mock_ctrl object can be set to make sure that the mock_ctrl object behaves as if that amount of
+        # time has passed.
+        self.mock_ctrl.determine_current_tai = CoroutineMock()
         asyncio.create_task(self.mock_ctrl.start())
         await asyncio.sleep(1)
         # Request the assigned port from the mock controller.
