@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 
+from lsst.ts import salobj
 from .base_mock_status import BaseMockStatus
 from ..llc_status import LlcStatus
 
@@ -18,9 +19,14 @@ class ThcsStatus(BaseMockStatus):
         self.status = LlcStatus.DISABLED.value
         self.data = np.zeros(_NUM_SENSORS, dtype=float)
 
-    async def determine_status(self):
+    async def determine_status(self, current_tai):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
+        time_diff = current_tai - self.command_time_tai
+        self.log.debug(
+            f"current_tai = {current_tai}, self.command_time_tai = {self.command_time_tai}, "
+            f"time_diff = {time_diff}"
+        )
         self.llc_status = {
             "status": self.status,
             "data": self.data.tolist(),
@@ -28,7 +34,7 @@ class ThcsStatus(BaseMockStatus):
         self.log.debug(f"thcs_state = {self.llc_status}")
 
     async def setTemperature(self, temperature):
-        """Mock setting the preferred temperature in the dome. It should mock cooling down or warming up
+        """Set the preferred temperature in the dome. It should mock cooling down or warming up
         but it doesn't.
 
         Parameters
@@ -37,5 +43,6 @@ class ThcsStatus(BaseMockStatus):
             The preferred temperature (deg). In reality this should be a realistic temperature in the range
             of about -30 C to +40 C but the provided temperature is not checked against this range.
         """
+        self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.ENABLED.value
         self.data[:] = temperature

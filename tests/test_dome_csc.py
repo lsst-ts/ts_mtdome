@@ -10,7 +10,7 @@ NUM_MON_SENSORS = 16
 NUM_THERMO_SENSORS = 16
 
 logging.basicConfig(
-    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO
+    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
 )
 
 
@@ -54,11 +54,10 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            # This command is not supported by the DomeCsc so an Error should be returned by the
-            # controller leading to a KeyError in DomeCsc
-            cmd = {"unsupported_command": {}}
             try:
-                await self.csc.write_then_read_reply(cmd)
+                # This command is not supported by the DomeCsc so an Error should be returned by the
+                # controller leading to a KeyError in DomeCsc
+                await self.csc.write_then_read_reply("unsupported_command")
                 self.fail("Expected a KeyError.")
             except KeyError:
                 pass
@@ -70,11 +69,10 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            # This command is supported by the DomeCsc but it takes an argument so an Error should be returned
-            # by the controller leading to a ValueError in DomeCsc
-            cmd = {"moveAz": {}}
             try:
-                await self.csc.write_then_read_reply(cmd)
+                # This command is supported by the DomeCsc but it takes an argument so an Error should be
+                # returned by the controller leading to a ValueError in DomeCsc
+                await self.csc.write_then_read_reply("moveAz")
                 self.fail("Expected a ValueError.")
             except ValueError:
                 pass
@@ -299,8 +297,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            cmd = {"fans": {"action": "True"}}
-            await self.csc.write_then_read_reply(cmd)
+            await self.csc.write_then_read_reply("fans", action=True)
 
     async def test_inflate(self):
         async with self.make_csc(
@@ -309,8 +306,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            cmd = {"inflate": {"action": "True"}}
-            await self.csc.write_then_read_reply(cmd)
+            await self.csc.write_then_read_reply("inflate", action=True)
 
     async def test_status(self):
         async with self.make_csc(

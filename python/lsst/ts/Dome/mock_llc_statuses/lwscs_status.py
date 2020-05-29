@@ -3,6 +3,7 @@ import math
 
 import numpy as np
 
+from lsst.ts import salobj
 from .base_mock_status import BaseMockStatus
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
 from ..lwscs_motion_direction import LwcsMotionDirection as motion_dir
@@ -13,19 +14,12 @@ _NUM_MOTORS = 2
 
 class LwscsStatus(BaseMockStatus):
     """Represents the status of the Light and Wind Screen Control System in simulation mode.
-
-    Parameters
-    ----------
-    period: `float`
-        The period in decimal seconds determining how often the status of this Lower Level Component will
-        be updated.
     """
 
-    def __init__(self, period):
+    def __init__(self):
         super().__init__()
         self.log = logging.getLogger("MockLwscsStatus")
         self.lwscs_limits = LwscsLimits()
-        self.period = period
         # default values which may be overriden by calling moveEl, crawlEl of config
         self.jmax = self.lwscs_limits.jmax
         self.amax = self.lwscs_limits.amax
@@ -35,6 +29,7 @@ class LwscsStatus(BaseMockStatus):
         self.motion_direction = motion_dir.UP.value
         # variables holding the status of the mock EL motion
         self.status = LlcStatus.STOPPED.value
+        self.position_orig = 0.0
         self.position_error = 0.0
         self.position_actual = 0
         self.position_cmd = 0
@@ -49,20 +44,22 @@ class LwscsStatus(BaseMockStatus):
         self.resolver_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
         self.power_absortion = 0.0
 
-    async def determine_status(self):
+    async def determine_status(self, current_tai):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
+        time_diff = float(current_tai - self.command_time_tai)
         if self.status != LlcStatus.STOPPED.value:
-            elevation_step = self.motion_velocity * self.period
+            elevation_step = self.motion_velocity * time_diff
             if self.motion_direction == motion_dir.UP.value:
-                self.position_actual = self.position_actual + elevation_step
+                self.position_actual = self.position_orig + elevation_step
                 if self.position_actual >= self.position_cmd:
+                    self.position_orig = self.position_actual
                     self.position_actual = self.position_cmd
                     self.status = LlcStatus.STOPPED.value
             else:
-                self.position_actual = self.position_actual - elevation_step
+                self.position_actual = self.position_orig - elevation_step
                 if self.position_actual <= self.position_cmd:
+                    self.position_orig = self.position_actual
                     self.position_actual = self.position_cmd
                     self.status = LlcStatus.STOPPED.value
         self.llc_status = {
@@ -84,7 +81,7 @@ class LwscsStatus(BaseMockStatus):
         self.log.debug(f"lwscs_state = {self.llc_status}")
 
     async def moveEl(self, elevation):
-        """Mock moving the light and wind screen to the given elevation.
+        """Move the light and wind screen to the given elevation.
 
         Parameters
         ----------
@@ -92,7 +89,8 @@ class LwscsStatus(BaseMockStatus):
             The elevation (deg) to move to. 0 means point to the horizon and 180 point to the zenith. These
             limits are not checked.
         """
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
+        self.position_orig = self.position_actual
+        self.command_time_tai = salobj.current_tai()
         self.position_cmd = elevation
         self.motion_velocity = self.vmax
         self.status = LlcStatus.MOVING.value
@@ -102,7 +100,7 @@ class LwscsStatus(BaseMockStatus):
             self.motion_direction = motion_dir.DOWN.value
 
     async def crawlEl(self, direction, velocity):
-        """Mock crawling of the light and wind screen in the given direction at the given velocity.
+        """Crawl the light and wind screen in the given direction at the given velocity.
 
         Parameters
         ----------
@@ -113,7 +111,8 @@ class LwscsStatus(BaseMockStatus):
             The velocity (deg/s) at which to crawl. The velocity is not checked against the velocity limits
             for the light and wind screen.
         """
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
+        self.position_orig = self.position_actual
+        self.command_time_tai = salobj.current_tai()
         self.motion_direction = direction
         self.motion_velocity = velocity
         self.status = LlcStatus.CRAWLING.value
@@ -123,4 +122,7 @@ class LwscsStatus(BaseMockStatus):
             self.position_cmd = 0
 
     async def stopEl(self):
+        """Stop moving the light and wind screen.
+        """
+        self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.STOPPED.value

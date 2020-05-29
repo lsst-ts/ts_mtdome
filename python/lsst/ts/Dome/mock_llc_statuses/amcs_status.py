@@ -3,6 +3,7 @@ import math
 
 import numpy as np
 
+from lsst.ts import salobj
 from .base_mock_status import BaseMockStatus
 from ..llc_configuration_limits.amcs_limits import AmcsLimits
 from ..azcs_motion_direction import AzcsMotionDirection as motion_dir
@@ -13,19 +14,12 @@ _NUM_MOTORS = 5
 
 class AmcsStatus(BaseMockStatus):
     """Represents the status of the Azimuth Motion Control System in simulation mode.
-
-    Parameters
-    ----------
-    period: `float`
-        The period in decimal seconds determining how often the status of this Lower Level Component will
-        be updated.
     """
 
-    def __init__(self, period):
+    def __init__(self):
         super().__init__()
         self.log = logging.getLogger("MockAzcsStatus")
         self.amcs_limits = AmcsLimits()
-        self.period = period
         # default values which may be overriden by calling moveAz, crawlAz of config
         self.jmax = self.amcs_limits.jmax
         self.amax = self.amcs_limits.amax
@@ -37,6 +31,7 @@ class AmcsStatus(BaseMockStatus):
         self.fans_enabled = False
         # variables holding the status of the mock AZ motion
         self.status = LlcStatus.STOPPED.value
+        self.position_orig = 0.0
         self.position_error = 0.0
         self.position_actual = 0
         self.position_cmd = 0
@@ -50,24 +45,30 @@ class AmcsStatus(BaseMockStatus):
         self.resolver_raw = np.zeros(_NUM_MOTORS, dtype=float)
         self.resolver_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
 
-    async def determine_status(self):
+    async def determine_status(self, current_tai):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
-        # TODO Make sure that radians are used because that is what the real LLCs will use as well. DM-24789
+        time_diff = float(current_tai - self.command_time_tai)
+        self.log.debug(
+            f"current_tai = {current_tai}, self.command_time_tai = {self.command_time_tai}, "
+            f"time_diff = {time_diff}"
+        )
         if self.status != LlcStatus.STOPPED.value:
-            azimuth_step = self.motion_velocity * self.period
+            azimuth_step = self.motion_velocity * time_diff
             if self.motion_direction == motion_dir.CW.value:
-                self.position_actual = self.position_actual + azimuth_step
+                self.position_actual = self.position_orig + azimuth_step
                 if self.position_actual >= self.position_cmd:
                     self.position_actual = self.position_cmd
+                    self.position_orig = self.position_actual
                     if self.status == LlcStatus.MOVING.value:
                         self.status = LlcStatus.STOPPED.value
                     else:
                         self.status = LlcStatus.PARKED.value
             else:
-                self.position_actual = self.position_actual - azimuth_step
+                self.position_actual = self.position_orig - azimuth_step
                 if self.position_actual <= self.position_cmd:
                     self.position_actual = self.position_cmd
+                    self.position_orig = self.position_actual
                     if self.status == LlcStatus.MOVING.value:
                         self.status = LlcStatus.STOPPED.value
                     else:
@@ -90,7 +91,7 @@ class AmcsStatus(BaseMockStatus):
         self.log.debug(f"amcs_state = {self.llc_status}")
 
     async def moveAz(self, azimuth):
-        """Mock moving of the dome at maximum velocity to the specified azimuth. Azimuth is measured from 0 at
+        """Move the dome at maximum velocity to the specified azimuth. Azimuth is measured from 0 at
             north via 90 at east and 180 at south to 270 west and 360 = 0. The value of azimuth is not
             checked for the range between 0 and 360.
 
@@ -99,6 +100,8 @@ class AmcsStatus(BaseMockStatus):
         azimuth: `float`
             The azimuth to move to.
         """
+        self.position_orig = self.position_actual
+        self.command_time_tai = salobj.current_tai()
         self.position_cmd = azimuth
         self.motion_velocity = self.vmax
         self.status = LlcStatus.MOVING.value
@@ -108,7 +111,7 @@ class AmcsStatus(BaseMockStatus):
             self.motion_direction = motion_dir.CCW.value
 
     async def crawlAz(self, direction, velocity):
-        """Mock crawling of the dome in the given direction at the given velocity.
+        """Crawl the dome in the given direction at the given velocity.
 
         Parameters
         ----------
@@ -119,6 +122,8 @@ class AmcsStatus(BaseMockStatus):
             The velocity (deg/s) at which to crawl. The velocity is not checked against the velocity limits
             for the dome.
         """
+        self.position_orig = self.position_actual
+        self.command_time_tai = salobj.current_tai()
         self.motion_direction = direction
         self.motion_velocity = velocity
         self.status = LlcStatus.CRAWLING.value
@@ -128,13 +133,16 @@ class AmcsStatus(BaseMockStatus):
             self.position_cmd = math.radians(-360)
 
     async def stopAz(self):
-        """Mock stopping all motion of the dome.
+        """Stop all motion of the dome.
         """
+        self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.STOPPED.value
 
     async def park(self):
-        """Mock parking of the dome, meaning that it will be moved to azimuth 0.
+        """Park the dome, meaning that it will be moved to azimuth 0.
         """
+        self.position_orig = self.position_actual
+        self.command_time_tai = salobj.current_tai()
         self.position_cmd = 0.0
         self.motion_velocity = self.vmax
         self.status = LlcStatus.PARKING.value
@@ -150,6 +158,7 @@ class AmcsStatus(BaseMockStatus):
         action: `bool`
             The value should be True or False but the value doesn't get validated here.
         """
+        self.command_time_tai = salobj.current_tai()
         self.seal_inflated = action
 
     async def fans(self, action):
@@ -162,4 +171,5 @@ class AmcsStatus(BaseMockStatus):
         action: `bool`
             The value should be True or False but the value doesn't get validated here.
         """
+        self.command_time_tai = salobj.current_tai()
         self.fans_enabled = action

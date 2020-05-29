@@ -2,6 +2,7 @@ import logging
 import math
 import numpy as np
 
+from lsst.ts import salobj
 from .base_mock_status import BaseMockStatus
 from ..llc_status import LlcStatus
 
@@ -29,9 +30,14 @@ class ApscsStatus(BaseMockStatus):
         self.resolver_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
         self.power_absortion = 0.0
 
-    async def determine_status(self):
+    async def determine_status(self, current_tai):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
+        time_diff = current_tai - self.command_time_tai
+        self.log.debug(
+            f"current_tai = {current_tai}, self.command_time_tai = {self.command_time_tai}, "
+            f"time_diff = {time_diff}"
+        )
         self.llc_status = {
             "status": self.status,
             "positionError": self.position_error,
@@ -49,23 +55,26 @@ class ApscsStatus(BaseMockStatus):
         self.log.debug(f"apcs_state = {self.llc_status}")
 
     async def openShutter(self):
-        """Mock opening of the shutter.
+        """Open the shutter.
         """
         self.log.info(f"Received command 'openShutter'")
+        self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.OPEN.value
         self.position_actual = math.radians(90.0)
         self.position_cmd = math.radians(90.0)
 
     async def closeShutter(self):
-        """Mock closing of the shutter.
+        """Close the shutter.
         """
         self.log.info(f"Received command 'closeShutter'")
+        self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.CLOSED.value
         self.position_actual = 0.0
         self.position_cmd = 0.0
 
     async def stopShutter(self):
-        """Mock stopping all motion of the shutter.
+        """Stop all motion of the shutter.
         """
         self.log.info(f"Received command 'stopShutter'")
+        self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.STOPPED.value
