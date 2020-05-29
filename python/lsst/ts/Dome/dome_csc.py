@@ -164,13 +164,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             await self.disconnect()
 
     async def write_then_read_reply(self, cmd, **params):
-        """Write the cmd string appended with a newline character and then read the reply to the command.
-
-        The command and parameters will first be transformed to a dict of the form::
-
-            {"cmd": {"param1": value1, "param2": value2}}
-
-        with zero, one or more parameters.
+        """Write the cmd string and then read the reply to the command.
 
         Parameters
         ----------
