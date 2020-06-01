@@ -6,7 +6,6 @@ import numpy as np
 from lsst.ts import salobj
 from .base_mock_status import BaseMockStatus
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
-from ..lwscs_motion_direction import LwcsMotionDirection as motion_dir
 from ..llc_status import LlcStatus
 
 _NUM_MOTORS = 2
@@ -26,7 +25,6 @@ class LwscsStatus(BaseMockStatus):
         self.vmax = self.lwscs_limits.vmax
         # variables helping with the state of the mock EL motion
         self.motion_velocity = self.vmax
-        self.motion_direction = motion_dir.UP.value
         # variables holding the status of the mock EL motion
         self.status = LlcStatus.STOPPED.value
         self.position_orig = 0.0
@@ -50,14 +48,13 @@ class LwscsStatus(BaseMockStatus):
         time_diff = float(current_tai - self.command_time_tai)
         if self.status != LlcStatus.STOPPED.value:
             elevation_step = self.motion_velocity * time_diff
-            if self.motion_direction == motion_dir.UP.value:
-                self.position_actual = self.position_orig + elevation_step
+            self.position_actual = self.position_orig + elevation_step
+            if self.motion_velocity >= 0:
                 if self.position_actual >= self.position_cmd:
                     self.position_orig = self.position_actual
                     self.position_actual = self.position_cmd
                     self.status = LlcStatus.STOPPED.value
             else:
-                self.position_actual = self.position_orig - elevation_step
                 if self.position_actual <= self.position_cmd:
                     self.position_orig = self.position_actual
                     self.position_actual = self.position_cmd
@@ -89,34 +86,28 @@ class LwscsStatus(BaseMockStatus):
             The elevation (deg) to move to. 0 means point to the horizon and 180 point to the zenith. These
             limits are not checked.
         """
+        self.status = LlcStatus.MOVING.value
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
         self.position_cmd = elevation
         self.motion_velocity = self.vmax
-        self.status = LlcStatus.MOVING.value
-        if self.position_cmd >= self.position_actual:
-            self.motion_direction = motion_dir.UP.value
-        else:
-            self.motion_direction = motion_dir.DOWN.value
+        if self.position_cmd < self.position_actual:
+            self.motion_velocity = -self.vmax
 
-    async def crawlEl(self, direction, velocity):
+    async def crawlEl(self, velocity):
         """Crawl the light and wind screen in the given direction at the given velocity.
 
         Parameters
         ----------
-        direction: `str`
-            The string should be UP or DOWN but the actual value doesn't get checked. If it is not UP then
-            DOWN is assumed.
         velocity: `float`
             The velocity (deg/s) at which to crawl. The velocity is not checked against the velocity limits
             for the light and wind screen.
         """
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
-        self.motion_direction = direction
         self.motion_velocity = velocity
         self.status = LlcStatus.CRAWLING.value
-        if self.motion_direction == motion_dir.UP.value:
+        if self.motion_velocity >= 0:
             self.position_cmd = math.radians(90)
         else:
             self.position_cmd = 0

@@ -296,16 +296,15 @@ class MockDomeController:
         Parameters
         ----------
         kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "dirMotion" with a
-            string value (CW or CCW) and the key "azRate" with a float value.
+            A dictionary with arguments to the function call. It should contain the key "azRate" with a
+            signed float value where positive means towards increasing azimuth and negative towards
+            decreasing azimuth.
         """
         self.log.debug(f"Received command 'crawlAz' with arguments {kwargs}")
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use degrees.
-        await self.amcs.crawlAz(
-            direction=kwargs["dirMotion"], velocity=float(kwargs["azRate"])
-        )
+        await self.amcs.crawlAz(velocity=float(kwargs["azRate"]))
 
     async def crawlEl(self, **kwargs):
         """Crawl the light and wind screen.
@@ -313,16 +312,15 @@ class MockDomeController:
         Parameters
         ----------
         kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "dirMotion" with a
-            string value (UP or DOWN) and the key "elRate" with a float value.
+            A dictionary with arguments to the function call. It should contain the key "elRate" with a
+            signed float value where positive means towards increasing elevation and negative towards
+            decreasing elevation.
         """
         self.log.info(f"Received command 'crawlEl' with arguments {kwargs}")
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use degrees.
-        await self.lwscs.crawlEl(
-            direction=kwargs["dirMotion"], velocity=float(kwargs["elRate"])
-        )
+        await self.lwscs.crawlEl(velocity=float(kwargs["elRate"]))
 
     async def setLouver(self, **kwargs):
         """Set the position of a louver.

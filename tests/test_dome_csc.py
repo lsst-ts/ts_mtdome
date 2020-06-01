@@ -135,12 +135,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            desired_direction = Dome.AzcsMotionDirection.CW.value
             desired_velocity = 0.1
             await self.remote.cmd_crawlAz.set_start(
-                dirMotion=desired_direction,
-                azRate=desired_velocity,
-                timeout=STD_TIMEOUT,
+                azRate=desired_velocity, timeout=STD_TIMEOUT,
             )
 
     async def test_do_crawlEl(self):
@@ -150,12 +147,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            desired_direction = Dome.LwcsMotionDirection.UP.value
             desired_velocity = 0.1
             await self.remote.cmd_crawlEl.set_start(
-                dirMotion=desired_direction,
-                elRate=desired_velocity,
-                timeout=STD_TIMEOUT,
+                elRate=desired_velocity, timeout=STD_TIMEOUT,
             )
 
     async def test_do_setLouver(self):

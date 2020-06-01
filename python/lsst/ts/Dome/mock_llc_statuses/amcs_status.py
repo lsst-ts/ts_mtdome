@@ -6,7 +6,6 @@ import numpy as np
 from lsst.ts import salobj
 from .base_mock_status import BaseMockStatus
 from ..llc_configuration_limits.amcs_limits import AmcsLimits
-from ..azcs_motion_direction import AzcsMotionDirection as motion_dir
 from ..llc_status import LlcStatus
 
 _NUM_MOTORS = 5
@@ -26,7 +25,6 @@ class AmcsStatus(BaseMockStatus):
         self.vmax = self.amcs_limits.vmax
         # variables helping with the state of the mock AZ motion
         self.motion_velocity = self.vmax
-        self.motion_direction = motion_dir.CW.value
         self.seal_inflated = False
         self.fans_enabled = False
         # variables holding the status of the mock AZ motion
@@ -55,8 +53,8 @@ class AmcsStatus(BaseMockStatus):
         )
         if self.status != LlcStatus.STOPPED.value:
             azimuth_step = self.motion_velocity * time_diff
-            if self.motion_direction == motion_dir.CW.value:
-                self.position_actual = self.position_orig + azimuth_step
+            self.position_actual = self.position_orig + azimuth_step
+            if self.motion_velocity >= 0:
                 if self.position_actual >= self.position_cmd:
                     self.position_actual = self.position_cmd
                     self.position_orig = self.position_actual
@@ -65,7 +63,6 @@ class AmcsStatus(BaseMockStatus):
                     else:
                         self.status = LlcStatus.PARKED.value
             else:
-                self.position_actual = self.position_orig - azimuth_step
                 if self.position_actual <= self.position_cmd:
                     self.position_actual = self.position_cmd
                     self.position_orig = self.position_actual
@@ -100,34 +97,28 @@ class AmcsStatus(BaseMockStatus):
         azimuth: `float`
             The azimuth to move to.
         """
+        self.status = LlcStatus.MOVING.value
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
         self.position_cmd = azimuth
         self.motion_velocity = self.vmax
-        self.status = LlcStatus.MOVING.value
-        if self.position_cmd >= self.position_actual:
-            self.motion_direction = motion_dir.CW.value
-        else:
-            self.motion_direction = motion_dir.CCW.value
+        if self.position_cmd < self.position_actual:
+            self.motion_velocity = -self.vmax
 
-    async def crawlAz(self, direction, velocity):
+    async def crawlAz(self, velocity):
         """Crawl the dome in the given direction at the given velocity.
 
         Parameters
         ----------
-        direction: `str`
-            The string should be CW (clockwise) or CCW (counter clockwise) but the actual value doesn't get
-            checked. If it is not CW then CCW is assumed.
         velocity: `float`
             The velocity (deg/s) at which to crawl. The velocity is not checked against the velocity limits
             for the dome.
         """
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
-        self.motion_direction = direction
         self.motion_velocity = velocity
         self.status = LlcStatus.CRAWLING.value
-        if self.motion_direction == motion_dir.CW.value:
+        if self.motion_velocity >= 0:
             self.position_cmd = math.radians(720)
         else:
             self.position_cmd = math.radians(-360)
@@ -141,12 +132,11 @@ class AmcsStatus(BaseMockStatus):
     async def park(self):
         """Park the dome, meaning that it will be moved to azimuth 0.
         """
+        self.status = LlcStatus.PARKING.value
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
         self.position_cmd = 0.0
-        self.motion_velocity = self.vmax
-        self.status = LlcStatus.PARKING.value
-        self.motion_direction = motion_dir.CCW.value
+        self.motion_velocity = -self.vmax
 
     async def inflate(self, action):
         """Inflate or deflate the inflatable seal.

@@ -134,7 +134,7 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_crawlAz(self):
         target_rate = math.radians(0.1)
-        await self.write(f"crawlAz:\n dirMotion: CW\n azRate: {target_rate}")
+        await self.write(f"crawlAz:\n azRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -361,7 +361,7 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_crawlEl(self):
         target_rate = math.radians(0.1)
-        await self.write(f"crawlEl:\n dirMotion: UP\n elRate: {target_rate}")
+        await self.write(f"crawlEl:\n elRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
