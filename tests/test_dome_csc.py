@@ -85,8 +85,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 remote=self.remote, state=salobj.State.ENABLED
             )
             desired_azimuth = 40
+            desired_velocity = 0.1
             await self.remote.cmd_moveAz.set_start(
-                azimuth=desired_azimuth, timeout=STD_TIMEOUT
+                azimuth=desired_azimuth, azRate=desired_velocity, timeout=STD_TIMEOUT
             )
 
     async def test_do_moveEl(self):

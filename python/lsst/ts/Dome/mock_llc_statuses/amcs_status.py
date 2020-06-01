@@ -25,6 +25,7 @@ class AmcsStatus(BaseMockStatus):
         self.vmax = self.amcs_limits.vmax
         # variables helping with the state of the mock AZ motion
         self.motion_velocity = self.vmax
+        self.crawl_velocity = 0
         self.seal_inflated = False
         self.fans_enabled = False
         # variables holding the status of the mock AZ motion
@@ -57,18 +58,30 @@ class AmcsStatus(BaseMockStatus):
             if self.motion_velocity >= 0:
                 if self.position_actual >= self.position_cmd:
                     self.position_actual = self.position_cmd
-                    self.position_orig = self.position_actual
                     if self.status == LlcStatus.MOVING.value:
-                        self.status = LlcStatus.STOPPED.value
+                        if self.crawl_velocity >= 0:
+                            self.position_cmd = math.radians(720)
+                        else:
+                            self.position_cmd = math.radians(-360)
+                        self.motion_velocity = self.crawl_velocity
+                        self.status = LlcStatus.CRAWLING.value
                     else:
+                        self.position_cmd = self.position_actual
+                        self.motion_velocity = 0
                         self.status = LlcStatus.PARKED.value
             else:
                 if self.position_actual <= self.position_cmd:
                     self.position_actual = self.position_cmd
-                    self.position_orig = self.position_actual
                     if self.status == LlcStatus.MOVING.value:
+                        if self.crawl_velocity >= 0:
+                            self.position_cmd = math.radians(720)
+                        else:
+                            self.position_cmd = math.radians(-360)
+                        self.motion_velocity = self.crawl_velocity
                         self.status = LlcStatus.STOPPED.value
                     else:
+                        self.position_cmd = self.position_actual
+                        self.motion_velocity = 0
                         self.status = LlcStatus.PARKED.value
         self.llc_status = {
             "status": self.status,
@@ -87,7 +100,7 @@ class AmcsStatus(BaseMockStatus):
         }
         self.log.debug(f"amcs_state = {self.llc_status}")
 
-    async def moveAz(self, azimuth):
+    async def moveAz(self, azimuth, velocity):
         """Move the dome at maximum velocity to the specified azimuth. Azimuth is measured from 0 at
             north via 90 at east and 180 at south to 270 west and 360 = 0. The value of azimuth is not
             checked for the range between 0 and 360.
@@ -96,11 +109,15 @@ class AmcsStatus(BaseMockStatus):
         ----------
         azimuth: `float`
             The azimuth to move to.
+        velocity: `float`
+            The velocity (deg/s) at which to crawl once the commanded azimuth has been reached at maximum
+            velocity. The velocity is not checked against the velocity limits for the dome.
         """
         self.status = LlcStatus.MOVING.value
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
         self.position_cmd = azimuth
+        self.crawl_velocity = velocity
         self.motion_velocity = self.vmax
         if self.position_cmd < self.position_actual:
             self.motion_velocity = -self.vmax

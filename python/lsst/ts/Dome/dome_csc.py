@@ -204,8 +204,14 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        self.log.info(f"Moving Dome to azimuth {data.azimuth}")
-        await self.write_then_read_reply("moveAz", azimuth=math.radians(data.azimuth))
+        self.log.info(
+            f"Moving Dome to azimuth {data.azimuth} and gthen start crawling at azRate {data.azRate}"
+        )
+        await self.write_then_read_reply(
+            "moveAz",
+            azimuth=math.radians(data.azimuth),
+            azRate=math.radians(data.azRate),
+        )
 
     async def do_moveEl(self, data):
         """Move El.
@@ -263,9 +269,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply(
-            "crawlAz", dirMotion=data.dirMotion, azRate=math.radians(data.azRate)
-        )
+        await self.write_then_read_reply("crawlAz", azRate=math.radians(data.azRate))
 
     async def do_crawlEl(self, data):
         """Crawl El.
@@ -276,9 +280,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply(
-            "crawlEl", dirMotion=data.dirMotion, elRate=math.radians(data.elRate)
-        )
+        await self.write_then_read_reply("crawlEl", elRate=math.radians(data.elRate))
 
     async def do_setLouver(self, data):
         """Set Louver.

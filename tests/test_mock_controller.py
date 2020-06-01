@@ -81,7 +81,8 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_moveAz(self):
         target_azimuth = math.radians(10)
-        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
+        target_rate = math.radians(0.1)
+        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n azRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -126,9 +127,9 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
         self.assertEqual(
-            amcs_status["status"], Dome.LlcStatus.STOPPED.value,
+            amcs_status["status"], Dome.LlcStatus.CRAWLING.value,
         )
-        self.assertEqual(
+        self.assertGreaterEqual(
             amcs_status["positionActual"], math.radians(10.0),
         )
 
@@ -160,7 +161,8 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_stopAz(self):
         target_azimuth = math.radians(10)
-        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
+        target_rate = math.radians(0.1)
+        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n azRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -303,7 +305,8 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_stop(self):
         target_azimuth = math.radians(10)
-        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
+        target_rate = math.radians(0.1)
+        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n azRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -591,7 +594,8 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_park(self):
         target_azimuth = math.radians(1)
-        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
+        target_rate = math.radians(0.1)
+        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n azRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 

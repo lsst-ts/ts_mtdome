@@ -247,13 +247,16 @@ class MockDomeController:
         ----------
         kwargs: `dict`
             A dictionary with arguments to the function call. It should contain the key "azimuth" with a
-            float value.
+            float value and the key "azRate" with a signed float value where positive means towards
+            increasing azimuth and negative towards decreasing azimuth.
         """
         self.log.debug(f"Received command 'moveAz' with arguments {kwargs}")
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use degrees.
-        await self.amcs.moveAz(azimuth=float(kwargs["azimuth"]))
+        await self.amcs.moveAz(
+            azimuth=float(kwargs["azimuth"]), velocity=float(kwargs["azRate"])
+        )
 
     async def move_el(self, **kwargs):
         """Move the light and wind screen.
