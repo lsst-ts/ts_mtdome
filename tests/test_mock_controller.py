@@ -82,7 +82,7 @@ class MockTestCase(asynctest.TestCase):
     async def prepare_amcs(
         self, initial_position, target_azimuth, target_rate,
     ):
-        """Utility method for preparing the in itial state of AMCS for easier testing.
+        """Utility method for preparing the in initial state of AMCS for easier testing.
 
         Parameters
         ----------
