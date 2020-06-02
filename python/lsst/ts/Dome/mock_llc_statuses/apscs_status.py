@@ -17,7 +17,7 @@ class ApscsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockApscsStatus")
         # variables holding the status of the mock Aperture Shutter
-        self.status = LlcStatus.CLOSED.value
+        self.status = LlcStatus.CLOSED
         self.position_error = 0.0
         self.position_actual = 0.0
         self.position_cmd = 0.0
@@ -39,7 +39,7 @@ class ApscsStatus(BaseMockStatus):
             f"time_diff = {time_diff}"
         )
         self.llc_status = {
-            "status": self.status,
+            "status": self.status.value,
             "positionError": self.position_error,
             "positionActual": self.position_actual,
             "positionCmd": self.position_cmd,
@@ -59,7 +59,7 @@ class ApscsStatus(BaseMockStatus):
         """
         self.log.info(f"Received command 'openShutter'")
         self.command_time_tai = salobj.current_tai()
-        self.status = LlcStatus.OPEN.value
+        self.status = LlcStatus.OPEN
         self.position_actual = math.radians(90.0)
         self.position_cmd = math.radians(90.0)
 
@@ -68,7 +68,7 @@ class ApscsStatus(BaseMockStatus):
         """
         self.log.info(f"Received command 'closeShutter'")
         self.command_time_tai = salobj.current_tai()
-        self.status = LlcStatus.CLOSED.value
+        self.status = LlcStatus.CLOSED
         self.position_actual = 0.0
         self.position_cmd = 0.0
 
@@ -77,4 +77,4 @@ class ApscsStatus(BaseMockStatus):
         """
         self.log.info(f"Received command 'stopShutter'")
         self.command_time_tai = salobj.current_tai()
-        self.status = LlcStatus.STOPPED.value
+        self.status = LlcStatus.STOPPED

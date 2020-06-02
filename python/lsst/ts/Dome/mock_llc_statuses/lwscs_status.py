@@ -26,7 +26,7 @@ class LwscsStatus(BaseMockStatus):
         # variables helping with the state of the mock EL motion
         self.motion_velocity = self.vmax
         # variables holding the status of the mock EL motion
-        self.status = LlcStatus.STOPPED.value
+        self.status = LlcStatus.STOPPED
         self.position_orig = 0.0
         self.position_error = 0.0
         self.position_actual = 0
@@ -46,21 +46,21 @@ class LwscsStatus(BaseMockStatus):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
         """
         time_diff = float(current_tai - self.command_time_tai)
-        if self.status != LlcStatus.STOPPED.value:
+        if self.status != LlcStatus.STOPPED:
             elevation_step = self.motion_velocity * time_diff
             self.position_actual = self.position_orig + elevation_step
             if self.motion_velocity >= 0:
                 if self.position_actual >= self.position_cmd:
                     self.position_orig = self.position_actual
                     self.position_actual = self.position_cmd
-                    self.status = LlcStatus.STOPPED.value
+                    self.status = LlcStatus.STOPPED
             else:
                 if self.position_actual <= self.position_cmd:
                     self.position_orig = self.position_actual
                     self.position_actual = self.position_cmd
-                    self.status = LlcStatus.STOPPED.value
+                    self.status = LlcStatus.STOPPED
         self.llc_status = {
-            "status": self.status,
+            "status": self.status.value,
             "positionError": self.position_error,
             "positionActual": self.position_actual,
             "positionCmd": self.position_cmd,
@@ -86,7 +86,7 @@ class LwscsStatus(BaseMockStatus):
             The elevation (deg) to move to. 0 means point to the horizon and 180 point to the zenith. These
             limits are not checked.
         """
-        self.status = LlcStatus.MOVING.value
+        self.status = LlcStatus.MOVING
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
         self.position_cmd = elevation
@@ -106,7 +106,7 @@ class LwscsStatus(BaseMockStatus):
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
         self.motion_velocity = velocity
-        self.status = LlcStatus.CRAWLING.value
+        self.status = LlcStatus.CRAWLING
         if self.motion_velocity >= 0:
             self.position_cmd = math.radians(90)
         else:
@@ -116,4 +116,4 @@ class LwscsStatus(BaseMockStatus):
         """Stop moving the light and wind screen.
         """
         self.command_time_tai = salobj.current_tai()
-        self.status = LlcStatus.STOPPED.value
+        self.status = LlcStatus.STOPPED

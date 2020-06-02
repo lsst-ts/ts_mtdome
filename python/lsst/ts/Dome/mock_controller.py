@@ -247,13 +247,13 @@ class MockDomeController:
         ----------
         kwargs: `dict`
             A dictionary with arguments to the function call. It should contain the key "azimuth" with a
-            float value and the key "azRate" with a signed float value where positive means towards
-            increasing azimuth and negative towards decreasing azimuth.
+            float value between 0 and 2pi and the key "azRate" with a float value where positive means
+            towards increasing azimuth and negative towards decreasing azimuth.
         """
         self.log.debug(f"Received command 'moveAz' with arguments {kwargs}")
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
-        # use degrees.
+        # use radians.
         await self.amcs.moveAz(
             azimuth=float(kwargs["azimuth"]), velocity=float(kwargs["azRate"])
         )
@@ -265,12 +265,12 @@ class MockDomeController:
         ----------
         kwargs: `dict`
             A dictionary with arguments to the function call. It should contain the key "elevation" with a
-            float value.
+            float value between 0 and pi/2.
         """
         self.log.debug(f"Received command 'moveEl' with arguments {kwargs}")
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
-        # use degrees.
+        # use radians.
         await self.lwscs.moveEl(elevation=float(kwargs["elevation"]))
 
     async def stop_az(self):
@@ -300,13 +300,13 @@ class MockDomeController:
         ----------
         kwargs: `dict`
             A dictionary with arguments to the function call. It should contain the key "azRate" with a
-            signed float value where positive means towards increasing azimuth and negative towards
-            decreasing azimuth.
+            float value where positive means towards increasing azimuth and negative towards decreasing
+            azimuth.
         """
         self.log.debug(f"Received command 'crawlAz' with arguments {kwargs}")
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
-        # use degrees.
+        # use radians.
         await self.amcs.crawlAz(velocity=float(kwargs["azRate"]))
 
     async def crawlEl(self, **kwargs):
@@ -316,13 +316,13 @@ class MockDomeController:
         ----------
         kwargs: `dict`
             A dictionary with arguments to the function call. It should contain the key "elRate" with a
-            signed float value where positive means towards increasing elevation and negative towards
-            decreasing elevation.
+            float value where positive means towards increasing elevation and negative towards decreasing
+            elevation.
         """
         self.log.info(f"Received command 'crawlEl' with arguments {kwargs}")
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
-        # use degrees.
+        # use radians.
         await self.lwscs.crawlEl(velocity=float(kwargs["elRate"]))
 
     async def setLouver(self, **kwargs):
@@ -337,7 +337,7 @@ class MockDomeController:
         self.log.info(f"Received command 'setLouver' with arguments {kwargs}")
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
-        # use degrees.
+        # use radians.
         await self.lcs.setLouver(
             louver_id=int(kwargs["id"]), position=float(kwargs["position"])
         )
