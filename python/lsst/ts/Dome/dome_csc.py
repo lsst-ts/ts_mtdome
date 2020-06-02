@@ -2,16 +2,16 @@ __all__ = ["DomeCsc"]
 
 import asyncio
 import logging
-import pathlib
 import math
+import pathlib
 
 import numpy as np
-import yaml
 
 from .error_code import ErrorCode
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
-from lsst.ts import salobj
 from .llc_name import LlcName
+from lsst.ts import salobj
+from lsst.ts.Dome import encoding_tools
 from .mock_controller import MockDomeController
 
 _LOCAL_HOST = "127.0.0.1"
@@ -179,12 +179,12 @@ class DomeCsc(salobj.ConfigurableCsc):
             A dict of the form {"reply": {"param1": value1, "param2": value2}} where "reply" can for
             instance be "OK" or "ERROR".
          """
-        st = yaml.safe_dump({cmd: params}, default_flow_style=None)
+        st = encoding_tools.encode(cmd, **params)
         self.log.info(f"Sending command {st}")
         self.writer.write(st.encode() + b"\r\n")
         await self.writer.drain()
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
-        data = yaml.safe_load(read_bytes.decode())
+        data = encoding_tools.decode(read_bytes.decode())
 
         if "ERROR" in data.keys():
             self.log.error(f"Received ERROR {data}.")
@@ -562,7 +562,6 @@ class DomeCsc(salobj.ConfigurableCsc):
             The function to be scheduled periodically.
         """
         while True:
-            self.log.info(f"Executing task {task}.")
             await task()
             await asyncio.sleep(period)
 

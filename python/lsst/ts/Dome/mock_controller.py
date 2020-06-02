@@ -1,12 +1,11 @@
 import asyncio
 import logging
 
-import yaml
-
-from lsst.ts import salobj
-from . import mock_llc_statuses
 from .error_code import ErrorCode
 from .llc_name import LlcName
+from lsst.ts import salobj
+from lsst.ts.Dome import encoding_tools
+from . import mock_llc_statuses
 
 
 class MockDomeController:
@@ -65,9 +64,6 @@ class MockDomeController:
             "inflate": self.inflate,
             "status": self.status,
         }
-        # Name of a command to report as failed once, the next time it is seen,
-        # or None if no failures. Used to test CSC handling of failed commands.
-        self.fail_command = None
         # Timeouts used by this class and by its unit test
         self.long_timeout = 20
         self.short_timeout = 2
@@ -118,14 +114,25 @@ class MockDomeController:
         server.close()
         self.log.info("Done closing")
 
-    async def write(self, st):
+    async def write(self, cmd_status, separate=False, **data):
         """Write the string appended with a newline character.
+
+        `separate` needs to be True in case of the reply to the status command and False in all other
+        cases. This is not actively checked here and this is assumed to be the case.
 
         Parameters
         ----------
-        st: `str`
-            The string to write.
+        cmd_status: `str`
+            The command status to return.
+        separate: `bool`
+            Indicates if the data needs to be separated from the status.
+        data:
+            The data to go with the status.
         """
+        if separate:
+            st = encoding_tools.encode_separately(cmd_status, **data)
+        else:
+            st = encoding_tools.encode(cmd_status, **data)
         self._writer.write(st.encode() + b"\r\n")
         self.log.debug(st)
         await self._writer.drain()
@@ -138,7 +145,7 @@ class MockDomeController:
         code: `ErrorCode`
             The error code to write.
         """
-        await self.write(f"ERROR:\n CODE: {code.value}\n")
+        await self.write("ERROR", CODE=code.value)
 
     async def cmd_loop(self, reader, writer):
         """Execute commands and output replies.
@@ -165,9 +172,8 @@ class MockDomeController:
                 return
             if line:
                 try:
-                    outputs = None
                     # demarshall the line into a dict of Python objects.
-                    items = yaml.safe_load(line)
+                    items = encoding_tools.decode(line)
                     cmd = next(iter(items))
                     self.log.debug(f"Trying to execute cmd {cmd}")
                     if cmd not in self.dispatch_dict:
@@ -175,9 +181,6 @@ class MockDomeController:
                         # CODE=2 in this case means "Unsupported command."
                         await self.write_error(ErrorCode.UNSUPPORTED_COMMAND)
                         print_ok = False
-                    elif cmd == self.fail_command:
-                        self.fail_command = None
-                        outputs = [f"Command '{cmd}' failed by request"]
                     else:
                         func = self.dispatch_dict[cmd]
                         kwargs = {}
@@ -185,21 +188,18 @@ class MockDomeController:
                         if args is not None:
                             for arg in args:
                                 kwargs[arg] = args[arg]
-                        outputs = await func(**kwargs)
+                        await func(**kwargs)
                         if cmd == "status":
                             print_ok = False
                         if cmd == "stopAz" or cmd == "stopEl":
                             timeout = self.short_timeout
-                    if outputs:
-                        for msg in outputs:
-                            await self.write(msg)
                 except (KeyError, RuntimeError):
                     self.log.error(f"Command '{line}' failed")
                     # CODE=3 in this case means "Missing or incorrect parameter(s)."
                     await self.write_error(ErrorCode.INCORRECT_PARAMETER)
                     print_ok = False
                 if print_ok:
-                    await self.write(f"OK:\n Timeout: {timeout}\n")
+                    await self.write("OK", Timeout=timeout)
 
     async def status(self):
         """Request the status from the lower level components and write them in reply.
@@ -221,8 +221,7 @@ class MockDomeController:
             LlcName.MONCS.value: moncs_state,
             LlcName.THCS.value: thcs_state,
         }
-        data = yaml.safe_dump(reply, default_flow_style=None)
-        await self.write("OK:\n" + data)
+        await self.write("OK", separate=True, **reply)
 
     async def determine_statuses(self):
         """Determine the status of the lower level components.
