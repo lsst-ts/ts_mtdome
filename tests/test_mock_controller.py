@@ -79,9 +79,26 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         self.assertEqual(self.data["ERROR"]["CODE"], 3)
 
-    async def test_moveAz(self):
-        target_azimuth = math.radians(10)
-        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
+    async def prepare_amcs(
+        self, initial_position, target_azimuth, target_rate,
+    ):
+        """Utility method for preparing the in initial state of AMCS for easier testing.
+
+        Parameters
+        ----------
+        initial_position: `float`
+            The initial position of AMCS in radians.
+        target_azimuth: `float`
+            The target azimuth for the AMCS rotation in radians.
+        target_rate: `float`
+            The target velocity at which to crawl once the target azimuth has been reached in rad/s.
+
+        Returns
+        -------
+
+        """
+        self.mock_ctrl.amcs.position_actual = initial_position
+        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n azRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -89,52 +106,152 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = salobj.current_tai()
         # Set the mock device status TAI time to the mock controller time for easier control
         self.mock_ctrl.amcs.command_time_tai = self.mock_ctrl.current_tai
+
+    async def verify_amcs_moveAz(
+        self, time_diff, expected_status, expected_position, crawl_velocity=0
+    ):
+        """Verify the expected status and position after the given time difference.
+
+        If the expected status is MOVING, the expected position should exactly have been reached. If the
+        expected status is CRAWLING, the expected position should have been reached as well but since the
+        AMCS keeps moving, it will be greater or smaller depending on the speed.
+
+        Parameters
+        ----------
+        time_diff: `float`
+            The time difference since the previous status check in seconds.
+        expected_status: `Dome.LlcStatus`
+            The expected status.
+        expected_position: `float`
+            The expected position in radians.
+        crawl_velocity: `float`
+            The expected velocity if the expected status is CRAWLING in rad/s.
+        """
         # Give some time to the mock device to move.
-        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
-
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + time_diff
         await self.write("status:\n")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
         self.assertEqual(
-            amcs_status["status"], Dome.LlcStatus.MOVING.value,
+            amcs_status["status"], expected_status.value,
         )
-        self.assertGreaterEqual(
-            amcs_status["positionActual"], math.radians(0.5),
-        )
-        self.assertLessEqual(
-            amcs_status["positionActual"], math.radians(1.5),
+        if expected_status == Dome.LlcStatus.MOVING:
+            self.assertAlmostEqual(amcs_status["positionActual"], expected_position)
+        elif expected_status == Dome.LlcStatus.CRAWLING:
+            if crawl_velocity > 0:
+                self.assertGreaterEqual(
+                    amcs_status["positionActual"], expected_position
+                )
+            elif crawl_velocity < 0:
+                self.assertLessEqual(amcs_status["positionActual"], expected_position)
+            else:
+                self.assertAlmostEqual(amcs_status["positionActual"], expected_position)
+
+    async def test_moveAz_zero_pos_pos(self):
+        # test moving the AMCS to an azimuth in positive direction starting from position 0 and ending in a
+        # positive crawl velocity
+        initial_position = 0
+        target_azimuth = math.radians(10)
+        target_rate = math.radians(0.1)
+        await self.prepare_amcs(
+            initial_position, target_azimuth, target_rate,
         )
 
-        # Give some time to the mock device to move.
-        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
-        await self.write("status:\n")
-        self.data = await self.read()
-        amcs_status = self.data[Dome.LlcName.AMCS.value]
-        self.assertEqual(
-            amcs_status["status"], Dome.LlcStatus.MOVING.value,
-        )
-        self.assertGreaterEqual(
-            amcs_status["positionActual"], math.radians(2.5),
-        )
-        self.assertLessEqual(
-            amcs_status["positionActual"], math.radians(3.5),
+        # Make the amcs rotate and check both status and position at the specified times
+        await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(1.5))
+        await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(3.0))
+        await self.verify_amcs_moveAz(
+            5.0, Dome.LlcStatus.CRAWLING, math.radians(10.0), crawl_velocity=target_rate
         )
 
-        # Give some time to the mock device to reach the commanded position.
-        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 5.0
-        await self.write("status:\n")
-        self.data = await self.read()
-        amcs_status = self.data[Dome.LlcName.AMCS.value]
-        self.assertEqual(
-            amcs_status["status"], Dome.LlcStatus.STOPPED.value,
+    async def test_moveAz_zero_pos_neg(self):
+        # test moving the AMCS to an azimuth in positive direction starting from position 0 and ending in a
+        # negative crawl velocity
+        initial_position = 0
+        target_azimuth = math.radians(10)
+        target_rate = math.radians(-0.1)
+        await self.prepare_amcs(
+            initial_position, target_azimuth, target_rate,
         )
-        self.assertEqual(
-            amcs_status["positionActual"], math.radians(10.0),
+
+        # Make the amcs rotate and check both status and position at the specified times
+        await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(1.5))
+        await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(3.0))
+        await self.verify_amcs_moveAz(
+            5.0, Dome.LlcStatus.CRAWLING, math.radians(10.0), crawl_velocity=target_rate
+        )
+
+    async def test_moveAz_zero_pos_zero(self):
+        # test moving the AMCS to an azimuth in positive direction starting from position 0 and ending in a
+        # stand still, i.e. a 0 crawl velocity
+        initial_position = 0
+        target_azimuth = math.radians(10)
+        target_rate = 0
+        await self.prepare_amcs(
+            initial_position, target_azimuth, target_rate,
+        )
+
+        # Make the amcs rotate and check both status and position at the specified times
+        await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(1.5))
+        await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(3.0))
+        await self.verify_amcs_moveAz(
+            5.0, Dome.LlcStatus.STOPPED, math.radians(10.0), crawl_velocity=target_rate
+        )
+
+    async def test_moveAz_twenty_neg_pos(self):
+        # test moving the AMCS to an azimuth in negative direction starting from position 20 degrees and
+        # ending in a positive crawl velocity
+        initial_position = math.radians(20)
+        target_azimuth = math.radians(10)
+        target_rate = math.radians(0.1)
+        await self.prepare_amcs(
+            initial_position, target_azimuth, target_rate,
+        )
+
+        # Make the amcs rotate and check both status and position at the specified times
+        await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(18.5))
+        await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(17.0))
+        await self.verify_amcs_moveAz(
+            5.0, Dome.LlcStatus.CRAWLING, math.radians(10.0), crawl_velocity=target_rate
+        )
+
+    async def test_moveAz_twenty_neg_neg(self):
+        # test moving the AMCS to an azimuth in positive direction starting from position 20 degrees and
+        # ending in a negative crawl velocity
+        initial_position = math.radians(20)
+        target_azimuth = math.radians(10)
+        target_rate = math.radians(-0.1)
+        await self.prepare_amcs(
+            initial_position, target_azimuth, target_rate,
+        )
+
+        # Make the amcs rotate and check both status and position at the specified times
+        await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(18.5))
+        await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(17.0))
+        await self.verify_amcs_moveAz(
+            5.0, Dome.LlcStatus.CRAWLING, math.radians(10.0), crawl_velocity=target_rate
+        )
+
+    async def test_moveAz_zero_neg_zero(self):
+        # test moving the AMCS to an azimuth in positive direction starting from position 0 and ending in a
+        # stand still, i.e. a 0 crawl velocity
+        initial_position = math.radians(20)
+        target_azimuth = math.radians(10)
+        target_rate = 0
+        await self.prepare_amcs(
+            initial_position, target_azimuth, target_rate,
+        )
+
+        # Make the amcs rotate and check both status and position at the specified times
+        await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(18.5))
+        await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(17.0))
+        await self.verify_amcs_moveAz(
+            5.0, Dome.LlcStatus.STOPPED, math.radians(10.0), crawl_velocity=target_rate
         )
 
     async def test_crawlAz(self):
         target_rate = math.radians(0.1)
-        await self.write(f"crawlAz:\n dirMotion: CW\n azRate: {target_rate}")
+        await self.write(f"crawlAz:\n azRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -160,7 +277,8 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_stopAz(self):
         target_azimuth = math.radians(10)
-        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
+        target_rate = math.radians(0.1)
+        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n azRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -303,7 +421,8 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_stop(self):
         target_azimuth = math.radians(10)
-        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
+        target_rate = math.radians(0.1)
+        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n azRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -361,7 +480,7 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_crawlEl(self):
         target_rate = math.radians(0.1)
-        await self.write(f"crawlEl:\n dirMotion: UP\n elRate: {target_rate}")
+        await self.write(f"crawlEl:\n elRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -591,7 +710,8 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_park(self):
         target_azimuth = math.radians(1)
-        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n")
+        target_rate = math.radians(0.1)
+        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n azRate: {target_rate}")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 

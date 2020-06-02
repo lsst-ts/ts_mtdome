@@ -6,7 +6,6 @@ import numpy as np
 from lsst.ts import salobj
 from .base_mock_status import BaseMockStatus
 from ..llc_configuration_limits.amcs_limits import AmcsLimits
-from ..azcs_motion_direction import AzcsMotionDirection as motion_dir
 from ..llc_status import LlcStatus
 
 _NUM_MOTORS = 5
@@ -24,13 +23,16 @@ class AmcsStatus(BaseMockStatus):
         self.jmax = self.amcs_limits.jmax
         self.amax = self.amcs_limits.amax
         self.vmax = self.amcs_limits.vmax
-        # variables helping with the state of the mock AZ motion
-        self.motion_velocity = self.vmax
-        self.motion_direction = motion_dir.CW.value
+        # the velocity during a move or a crawl
+        self.motion_velocity = 0
+        # the velocity during a crawl that follows a move
+        self.crawl_velocity = 0
+        # the inflated (True) or deflated (False) state of the inflatable seal
         self.seal_inflated = False
+        # the enabled (True) or disabled (False) state of the fans
         self.fans_enabled = False
         # variables holding the status of the mock AZ motion
-        self.status = LlcStatus.STOPPED.value
+        self.status = LlcStatus.STOPPED
         self.position_orig = 0.0
         self.position_error = 0.0
         self.position_actual = 0
@@ -53,28 +55,48 @@ class AmcsStatus(BaseMockStatus):
             f"current_tai = {current_tai}, self.command_time_tai = {self.command_time_tai}, "
             f"time_diff = {time_diff}"
         )
-        if self.status != LlcStatus.STOPPED.value:
+        if self.status != LlcStatus.STOPPED:
             azimuth_step = self.motion_velocity * time_diff
-            if self.motion_direction == motion_dir.CW.value:
-                self.position_actual = self.position_orig + azimuth_step
-                if self.position_actual >= self.position_cmd:
-                    self.position_actual = self.position_cmd
-                    self.position_orig = self.position_actual
-                    if self.status == LlcStatus.MOVING.value:
-                        self.status = LlcStatus.STOPPED.value
+            self.position_actual = self.position_orig + azimuth_step
+
+            # perform boundary checks for the current motion or crawl
+            if (
+                self.motion_velocity >= 0 and self.position_actual >= self.position_cmd
+            ) or (
+                self.motion_velocity < 0 and self.position_actual <= self.position_cmd
+            ):
+                self.position_actual = self.position_cmd
+                if self.status == LlcStatus.MOVING:
+                    if self.crawl_velocity > 0:
+                        # make sure that the dome never stops moving because it is crawling
+                        self.position_cmd = math.inf
+                        self.motion_velocity = self.crawl_velocity
+                        self.status = LlcStatus.CRAWLING
+                    elif self.crawl_velocity < 0:
+                        # make sure that the dome never stops moving because it is crawling
+                        self.position_cmd = -math.inf
+                        self.motion_velocity = self.crawl_velocity
+                        self.status = LlcStatus.CRAWLING
                     else:
-                        self.status = LlcStatus.PARKED.value
-            else:
-                self.position_actual = self.position_orig - azimuth_step
-                if self.position_actual <= self.position_cmd:
-                    self.position_actual = self.position_cmd
-                    self.position_orig = self.position_actual
-                    if self.status == LlcStatus.MOVING.value:
-                        self.status = LlcStatus.STOPPED.value
-                    else:
-                        self.status = LlcStatus.PARKED.value
+                        # make sure that the dome has stopped moving because the requested crawl velocity is 0
+                        self.position_cmd = self.position_actual
+                        self.motion_velocity = self.crawl_velocity
+                        self.status = LlcStatus.STOPPED
+                elif self.status == LlcStatus.PARKING:
+                    self.position_cmd = self.position_actual
+                    self.motion_velocity = 0
+                    self.status = LlcStatus.PARKED
+                elif self.status == LlcStatus.CRAWLING:
+                    # this situation should never happen and probably never will because the commanded
+                    # position should have been set to +/- math.inf
+                    raise ValueError(
+                        f"Went beyond the limit of {self.position_cmd} while in status {self.status.value}. "
+                        f"This should not happen."
+                    )
+                else:
+                    raise ValueError(f"Unknown state {self.status.value}")
         self.llc_status = {
-            "status": self.status,
+            "status": self.status.value,
             "positionError": self.position_error,
             "positionActual": self.position_actual,
             "positionCmd": self.position_cmd,
@@ -90,7 +112,7 @@ class AmcsStatus(BaseMockStatus):
         }
         self.log.debug(f"amcs_state = {self.llc_status}")
 
-    async def moveAz(self, azimuth):
+    async def moveAz(self, azimuth, velocity):
         """Move the dome at maximum velocity to the specified azimuth. Azimuth is measured from 0 at
             north via 90 at east and 180 at south to 270 west and 360 = 0. The value of azimuth is not
             checked for the range between 0 and 360.
@@ -99,54 +121,53 @@ class AmcsStatus(BaseMockStatus):
         ----------
         azimuth: `float`
             The azimuth to move to.
+        velocity: `float`
+            The velocity (deg/s) at which to crawl once the commanded azimuth has been reached at maximum
+            velocity. The velocity is not checked against the velocity limits for the dome.
         """
+        self.status = LlcStatus.MOVING
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
         self.position_cmd = azimuth
+        self.crawl_velocity = velocity
         self.motion_velocity = self.vmax
-        self.status = LlcStatus.MOVING.value
-        if self.position_cmd >= self.position_actual:
-            self.motion_direction = motion_dir.CW.value
-        else:
-            self.motion_direction = motion_dir.CCW.value
+        if self.position_cmd < self.position_actual:
+            self.motion_velocity = -self.vmax
 
-    async def crawlAz(self, direction, velocity):
+    async def crawlAz(self, velocity):
         """Crawl the dome in the given direction at the given velocity.
 
         Parameters
         ----------
-        direction: `str`
-            The string should be CW (clockwise) or CCW (counter clockwise) but the actual value doesn't get
-            checked. If it is not CW then CCW is assumed.
         velocity: `float`
             The velocity (deg/s) at which to crawl. The velocity is not checked against the velocity limits
             for the dome.
         """
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
-        self.motion_direction = direction
         self.motion_velocity = velocity
-        self.status = LlcStatus.CRAWLING.value
-        if self.motion_direction == motion_dir.CW.value:
-            self.position_cmd = math.radians(720)
+        self.status = LlcStatus.CRAWLING
+        if self.motion_velocity >= 0:
+            # make sure that the dome never stops moving
+            self.position_cmd = math.inf
         else:
-            self.position_cmd = math.radians(-360)
+            # make sure that the dome never stops moving
+            self.position_cmd = -math.inf
 
     async def stopAz(self):
         """Stop all motion of the dome.
         """
         self.command_time_tai = salobj.current_tai()
-        self.status = LlcStatus.STOPPED.value
+        self.status = LlcStatus.STOPPED
 
     async def park(self):
         """Park the dome, meaning that it will be moved to azimuth 0.
         """
+        self.status = LlcStatus.PARKING
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
         self.position_cmd = 0.0
-        self.motion_velocity = self.vmax
-        self.status = LlcStatus.PARKING.value
-        self.motion_direction = motion_dir.CCW.value
+        self.motion_velocity = -self.vmax
 
     async def inflate(self, action):
         """Inflate or deflate the inflatable seal.

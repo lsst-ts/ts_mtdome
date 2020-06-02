@@ -15,7 +15,7 @@ class MoncsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockMoncsStatus")
         # variables holding the status of the mock Louvres
-        self.status = LlcStatus.DISABLED.value
+        self.status = LlcStatus.DISABLED
         self.data = np.zeros(_NUM_SENSORS, dtype=float)
 
     async def determine_status(self, current_tai):
@@ -27,7 +27,7 @@ class MoncsStatus(BaseMockStatus):
             f"time_diff = {time_diff}"
         )
         self.llc_status = {
-            "status": self.status,
+            "status": self.status.value,
             "data": self.data.tolist(),
         }
         self.log.debug(f"moncs_state = {self.llc_status}")

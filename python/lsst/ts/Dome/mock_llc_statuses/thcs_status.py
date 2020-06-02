@@ -16,7 +16,7 @@ class ThcsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockThcsStatus")
         # variables holding the status of the mock Louvres
-        self.status = LlcStatus.DISABLED.value
+        self.status = LlcStatus.DISABLED
         self.data = np.zeros(_NUM_SENSORS, dtype=float)
 
     async def determine_status(self, current_tai):
@@ -28,7 +28,7 @@ class ThcsStatus(BaseMockStatus):
             f"time_diff = {time_diff}"
         )
         self.llc_status = {
-            "status": self.status,
+            "status": self.status.value,
             "data": self.data.tolist(),
         }
         self.log.debug(f"thcs_state = {self.llc_status}")
@@ -44,5 +44,5 @@ class ThcsStatus(BaseMockStatus):
             of about -30 C to +40 C but the provided temperature is not checked against this range.
         """
         self.command_time_tai = salobj.current_tai()
-        self.status = LlcStatus.ENABLED.value
+        self.status = LlcStatus.ENABLED
         self.data[:] = temperature
