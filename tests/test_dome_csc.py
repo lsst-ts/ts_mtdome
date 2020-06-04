@@ -292,7 +292,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            await self.csc.write_then_read_reply("fans", action=True)
+            await self.csc.write_then_read_reply("fans", action="True")
 
     async def test_inflate(self):
         async with self.make_csc(
@@ -301,7 +301,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            await self.csc.write_then_read_reply("inflate", action=True)
+            await self.csc.write_then_read_reply("inflate", action="True")
 
     async def test_status(self):
         async with self.make_csc(

@@ -4,8 +4,6 @@ from asynctest.mock import CoroutineMock
 import logging
 import math
 
-import yaml
-
 from lsst.ts import Dome
 from lsst.ts import salobj
 
@@ -49,17 +47,25 @@ class MockTestCase(asynctest.TestCase):
             A dictionary with objects representing the string read.
         """
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
-        data = yaml.safe_load(read_bytes.decode())
+        data = Dome.encoding_tools.decode(read_bytes.decode())
         return data
 
-    async def write(self, st):
+    async def write(self, cmd_status, separate=False, **data):
         """Utility function to write a string to the writer.
 
         Parameters
         ----------
-        st : `str`
-            The string to write.
+        cmd_status: `str`
+            The command status to return.
+        separate: `bool`
+            Indicates if the data needs to be separated from the status.
+        data:
+            The data to go with the status.
         """
+        if separate:
+            st = Dome.encoding_tools.encode_separately(cmd_status, **data)
+        else:
+            st = Dome.encoding_tools.encode(cmd_status, **data)
         self.writer.write(st.encode() + b"\r\n")
         await self.writer.drain()
 
@@ -70,12 +76,12 @@ class MockTestCase(asynctest.TestCase):
             self.writer.close()
 
     async def test_command_does_not_exist(self):
-        await self.write("non-existent_command:\n")
+        await self.write("non-existent_command")
         self.data = await self.read()
         self.assertEqual(self.data["ERROR"]["CODE"], 2)
 
     async def test_missing_command_parameter(self):
-        await self.write("moveAz:\n")
+        await self.write("moveAz")
         self.data = await self.read()
         self.assertEqual(self.data["ERROR"]["CODE"], 3)
 
@@ -98,7 +104,7 @@ class MockTestCase(asynctest.TestCase):
 
         """
         self.mock_ctrl.amcs.position_actual = initial_position
-        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n azRate: {target_rate}")
+        await self.write("moveAz", azimuth=target_azimuth, azRate=target_rate)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -129,7 +135,7 @@ class MockTestCase(asynctest.TestCase):
         """
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + time_diff
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
         self.assertEqual(
@@ -251,7 +257,7 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_crawlAz(self):
         target_rate = math.radians(0.1)
-        await self.write(f"crawlAz:\n azRate: {target_rate}")
+        await self.write("crawlAz", azRate=target_rate)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -262,7 +268,7 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
         self.assertEqual(
@@ -278,7 +284,7 @@ class MockTestCase(asynctest.TestCase):
     async def test_stopAz(self):
         target_azimuth = math.radians(10)
         target_rate = math.radians(0.1)
-        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n azRate: {target_rate}")
+        await self.write("moveAz", azimuth=target_azimuth, azRate=target_rate)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -289,7 +295,7 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
         self.assertEqual(
@@ -302,13 +308,13 @@ class MockTestCase(asynctest.TestCase):
             amcs_status["positionActual"], math.radians(1.5),
         )
 
-        await self.write("stopAz:\n")
+        await self.write("stopAz")
         # Give some time to the mock device to stop moving.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.short_timeout)
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
         self.assertEqual(
@@ -323,7 +329,7 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_moveEl(self):
         target_elevation = math.radians(5)
-        await self.write(f"moveEl:\n elevation: {target_elevation}\n")
+        await self.write("moveEl", elevation=target_elevation)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -334,7 +340,7 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
         self.assertEqual(
@@ -349,7 +355,7 @@ class MockTestCase(asynctest.TestCase):
 
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
         self.assertEqual(
@@ -364,7 +370,7 @@ class MockTestCase(asynctest.TestCase):
 
         # Give some time to the mock device to reach the commanded position.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
         self.assertEqual(
@@ -376,7 +382,7 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_stopEl(self):
         target_elevation = math.radians(5)
-        await self.write(f"moveEl:\n elevation: {target_elevation}\n")
+        await self.write("moveEl", elevation=target_elevation)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -387,7 +393,7 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
         self.assertEqual(
@@ -400,13 +406,13 @@ class MockTestCase(asynctest.TestCase):
             lwscs_status["positionActual"], math.radians(2.0),
         )
 
-        await self.write("stopEl:\n")
+        await self.write("stopEl")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.short_timeout)
 
         # Give some time to the mock device to stop moving.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
         self.assertEqual(
@@ -422,24 +428,22 @@ class MockTestCase(asynctest.TestCase):
     async def test_stop(self):
         target_azimuth = math.radians(10)
         target_rate = math.radians(0.1)
-        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n azRate: {target_rate}")
+        await self.write("moveAz", azimuth=target_azimuth, azRate=target_rate)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
         target_elevation = math.radians(5)
-        await self.write(f"moveEl:\n elevation: {target_elevation}\n")
+        await self.write("moveEl", elevation=target_elevation)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
         louver_id = 5
         target_position = math.radians(90)
-        await self.write(
-            f"setLouver:\n id: {louver_id}\n position: {target_position}\n"
-        )
+        await self.write("setLouver", id=louver_id, position=target_position)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
-        await self.write("openShutter:\n")
+        await self.write("openShutter")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -453,13 +457,13 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
 
-        await self.write("stop:\n")
+        await self.write("stop")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
         # Give some time to the mock devices to stop moving.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         status = self.data[Dome.LlcName.AMCS.value]
         self.assertEqual(
@@ -480,7 +484,7 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_crawlEl(self):
         target_rate = math.radians(0.1)
-        await self.write(f"crawlEl:\n elRate: {target_rate}")
+        await self.write("crawlEl", elRate=target_rate)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -491,7 +495,7 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         lwscs_status = self.data[Dome.LlcName.LWSCS.value]
         self.assertEqual(
@@ -507,9 +511,7 @@ class MockTestCase(asynctest.TestCase):
     async def test_setLouver(self):
         louver_id = 5
         target_position = math.radians(90)
-        await self.write(
-            f"setLouver:\n id: {louver_id}\n position: {target_position}\n"
-        )
+        await self.write("setLouver", id=louver_id, position=target_position)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -520,7 +522,7 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to open.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         lcs_status = self.data[Dome.LlcName.LCS.value]
         self.assertEqual(
@@ -543,7 +545,7 @@ class MockTestCase(asynctest.TestCase):
         )
 
     async def test_closeLouvers(self):
-        await self.write("closeLouvers:\n")
+        await self.write("closeLouvers")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -554,7 +556,7 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to close.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         lcs_status = self.data[Dome.LlcName.LCS.value]
         self.assertEqual(
@@ -570,9 +572,7 @@ class MockTestCase(asynctest.TestCase):
     async def test_stopLouvers(self):
         louver_id = 5
         target_position = math.radians(90)
-        await self.write(
-            f"setLouver:\n id: {louver_id}\n position: {target_position}\n"
-        )
+        await self.write("setLouver", id=louver_id, position=target_position)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -583,14 +583,14 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to open.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-        await self.write("stopLouvers:\n")
+        await self.write("stopLouvers")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
         # Give some time to the mock device to stop.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         lcs_status = self.data[Dome.LlcName.LCS.value]
         self.assertEqual(
@@ -610,7 +610,7 @@ class MockTestCase(asynctest.TestCase):
         )
 
     async def test_openShutter(self):
-        await self.write("openShutter:\n")
+        await self.write("openShutter")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -621,7 +621,7 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to open.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         apscs_status = self.data[Dome.LlcName.APSCS.value]
         self.assertEqual(
@@ -635,7 +635,7 @@ class MockTestCase(asynctest.TestCase):
         )
 
     async def test_closeShutter(self):
-        await self.write("closeShutter:\n")
+        await self.write("closeShutter")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -646,7 +646,7 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to close.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         apscs_status = self.data[Dome.LlcName.APSCS.value]
         self.assertEqual(
@@ -660,7 +660,7 @@ class MockTestCase(asynctest.TestCase):
         )
 
     async def test_stopShutter(self):
-        await self.write("openShutter:\n")
+        await self.write("openShutter")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -671,14 +671,14 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to open.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-        await self.write("stopShutter:\n")
+        await self.write("stopShutter")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
         # Give some time to the mock device to stop.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         apscs_status = self.data[Dome.LlcName.APSCS.value]
         self.assertEqual(
@@ -704,14 +704,14 @@ class MockTestCase(asynctest.TestCase):
                 "vmax": math.radians(1.75),
             },
         }
-        await self.write(f"config:\n {config}\n")
+        await self.write("config", **config)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
     async def test_park(self):
         target_azimuth = math.radians(1)
         target_rate = math.radians(0.1)
-        await self.write(f"moveAz:\n azimuth: {target_azimuth}\n azRate: {target_rate}")
+        await self.write("moveAz", azimuth=target_azimuth, azRate=target_rate)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -722,14 +722,14 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-        await self.write("park:\n")
+        await self.write("park")
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
         # Give some time to the mock device to park.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
         self.assertEqual(
@@ -744,7 +744,7 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_setTemperature(self):
         temperature = 10.0
-        await self.write(f"setTemperature:\n temperature: {temperature}\n")
+        await self.write("setTemperature", temperature=temperature)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
 
@@ -755,7 +755,7 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to set the temperature.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         self.log.info(f"data = {self.data}")
         thcs_status = self.data[Dome.LlcName.THCS.value]
@@ -767,7 +767,7 @@ class MockTestCase(asynctest.TestCase):
         )
 
     async def test_inflate(self):
-        await self.write("inflate:\n action: True\n")
+        await self.write("inflate", action=True)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # The status of the inflatable seal is not part of the output of amcs status so this is the only
@@ -775,7 +775,7 @@ class MockTestCase(asynctest.TestCase):
         self.assertTrue(self.mock_ctrl.amcs.seal_inflated)
 
     async def test_fans(self):
-        await self.write("fans:\n action: True\n")
+        await self.write("fans", action=True)
         self.data = await self.read()
         self.assertEqual(self.data["OK"]["Timeout"], self.mock_ctrl.long_timeout)
         # The status of the fans is not part of the output of amcs status so this is the only way to check
@@ -783,7 +783,7 @@ class MockTestCase(asynctest.TestCase):
         self.assertTrue(self.mock_ctrl.amcs.fans_enabled)
 
     async def test_status(self):
-        await self.write("status:\n")
+        await self.write("status")
         self.data = await self.read()
         amcs_status = self.data[Dome.LlcName.AMCS.value]
         self.assertEqual(
