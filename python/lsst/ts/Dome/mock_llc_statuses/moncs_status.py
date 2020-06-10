@@ -1,3 +1,5 @@
+__all__ = ["MoncsStatus"]
+
 import logging
 import numpy as np
 

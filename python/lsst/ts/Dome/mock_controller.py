@@ -1,11 +1,13 @@
+__all__ = ["MockDomeController"]
+
 import asyncio
 import logging
 
-from .error_code import ErrorCode
 from .llc_name import LlcName
 from lsst.ts import salobj
 from lsst.ts.Dome import encoding_tools
 from . import mock_llc_statuses
+from .response_code import ResponseCode
 
 
 class MockDomeController:
@@ -62,7 +64,12 @@ class MockDomeController:
             "setTemperature": self.setTemperature,
             "fans": self.fans,
             "inflate": self.inflate,
-            "status": self.status,
+            "statusAMCS": self.status_amcs,
+            "statusApSCS": self.status_apscs,
+            "statusLCS": self.status_lcs,
+            "statusLWSCS": self.status_lwscs,
+            "statusMonCS": self.status_moncs,
+            "statusThCS": self.status_thcs,
         }
         # Timeouts used by this class and by its unit test
         self.long_timeout = 20
@@ -114,25 +121,15 @@ class MockDomeController:
         server.close()
         self.log.info("Done closing")
 
-    async def write(self, cmd_status, separate=False, **data):
-        """Write the string appended with a newline character.
-
-        `separate` needs to be True in case of the reply to the status command and False in all other
-        cases. This is not actively checked here and this is assumed to be the case.
+    async def write(self, **data):
+        """Write the data appended with a newline character.
 
         Parameters
         ----------
-        cmd_status: `str`
-            The command status to return.
-        separate: `bool`
-            Indicates if the data needs to be separated from the status.
         data:
-            The data to go with the status.
+            The data to write.
         """
-        if separate:
-            st = encoding_tools.encode_separately(cmd_status, **data)
-        else:
-            st = encoding_tools.encode(cmd_status, **data)
+        st = encoding_tools.encode(**data)
         self._writer.write(st.encode() + b"\r\n")
         self.log.debug(st)
         await self._writer.drain()
@@ -162,7 +159,7 @@ class MockDomeController:
         while True:
             self.log.info("Waiting for next command.")
             timeout = self.long_timeout
-            print_ok = True
+
             line = None
             try:
                 line = await reader.readuntil(b"\r\n")
@@ -171,68 +168,87 @@ class MockDomeController:
             except asyncio.IncompleteReadError:
                 return
             if line:
+                # some housekeeping for sending a response
+                send_response = True
+                response = ResponseCode.OK
                 try:
                     # demarshall the line into a dict of Python objects.
                     items = encoding_tools.decode(line)
-                    cmd = next(iter(items))
+                    cmd = items["command"]
                     self.log.debug(f"Trying to execute cmd {cmd}")
                     if cmd not in self.dispatch_dict:
                         self.log.error(f"Command '{line}' unknown")
                         # CODE=2 in this case means "Unsupported command."
-                        await self.write_error(ErrorCode.UNSUPPORTED_COMMAND)
-                        print_ok = False
+                        response = ResponseCode.UNSUPPORTED_COMMAND
+                        timeout = -1
                     else:
                         func = self.dispatch_dict[cmd]
                         kwargs = {}
-                        args = items[cmd]
-                        if args is not None:
-                            for arg in args:
-                                kwargs[arg] = args[arg]
-                        await func(**kwargs)
-                        if cmd == "status":
-                            print_ok = False
+                        if cmd == "config":
+                            # it is unclear beforehand which config parameters are being sent so just
+                            # remove the "config" key and pass the rest on.
+                            kwargs = {x: items[x] for x in items if x not in "config"}
+                        else:
+                            # all other commands should send the "parameters" key. If it doesn't exist then
+                            # a KeyError will be raised which gets caught a few lines down.
+                            kwargs = items["parameters"]
+                        if cmd[:6] == "status":
+                            # the status commands take care of sending a reply themselves
+                            send_response = False
                         if cmd == "stopAz" or cmd == "stopEl":
                             timeout = self.short_timeout
+                        await func(**kwargs)
                 except (KeyError, RuntimeError):
                     self.log.error(f"Command '{line}' failed")
                     # CODE=3 in this case means "Missing or incorrect parameter(s)."
-                    await self.write_error(ErrorCode.INCORRECT_PARAMETER)
-                    print_ok = False
-                if print_ok:
-                    await self.write("OK", Timeout=timeout)
+                    response = ResponseCode.INCORRECT_PARAMETER
+                    timeout = -1
+                if send_response:
+                    await self.write(response=response, timeout=timeout)
 
-    async def status(self):
-        """Request the status from the lower level components and write them in reply.
+    async def status_amcs(self):
+        """Request the status from the AMCS lower level component and write it in reply.
         """
-        self.log.debug("Received command 'status'")
-        await self.determine_current_tai()
-        await self.determine_statuses()
-        amcs_state = self.amcs.llc_status
-        apcs_state = self.apscs.llc_status
-        lcs_state = self.lcs.llc_status
-        lwscs_state = self.lwscs.llc_status
-        moncs_state = self.moncs.llc_status
-        thcs_state = self.thcs.llc_status
-        reply = {
-            LlcName.AMCS.value: amcs_state,
-            LlcName.APSCS.value: apcs_state,
-            LlcName.LCS.value: lcs_state,
-            LlcName.LWSCS.value: lwscs_state,
-            LlcName.MONCS.value: moncs_state,
-            LlcName.THCS.value: thcs_state,
-        }
-        await self.write("OK", separate=True, **reply)
+        await self.request_and_send_status(self.amcs, LlcName.AMCS)
 
-    async def determine_statuses(self):
-        """Determine the status of the lower level components.
+    async def status_apscs(self):
+        """Request the status from the ApSCS lower level component and write it in reply.
         """
-        self.log.debug(f"self.current_tai = {self.current_tai}")
-        await self.amcs.determine_status(self.current_tai)
-        await self.apscs.determine_status(self.current_tai)
-        await self.lcs.determine_status(self.current_tai)
-        await self.lwscs.determine_status(self.current_tai)
-        await self.moncs.determine_status(self.current_tai)
-        await self.thcs.determine_status(self.current_tai)
+        await self.request_and_send_status(self.apscs, LlcName.APSCS)
+
+    async def status_lcs(self):
+        """Request the status from the LCS lower level component and write it in reply.
+        """
+        await self.request_and_send_status(self.lcs, LlcName.LCS)
+
+    async def status_lwscs(self):
+        """Request the status from the LWSCS lower level component and write it in reply.
+        """
+        await self.request_and_send_status(self.lwscs, LlcName.LWSCS)
+
+    async def status_moncs(self):
+        """Request the status from the MonCS lower level component and write it in reply.
+        """
+        await self.request_and_send_status(self.moncs, LlcName.MONCS)
+
+    async def status_thcs(self):
+        """Request the status from the ThCS lower level component and write it in reply.
+        """
+        await self.request_and_send_status(self.thcs, LlcName.THCS)
+
+    async def request_and_send_status(self, llc, llc_name):
+        """Request the status of the given Lower Level Component and write it to the requester.
+
+        Parameters
+        ----------
+        llc: mock_llc_statuses
+            The Lower Level Component to request the status for.
+        llc_name: LlcName
+            The name of the Lower Level Component.
+        """
+        await llc.determine_status(self.current_tai)
+        state = {llc_name.value: llc.llc_status}
+        await self.write(response=ResponseCode.OK, **state)
 
     async def determine_current_tai(self):
         """Determine the time difference since the previous call.
@@ -400,12 +416,12 @@ class MockDomeController:
         if amcs_config:
             for field in ("jmax", "amax", "vmax"):
                 if field in amcs_config:
-                    setattr(self, field, amcs_config[field])
+                    setattr(self.amcs.amcs_limits, field, amcs_config[field])
         lwscs_config = kwargs.get(LlcName.LWSCS.value)
         if lwscs_config:
             for field in ("jmax", "amax", "vmax"):
                 if field in lwscs_config:
-                    setattr(self, field, lwscs_config[field])
+                    setattr(self.lwscs.lwscs_limits, field, lwscs_config[field])
 
     async def park(self):
         """Park the dome.

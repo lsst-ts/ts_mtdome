@@ -7,12 +7,12 @@ import pathlib
 
 import numpy as np
 
-from .error_code import ErrorCode
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .llc_name import LlcName
 from lsst.ts import salobj
 from lsst.ts.Dome import encoding_tools
 from .mock_controller import MockDomeController
+from .response_code import ResponseCode
 
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout in s to be used by this module
@@ -63,8 +63,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             simulation_mode=simulation_mode,
         )
 
-        self.lower_level_status = None
-        self.status_task = None
+        # Keep the lower level statuses in memory for unit tests.
+        self.lower_level_status = {}
+        self.amcs_status_task = None
 
         self.amcs_limits = AmcsLimits()
         self.lwscs_limits = LwscsLimits()
@@ -95,9 +96,17 @@ class DomeCsc(salobj.ConfigurableCsc):
             connect_coro, timeout=self.config.connection_timeout
         )
 
-        # Start polling for the status of the lower level components periodically.
-        self.status_task = asyncio.create_task(
-            self.schedule_task_periodically(1, self.status)
+        # Request the statuses of the lower level components once so there are values available. This will
+        # eventually be replaced by periodic status checks as soon as it is clear what the periods should be.
+        await self.statusApSCS()
+        await self.statusLCS()
+        await self.statusLWSCS()
+        await self.statusMonCS()
+        await self.statusThCS()
+
+        # Start polling for the status of the AMCS component periodically.
+        self.amcs_status_task = asyncio.create_task(
+            self.schedule_task_periodically(0.2, self.statusAMCS)
         )
 
         self.log.info("connected")
@@ -108,8 +117,8 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.log.info("disconnect")
 
         # Stop polling for the status of the lower level components periodically.
-        if self.status_task:
-            self.status_task.cancel()
+        if self.amcs_status_task:
+            self.amcs_status_task.cancel()
 
         writer = self.writer
         self.reader = None
@@ -163,13 +172,11 @@ class DomeCsc(salobj.ConfigurableCsc):
         else:
             await self.disconnect()
 
-    async def write_then_read_reply(self, cmd, **params):
+    async def write_then_read_reply(self, **params):
         """Write the cmd string and then read the reply to the command.
 
         Parameters
         ----------
-        cmd: `str`
-            The command to write.
         **params:
             The parameters for the command cmd. This may be empty.
 
@@ -179,18 +186,20 @@ class DomeCsc(salobj.ConfigurableCsc):
             A dict of the form {"reply": {"param1": value1, "param2": value2}} where "reply" can for
             instance be "OK" or "ERROR".
          """
-        st = encoding_tools.encode(cmd, **params)
+        cmd = params["command"]
+        st = encoding_tools.encode(**params)
         self.log.info(f"Sending command {st}")
         self.writer.write(st.encode() + b"\r\n")
         await self.writer.drain()
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
         data = encoding_tools.decode(read_bytes.decode())
 
-        if "ERROR" in data.keys():
+        response = data["response"]
+        if response > ResponseCode.OK:
             self.log.error(f"Received ERROR {data}.")
-            if ErrorCode(data["ERROR"]["CODE"]) == ErrorCode.INCORRECT_PARAMETER:
+            if response == ResponseCode.INCORRECT_PARAMETER:
                 raise ValueError(f"The command {cmd} contains an incorrect parameter.")
-            elif ErrorCode(data["ERROR"]["CODE"]) == ErrorCode.UNSUPPORTED_COMMAND:
+            elif response == ResponseCode.UNSUPPORTED_COMMAND:
                 raise KeyError(f"The command {cmd} is unsupported.")
 
         return data
@@ -208,9 +217,11 @@ class DomeCsc(salobj.ConfigurableCsc):
             f"Moving Dome to azimuth {data.azimuth} and gthen start crawling at azRate {data.azRate}"
         )
         await self.write_then_read_reply(
-            "moveAz",
-            azimuth=math.radians(data.azimuth),
-            azRate=math.radians(data.azRate),
+            command="moveAz",
+            parameters={
+                "azimuth": math.radians(data.azimuth),
+                "azRate": math.radians(data.azRate),
+            },
         )
 
     async def do_moveEl(self, data):
@@ -224,7 +235,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         self.log.info(f"Moving LWS to elevation {data.elevation}")
         await self.write_then_read_reply(
-            "moveEl", elevation=math.radians(data.elevation)
+            command="moveEl", parameters={"elevation": math.radians(data.elevation)}
         )
 
     async def do_stopAz(self, data):
@@ -236,7 +247,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply("stopAz")
+        await self.write_then_read_reply(command="stopAz", parameters={})
 
     async def do_stopEl(self, data):
         """Stop El.
@@ -247,7 +258,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply("stopEl")
+        await self.write_then_read_reply(command="stopEl", parameters={})
 
     async def do_stop(self, data):
         """Stop.
@@ -258,7 +269,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply("stop")
+        await self.write_then_read_reply(command="stop", parameters={})
 
     async def do_crawlAz(self, data):
         """Crawl AZ.
@@ -269,7 +280,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply("crawlAz", azRate=math.radians(data.azRate))
+        await self.write_then_read_reply(
+            command="crawlAz", parameters={"azRate": math.radians(data.azRate)}
+        )
 
     async def do_crawlEl(self, data):
         """Crawl El.
@@ -280,7 +293,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply("crawlEl", elRate=math.radians(data.elRate))
+        await self.write_then_read_reply(
+            command="crawlEl", parameters={"elRate": math.radians(data.elRate)}
+        )
 
     async def do_setLouver(self, data):
         """Set Louver.
@@ -292,7 +307,8 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         await self.write_then_read_reply(
-            "setLouver", id=data.id, position=math.radians(data.position)
+            command="setLouver",
+            parameters={"id": data.id, "position": math.radians(data.position)},
         )
 
     async def do_closeLouvers(self, data):
@@ -304,7 +320,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply("closeLouvers")
+        await self.write_then_read_reply(command="closeLouvers", parameters={})
 
     async def do_stopLouvers(self, data):
         """Stop Louvers.
@@ -315,7 +331,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply("stopLouvers")
+        await self.write_then_read_reply(command="stopLouvers", parameters={})
 
     async def do_openShutter(self, data):
         """Open Shutter.
@@ -326,7 +342,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply("openShutter")
+        await self.write_then_read_reply(command="openShutter", parameters={})
 
     async def do_closeShutter(self, data):
         """Close Shutter.
@@ -337,7 +353,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply("closeShutter")
+        await self.write_then_read_reply(command="closeShutter", parameters={})
 
     async def do_stopShutter(self, data):
         """Stop Shutter.
@@ -348,7 +364,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply("stopShutter")
+        await self.write_then_read_reply(command="stopShutter", parameters={})
 
     async def do_park(self, data):
         """Park.
@@ -359,7 +375,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply("park")
+        await self.write_then_read_reply(command="park", parameters={})
 
     async def do_setTemperature(self, data):
         """Set Temperature.
@@ -370,7 +386,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply("setTemperature", temperature=data.temperature)
+        await self.write_then_read_reply(
+            command="setTemperature", parameters={"temperature": data.temperature}
+        )
 
     async def config_llcs(self, data):
         """Config command not to be executed by SAL.
@@ -408,7 +426,8 @@ class DomeCsc(salobj.ConfigurableCsc):
         lwscs_config_params = self.lwscs_limits.validate(lwscs_configuration_parameters)
 
         await self.write_then_read_reply(
-            "config", AMCS=amcs_config_params, LWCS=lwscs_config_params
+            command="config",
+            parameters={"AMCS": amcs_config_params, "LWCS": lwscs_config_params},
         )
 
     async def fans(self, data):
@@ -422,7 +441,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             A dictionary with arguments to the function call. It should contain the key "action" with a
             string value (ON or OFF).
         """
-        await self.write_then_read_reply("fans", action=data["action"])
+        await self.write_then_read_reply(
+            command="fans", parameters={"action": data["action"]}
+        )
 
     async def inflate(self, data):
         """Inflate command not to be executed by SAL.
@@ -435,42 +456,70 @@ class DomeCsc(salobj.ConfigurableCsc):
             A dictionary with arguments to the function call. It should contain the key "action" with a
             string value (ON or OFF).
         """
-        await self.write_then_read_reply("inflate", action=data["action"])
+        await self.write_then_read_reply(
+            command="inflate", parameters={"action": data["action"]}
+        )
 
-    async def status(self):
-        """Status command not to be executed by SAL.
+    async def statusAMCS(self):
+        """AMCS status command not to be executed by SAL.
 
-        This command will be used to request the full status of all lower level components.
+        This command will be used to request the full status of the AMCS lower level component.
         """
-        self.lower_level_status = await self.write_then_read_reply("status")
-        self.log.info(self.lower_level_status)
+        await self.request_and_send_llc_status(LlcName.AMCS, self.tel_domeADB_status)
 
+    async def statusApSCS(self):
+        """ApSCS status command not to be executed by SAL.
+
+        This command will be used to request the full status of the ApSCS lower level component.
+        """
+        await self.request_and_send_llc_status(LlcName.APSCS, self.tel_domeAPS_status)
+
+    async def statusLCS(self):
+        """LCS status command not to be executed by SAL.
+
+        This command will be used to request the full status of the LCS lower level component.
+        """
+        await self.request_and_send_llc_status(LlcName.LCS, self.tel_domeLouvers_status)
+
+    async def statusLWSCS(self):
+        """LWSCS status command not to be executed by SAL.
+
+        This command will be used to request the full status of the LWSCS lower level component.
+        """
+        await self.request_and_send_llc_status(LlcName.LWSCS, self.tel_domeLWS_status)
+
+    async def statusMonCS(self):
+        """MonCS status command not to be executed by SAL.
+
+        This command will be used to request the full status of the MonCS lower level component.
+        """
+        await self.request_and_send_llc_status(LlcName.MONCS, self.tel_domeMONCS_status)
+
+    async def statusThCS(self):
+        """ThCS status command not to be executed by SAL.
+
+        This command will be used to request the full status of the ThCS lower level component.
+        """
+        await self.request_and_send_llc_status(LlcName.THCS, self.tel_domeTHCS_status)
+
+    async def request_and_send_llc_status(self, llc_name, telemetry_function):
+        command = f"status{llc_name.value}"
+        status = await self.write_then_read_reply(command=command, parameters={})
+        # Store the status for unit tests.
+        self.lower_level_status[llc_name.value] = status[llc_name.value]
+        self.log.info(status)
         self.convert_telemetry_radians_to_degrees_and_send(
-            self.lower_level_status[LlcName.AMCS.value], self.tel_domeADB_status
-        )
-        self.convert_telemetry_radians_to_degrees_and_send(
-            self.lower_level_status[LlcName.APSCS.value], self.tel_domeAPS_status
-        )
-        self.convert_telemetry_list_radians_to_degrees_and_send(
-            self.lower_level_status[LlcName.LCS.value], self.tel_domeLouvers_status
-        )
-        self.convert_telemetry_radians_to_degrees_and_send(
-            self.lower_level_status[LlcName.LWSCS.value], self.tel_domeLWS_status
-        )
-        self.convert_telemetry_radians_to_degrees_and_send(
-            self.lower_level_status[LlcName.MONCS.value], self.tel_domeMONCS_status
-        )
-        self.convert_telemetry_radians_to_degrees_and_send(
-            self.lower_level_status[LlcName.THCS.value], self.tel_domeTHCS_status
+            status[llc_name.value], telemetry_function, llc_name
         )
 
-    # noinspection PyMethodMayBeStatic
     def convert_telemetry_radians_to_degrees_and_send(
-        self, telemetry_in_radians, telemetry_function
+        self, telemetry_in_radians, telemetry_function, llc_name
     ):
         telemetry_in_degrees = {}
         for key in telemetry_in_radians.keys():
-            if key in _KEYS_IN_RADIANS:
+            if key in _KEYS_IN_RADIANS and (
+                llc_name == LlcName.AMCS or llc_name == LlcName.APSCS
+            ):
                 telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
             else:
                 # No conversion needed since the value does not express an angle
@@ -480,7 +529,6 @@ class DomeCsc(salobj.ConfigurableCsc):
         # Send the telemetry.
         self.send_telemetry(telemetry, telemetry_function)
 
-    # noinspection PyMethodMayBeStatic
     def convert_telemetry_list_radians_to_degrees_and_send(
         self, telemetry_in_radians, telemetry_function
     ):
@@ -556,14 +604,17 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        period : int
+        period : `float`
             The period in (decimal) seconds at which to schedule the function.
         task : coroutine
             The function to be scheduled periodically.
         """
-        while True:
-            await task()
-            await asyncio.sleep(period)
+        try:
+            while True:
+                await task()
+                await asyncio.sleep(period)
+        except Exception as e:
+            self.log.error(e)
 
     @property
     def connected(self):

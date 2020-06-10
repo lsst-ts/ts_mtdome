@@ -3,6 +3,7 @@ import logging
 
 from lsst.ts import salobj
 from lsst.ts import Dome
+from lsst.ts.Dome.llc_name import LlcName
 
 STD_TIMEOUT = 2  # standard command timeout (sec)
 NUM_LOUVERS = 34
@@ -57,7 +58,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             try:
                 # This command is not supported by the DomeCsc so an Error should be returned by the
                 # controller leading to a KeyError in DomeCsc
-                await self.csc.write_then_read_reply("unsupported_command")
+                await self.csc.write_then_read_reply(
+                    command="unsupported_command", parameters={}
+                )
                 self.fail("Expected a KeyError.")
             except KeyError:
                 pass
@@ -72,7 +75,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             try:
                 # This command is supported by the DomeCsc but it takes an argument so an Error should be
                 # returned by the controller leading to a ValueError in DomeCsc
-                await self.csc.write_then_read_reply("moveAz")
+                await self.csc.write_then_read_reply(command="moveAz", parameters={})
                 self.fail("Expected a ValueError.")
             except ValueError:
                 pass
@@ -242,15 +245,15 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             # All values are below the limits.
             config = {
-                Dome.LlcName.AMCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
-                Dome.LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+                LlcName.AMCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+                LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
             }
             await self.csc.config_llcs(config)
 
             # The value of AMCS amax is too high.
             config = {
-                Dome.LlcName.AMCS.value: {"jmax": 1.0, "amax": 1.0, "vmax": 1.0},
-                Dome.LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+                LlcName.AMCS.value: {"jmax": 1.0, "amax": 1.0, "vmax": 1.0},
+                LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
             }
             try:
                 await self.csc.config_llcs(config)
@@ -260,13 +263,13 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             # The param AMCS smax doesn't exist.
             config = {
-                Dome.LlcName.AMCS.value: {
+                LlcName.AMCS.value: {
                     "jmax": 1.0,
                     "amax": 0.5,
                     "vmax": 1.0,
                     "smax": 1.0,
                 },
-                Dome.LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+                LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
             }
             try:
                 await self.csc.config_llcs(config)
@@ -276,8 +279,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             # No parameter can be missing.
             config = {
-                Dome.LlcName.AMCS.value: {"jmax": 1.0, "amax": 0.5},
-                Dome.LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+                LlcName.AMCS.value: {"jmax": 1.0, "amax": 0.5},
+                LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
             }
             try:
                 await self.csc.config_llcs(config)
@@ -292,7 +295,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            await self.csc.write_then_read_reply("fans", action="True")
+            await self.csc.write_then_read_reply(
+                command="fans", parameters={"action": Dome.OnOff.ON.name}
+            )
 
     async def test_inflate(self):
         async with self.make_csc(
@@ -301,7 +306,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            await self.csc.write_then_read_reply("inflate", action="True")
+            await self.csc.write_then_read_reply(
+                command="inflate", parameters={"action": Dome.OnOff.ON.name}
+            )
 
     async def test_status(self):
         async with self.make_csc(
@@ -313,9 +320,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            await self.csc.status()
 
-            amcs_status = self.csc.lower_level_status[Dome.LlcName.AMCS.value]
+            await self.csc.statusAMCS()
+            amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(
                 amcs_status["status"], Dome.LlcStatus.STOPPED.value,
             )
@@ -323,7 +330,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 amcs_status["positionActual"], 0,
             )
 
-            apscs_status = self.csc.lower_level_status[Dome.LlcName.APSCS.value]
+            await self.csc.statusApSCS()
+            apscs_status = self.csc.lower_level_status[LlcName.APSCS.value]
             self.assertEqual(
                 apscs_status["status"], Dome.LlcStatus.CLOSED.value,
             )
@@ -331,7 +339,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 apscs_status["positionActual"], 0,
             )
 
-            lcs_status = self.csc.lower_level_status[Dome.LlcName.LCS.value]
+            await self.csc.statusLCS()
+            lcs_status = self.csc.lower_level_status[LlcName.LCS.value]
             self.assertEqual(
                 lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * NUM_LOUVERS,
             )
@@ -339,7 +348,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 lcs_status["positionActual"], [0.0] * NUM_LOUVERS,
             )
 
-            lwscs_status = self.csc.lower_level_status[Dome.LlcName.LWSCS.value]
+            await self.csc.statusLWSCS()
+            lwscs_status = self.csc.lower_level_status[LlcName.LWSCS.value]
             self.assertEqual(
                 lwscs_status["status"], Dome.LlcStatus.STOPPED.value,
             )
@@ -347,7 +357,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 lwscs_status["positionActual"], 0,
             )
 
-            moncs_status = self.csc.lower_level_status[Dome.LlcName.MONCS.value]
+            await self.csc.statusMonCS()
+            moncs_status = self.csc.lower_level_status[LlcName.MONCS.value]
             self.assertEqual(
                 moncs_status["status"], Dome.LlcStatus.DISABLED.value,
             )
@@ -355,7 +366,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 moncs_status["data"], [0.0] * NUM_MON_SENSORS,
             )
 
-            thcs_status = self.csc.lower_level_status[Dome.LlcName.THCS.value]
+            await self.csc.statusThCS()
+            thcs_status = self.csc.lower_level_status[LlcName.THCS.value]
             self.assertEqual(
                 thcs_status["status"], Dome.LlcStatus.DISABLED.value,
             )
@@ -363,5 +375,6 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 thcs_status["data"], [0.0] * NUM_THERMO_SENSORS,
             )
 
+    # TODO uncomment once it is clear why this test case suddenly is failing.
     async def test_bin_script(self):
         await self.check_bin_script(name="Dome", index=None, exe_name="run_dome.py")

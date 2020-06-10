@@ -20,11 +20,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .dome_csc import *
-from .error_code import *
 from .llc_configuration_limits import *
 from .llc_status import *
 from .mock_controller import *
 from .mock_llc_statuses import *
+from .on_off import OnOff
+from .response_code import ResponseCode
 
 try:
     from .version import *

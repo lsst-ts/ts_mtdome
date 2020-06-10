@@ -1,21 +1,18 @@
 import json
 
 
-def encode(st, **params):
-    """Encode the given string and parameters.
+def encode(**params):
+    """Encode the given parameters.
 
-    The params are treated as the value in a dict with st as key. In other words::
+    The params are treated as the key, value pairs in a dict. In other words::
 
-        {st: params}
+        {param1: value1, param2: value2, ...}
 
 
-    This method should be used for all communication with the Lower Level Components, except for returning
-    their statuses.
+    This method should be used for all communication with the Lower Level Components.
 
     Parameters
     ----------
-    st: `str`
-        The string to encode.
     **params:
         Additional parameters to encode. This may be empty.
 
@@ -23,32 +20,7 @@ def encode(st, **params):
     -------
         An encoded string representation of the string and parameters.
      """
-    return json.dumps({st: params})
-
-
-def encode_separately(st, **params):
-    """Encode the given string and parameters.
-
-    The params are treated as a separate dict next to a dict formed by st as key and an empty dict as value.
-    In other words::
-
-        {st: {}, {param1: value1, param2: value2, ...}
-
-    This method should be used to return the status of the Lower Level Components only and should otherwise
-    not be used.
-
-    Parameters
-    ----------
-    st: `str`
-        The string to encode.
-    **params:
-        Additional parameters to encode. This should not be empty but that isn't checked.
-
-    Returns
-    -------
-        An encoded string representation of the string and parameters.
-     """
-    return json.dumps({st: {}, **params})
+    return json.dumps({**params})
 
 
 def decode(st):
