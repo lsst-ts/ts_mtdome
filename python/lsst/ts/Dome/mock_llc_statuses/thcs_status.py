@@ -1,3 +1,5 @@
+__all__ = ["ThcsStatus"]
+
 import logging
 import numpy as np
 

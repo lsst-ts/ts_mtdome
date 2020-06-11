@@ -1,3 +1,5 @@
+__all__ = ["AmcsLimits"]
+
 import logging
 import math
 
@@ -7,6 +9,7 @@ from lsst.ts import salobj
 from .base_mock_status import BaseMockStatus
 from ..llc_configuration_limits.amcs_limits import AmcsLimits
 from ..llc_status import LlcStatus
+from ..on_off import OnOff
 
 _NUM_MOTORS = 5
 
@@ -28,9 +31,9 @@ class AmcsStatus(BaseMockStatus):
         # the velocity during a crawl that follows a move
         self.crawl_velocity = 0
         # the inflated (True) or deflated (False) state of the inflatable seal
-        self.seal_inflated = False
+        self.seal_inflated = OnOff.OFF
         # the enabled (True) or disabled (False) state of the fans
-        self.fans_enabled = False
+        self.fans_enabled = OnOff.OFF
         # variables holding the status of the mock AZ motion
         self.status = LlcStatus.STOPPED
         self.position_orig = 0.0
@@ -180,7 +183,7 @@ class AmcsStatus(BaseMockStatus):
             The value should be True or False but the value doesn't get validated here.
         """
         self.command_time_tai = salobj.current_tai()
-        self.seal_inflated = action
+        self.seal_inflated = OnOff[action]
 
     async def fans(self, action):
         """Enable or disable the fans in the dome.
@@ -193,4 +196,4 @@ class AmcsStatus(BaseMockStatus):
             The value should be True or False but the value doesn't get validated here.
         """
         self.command_time_tai = salobj.current_tai()
-        self.fans_enabled = action
+        self.fans_enabled = OnOff[action]
