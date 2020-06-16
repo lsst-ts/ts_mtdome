@@ -20,7 +20,7 @@ _KEYS_TO_REMOVE = {"status"}
 _KEYS_IN_RADIANS = {"positionError", "positionActual", "positionCommanded"}
 
 _STATUS_TASK_PERIOD = 0.2
-_AMCS_PERIOD = 2.0
+_AMCS_PERIOD = 0.2
 _APsCS_PERIOD = 2.0
 _LCS_PERIOD = 2.0
 _LWSCS_PERIOD = 2.0
