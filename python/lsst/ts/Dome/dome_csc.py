@@ -582,9 +582,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             The SAL function that send the specific telemetry.
         """
         # Remove some keys because they are not reported in the telemetry.
-        self.log.info(f"telemetry before = {telemetry}")
         telemetry_function.set_put(**telemetry)
-        self.log.info(f"telemetry after = {telemetry}")
 
     async def close_tasks(self):
         """Disconnect from the TCP/IP controller, if connected, and stop

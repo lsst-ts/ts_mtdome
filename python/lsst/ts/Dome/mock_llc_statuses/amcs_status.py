@@ -119,7 +119,7 @@ class AmcsStatus(BaseMockStatus):
                 "timestamp": current_tai,
             }
         ]
-        self.log.info(f"amcs_state = {self.llc_status}")
+        self.log.debug(f"amcs_state = {self.llc_status}")
 
     async def moveAz(self, position, velocity):
         """Move the dome at maximum velocity to the specified azimuth. Azimuth is measured from 0 at
