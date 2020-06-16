@@ -3,6 +3,7 @@ import asynctest
 from asynctest.mock import CoroutineMock
 import logging
 import math
+import numpy as np
 
 from lsst.ts import Dome
 from lsst.ts import salobj
@@ -82,7 +83,7 @@ class MockTestCase(asynctest.TestCase):
         self.assertEqual(self.data["timeout"], -1)
 
     async def prepare_amcs(
-        self, initial_position, target_azimuth, target_rate,
+        self, initial_position, target_position, target_velocity,
     ):
         """Utility method for preparing the in initial state of AMCS for easier testing.
 
@@ -90,9 +91,9 @@ class MockTestCase(asynctest.TestCase):
         ----------
         initial_position: `float`
             The initial position of AMCS in radians.
-        target_azimuth: `float`
-            The target azimuth for the AMCS rotation in radians.
-        target_rate: `float`
+        target_position: `float`
+            The target position for the AMCS rotation in radians.
+        target_velocity: `float`
             The target velocity at which to crawl once the target azimuth has been reached in rad/s.
 
         Returns
@@ -102,7 +103,7 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.amcs.position_actual = initial_position
         await self.write(
             command="moveAz",
-            parameters={"azimuth": target_azimuth, "azRate": target_rate},
+            parameters={"position": target_position, "velocity": target_velocity},
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
@@ -137,7 +138,7 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + time_diff
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[LlcName.AMCS.value][0]
         self.assertEqual(
             amcs_status["status"], expected_status.value,
         )
@@ -154,110 +155,128 @@ class MockTestCase(asynctest.TestCase):
                 self.assertAlmostEqual(amcs_status["positionActual"], expected_position)
 
     async def test_moveAz_zero_pos_pos(self):
-        # test moving the AMCS to an azimuth in positive direction starting from position 0 and ending in a
+        # test moving the AMCS to a position in positive direction starting from position 0 and ending in a
         # positive crawl velocity
         initial_position = 0
-        target_azimuth = math.radians(10)
-        target_rate = math.radians(0.1)
+        target_position = math.radians(10)
+        target_velocity = math.radians(0.1)
         await self.prepare_amcs(
-            initial_position, target_azimuth, target_rate,
+            initial_position, target_position, target_velocity,
         )
 
         # Make the amcs rotate and check both status and position at the specified times
         await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(1.5))
         await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(3.0))
         await self.verify_amcs_moveAz(
-            5.0, Dome.LlcStatus.CRAWLING, math.radians(10.0), crawl_velocity=target_rate
+            5.0,
+            Dome.LlcStatus.CRAWLING,
+            math.radians(10.0),
+            crawl_velocity=target_velocity,
         )
 
     async def test_moveAz_zero_pos_neg(self):
-        # test moving the AMCS to an azimuth in positive direction starting from position 0 and ending in a
+        # test moving the AMCS to a position in positive direction starting from position 0 and ending in a
         # negative crawl velocity
         initial_position = 0
-        target_azimuth = math.radians(10)
-        target_rate = math.radians(-0.1)
+        target_position = math.radians(10)
+        target_velocity = math.radians(-0.1)
         await self.prepare_amcs(
-            initial_position, target_azimuth, target_rate,
+            initial_position, target_position, target_velocity,
         )
 
         # Make the amcs rotate and check both status and position at the specified times
         await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(1.5))
         await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(3.0))
         await self.verify_amcs_moveAz(
-            5.0, Dome.LlcStatus.CRAWLING, math.radians(10.0), crawl_velocity=target_rate
+            5.0,
+            Dome.LlcStatus.CRAWLING,
+            math.radians(10.0),
+            crawl_velocity=target_velocity,
         )
 
     async def test_moveAz_zero_pos_zero(self):
-        # test moving the AMCS to an azimuth in positive direction starting from position 0 and ending in a
+        # test moving the AMCS to a position in positive direction starting from position 0 and ending in a
         # stand still, i.e. a 0 crawl velocity
         initial_position = 0
-        target_azimuth = math.radians(10)
-        target_rate = 0
+        target_position = math.radians(10)
+        target_velocity = 0
         await self.prepare_amcs(
-            initial_position, target_azimuth, target_rate,
+            initial_position, target_position, target_velocity,
         )
 
         # Make the amcs rotate and check both status and position at the specified times
         await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(1.5))
         await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(3.0))
         await self.verify_amcs_moveAz(
-            5.0, Dome.LlcStatus.STOPPED, math.radians(10.0), crawl_velocity=target_rate
+            5.0,
+            Dome.LlcStatus.STOPPED,
+            math.radians(10.0),
+            crawl_velocity=target_velocity,
         )
 
     async def test_moveAz_twenty_neg_pos(self):
-        # test moving the AMCS to an azimuth in negative direction starting from position 20 degrees and
+        # test moving the AMCS to a position in negative direction starting from position 20 degrees and
         # ending in a positive crawl velocity
         initial_position = math.radians(20)
-        target_azimuth = math.radians(10)
-        target_rate = math.radians(0.1)
+        target_position = math.radians(10)
+        target_velocity = math.radians(0.1)
         await self.prepare_amcs(
-            initial_position, target_azimuth, target_rate,
+            initial_position, target_position, target_velocity,
         )
 
         # Make the amcs rotate and check both status and position at the specified times
         await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(18.5))
         await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(17.0))
         await self.verify_amcs_moveAz(
-            5.0, Dome.LlcStatus.CRAWLING, math.radians(10.0), crawl_velocity=target_rate
+            5.0,
+            Dome.LlcStatus.CRAWLING,
+            math.radians(10.0),
+            crawl_velocity=target_velocity,
         )
 
     async def test_moveAz_twenty_neg_neg(self):
-        # test moving the AMCS to an azimuth in positive direction starting from position 20 degrees and
+        # test moving the AMCS to a position in positive direction starting from position 20 degrees and
         # ending in a negative crawl velocity
         initial_position = math.radians(20)
-        target_azimuth = math.radians(10)
-        target_rate = math.radians(-0.1)
+        target_position = math.radians(10)
+        target_velocity = math.radians(-0.1)
         await self.prepare_amcs(
-            initial_position, target_azimuth, target_rate,
+            initial_position, target_position, target_velocity,
         )
 
         # Make the amcs rotate and check both status and position at the specified times
         await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(18.5))
         await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(17.0))
         await self.verify_amcs_moveAz(
-            5.0, Dome.LlcStatus.CRAWLING, math.radians(10.0), crawl_velocity=target_rate
+            5.0,
+            Dome.LlcStatus.CRAWLING,
+            math.radians(10.0),
+            crawl_velocity=target_velocity,
         )
 
     async def test_moveAz_zero_neg_zero(self):
-        # test moving the AMCS to an azimuth in positive direction starting from position 0 and ending in a
+        # test moving the AMCS to a position in positive direction starting from position 0 and ending in a
         # stand still, i.e. a 0 crawl velocity
         initial_position = math.radians(20)
-        target_azimuth = math.radians(10)
-        target_rate = 0
+        target_position = math.radians(10)
+        target_velocity = 0
         await self.prepare_amcs(
-            initial_position, target_azimuth, target_rate,
+            initial_position, target_position, target_velocity,
         )
 
         # Make the amcs rotate and check both status and position at the specified times
         await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(18.5))
         await self.verify_amcs_moveAz(1.0, Dome.LlcStatus.MOVING, math.radians(17.0))
         await self.verify_amcs_moveAz(
-            5.0, Dome.LlcStatus.STOPPED, math.radians(10.0), crawl_velocity=target_rate
+            5.0,
+            Dome.LlcStatus.STOPPED,
+            math.radians(10.0),
+            crawl_velocity=target_velocity,
         )
 
     async def test_crawlAz(self):
-        target_rate = math.radians(0.1)
-        await self.write(command="crawlAz", parameters={"azRate": target_rate})
+        target_velocity = math.radians(0.1)
+        await self.write(command="crawlAz", parameters={"velocity": target_velocity})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
         self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
@@ -271,7 +290,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[LlcName.AMCS.value][0]
         self.assertEqual(
             amcs_status["status"], Dome.LlcStatus.CRAWLING.value,
         )
@@ -283,11 +302,11 @@ class MockTestCase(asynctest.TestCase):
         )
 
     async def test_stopAz(self):
-        target_azimuth = math.radians(10)
-        target_rate = math.radians(0.1)
+        target_position = math.radians(10)
+        target_velocity = math.radians(0.1)
         await self.write(
             command="moveAz",
-            parameters={"azimuth": target_azimuth, "azRate": target_rate},
+            parameters={"position": target_position, "velocity": target_velocity},
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
@@ -302,7 +321,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[LlcName.AMCS.value][0]
         self.assertEqual(
             amcs_status["status"], Dome.LlcStatus.MOVING.value,
         )
@@ -322,7 +341,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[LlcName.AMCS.value][0]
         self.assertEqual(
             amcs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
@@ -334,8 +353,8 @@ class MockTestCase(asynctest.TestCase):
         )
 
     async def test_moveEl(self):
-        target_elevation = math.radians(5)
-        await self.write(command="moveEl", parameters={"elevation": target_elevation})
+        target_position = math.radians(5)
+        await self.write(command="moveEl", parameters={"position": target_position})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
         self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
@@ -349,7 +368,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value]
+        lwscs_status = self.data[LlcName.LWSCS.value][0]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.MOVING.value,
         )
@@ -364,7 +383,7 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value]
+        lwscs_status = self.data[LlcName.LWSCS.value][0]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.MOVING.value,
         )
@@ -379,7 +398,7 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value]
+        lwscs_status = self.data[LlcName.LWSCS.value][0]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
@@ -388,8 +407,8 @@ class MockTestCase(asynctest.TestCase):
         )
 
     async def test_stopEl(self):
-        target_elevation = math.radians(5)
-        await self.write(command="moveEl", parameters={"elevation": target_elevation})
+        target_position = math.radians(5)
+        await self.write(command="moveEl", parameters={"position": target_position})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
         self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
@@ -403,7 +422,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value]
+        lwscs_status = self.data[LlcName.LWSCS.value][0]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.MOVING.value,
         )
@@ -423,7 +442,7 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value]
+        lwscs_status = self.data[LlcName.LWSCS.value][0]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
@@ -435,27 +454,28 @@ class MockTestCase(asynctest.TestCase):
         )
 
     async def test_stop(self):
-        target_azimuth = math.radians(10)
-        target_rate = math.radians(0.1)
+        target_position = math.radians(10)
+        target_velocity = math.radians(0.1)
         await self.write(
             command="moveAz",
-            parameters={"azimuth": target_azimuth, "azRate": target_rate},
+            parameters={"position": target_position, "velocity": target_velocity},
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
         self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
 
-        target_elevation = math.radians(5)
-        await self.write(command="moveEl", parameters={"elevation": target_elevation})
+        target_position = math.radians(5)
+        await self.write(command="moveEl", parameters={"position": target_position})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
         self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
 
         louver_id = 5
-        target_position = math.radians(90)
+        target_position = 100
+        position = np.full(_NUM_LOUVERS, -1.0, dtype=float)
+        position[louver_id] = target_position
         await self.write(
-            command="setLouver",
-            parameters={"id": louver_id, "position": target_position},
+            command="setLouvers", parameters={"position": position.tolist()},
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
@@ -485,33 +505,32 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.AMCS.value]
+        status = self.data[LlcName.AMCS.value][0]
         self.assertEqual(
             status["status"], Dome.LlcStatus.STOPPED.value,
         )
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        self.log.info(f"WOUTERRRRR {self.data}")
-        status = self.data[LlcName.APSCS.value]
+        status = self.data[LlcName.APSCS.value][0]
         self.assertEqual(
             status["status"], Dome.LlcStatus.STOPPED.value,
         )
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.LCS.value]
+        status = self.data[LlcName.LCS.value][0]
         self.assertEqual(
             status["status"], [Dome.LlcStatus.STOPPED.value] * _NUM_LOUVERS,
         )
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.LWSCS.value]
+        status = self.data[LlcName.LWSCS.value][0]
         self.assertEqual(
             status["status"], Dome.LlcStatus.STOPPED.value,
         )
 
     async def test_crawlEl(self):
-        target_rate = math.radians(0.1)
-        await self.write(command="crawlEl", parameters={"elRate": target_rate})
+        target_velocity = math.radians(0.1)
+        await self.write(command="crawlEl", parameters={"velocity": target_velocity})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
         self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
@@ -525,7 +544,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value]
+        lwscs_status = self.data[LlcName.LWSCS.value][0]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.CRAWLING.value,
         )
@@ -536,12 +555,12 @@ class MockTestCase(asynctest.TestCase):
             lwscs_status["positionActual"], math.radians(0.15),
         )
 
-    async def test_setLouver(self):
-        louver_id = 5
-        target_position = math.radians(90)
+    async def prepare_louvers(self, louver_ids, target_positions):
+        position = np.full(_NUM_LOUVERS, -1.0, dtype=float)
+        for index, louver_id in enumerate(louver_ids):
+            position[louver_id] = target_positions[index]
         await self.write(
-            command="setLouver",
-            parameters={"id": louver_id, "position": target_position},
+            command="setLouvers", parameters={"position": position.tolist()},
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
@@ -554,27 +573,45 @@ class MockTestCase(asynctest.TestCase):
         # Give some time to the mock device to open.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
+    async def verify_louvers(self, louver_ids, target_positions):
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        lcs_status = self.data[LlcName.LCS.value]
-        self.assertEqual(
-            lcs_status["status"],
-            [Dome.LlcStatus.CLOSED.value] * louver_id
-            + [Dome.LlcStatus.OPEN.value]
-            + [Dome.LlcStatus.CLOSED.value] * (_NUM_LOUVERS - louver_id - 1),
-        )
-        self.assertEqual(
-            lcs_status["positionActual"],
-            [0.0] * louver_id
-            + [target_position]
-            + [0.0] * (_NUM_LOUVERS - louver_id - 1),
-        )
-        self.assertEqual(
-            lcs_status["positionCmd"],
-            [0.0] * louver_id
-            + [target_position]
-            + [0.0] * (_NUM_LOUVERS - louver_id - 1),
-        )
+        lcs_status = self.data[LlcName.LCS.value][0]
+        for index, status in enumerate(lcs_status["status"]):
+            if index in louver_ids:
+                if target_positions[louver_ids.index(index)] > 0:
+                    self.assertEqual(Dome.LlcStatus.OPEN.value, status)
+                else:
+                    self.assertEqual(Dome.LlcStatus.CLOSED.value, status)
+            else:
+                self.assertEqual(Dome.LlcStatus.CLOSED.value, status)
+        for index, positionActual in enumerate(lcs_status["positionActual"]):
+            if index in louver_ids:
+                self.assertEqual(
+                    target_positions[louver_ids.index(index)], positionActual
+                )
+            else:
+                self.assertEqual(0, positionActual)
+        for index, positionCommanded in enumerate(lcs_status["positionCommanded"]):
+            if index in louver_ids:
+                self.assertEqual(
+                    target_positions[louver_ids.index(index)], positionCommanded
+                )
+            else:
+                self.assertEqual(0, positionCommanded)
+
+    async def test_setLouvers(self):
+        # Open some of the louvers and verify that their status and positions are as expected.
+        louver_ids = [5, 6, 7, 8, 9, 10]
+        target_positions = [100, 80, 70, 85, 25, 60]
+        await self.prepare_louvers(louver_ids, target_positions)
+        await self.verify_louvers(louver_ids, target_positions)
+
+        # Now close them.
+        louver_ids = [5, 6, 7, 8, 9, 10]
+        target_positions = [0, 0, 0, 0, 0, 0]
+        await self.prepare_louvers(louver_ids, target_positions)
+        await self.verify_louvers(louver_ids, target_positions)
 
     async def test_closeLouvers(self):
         await self.write(command="closeLouvers", parameters={})
@@ -591,7 +628,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        lcs_status = self.data[LlcName.LCS.value]
+        lcs_status = self.data[LlcName.LCS.value][0]
         self.assertEqual(
             lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * _NUM_LOUVERS,
         )
@@ -599,15 +636,16 @@ class MockTestCase(asynctest.TestCase):
             lcs_status["positionActual"], [0.0] * _NUM_LOUVERS,
         )
         self.assertEqual(
-            lcs_status["positionCmd"], [0.0] * _NUM_LOUVERS,
+            lcs_status["positionCommanded"], [0.0] * _NUM_LOUVERS,
         )
 
     async def test_stopLouvers(self):
         louver_id = 5
-        target_position = math.radians(90)
+        target_position = 100
+        position = np.full(_NUM_LOUVERS, -1.0, dtype=float)
+        position[louver_id] = target_position
         await self.write(
-            command="setLouver",
-            parameters={"id": louver_id, "position": target_position},
+            command="setLouvers", parameters={"position": position.tolist()},
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
@@ -630,7 +668,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        lcs_status = self.data[LlcName.LCS.value]
+        lcs_status = self.data[LlcName.LCS.value][0]
         self.assertEqual(
             lcs_status["status"], [Dome.LlcStatus.STOPPED.value] * _NUM_LOUVERS,
         )
@@ -641,7 +679,7 @@ class MockTestCase(asynctest.TestCase):
             + [0.0] * (_NUM_LOUVERS - louver_id - 1),
         )
         self.assertEqual(
-            lcs_status["positionCmd"],
+            lcs_status["positionCommanded"],
             [0.0] * louver_id
             + [target_position]
             + [0.0] * (_NUM_LOUVERS - louver_id - 1),
@@ -662,15 +700,15 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        apscs_status = self.data[LlcName.APSCS.value]
+        apscs_status = self.data[LlcName.APSCS.value][0]
         self.assertEqual(
             apscs_status["status"], Dome.LlcStatus.OPEN.value,
         )
         self.assertEqual(
-            apscs_status["positionActual"], math.radians(90.0),
+            apscs_status["positionActual"], 100.0,
         )
         self.assertEqual(
-            apscs_status["positionCmd"], math.radians(90.0),
+            apscs_status["positionCommanded"], 100.0,
         )
 
     async def test_closeShutter(self):
@@ -688,7 +726,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        apscs_status = self.data[LlcName.APSCS.value]
+        apscs_status = self.data[LlcName.APSCS.value][0]
         self.assertEqual(
             apscs_status["status"], Dome.LlcStatus.CLOSED.value,
         )
@@ -696,7 +734,7 @@ class MockTestCase(asynctest.TestCase):
             apscs_status["positionActual"], 0.0,
         )
         self.assertEqual(
-            apscs_status["positionCmd"], 0.0,
+            apscs_status["positionCommanded"], 0.0,
         )
 
     async def test_stopShutter(self):
@@ -722,15 +760,15 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        apscs_status = self.data[LlcName.APSCS.value]
+        apscs_status = self.data[LlcName.APSCS.value][0]
         self.assertEqual(
             apscs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
         self.assertEqual(
-            apscs_status["positionActual"], math.radians(90.0),
+            apscs_status["positionActual"], 100.0,
         )
         self.assertEqual(
-            apscs_status["positionCmd"], math.radians(90.0),
+            apscs_status["positionCommanded"], 100.0,
         )
 
     async def test_config(self):
@@ -764,11 +802,11 @@ class MockTestCase(asynctest.TestCase):
         self.assertEqual(self.mock_ctrl.lwscs.lwscs_limits.vmax, lwscs_vmax)
 
     async def test_park(self):
-        target_azimuth = math.radians(1)
-        target_rate = math.radians(0.1)
+        target_position = math.radians(1)
+        target_velocity = math.radians(0.1)
         await self.write(
             command="moveAz",
-            parameters={"azimuth": target_azimuth, "azRate": target_rate},
+            parameters={"position": target_position, "velocity": target_velocity},
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
@@ -791,7 +829,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[LlcName.AMCS.value][0]
         self.assertEqual(
             amcs_status["status"], Dome.LlcStatus.PARKED.value,
         )
@@ -799,7 +837,7 @@ class MockTestCase(asynctest.TestCase):
             amcs_status["positionActual"], 0,
         )
         self.assertEqual(
-            amcs_status["positionCmd"], 0,
+            amcs_status["positionCommanded"], 0,
         )
 
     async def test_setTemperature(self):
@@ -820,13 +858,13 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusThCS", parameters={})
         self.data = await self.read()
-        self.log.info(f"data = {self.data}")
-        thcs_status = self.data[LlcName.THCS.value]
+        self.log.info(f"temperature = {self.data}")
+        thcs_status = self.data[LlcName.THCS.value][0]
         self.assertEqual(
             thcs_status["status"], Dome.LlcStatus.ENABLED.value,
         )
         self.assertEqual(
-            thcs_status["data"], [temperature] * _NUM_THERMO_SENSORS,
+            thcs_status["temperature"], [temperature] * _NUM_THERMO_SENSORS,
         )
 
     async def test_inflate(self):
@@ -850,7 +888,7 @@ class MockTestCase(asynctest.TestCase):
     async def test_status(self):
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[LlcName.AMCS.value][0]
         self.assertEqual(
             amcs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
@@ -860,7 +898,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        apscs_status = self.data[LlcName.APSCS.value]
+        apscs_status = self.data[LlcName.APSCS.value][0]
         self.assertEqual(
             apscs_status["status"], Dome.LlcStatus.CLOSED.value,
         )
@@ -870,7 +908,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        lcs_status = self.data[LlcName.LCS.value]
+        lcs_status = self.data[LlcName.LCS.value][0]
         self.assertEqual(
             lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * _NUM_LOUVERS,
         )
@@ -880,7 +918,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value]
+        lwscs_status = self.data[LlcName.LWSCS.value][0]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
@@ -890,7 +928,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusMonCS", parameters={})
         self.data = await self.read()
-        moncs_status = self.data[LlcName.MONCS.value]
+        moncs_status = self.data[LlcName.MONCS.value][0]
         self.assertEqual(
             moncs_status["status"], Dome.LlcStatus.DISABLED.value,
         )
@@ -900,12 +938,12 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusThCS", parameters={})
         self.data = await self.read()
-        thcs_status = self.data[LlcName.THCS.value]
+        thcs_status = self.data[LlcName.THCS.value][0]
         self.assertEqual(
             thcs_status["status"], Dome.LlcStatus.DISABLED.value,
         )
         self.assertEqual(
-            thcs_status["data"], [0.0] * _NUM_THERMO_SENSORS,
+            thcs_status["temperature"], [0.0] * _NUM_THERMO_SENSORS,
         )
 
 

@@ -19,7 +19,7 @@ class ThcsStatus(BaseMockStatus):
         self.log = logging.getLogger("MockThcsStatus")
         # variables holding the status of the mock Louvres
         self.status = LlcStatus.DISABLED
-        self.data = np.zeros(_NUM_SENSORS, dtype=float)
+        self.temperature = np.zeros(_NUM_SENSORS, dtype=float)
 
     async def determine_status(self, current_tai):
         """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
@@ -29,10 +29,13 @@ class ThcsStatus(BaseMockStatus):
             f"current_tai = {current_tai}, self.command_time_tai = {self.command_time_tai}, "
             f"time_diff = {time_diff}"
         )
-        self.llc_status = {
-            "status": self.status.value,
-            "data": self.data.tolist(),
-        }
+        self.llc_status = [
+            {
+                "status": self.status.value,
+                "temperature": self.temperature.tolist(),
+                "timestamp": current_tai,
+            }
+        ]
         self.log.debug(f"thcs_state = {self.llc_status}")
 
     async def setTemperature(self, temperature):
@@ -47,4 +50,4 @@ class ThcsStatus(BaseMockStatus):
         """
         self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.ENABLED
-        self.data[:] = temperature
+        self.temperature[:] = temperature

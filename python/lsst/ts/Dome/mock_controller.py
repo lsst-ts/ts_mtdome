@@ -53,7 +53,7 @@ class MockDomeController:
             "stop": self.stop_llc,
             "crawlAz": self.crawlAz,
             "crawlEl": self.crawlEl,
-            "setLouver": self.setLouver,
+            "setLouvers": self.setLouvers,
             "closeLouvers": self.closeLouvers,
             "stopLouvers": self.stopLouvers,
             "openShutter": self.openShutter,
@@ -157,14 +157,14 @@ class MockDomeController:
         self.log.info("The cmd_loop begins")
         self._writer = writer
         while True:
-            self.log.info("Waiting for next command.")
+            self.log.debug("Waiting for next command.")
             timeout = self.long_timeout
 
             line = None
             try:
                 line = await reader.readuntil(b"\r\n")
                 line = line.decode().strip()
-                self.log.info(f"Read command line: {line!r}")
+                self.log.debug(f"Read command line: {line!r}")
             except asyncio.IncompleteReadError:
                 return
             if line:
@@ -246,6 +246,9 @@ class MockDomeController:
         llc_name: LlcName
             The name of the Lower Level Component.
         """
+        self.log.debug("Determining current TAI.")
+        await self.determine_current_tai()
+        self.log.debug(f"Requesting status for LLC {llc_name}")
         await llc.determine_status(self.current_tai)
         state = {llc_name.value: llc.llc_status}
         await self.write(response=ResponseCode.OK, **state)
@@ -261,16 +264,16 @@ class MockDomeController:
         Parameters
         ----------
         kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "azimuth" with a
-            float value between 0 and 2pi and the key "azRate" with a float value where positive means
+            A dictionary with arguments to the function call. It should contain the key "position" with a
+            float value between 0 and 2pi and the key "velocity" with a float value where positive means
             towards increasing azimuth and negative towards decreasing azimuth.
         """
-        self.log.debug(f"Received command 'moveAz' with arguments {kwargs}")
+        self.log.info(f"Received command 'moveAz' with arguments {kwargs}")
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use radians.
         await self.amcs.moveAz(
-            azimuth=float(kwargs["azimuth"]), velocity=float(kwargs["azRate"])
+            position=float(kwargs["position"]), velocity=float(kwargs["velocity"])
         )
 
     async def move_el(self, **kwargs):
@@ -279,25 +282,25 @@ class MockDomeController:
         Parameters
         ----------
         kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "elevation" with a
+            A dictionary with arguments to the function call. It should contain the key "position" with a
             float value between 0 and pi/2.
         """
-        self.log.debug(f"Received command 'moveEl' with arguments {kwargs}")
+        self.log.info(f"Received command 'moveEl' with arguments {kwargs}")
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use radians.
-        await self.lwscs.moveEl(elevation=float(kwargs["elevation"]))
+        await self.lwscs.moveEl(position=float(kwargs["position"]))
 
     async def stop_az(self):
         """Stop all dome motion.
         """
-        self.log.debug("Received command 'stopAz'")
+        self.log.info("Received command 'stopAz'")
         await self.amcs.stopAz()
 
     async def stop_el(self):
         """Stop all light and wind screen motion.
         """
-        self.log.debug("Received command 'stopEl'")
+        self.log.info("Received command 'stopEl'")
         await self.lwscs.stopEl()
 
     async def stop_llc(self):
@@ -322,7 +325,7 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use radians.
-        await self.amcs.crawlAz(velocity=float(kwargs["azRate"]))
+        await self.amcs.crawlAz(velocity=float(kwargs["velocity"]))
 
     async def crawlEl(self, **kwargs):
         """Crawl the light and wind screen.
@@ -338,24 +341,20 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use radians.
-        await self.lwscs.crawlEl(velocity=float(kwargs["elRate"]))
+        await self.lwscs.crawlEl(velocity=float(kwargs["velocity"]))
 
-    async def setLouver(self, **kwargs):
-        """Set the position of a louver.
+    async def setLouvers(self, **kwargs):
+        """Set the positions of the louvers.
 
         Parameters
         ----------
         kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "id" with an int
-            value and the key "position" with a float value.
+            A dictionary with arguments to the function call. It should contain the key "position" with an
+            array of float values. 0 means closed, 180 means wide open, -1 means do not move. These limits
+            are not checked.
         """
-        self.log.info(f"Received command 'setLouver' with arguments {kwargs}")
-
-        # No conversion from radians to degrees needed since both the commands and the mock az controller
-        # use radians.
-        await self.lcs.setLouver(
-            louver_id=int(kwargs["id"]), position=float(kwargs["position"])
-        )
+        self.log.info(f"Received command 'setLouvers' with arguments {kwargs}")
+        await self.lcs.setLouvers(position=kwargs["position"])
 
     async def closeLouvers(self):
         """Close all louvers.

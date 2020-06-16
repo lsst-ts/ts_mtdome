@@ -17,7 +17,15 @@ from .response_code import ResponseCode
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout in s to be used by this module
 _KEYS_TO_REMOVE = {"status"}
-_KEYS_IN_RADIANS = {"positionError", "positionActual", "positionCmd"}
+_KEYS_IN_RADIANS = {"positionError", "positionActual", "positionCommanded"}
+
+_STATUS_TASK_PERIOD = 0.2
+_AMCS_PERIOD = 2.0
+_APsCS_PERIOD = 2.0
+_LCS_PERIOD = 2.0
+_LWSCS_PERIOD = 2.0
+_MonCS_PERIOD = 2.0
+_ThCS_PERIOD = 2.0
 
 
 class DomeCsc(salobj.ConfigurableCsc):
@@ -65,7 +73,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         # Keep the lower level statuses in memory for unit tests.
         self.lower_level_status = {}
-        self.amcs_status_task = None
+        self.llc_status_task = None
 
         self.amcs_limits = AmcsLimits()
         self.lwscs_limits = LwscsLimits()
@@ -96,17 +104,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             connect_coro, timeout=self.config.connection_timeout
         )
 
-        # Request the statuses of the lower level components once so there are values available. This will
-        # eventually be replaced by periodic status checks as soon as it is clear what the periods should be.
-        await self.statusApSCS()
-        await self.statusLCS()
-        await self.statusLWSCS()
-        await self.statusMonCS()
-        await self.statusThCS()
-
-        # Start polling for the status of the AMCS component periodically.
-        self.amcs_status_task = asyncio.create_task(
-            self.schedule_task_periodically(0.2, self.statusAMCS)
+        # Start polling for the status of the AMCS component periodically at a frequency of 5 Hz.
+        self.llc_status_task = asyncio.create_task(
+            self.schedule_llc_tasks_periodically()
         )
 
         self.log.info("connected")
@@ -117,8 +117,8 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.log.info("disconnect")
 
         # Stop polling for the status of the lower level components periodically.
-        if self.amcs_status_task:
-            self.amcs_status_task.cancel()
+        if self.llc_status_task:
+            self.llc_status_task.cancel()
 
         writer = self.writer
         self.reader = None
@@ -188,7 +188,7 @@ class DomeCsc(salobj.ConfigurableCsc):
          """
         cmd = params["command"]
         st = encoding_tools.encode(**params)
-        self.log.info(f"Sending command {st}")
+        self.log.debug(f"Sending command {st}")
         self.writer.write(st.encode() + b"\r\n")
         await self.writer.drain()
         read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
@@ -213,14 +213,14 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        self.log.info(
-            f"Moving Dome to azimuth {data.azimuth} and gthen start crawling at azRate {data.azRate}"
+        self.log.debug(
+            f"Moving Dome to azimuth {data.position} and gthen start crawling at azRate {data.velocity}"
         )
         await self.write_then_read_reply(
             command="moveAz",
             parameters={
-                "azimuth": math.radians(data.azimuth),
-                "azRate": math.radians(data.azRate),
+                "position": math.radians(data.position),
+                "velocity": math.radians(data.velocity),
             },
         )
 
@@ -233,9 +233,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        self.log.info(f"Moving LWS to elevation {data.elevation}")
+        self.log.debug(f"Moving LWS to elevation {data.position}")
         await self.write_then_read_reply(
-            command="moveEl", parameters={"elevation": math.radians(data.elevation)}
+            command="moveEl", parameters={"position": math.radians(data.position)}
         )
 
     async def do_stopAz(self, data):
@@ -281,7 +281,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         await self.write_then_read_reply(
-            command="crawlAz", parameters={"azRate": math.radians(data.azRate)}
+            command="crawlAz", parameters={"velocity": math.radians(data.velocity)}
         )
 
     async def do_crawlEl(self, data):
@@ -294,10 +294,10 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         await self.write_then_read_reply(
-            command="crawlEl", parameters={"elRate": math.radians(data.elRate)}
+            command="crawlEl", parameters={"velocity": math.radians(data.velocity)}
         )
 
-    async def do_setLouver(self, data):
+    async def do_setLouvers(self, data):
         """Set Louver.
 
         Parameters
@@ -307,8 +307,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         await self.write_then_read_reply(
-            command="setLouver",
-            parameters={"id": data.id, "position": math.radians(data.position)},
+            command="setLouvers", parameters={"position": data.position},
         )
 
     async def do_closeLouvers(self, data):
@@ -465,61 +464,64 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         This command will be used to request the full status of the AMCS lower level component.
         """
-        await self.request_and_send_llc_status(LlcName.AMCS, self.tel_domeADB_status)
+        await self.request_and_send_llc_status(LlcName.AMCS, self.tel_azimuth)
 
     async def statusApSCS(self):
         """ApSCS status command not to be executed by SAL.
 
         This command will be used to request the full status of the ApSCS lower level component.
         """
-        await self.request_and_send_llc_status(LlcName.APSCS, self.tel_domeAPS_status)
+        await self.request_and_send_llc_status(LlcName.APSCS, self.tel_apertureShutter)
 
     async def statusLCS(self):
         """LCS status command not to be executed by SAL.
 
         This command will be used to request the full status of the LCS lower level component.
         """
-        await self.request_and_send_llc_status(LlcName.LCS, self.tel_domeLouvers_status)
+        await self.request_and_send_llc_status(LlcName.LCS, self.tel_louvers)
 
     async def statusLWSCS(self):
         """LWSCS status command not to be executed by SAL.
 
         This command will be used to request the full status of the LWSCS lower level component.
         """
-        await self.request_and_send_llc_status(LlcName.LWSCS, self.tel_domeLWS_status)
+        await self.request_and_send_llc_status(LlcName.LWSCS, self.tel_lightWindScreen)
 
     async def statusMonCS(self):
         """MonCS status command not to be executed by SAL.
 
         This command will be used to request the full status of the MonCS lower level component.
         """
-        await self.request_and_send_llc_status(LlcName.MONCS, self.tel_domeMONCS_status)
+        await self.request_and_send_llc_status(LlcName.MONCS, self.tel_interlocks)
 
     async def statusThCS(self):
         """ThCS status command not to be executed by SAL.
 
         This command will be used to request the full status of the ThCS lower level component.
         """
-        await self.request_and_send_llc_status(LlcName.THCS, self.tel_domeTHCS_status)
+        await self.request_and_send_llc_status(LlcName.THCS, self.tel_thermal)
 
     async def request_and_send_llc_status(self, llc_name, telemetry_function):
         command = f"status{llc_name.value}"
         status = await self.write_then_read_reply(command=command, parameters={})
         # Store the status for unit tests.
-        self.lower_level_status[llc_name.value] = status[llc_name.value]
-        self.log.info(status)
-        self.convert_telemetry_radians_to_degrees_and_send(
-            status[llc_name.value], telemetry_function, llc_name
-        )
+        self.lower_level_status[llc_name.value] = status[llc_name.value][0]
+        if llc_name == LlcName.LWSCS:
+            self.convert_telemetry_list_radians_to_degrees_and_send(
+                status[llc_name.value][0], telemetry_function
+            )
+        else:
+            self.convert_telemetry_radians_to_degrees_and_send(
+                status[llc_name.value][0], telemetry_function, llc_name
+            )
 
     def convert_telemetry_radians_to_degrees_and_send(
         self, telemetry_in_radians, telemetry_function, llc_name
     ):
         telemetry_in_degrees = {}
         for key in telemetry_in_radians.keys():
-            if key in _KEYS_IN_RADIANS and (
-                llc_name == LlcName.AMCS or llc_name == LlcName.APSCS
-            ):
+            # LWSCS is handled by convert_telemetry_list_radians_to_degrees_and_send
+            if key in _KEYS_IN_RADIANS and llc_name == LlcName.AMCS:
                 telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
             else:
                 # No conversion needed since the value does not express an angle
@@ -580,7 +582,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             The SAL function that send the specific telemetry.
         """
         # Remove some keys because they are not reported in the telemetry.
+        self.log.info(f"telemetry before = {telemetry}")
         telemetry_function.set_put(**telemetry)
+        self.log.info(f"telemetry after = {telemetry}")
 
     async def close_tasks(self):
         """Disconnect from the TCP/IP controller, if connected, and stop
@@ -598,21 +602,37 @@ class DomeCsc(salobj.ConfigurableCsc):
                 f"Simulation_mode={simulation_mode} must be 0 or 1"
             )
 
-    # noinspection PyMethodMayBeStatic
-    async def schedule_task_periodically(self, period, task):
-        """Schedules a task periodically.
-
-        Parameters
-        ----------
-        period : `float`
-            The period in (decimal) seconds at which to schedule the function.
-        task : coroutine
-            The function to be scheduled periodically.
+    async def schedule_llc_tasks_periodically(self):
+        """Schedules the LLC status tasks periodically.
         """
+        start_tai = salobj.current_tai()
         try:
             while True:
-                await task()
-                await asyncio.sleep(period)
+                current_tai = salobj.current_tai()
+                reset_start_tai = False
+                if (current_tai - start_tai) > _AMCS_PERIOD:
+                    await self.statusAMCS()
+                    reset_start_tai = True
+                if (current_tai - start_tai) > _APsCS_PERIOD:
+                    await self.statusApSCS()
+                    reset_start_tai = True
+                if (current_tai - start_tai) > _LCS_PERIOD:
+                    await self.statusLCS()
+                    reset_start_tai = True
+                if (current_tai - start_tai) > _LWSCS_PERIOD:
+                    await self.statusLWSCS()
+                    reset_start_tai = True
+                if (current_tai - start_tai) > _MonCS_PERIOD:
+                    await self.statusMonCS()
+                    reset_start_tai = True
+                if (current_tai - start_tai) > _ThCS_PERIOD:
+                    await self.statusThCS()
+                    reset_start_tai = True
+
+                if reset_start_tai:
+                    start_tai = current_tai
+
+                await asyncio.sleep(_STATUS_TASK_PERIOD)
         except Exception as e:
             self.log.error(e)
 

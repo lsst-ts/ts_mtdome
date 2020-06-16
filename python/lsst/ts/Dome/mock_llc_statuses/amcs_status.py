@@ -37,14 +37,14 @@ class AmcsStatus(BaseMockStatus):
         # variables holding the status of the mock AZ motion
         self.status = LlcStatus.STOPPED
         self.position_orig = 0.0
-        self.position_error = 0.0
         self.position_actual = 0
-        self.position_cmd = 0
+        self.position_commanded = 0
+        self.velocity_actual = 0
+        self.velocity_commanded = 0
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_torque_error = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_torque_cmd = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_torque_commanded = np.zeros(_NUM_MOTORS, dtype=float)
         self.drive_current_actual = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_temp_actual = np.full(_NUM_MOTORS, 20.0, dtype=float)
+        self.drive_temperature = np.full(_NUM_MOTORS, 20.0, dtype=float)
         self.encoder_head_raw = np.zeros(_NUM_MOTORS, dtype=float)
         self.encoder_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
         self.resolver_raw = np.zeros(_NUM_MOTORS, dtype=float)
@@ -64,77 +64,84 @@ class AmcsStatus(BaseMockStatus):
 
             # perform boundary checks for the current motion or crawl
             if (
-                self.motion_velocity >= 0 and self.position_actual >= self.position_cmd
+                self.motion_velocity >= 0
+                and self.position_actual >= self.position_commanded
             ) or (
-                self.motion_velocity < 0 and self.position_actual <= self.position_cmd
+                self.motion_velocity < 0
+                and self.position_actual <= self.position_commanded
             ):
-                self.position_actual = self.position_cmd
+                self.position_actual = self.position_commanded
                 if self.status == LlcStatus.MOVING:
                     if self.crawl_velocity > 0:
                         # make sure that the dome never stops moving because it is crawling
-                        self.position_cmd = math.inf
+                        self.position_commanded = math.inf
                         self.motion_velocity = self.crawl_velocity
                         self.status = LlcStatus.CRAWLING
                     elif self.crawl_velocity < 0:
                         # make sure that the dome never stops moving because it is crawling
-                        self.position_cmd = -math.inf
+                        self.position_commanded = -math.inf
                         self.motion_velocity = self.crawl_velocity
                         self.status = LlcStatus.CRAWLING
                     else:
-                        # make sure that the dome has stopped moving because the requested crawl velocity is 0
-                        self.position_cmd = self.position_actual
+                        # make sure that the dome has stopped moving because the requested crawl velocity
+                        # is 0
+                        self.position_commanded = self.position_actual
                         self.motion_velocity = self.crawl_velocity
                         self.status = LlcStatus.STOPPED
                 elif self.status == LlcStatus.PARKING:
-                    self.position_cmd = self.position_actual
+                    self.position_commanded = self.position_actual
                     self.motion_velocity = 0
                     self.status = LlcStatus.PARKED
                 elif self.status == LlcStatus.CRAWLING:
                     # this situation should never happen and probably never will because the commanded
                     # position should have been set to +/- math.inf
                     raise ValueError(
-                        f"Went beyond the limit of {self.position_cmd} while in status {self.status.value}. "
-                        f"This should not happen."
+                        f"Went beyond the limit of {self.position_commanded} while in status "
+                        f"{self.status.value}. This should not happen."
                     )
                 else:
                     raise ValueError(f"Unknown state {self.status.value}")
-        self.llc_status = {
-            "status": self.status.value,
-            "positionError": self.position_error,
-            "positionActual": self.position_actual,
-            "positionCmd": self.position_cmd,
-            "driveTorqueActual": self.drive_torque_actual.tolist(),
-            "driveTorqueError": self.drive_torque_error.tolist(),
-            "driveTorqueCmd": self.drive_torque_cmd.tolist(),
-            "driveCurrentActual": self.drive_current_actual.tolist(),
-            "driveTempActual": self.drive_temp_actual.tolist(),
-            "encoderHeadRaw": self.encoder_head_raw.tolist(),
-            "encoderHeadCalibrated": self.encoder_head_calibrated.tolist(),
-            "resolverRaw": self.resolver_raw.tolist(),
-            "resolverCalibrated": self.resolver_calibrated.tolist(),
-        }
-        self.log.debug(f"amcs_state = {self.llc_status}")
+        self.llc_status = [
+            {
+                "status": self.status.value,
+                "positionActual": self.position_actual,
+                "positionCommanded": self.position_commanded,
+                "velocityActual": self.velocity_actual,
+                "velocityCommanded": self.velocity_commanded,
+                "driveTorqueActual": self.drive_torque_actual.tolist(),
+                "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
+                "driveCurrentActual": self.drive_current_actual.tolist(),
+                "driveTemperature": self.drive_temperature.tolist(),
+                "encoderHeadRaw": self.encoder_head_raw.tolist(),
+                "encoderHeadCalibrated": self.encoder_head_calibrated.tolist(),
+                "resolverRaw": self.resolver_raw.tolist(),
+                "resolverCalibrated": self.resolver_calibrated.tolist(),
+                "timestamp": current_tai,
+            }
+        ]
+        self.log.info(f"amcs_state = {self.llc_status}")
 
-    async def moveAz(self, azimuth, velocity):
+    async def moveAz(self, position, velocity):
         """Move the dome at maximum velocity to the specified azimuth. Azimuth is measured from 0 at
             north via 90 at east and 180 at south to 270 west and 360 = 0. The value of azimuth is not
             checked for the range between 0 and 360.
 
         Parameters
         ----------
-        azimuth: `float`
+        position: `float`
             The azimuth to move to.
         velocity: `float`
             The velocity (deg/s) at which to crawl once the commanded azimuth has been reached at maximum
             velocity. The velocity is not checked against the velocity limits for the dome.
         """
+        self.log.debug(f"moveAz with position={position} and velocity={velocity}")
         self.status = LlcStatus.MOVING
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
-        self.position_cmd = azimuth
+        self.position_commanded = position
         self.crawl_velocity = velocity
         self.motion_velocity = self.vmax
-        if self.position_cmd < self.position_actual:
+        if self.position_commanded < self.position_actual:
             self.motion_velocity = -self.vmax
 
     async def crawlAz(self, velocity):
@@ -152,10 +159,10 @@ class AmcsStatus(BaseMockStatus):
         self.status = LlcStatus.CRAWLING
         if self.motion_velocity >= 0:
             # make sure that the dome never stops moving
-            self.position_cmd = math.inf
+            self.position_commanded = math.inf
         else:
             # make sure that the dome never stops moving
-            self.position_cmd = -math.inf
+            self.position_commanded = -math.inf
 
     async def stopAz(self):
         """Stop all motion of the dome.
@@ -169,7 +176,7 @@ class AmcsStatus(BaseMockStatus):
         self.status = LlcStatus.PARKING
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
-        self.position_cmd = 0.0
+        self.position_commanded = 0.0
         self.motion_velocity = -self.vmax
 
     async def inflate(self, action):
