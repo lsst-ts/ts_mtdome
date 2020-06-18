@@ -45,8 +45,8 @@ class ThcsStatus(BaseMockStatus):
         Parameters
         ----------
         temperature: `float`
-            The preferred temperature (deg). In reality this should be a realistic temperature in the range
-            of about -30 C to +40 C but the provided temperature is not checked against this range.
+            The preferred temperature (degrees Celsius). In reality this should be a realistic temperature in
+            the range of about -30 C to +40 C but the provided temperature is not checked against this range.
         """
         self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.ENABLED

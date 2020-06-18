@@ -64,9 +64,11 @@ class AmcsStatus(BaseMockStatus):
 
             # perform boundary checks for the current motion or crawl
             if (
-                self.motion_velocity >= 0
+                # Check velocity only if not equal to zero to not have to add a case for STOPPED and PARKED.
+                self.motion_velocity > 0
                 and self.position_actual >= self.position_commanded
             ) or (
+                # Check velocity only if not equal to zero to not have to add a case for STOPPED and PARKED.
                 self.motion_velocity < 0
                 and self.position_actual <= self.position_commanded
             ):
@@ -129,7 +131,7 @@ class AmcsStatus(BaseMockStatus):
         Parameters
         ----------
         position: `float`
-            The azimuth to move to.
+            The azimuth (deg) to move to.
         velocity: `float`
             The velocity (deg/s) at which to crawl once the commanded azimuth has been reached at maximum
             velocity. The velocity is not checked against the velocity limits for the dome.
@@ -186,8 +188,8 @@ class AmcsStatus(BaseMockStatus):
 
         Parameters
         ----------
-        action: `bool`
-            The value should be True or False but the value doesn't get validated here.
+        action: `str`
+            The value should be ON or OFF but the value doesn't get validated here.
         """
         self.command_time_tai = salobj.current_tai()
         self.seal_inflated = OnOff[action]
@@ -199,8 +201,8 @@ class AmcsStatus(BaseMockStatus):
 
         Parameters
         ----------
-        action: `bool`
-            The value should be True or False but the value doesn't get validated here.
+        action: `str`
+            The value should be ON or OFF but the value doesn't get validated here.
         """
         self.command_time_tai = salobj.current_tai()
         self.fans_enabled = OnOff[action]

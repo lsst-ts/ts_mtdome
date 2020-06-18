@@ -5,8 +5,6 @@ import logging
 import math
 import pathlib
 
-import numpy as np
-
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .llc_name import LlcName
 from lsst.ts import salobj
@@ -19,13 +17,12 @@ _TIMEOUT = 20  # timeout in s to be used by this module
 _KEYS_TO_REMOVE = {"status"}
 _KEYS_IN_RADIANS = {"positionError", "positionActual", "positionCommanded"}
 
-_STATUS_TASK_PERIOD = 0.2
-_AMCS_PERIOD = 0.2
-_APsCS_PERIOD = 2.0
-_LCS_PERIOD = 2.0
-_LWSCS_PERIOD = 2.0
-_MonCS_PERIOD = 2.0
-_ThCS_PERIOD = 2.0
+_AMCS_STATUS_PERIOD = 0.2
+_APsCS_STATUS_PERIOD = 2.0
+_LCS_STATUS_PERIOD = 2.0
+_LWSCS_STATUS_PERIOD = 2.0
+_MONCS_STATUS_PERIOD = 2.0
+_THCS_STATUS_PERIOD = 2.0
 
 
 class DomeCsc(salobj.ConfigurableCsc):
@@ -58,10 +55,9 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.writer = None
         self.config = None
 
-        self.log = logging.getLogger("DomeCsc")
-
         self.mock_ctrl = None  # mock controller, or None if not constructed
         self.mock_port = mock_port  # mock port, or None if not used
+
         super().__init__(
             name="Dome",
             index=0,
@@ -71,9 +67,15 @@ class DomeCsc(salobj.ConfigurableCsc):
             simulation_mode=simulation_mode,
         )
 
+        stream_handler = logging.StreamHandler()
+        self.log.addHandler(stream_handler)
+
         # Keep the lower level statuses in memory for unit tests.
         self.lower_level_status = {}
-        self.llc_status_task = None
+        self.status_tasks = []
+
+        # Keep a lock so only one remote command can be executed at a time.
+        self.communication_lock = asyncio.Lock()
 
         self.amcs_limits = AmcsLimits()
         self.lwscs_limits = LwscsLimits()
@@ -104,12 +106,31 @@ class DomeCsc(salobj.ConfigurableCsc):
             connect_coro, timeout=self.config.connection_timeout
         )
 
-        # Start polling for the status of the AMCS component periodically at a frequency of 5 Hz.
-        self.llc_status_task = asyncio.create_task(
-            self.schedule_llc_tasks_periodically()
-        )
+        # Start polling for the status of the lower level components periodically.
+        await self.start_status_tasks()
 
         self.log.info("connected")
+
+    async def cancel_status_tasks(self):
+        """Cancel all status tasks."""
+        while self.status_tasks:
+            self.status_tasks.pop().cancel()
+
+    async def start_status_tasks(self):
+        """Start all status tasks
+        """
+        await self.cancel_status_tasks()
+        for method, interval in (
+            (self.statusAMCS, _AMCS_STATUS_PERIOD),
+            (self.statusApSCS, _APsCS_STATUS_PERIOD),
+            (self.statusLCS, _LCS_STATUS_PERIOD),
+            (self.statusLWSCS, _LWSCS_STATUS_PERIOD),
+            (self.statusMonCS, _MONCS_STATUS_PERIOD),
+            (self.statusThCS, _THCS_STATUS_PERIOD),
+        ):
+            self.status_tasks.append(
+                asyncio.create_task(self.one_status_loop(method, interval))
+            )
 
     async def disconnect(self):
         """Disconnect from the TCP/IP controller, if connected, and stop the mock controller, if running.
@@ -117,8 +138,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.log.info("disconnect")
 
         # Stop polling for the status of the lower level components periodically.
-        if self.llc_status_task:
-            self.llc_status_task.cancel()
+        await self.cancel_status_tasks()
 
         writer = self.writer
         self.reader = None
@@ -188,21 +208,26 @@ class DomeCsc(salobj.ConfigurableCsc):
          """
         cmd = params["command"]
         st = encoding_tools.encode(**params)
-        self.log.debug(f"Sending command {st}")
-        self.writer.write(st.encode() + b"\r\n")
-        await self.writer.drain()
-        read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
-        data = encoding_tools.decode(read_bytes.decode())
+        async with self.communication_lock:
+            self.log.debug(f"Sending command {st}")
+            self.writer.write(st.encode() + b"\r\n")
+            await self.writer.drain()
+            read_bytes = await asyncio.wait_for(
+                self.reader.readuntil(b"\r\n"), timeout=1
+            )
+            data = encoding_tools.decode(read_bytes.decode())
 
-        response = data["response"]
-        if response > ResponseCode.OK:
-            self.log.error(f"Received ERROR {data}.")
-            if response == ResponseCode.INCORRECT_PARAMETER:
-                raise ValueError(f"The command {cmd} contains an incorrect parameter.")
-            elif response == ResponseCode.UNSUPPORTED_COMMAND:
-                raise KeyError(f"The command {cmd} is unsupported.")
+            response = data["response"]
+            if response > ResponseCode.OK:
+                self.log.error(f"Received ERROR {data}.")
+                if response == ResponseCode.INCORRECT_PARAMETER:
+                    raise ValueError(
+                        f"The command {cmd} contains an incorrect parameter."
+                    )
+                elif response == ResponseCode.UNSUPPORTED_COMMAND:
+                    raise KeyError(f"The command {cmd} is unsupported.")
 
-        return data
+            return data
 
     async def do_moveAz(self, data):
         """Move AZ.
@@ -214,7 +239,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         self.log.debug(
-            f"Moving Dome to azimuth {data.position} and gthen start crawling at azRate {data.velocity}"
+            f"Moving Dome to azimuth {data.position} and then start crawling at azRate {data.velocity}"
         )
         await self.write_then_read_reply(
             command="moveAz",
@@ -398,35 +423,27 @@ class DomeCsc(salobj.ConfigurableCsc):
         Parameters
         ----------
         data : `dict`
-            A dictionary with arguments to the function call. It should contain keys for all lower level
-            components to be configured with values that are dicts with keys for all the parameters that
-            need to be configured. The structure is::
+            A dictionary with arguments to the function call. It should contain a key "system" indicating
+            the lower level component to be configured and a key "settings" with an array containing a dict
+            containing key,value for all the parameters that need to be configured. The structure is::
 
-                "AMCS":
+                "system",
+                "settings", [
                     "jmax"
                     "amax"
                     "vmax"
-                "LWSCS":
-                    "jmax"
-                    "amax"
-                    "vmax"
-
-        It is assumed that configuration_parameters is presented as a dictionary of dictionaries with one
-        dictionary per lower level component. This means that we only need to check for unknown and too
-        large parameters and then send all to the lower level components. An example would be::
-
-            {"AMCS": {"amax": 5, "jmax": 4}, "LWSCS": {"vmax": 5, "jmax": 4}}
+                ]
 
         """
-        amcs_configuration_parameters = data[LlcName.AMCS.value]
-        amcs_config_params = self.amcs_limits.validate(amcs_configuration_parameters)
-
-        lwscs_configuration_parameters = data[LlcName.LWSCS.value]
-        lwscs_config_params = self.lwscs_limits.validate(lwscs_configuration_parameters)
+        system = data["system"]
+        config_params = data["settings"][0]
+        if system == LlcName.AMCS.value:
+            self.amcs_limits.validate(config_params)
+        elif system == LlcName.LWSCS.value:
+            self.lwscs_limits.validate(config_params)
 
         await self.write_then_read_reply(
-            command="config",
-            parameters={"AMCS": amcs_config_params, "LWCS": lwscs_config_params},
+            command="config", parameters=data,
         )
 
     async def fans(self, data):
@@ -501,27 +518,28 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         await self.request_and_send_llc_status(LlcName.THCS, self.tel_thermal)
 
-    async def request_and_send_llc_status(self, llc_name, telemetry_function):
+    async def request_and_send_llc_status(self, llc_name, topic):
+        """Generic method for retrieving the status of a lower level component and publish that on the
+        corresponding telemetry topic.
+
+        Parameters
+        ----------
+        llc_name: `LlcName`
+            The name of the lower level component.
+        topic: SAL topic
+            The SAL topic to publish the telemetry to.
+
+        """
         command = f"status{llc_name.value}"
         status = await self.write_then_read_reply(command=command, parameters={})
         # Store the status for unit tests.
         self.lower_level_status[llc_name.value] = status[llc_name.value][0]
-        if llc_name == LlcName.LWSCS:
-            self.convert_telemetry_list_radians_to_degrees_and_send(
-                status[llc_name.value][0], telemetry_function
-            )
-        else:
-            self.convert_telemetry_radians_to_degrees_and_send(
-                status[llc_name.value][0], telemetry_function, llc_name
-            )
 
-    def convert_telemetry_radians_to_degrees_and_send(
-        self, telemetry_in_radians, telemetry_function, llc_name
-    ):
         telemetry_in_degrees = {}
+        telemetry_in_radians = status[llc_name.value][0]
         for key in telemetry_in_radians.keys():
             # LWSCS is handled by convert_telemetry_list_radians_to_degrees_and_send
-            if key in _KEYS_IN_RADIANS and llc_name == LlcName.AMCS:
+            if key in _KEYS_IN_RADIANS and llc_name in [LlcName.AMCS, LlcName.LWSCS]:
                 telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
             else:
                 # No conversion needed since the value does not express an angle
@@ -529,24 +547,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         # Remove some keys because they are not reported in the telemetry.
         telemetry = self.remove_keys_from_dict(telemetry_in_degrees)
         # Send the telemetry.
-        self.send_telemetry(telemetry, telemetry_function)
-
-    def convert_telemetry_list_radians_to_degrees_and_send(
-        self, telemetry_in_radians, telemetry_function
-    ):
-        telemetry_in_degrees = {}
-        for key in telemetry_in_radians.keys():
-            if key in _KEYS_IN_RADIANS:
-                telemetry_in_degrees[key] = np.degrees(
-                    np.array(telemetry_in_radians[key])
-                )
-            else:
-                # No conversion needed since the value does not express an angle
-                telemetry_in_degrees[key] = telemetry_in_radians[key]
-        # Remove some keys because they are not reported in the telemetry.
-        telemetry = self.remove_keys_from_dict(telemetry_in_degrees)
-        # Send the telemetry.
-        self.send_telemetry(telemetry, telemetry_function)
+        self.send_telemetry(telemetry, topic)
 
     # noinspection PyMethodMayBeStatic
     def remove_keys_from_dict(self, dict_with_too_many_keys):
@@ -571,18 +572,18 @@ class DomeCsc(salobj.ConfigurableCsc):
         return dict_with_keys_removed
 
     # noinspection PyMethodMayBeStatic
-    def send_telemetry(self, telemetry, telemetry_function):
+    def send_telemetry(self, telemetry, topic):
         """Prepares the telemetry for sending using the provided status and sends it.
 
         Parameters
         ----------
         telemetry: `dict`
             The lower level telemetry to extract the telemetry from.
-        telemetry_function: func
-            The SAL function that send the specific telemetry.
+        topic: SAL topic
+            The SAL topic to publish the telemetry to.
         """
         # Remove some keys because they are not reported in the telemetry.
-        telemetry_function.set_put(**telemetry)
+        topic.set_put(**telemetry)
 
     async def close_tasks(self):
         """Disconnect from the TCP/IP controller, if connected, and stop
@@ -600,39 +601,26 @@ class DomeCsc(salobj.ConfigurableCsc):
                 f"Simulation_mode={simulation_mode} must be 0 or 1"
             )
 
-    async def schedule_llc_tasks_periodically(self):
-        """Schedules the LLC status tasks periodically.
+    async def one_status_loop(self, method, interval):
+        """Run one status method forever at the specified interval.
+
+        Parameters
+        ----------
+        method: coro
+            The status method to run
+        interval: `float`
+            The interval (sec) at which to run the status method.
+
+        Returns
+        -------
+
         """
-        start_tai = salobj.current_tai()
         try:
             while True:
-                current_tai = salobj.current_tai()
-                reset_start_tai = False
-                if (current_tai - start_tai) > _AMCS_PERIOD:
-                    await self.statusAMCS()
-                    reset_start_tai = True
-                if (current_tai - start_tai) > _APsCS_PERIOD:
-                    await self.statusApSCS()
-                    reset_start_tai = True
-                if (current_tai - start_tai) > _LCS_PERIOD:
-                    await self.statusLCS()
-                    reset_start_tai = True
-                if (current_tai - start_tai) > _LWSCS_PERIOD:
-                    await self.statusLWSCS()
-                    reset_start_tai = True
-                if (current_tai - start_tai) > _MonCS_PERIOD:
-                    await self.statusMonCS()
-                    reset_start_tai = True
-                if (current_tai - start_tai) > _ThCS_PERIOD:
-                    await self.statusThCS()
-                    reset_start_tai = True
-
-                if reset_start_tai:
-                    start_tai = current_tai
-
-                await asyncio.sleep(_STATUS_TASK_PERIOD)
-        except Exception as e:
-            self.log.error(e)
+                await method()
+                await asyncio.sleep(interval)
+        except Exception:
+            self.log.exception(f"one_status_loop({method}) failed")
 
     @property
     def connected(self):

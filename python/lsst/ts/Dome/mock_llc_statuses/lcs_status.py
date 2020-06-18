@@ -13,6 +13,9 @@ _NUM_MOTORS = 68
 
 class LcsStatus(BaseMockStatus):
     """Represents the status of the Louvers Control System in simulation mode.
+
+    If the position of a louver is non-zero, it is considered OPEN even if it only is 1% open. If the
+    position of a louver is zero, it is considered closed.
     """
 
     def __init__(self):
@@ -61,8 +64,8 @@ class LcsStatus(BaseMockStatus):
         Parameters
         ----------
         position: array of float
-            An array with the positions (deg) to set the louvers to. 0 means closed, 180 means wide open,
-            -1 means do not move. These limits are not checked.
+            An array with the positions (percentage) to set the louvers to. 0 means closed, 180 means wide
+            open, -1 means do not move. These limits are not checked.
         """
         self.command_time_tai = salobj.current_tai()
         for louver_id, pos in enumerate(position):

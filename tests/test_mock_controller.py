@@ -3,6 +3,7 @@ import asynctest
 from asynctest.mock import CoroutineMock
 import logging
 import math
+
 import numpy as np
 
 from lsst.ts import Dome
@@ -82,10 +83,19 @@ class MockTestCase(asynctest.TestCase):
         self.assertEqual(self.data["response"], 3)
         self.assertEqual(self.data["timeout"], -1)
 
+    async def test_too_many_command_parameters(self):
+        await self.write(
+            command="moveAz",
+            parameters={"position": 0.1, "velocity": 0.1, "acceleration": 0.1},
+        )
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 3)
+        self.assertEqual(self.data["timeout"], -1)
+
     async def prepare_amcs(
         self, initial_position, target_position, target_velocity,
     ):
-        """Utility method for preparing the in initial state of AMCS for easier testing.
+        """Utility method for preparing the initial state of AMCS for easier testing.
 
         Parameters
         ----------
@@ -556,6 +566,19 @@ class MockTestCase(asynctest.TestCase):
         )
 
     async def prepare_louvers(self, louver_ids, target_positions):
+        """Utility method for preparing the louvers for easier testing.
+
+        Parameters
+        ----------
+        louver_ids: `list`
+            A list with the IDs of the louvers to move.
+        target_positions: `list`
+            A list with the target positions of the louvers to move to.
+
+        For each louver that will be moved, both an ID and a target position needs to be given. It is
+        assumed that the indices of the IDs and the target positions are lined up.
+
+        """
         position = np.full(_NUM_LOUVERS, -1.0, dtype=float)
         for index, louver_id in enumerate(louver_ids):
             position[louver_id] = target_positions[index]
@@ -574,8 +597,25 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
     async def verify_louvers(self, louver_ids, target_positions):
+        """Utility method for verifying the positions of the louvers against the provided IDs and target
+        positions.
+
+        Parameters
+        ----------
+        louver_ids: `list`
+            A list with the IDs of the louvers to move.
+        target_positions: `list`
+            A list with the target positions of the louvers to move to.
+
+        For each louver that will be moved, both an ID and a target position needs to be given. It is
+        assumed that the indices of the IDs and the target positions are lined up.
+
+        """
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
+
+        # See mock_llc_statuses.lcs_status for what the structure of lcs_status looks like as well as for
+        # the meaning of LlcStatus.
         lcs_status = self.data[LlcName.LCS.value][0]
         for index, status in enumerate(lcs_status["status"]):
             if index in louver_ids:
@@ -778,22 +818,25 @@ class MockTestCase(asynctest.TestCase):
         lwscs_jmax = math.radians(2.5)
         lwscs_amax = math.radians(0.75)
         lwscs_vmax = math.radians(0.5)
-        config = {
-            LlcName.AMCS.value: {
-                "jmax": amcs_jmax,
-                "amax": amcs_amax,
-                "vmax": amcs_vmax,
-            },
-            LlcName.LWSCS.value: {
-                "jmax": lwscs_jmax,
-                "amax": lwscs_amax,
-                "vmax": lwscs_vmax,
-            },
+
+        parameters = {
+            "system": LlcName.AMCS.value,
+            "settings": [{"jmax": amcs_jmax, "amax": amcs_amax, "vmax": amcs_vmax}],
         }
-        await self.write(command="config", **config)
+        await self.write(command="config", parameters=parameters)
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
         self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+
+        parameters = {
+            "system": LlcName.LWSCS.value,
+            "settings": [{"jmax": lwscs_jmax, "amax": lwscs_amax, "vmax": lwscs_vmax}],
+        }
+        await self.write(command="config", parameters=parameters)
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+
         self.assertEqual(self.mock_ctrl.amcs.amcs_limits.jmax, amcs_jmax)
         self.assertEqual(self.mock_ctrl.amcs.amcs_limits.amax, amcs_amax)
         self.assertEqual(self.mock_ctrl.amcs.amcs_limits.vmax, amcs_vmax)
@@ -858,7 +901,6 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusThCS", parameters={})
         self.data = await self.read()
-        self.log.info(f"temperature = {self.data}")
         thcs_status = self.data[LlcName.THCS.value][0]
         self.assertEqual(
             thcs_status["status"], Dome.LlcStatus.ENABLED.value,

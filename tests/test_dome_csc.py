@@ -1,5 +1,6 @@
 import asynctest
 import logging
+
 import numpy as np
 
 from lsst.ts import salobj
@@ -249,46 +250,41 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             )
 
             # All values are below the limits.
-            config = {
-                LlcName.AMCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
-                LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+            parameters = {
+                "system": LlcName.AMCS.value,
+                "settings": [{"jmax": 1.0, "amax": 0.5, "vmax": 1.0}],
             }
-            await self.csc.config_llcs(config)
+            await self.csc.config_llcs(parameters)
 
             # The value of AMCS amax is too high.
-            config = {
-                LlcName.AMCS.value: {"jmax": 1.0, "amax": 1.0, "vmax": 1.0},
-                LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+            parameters = {
+                "system": LlcName.AMCS.value,
+                "settings": [{"jmax": 1.0, "amax": 1.0, "vmax": 1.0}],
             }
             try:
-                await self.csc.config_llcs(config)
+                await self.csc.config_llcs(parameters)
                 self.fail("Expected a ValueError.")
             except ValueError:
                 pass
 
             # The param AMCS smax doesn't exist.
-            config = {
-                LlcName.AMCS.value: {
-                    "jmax": 1.0,
-                    "amax": 0.5,
-                    "vmax": 1.0,
-                    "smax": 1.0,
-                },
-                LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+            parameters = {
+                "system": LlcName.AMCS.value,
+                "settings": [{"jmax": 1.0, "amax": 0.5, "vmax": 1.0, "smax": 1.0}],
             }
             try:
-                await self.csc.config_llcs(config)
+                await self.csc.config_llcs(parameters)
                 self.fail("Expected a KeyError.")
             except KeyError:
                 pass
 
             # No parameter can be missing.
-            config = {
-                LlcName.AMCS.value: {"jmax": 1.0, "amax": 0.5},
-                LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
+            parameters = {
+                "system": LlcName.AMCS.value,
+                "settings": [{"jmax": 1.0, "amax": 0.5}],
             }
             try:
-                await self.csc.config_llcs(config)
+                await self.csc.config_llcs(parameters)
                 self.fail("Expected a KeyError.")
             except KeyError:
                 pass
