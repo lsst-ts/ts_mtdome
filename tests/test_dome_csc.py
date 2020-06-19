@@ -1,6 +1,8 @@
 import asynctest
 import logging
 
+import numpy as np
+
 from lsst.ts import salobj
 from lsst.ts import Dome
 from lsst.ts.Dome.llc_name import LlcName
@@ -37,7 +39,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                     "stop",
                     "crawlAz",
                     "crawlEl",
-                    "setLouver",
+                    "setLouvers",
                     "closeLouvers",
                     "stopLouvers",
                     "openShutter",
@@ -87,10 +89,12 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            desired_azimuth = 40
+            desired_position = 40
             desired_velocity = 0.1
             await self.remote.cmd_moveAz.set_start(
-                azimuth=desired_azimuth, azRate=desired_velocity, timeout=STD_TIMEOUT
+                position=desired_position,
+                velocity=desired_velocity,
+                timeout=STD_TIMEOUT,
             )
 
     async def test_do_moveEl(self):
@@ -100,9 +104,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            desired_elevation = 40
+            desired_position = 40
             await self.remote.cmd_moveEl.set_start(
-                elevation=desired_elevation, timeout=STD_TIMEOUT
+                position=desired_position, timeout=STD_TIMEOUT
             )
 
     async def test_do_stopAz(self):
@@ -141,7 +145,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             )
             desired_velocity = 0.1
             await self.remote.cmd_crawlAz.set_start(
-                azRate=desired_velocity, timeout=STD_TIMEOUT,
+                velocity=desired_velocity, timeout=STD_TIMEOUT,
             )
 
     async def test_do_crawlEl(self):
@@ -153,20 +157,22 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             )
             desired_velocity = 0.1
             await self.remote.cmd_crawlEl.set_start(
-                elRate=desired_velocity, timeout=STD_TIMEOUT,
+                velocity=desired_velocity, timeout=STD_TIMEOUT,
             )
 
-    async def test_do_setLouver(self):
+    async def test_do_setLouvers(self):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
-            desired_id = 5
-            desired_position = 60
-            await self.remote.cmd_setLouver.set_start(
-                id=desired_id, position=desired_position, timeout=STD_TIMEOUT,
+            louver_id = 5
+            target_position = 100
+            desired_position = np.full(NUM_LOUVERS, -1.0, dtype=float)
+            desired_position[louver_id] = target_position
+            await self.remote.cmd_setLouvers.set_start(
+                position=desired_position.tolist(), timeout=STD_TIMEOUT,
             )
 
     async def test_do_closeLouvers(self):
@@ -244,46 +250,33 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             )
 
             # All values are below the limits.
-            config = {
-                LlcName.AMCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
-                LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
-            }
-            await self.csc.config_llcs(config)
+            system = LlcName.AMCS.value
+            settings = {"jmax": 1.0, "amax": 0.5, "vmax": 1.0}
+            await self.csc.config_llcs(system, settings)
 
             # The value of AMCS amax is too high.
-            config = {
-                LlcName.AMCS.value: {"jmax": 1.0, "amax": 1.0, "vmax": 1.0},
-                LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
-            }
+            system = LlcName.AMCS.value
+            settings = {"jmax": 1.0, "amax": 1.0, "vmax": 1.0}
             try:
-                await self.csc.config_llcs(config)
+                await self.csc.config_llcs(system, settings)
                 self.fail("Expected a ValueError.")
             except ValueError:
                 pass
 
             # The param AMCS smax doesn't exist.
-            config = {
-                LlcName.AMCS.value: {
-                    "jmax": 1.0,
-                    "amax": 0.5,
-                    "vmax": 1.0,
-                    "smax": 1.0,
-                },
-                LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
-            }
+            system = LlcName.AMCS.value
+            settings = {"jmax": 1.0, "amax": 0.5, "vmax": 1.0, "smax": 1.0}
             try:
-                await self.csc.config_llcs(config)
+                await self.csc.config_llcs(system, settings)
                 self.fail("Expected a KeyError.")
             except KeyError:
                 pass
 
             # No parameter can be missing.
-            config = {
-                LlcName.AMCS.value: {"jmax": 1.0, "amax": 0.5},
-                LlcName.LWSCS.value: {"jmax": 1.0, "amax": 0.5, "vmax": 1.0},
-            }
+            system = LlcName.AMCS.value
+            settings = {"jmax": 1.0, "amax": 0.5}
             try:
-                await self.csc.config_llcs(config)
+                await self.csc.config_llcs(system, settings)
                 self.fail("Expected a KeyError.")
             except KeyError:
                 pass
@@ -296,7 +289,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 remote=self.remote, state=salobj.State.ENABLED
             )
             await self.csc.write_then_read_reply(
-                command="fans", parameters={"action": Dome.OnOff.ON.name}
+                command="fans", action=Dome.OnOff.ON.name
             )
 
     async def test_inflate(self):
@@ -307,7 +300,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 remote=self.remote, state=salobj.State.ENABLED
             )
             await self.csc.write_then_read_reply(
-                command="inflate", parameters={"action": Dome.OnOff.ON.name}
+                command="inflate", action=Dome.OnOff.ON.name
             )
 
     async def test_status(self):
@@ -372,9 +365,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 thcs_status["status"], Dome.LlcStatus.DISABLED.value,
             )
             self.assertEqual(
-                thcs_status["data"], [0.0] * NUM_THERMO_SENSORS,
+                thcs_status["temperature"], [0.0] * NUM_THERMO_SENSORS,
             )
 
-    # TODO uncomment once it is clear why this test case suddenly is failing.
     async def test_bin_script(self):
         await self.check_bin_script(name="Dome", index=None, exe_name="run_dome.py")

@@ -51,17 +51,17 @@ class MockDomeController:
             "stopAz": self.stop_az,
             "stopEl": self.stop_el,
             "stop": self.stop_llc,
-            "crawlAz": self.crawlAz,
-            "crawlEl": self.crawlEl,
-            "setLouver": self.setLouver,
-            "closeLouvers": self.closeLouvers,
-            "stopLouvers": self.stopLouvers,
-            "openShutter": self.openShutter,
-            "closeShutter": self.closeShutter,
-            "stopShutter": self.stopShutter,
+            "crawlAz": self.crawl_az,
+            "crawlEl": self.crawl_el,
+            "setLouvers": self.set_louvers,
+            "closeLouvers": self.close_louvers,
+            "stopLouvers": self.stop_louvers,
+            "openShutter": self.open_shutter,
+            "closeShutter": self.close_shutter,
+            "stopShutter": self.stop_shutter,
             "config": self.config,
             "park": self.park,
-            "setTemperature": self.setTemperature,
+            "setTemperature": self.set_temperature,
             "fans": self.fans,
             "inflate": self.inflate,
             "statusAMCS": self.status_amcs,
@@ -157,14 +157,14 @@ class MockDomeController:
         self.log.info("The cmd_loop begins")
         self._writer = writer
         while True:
-            self.log.info("Waiting for next command.")
+            self.log.debug("Waiting for next command.")
             timeout = self.long_timeout
 
             line = None
             try:
                 line = await reader.readuntil(b"\r\n")
                 line = line.decode().strip()
-                self.log.info(f"Read command line: {line!r}")
+                self.log.debug(f"Read command line: {line!r}")
             except asyncio.IncompleteReadError:
                 return
             if line:
@@ -183,23 +183,15 @@ class MockDomeController:
                         timeout = -1
                     else:
                         func = self.dispatch_dict[cmd]
-                        kwargs = {}
-                        if cmd == "config":
-                            # it is unclear beforehand which config parameters are being sent so just
-                            # remove the "config" key and pass the rest on.
-                            kwargs = {x: items[x] for x in items if x not in "config"}
-                        else:
-                            # all other commands should send the "parameters" key. If it doesn't exist then
-                            # a KeyError will be raised which gets caught a few lines down.
-                            kwargs = items["parameters"]
+                        kwargs = items["parameters"]
                         if cmd[:6] == "status":
                             # the status commands take care of sending a reply themselves
                             send_response = False
                         if cmd == "stopAz" or cmd == "stopEl":
                             timeout = self.short_timeout
                         await func(**kwargs)
-                except (KeyError, RuntimeError):
-                    self.log.error(f"Command '{line}' failed")
+                except (TypeError, RuntimeError):
+                    self.log.exception(f"Command '{line}' failed")
                     # CODE=3 in this case means "Missing or incorrect parameter(s)."
                     response = ResponseCode.INCORRECT_PARAMETER
                     timeout = -1
@@ -246,58 +238,62 @@ class MockDomeController:
         llc_name: LlcName
             The name of the Lower Level Component.
         """
+        self.log.debug("Determining current TAI.")
+        await self.determine_current_tai()
+        self.log.debug(f"Requesting status for LLC {llc_name}")
         await llc.determine_status(self.current_tai)
         state = {llc_name.value: llc.llc_status}
         await self.write(response=ResponseCode.OK, **state)
 
     async def determine_current_tai(self):
-        """Determine the time difference since the previous call.
+        """Determine the current TAI time.
+
+        This is done in a separate method so a mock method can replace it in unit tests.
         """
         self.current_tai = salobj.current_tai()
 
-    async def move_az(self, **kwargs):
+    async def move_az(self, position, velocity):
         """Move the dome.
 
         Parameters
         ----------
-        kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "azimuth" with a
-            float value between 0 and 2pi and the key "azRate" with a float value where positive means
-            towards increasing azimuth and negative towards decreasing azimuth.
+        position: `float`
+            Desired azimuth, in radians, in range [0, 2 pi)
+        velocity: `float`
+            The velocity, in deg/sec, to start crawling at once the position has been reached.
         """
-        self.log.debug(f"Received command 'moveAz' with arguments {kwargs}")
+        self.log.info(
+            f"Received command 'moveAz' with arguments position={position} and velocity={velocity}"
+        )
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use radians.
-        await self.amcs.moveAz(
-            azimuth=float(kwargs["azimuth"]), velocity=float(kwargs["azRate"])
-        )
+        await self.amcs.moveAz(position, velocity)
 
-    async def move_el(self, **kwargs):
+    async def move_el(self, position):
         """Move the light and wind screen.
 
         Parameters
         ----------
-        kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "elevation" with a
-            float value between 0 and pi/2.
+        position: `float`
+            Desired elevation, in radians, in range [0, pi/2)
         """
-        self.log.debug(f"Received command 'moveEl' with arguments {kwargs}")
+        self.log.info(f"Received command 'moveEl' with argument position={position}")
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use radians.
-        await self.lwscs.moveEl(elevation=float(kwargs["elevation"]))
+        await self.lwscs.moveEl(position)
 
     async def stop_az(self):
         """Stop all dome motion.
         """
-        self.log.debug("Received command 'stopAz'")
+        self.log.info("Received command 'stopAz'")
         await self.amcs.stopAz()
 
     async def stop_el(self):
         """Stop all light and wind screen motion.
         """
-        self.log.debug("Received command 'stopEl'")
+        self.log.info("Received command 'stopEl'")
         await self.lwscs.stopEl()
 
     async def stop_llc(self):
@@ -305,123 +301,119 @@ class MockDomeController:
         """
         await self.stop_az()
         await self.stop_el()
-        await self.stopShutter()
-        await self.stopLouvers()
+        await self.stop_shutter()
+        await self.stop_louvers()
 
-    async def crawlAz(self, **kwargs):
+    async def crawl_az(self, velocity):
         """Crawl the dome.
 
         Parameters
         ----------
-        kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "azRate" with a
-            float value where positive means towards increasing azimuth and negative towards decreasing
-            azimuth.
+        velocity: `float`
+            The velocity, in deg/sec, to crawl at.
         """
-        self.log.debug(f"Received command 'crawlAz' with arguments {kwargs}")
+        self.log.debug(f"Received command 'crawlAz' with argument velocity={velocity}")
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use radians.
-        await self.amcs.crawlAz(velocity=float(kwargs["azRate"]))
+        await self.amcs.crawlAz(velocity)
 
-    async def crawlEl(self, **kwargs):
+    async def crawl_el(self, velocity):
         """Crawl the light and wind screen.
 
         Parameters
         ----------
-        kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "elRate" with a
-            float value where positive means towards increasing elevation and negative towards decreasing
-            elevation.
+        velocity: `float`
+            The velocity, in deg/sec, to crawl at.
         """
-        self.log.info(f"Received command 'crawlEl' with arguments {kwargs}")
+        self.log.info(f"Received command 'crawlEl' with argument velocity={velocity}")
 
         # No conversion from radians to degrees needed since both the commands and the mock az controller
         # use radians.
-        await self.lwscs.crawlEl(velocity=float(kwargs["elRate"]))
+        await self.lwscs.crawlEl(velocity)
 
-    async def setLouver(self, **kwargs):
-        """Set the position of a louver.
+    async def set_louvers(self, position):
+        """Set the positions of the louvers.
 
         Parameters
         ----------
-        kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "id" with an int
-            value and the key "position" with a float value.
+        position: array of float
+            An array of positions, in percentage with 0 meaning closed and 100 fully open, for each louver.
+            A position of -1 means "do not move".
         """
-        self.log.info(f"Received command 'setLouver' with arguments {kwargs}")
-
-        # No conversion from radians to degrees needed since both the commands and the mock az controller
-        # use radians.
-        await self.lcs.setLouver(
-            louver_id=int(kwargs["id"]), position=float(kwargs["position"])
+        self.log.info(
+            f"Received command 'setLouvers' with argument position={position}"
         )
+        await self.lcs.setLouvers(position)
 
-    async def closeLouvers(self):
+    async def close_louvers(self):
         """Close all louvers.
         """
         self.log.info(f"Received command 'closeLouvers'")
         await self.lcs.closeLouvers()
 
-    async def stopLouvers(self):
+    async def stop_louvers(self):
         """Stop the motion of all louvers.
         """
         self.log.info(f"Received command 'stopLouvers'")
         await self.lcs.stopLouvers()
 
-    async def openShutter(self):
+    async def open_shutter(self):
         """Open the shutter.
         """
         self.log.info(f"Received command 'openShutter'")
         await self.apscs.openShutter()
 
-    async def closeShutter(self):
+    async def close_shutter(self):
         """Close the shutter.
         """
         self.log.info(f"Received command 'closeShutter'")
         await self.apscs.closeShutter()
 
-    async def stopShutter(self):
+    async def stop_shutter(self):
         """Stop the motion of the shutter.
         """
         self.log.info(f"Received command 'stopShutter'")
         await self.apscs.stopShutter()
 
-    async def config(self, **kwargs):
+    async def config(self, system, settings):
         """Configure the lower level components.
 
         Parameters
         ----------
-        kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain keys for all lower level
-            components to be configured with values that are dicts with keys for all the parameters that
-            need to be configured. The structure is::
+        system: `str`
+            The name of the system to configure.
+        settings: `list` of `dict`
+            An array containing a single dict with key,value pairs for all the parameters that need to be
+            configured. The structure is::
 
-                "AMCS":
-                    "jmax"
-                    "amax"
-                    "vmax"
-                "LWSCS":
-                    "jmax"
-                    "amax"
-                    "vmax"
+                [
+                    {
+                      "Parameter1_name": Value,
+                      "Parameter2_name": Value,
+                      ...
+                    }
+                  ]
 
             It is assumed that the values of the configuration parameters are validated to lie within the
             limits before being passed on to this function.
             It is assumed that all configuration parameters are present and that their values represent the
             value to set even unchanged.
         """
-        self.log.info(f"Received command 'config' with arguments {kwargs}")
-        amcs_config = kwargs.get(LlcName.AMCS.value)
-        if amcs_config:
+        self.log.info(
+            f"Received command 'config' with arguments system={system} and settings={settings}"
+        )
+        config = settings[0]
+        if system == LlcName.AMCS.value:
             for field in ("jmax", "amax", "vmax"):
-                if field in amcs_config:
-                    setattr(self.amcs.amcs_limits, field, amcs_config[field])
-        lwscs_config = kwargs.get(LlcName.LWSCS.value)
-        if lwscs_config:
+                if field in config:
+                    setattr(self.amcs.amcs_limits, field, config[field])
+        elif system == LlcName.LWSCS.value:
             for field in ("jmax", "amax", "vmax"):
-                if field in lwscs_config:
-                    setattr(self.lwscs.lwscs_limits, field, lwscs_config[field])
+                if field in config:
+                    setattr(self.lwscs.lwscs_limits, field, config[field])
+        else:
+            raise KeyError(f"Unknown system {system}.")
 
     async def park(self):
         """Park the dome.
@@ -429,41 +421,40 @@ class MockDomeController:
         self.log.info(f"Received command 'park'")
         await self.amcs.park()
 
-    async def setTemperature(self, **kwargs):
+    async def set_temperature(self, temperature):
         """Set the preferred temperature in the dome.
 
         Parameters
         ----------
-        kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "temperature" with a
-            float value.
+        temperature: `float`
+            The temperature, in degrees Celsius, to set.
         """
-        self.log.info(f"Received command 'setTemperature' with arguments {kwargs}")
-        await self.thcs.setTemperature(temperature=float(kwargs["temperature"]))
+        self.log.info(
+            f"Received command 'setTemperature' with argument temperature={temperature}"
+        )
+        await self.thcs.setTemperature(temperature)
 
-    async def inflate(self, **kwargs):
+    async def inflate(self, action):
         """Inflate or deflate the inflatable seal.
 
         Parameters
         ----------
-        kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "action" with a
-            boolean value.
+        action: `str`
+            ON means inflate and OFF deflate the inflatable seal.
         """
-        self.log.info(f"Received command 'inflate' with arguments {kwargs}")
-        await self.amcs.inflate(action=kwargs["action"])
+        self.log.info(f"Received command 'inflate' with argument action={action}")
+        await self.amcs.inflate(action)
 
-    async def fans(self, **kwargs):
+    async def fans(self, action):
         """Enable or disable the fans in the dome.
 
         Parameters
         ----------
-        kwargs: `dict`
-            A dictionary with arguments to the function call. It should contain the key "action" with a
-            boolean value.
+        action: `str`
+            ON means fans on and OFF fans off.
         """
-        self.log.info(f"Received command 'fans' with arguments {kwargs}")
-        await self.amcs.fans(action=kwargs["action"])
+        self.log.info(f"Received command 'fans' with argument action={action}")
+        await self.amcs.fans(action)
 
 
 async def main():
