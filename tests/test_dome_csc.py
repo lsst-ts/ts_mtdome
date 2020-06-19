@@ -250,41 +250,33 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             )
 
             # All values are below the limits.
-            parameters = {
-                "system": LlcName.AMCS.value,
-                "settings": [{"jmax": 1.0, "amax": 0.5, "vmax": 1.0}],
-            }
-            await self.csc.config_llcs(parameters)
+            system = LlcName.AMCS.value
+            settings = {"jmax": 1.0, "amax": 0.5, "vmax": 1.0}
+            await self.csc.config_llcs(system, settings)
 
             # The value of AMCS amax is too high.
-            parameters = {
-                "system": LlcName.AMCS.value,
-                "settings": [{"jmax": 1.0, "amax": 1.0, "vmax": 1.0}],
-            }
+            system = LlcName.AMCS.value
+            settings = {"jmax": 1.0, "amax": 1.0, "vmax": 1.0}
             try:
-                await self.csc.config_llcs(parameters)
+                await self.csc.config_llcs(system, settings)
                 self.fail("Expected a ValueError.")
             except ValueError:
                 pass
 
             # The param AMCS smax doesn't exist.
-            parameters = {
-                "system": LlcName.AMCS.value,
-                "settings": [{"jmax": 1.0, "amax": 0.5, "vmax": 1.0, "smax": 1.0}],
-            }
+            system = LlcName.AMCS.value
+            settings = {"jmax": 1.0, "amax": 0.5, "vmax": 1.0, "smax": 1.0}
             try:
-                await self.csc.config_llcs(parameters)
+                await self.csc.config_llcs(system, settings)
                 self.fail("Expected a KeyError.")
             except KeyError:
                 pass
 
             # No parameter can be missing.
-            parameters = {
-                "system": LlcName.AMCS.value,
-                "settings": [{"jmax": 1.0, "amax": 0.5}],
-            }
+            system = LlcName.AMCS.value
+            settings = {"jmax": 1.0, "amax": 0.5}
             try:
-                await self.csc.config_llcs(parameters)
+                await self.csc.config_llcs(system, settings)
                 self.fail("Expected a KeyError.")
             except KeyError:
                 pass
@@ -297,7 +289,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 remote=self.remote, state=salobj.State.ENABLED
             )
             await self.csc.write_then_read_reply(
-                command="fans", parameters={"action": Dome.OnOff.ON.name}
+                command="fans", action=Dome.OnOff.ON.name
             )
 
     async def test_inflate(self):
@@ -308,7 +300,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 remote=self.remote, state=salobj.State.ENABLED
             )
             await self.csc.write_then_read_reply(
-                command="inflate", parameters={"action": Dome.OnOff.ON.name}
+                command="inflate", action=Dome.OnOff.ON.name
             )
 
     async def test_status(self):

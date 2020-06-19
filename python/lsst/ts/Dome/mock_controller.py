@@ -246,7 +246,7 @@ class MockDomeController:
         await self.write(response=ResponseCode.OK, **state)
 
     async def determine_current_tai(self):
-        """Determine the cureent TAI time.
+        """Determine the current TAI time.
 
         This is done in a separate method so a mock method can replace it in unit tests.
         """
@@ -384,10 +384,8 @@ class MockDomeController:
         system: `str`
             The name of the system to configure.
         settings: `list` of `dict`
-            A dictionary with arguments to the function call. It should contain a key called "system" with
-            the name of the lower level component to be configured and a key "settings" with an array
-            containing a dict with key,value pairs for all the parameters that need to be configured. The
-            structure is::
+            An array containing a single dict with key,value pairs for all the parameters that need to be
+            configured. The structure is::
 
                 [
                     {
