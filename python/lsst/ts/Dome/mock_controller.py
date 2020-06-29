@@ -1,13 +1,34 @@
+# This file is part of ts_Dome.
+#
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 __all__ = ["MockDomeController"]
 
 import asyncio
 import logging
 
-from .llc_name import LlcName
+from lsst.ts.Dome.llc_name import LlcName
 from lsst.ts import salobj
 from lsst.ts.Dome import encoding_tools
-from . import mock_llc_statuses
-from .response_code import ResponseCode
+from lsst.ts.Dome import mock_llc_statuses
+from lsst.ts.Dome.response_code import ResponseCode
 
 
 class MockDomeController:
@@ -88,19 +109,19 @@ class MockDomeController:
     async def start(self, keep_running=False):
         """Start the TCP/IP server.
 
-        Start the command loop and make sure to keep running when instructed to do so.
+        Start the command loop and make sure to keep running when instructed to
+         do so.
 
         Parameters
         ----------
         keep_running : bool
-            Used for command line testing and should generally be left to False.
+            Used for command line testing and should generally be left to
+            False.
         """
         self.log.info("Start called")
-        self._server = await asyncio.start_server(
-            self.cmd_loop, host="127.0.0.1", port=self.port
-        )
-        # Request the assigned port from the server so the code starting the mock controller can use it to
-        # connect.
+        self._server = await asyncio.start_server(self.cmd_loop, host="127.0.0.1", port=self.port)
+        # Request the assigned port from the server so the code starting the
+        # mock controller can use it to connect.
         if self.port == 0:
             self.port = self._server.sockets[0].getsockname()[1]
 
@@ -185,51 +206,60 @@ class MockDomeController:
                         func = self.dispatch_dict[cmd]
                         kwargs = items["parameters"]
                         if cmd[:6] == "status":
-                            # the status commands take care of sending a reply themselves
+                            # the status commands take care of sending a reply
+                            # themselves
                             send_response = False
                         if cmd == "stopAz" or cmd == "stopEl":
                             timeout = self.short_timeout
                         await func(**kwargs)
                 except (TypeError, RuntimeError):
                     self.log.exception(f"Command '{line}' failed")
-                    # CODE=3 in this case means "Missing or incorrect parameter(s)."
+                    # CODE=3 in this case means "Missing or incorrect
+                    # parameter(s)."
                     response = ResponseCode.INCORRECT_PARAMETER
                     timeout = -1
                 if send_response:
                     await self.write(response=response, timeout=timeout)
 
     async def status_amcs(self):
-        """Request the status from the AMCS lower level component and write it in reply.
+        """Request the status from the AMCS lower level component and write it
+        in reply.
         """
         await self.request_and_send_status(self.amcs, LlcName.AMCS)
 
     async def status_apscs(self):
-        """Request the status from the ApSCS lower level component and write it in reply.
+        """Request the status from the ApSCS lower level component and write it
+        in reply.
         """
         await self.request_and_send_status(self.apscs, LlcName.APSCS)
 
     async def status_lcs(self):
-        """Request the status from the LCS lower level component and write it in reply.
+        """Request the status from the LCS lower level component and write it
+        in reply.
         """
         await self.request_and_send_status(self.lcs, LlcName.LCS)
 
     async def status_lwscs(self):
-        """Request the status from the LWSCS lower level component and write it in reply.
+        """Request the status from the LWSCS lower level component and write it
+        in reply.
         """
         await self.request_and_send_status(self.lwscs, LlcName.LWSCS)
 
     async def status_moncs(self):
-        """Request the status from the MonCS lower level component and write it in reply.
+        """Request the status from the MonCS lower level component and write it
+        in reply.
         """
         await self.request_and_send_status(self.moncs, LlcName.MONCS)
 
     async def status_thcs(self):
-        """Request the status from the ThCS lower level component and write it in reply.
+        """Request the status from the ThCS lower level component and write it
+        in reply.
         """
         await self.request_and_send_status(self.thcs, LlcName.THCS)
 
     async def request_and_send_status(self, llc, llc_name):
-        """Request the status of the given Lower Level Component and write it to the requester.
+        """Request the status of the given Lower Level Component and write it
+        to the requester.
 
         Parameters
         ----------
@@ -248,7 +278,8 @@ class MockDomeController:
     async def determine_current_tai(self):
         """Determine the current TAI time.
 
-        This is done in a separate method so a mock method can replace it in unit tests.
+        This is done in a separate method so a mock method can replace it in
+        unit tests.
         """
         self.current_tai = salobj.current_tai()
 
@@ -260,14 +291,13 @@ class MockDomeController:
         position: `float`
             Desired azimuth, in radians, in range [0, 2 pi)
         velocity: `float`
-            The velocity, in deg/sec, to start crawling at once the position has been reached.
+            The velocity, in deg/sec, to start crawling at once the position
+            has been reached.
         """
-        self.log.info(
-            f"Received command 'moveAz' with arguments position={position} and velocity={velocity}"
-        )
+        self.log.info(f"Received command 'moveAz' with arguments position={position} and velocity={velocity}")
 
-        # No conversion from radians to degrees needed since both the commands and the mock az controller
-        # use radians.
+        # No conversion from radians to degrees needed since both the commands
+        # and the mock az controller use radians.
         await self.amcs.moveAz(position, velocity)
 
     async def move_el(self, position):
@@ -280,8 +310,8 @@ class MockDomeController:
         """
         self.log.info(f"Received command 'moveEl' with argument position={position}")
 
-        # No conversion from radians to degrees needed since both the commands and the mock az controller
-        # use radians.
+        # No conversion from radians to degrees needed since both the commands
+        # and the mock az controller use radians.
         await self.lwscs.moveEl(position)
 
     async def stop_az(self):
@@ -314,8 +344,8 @@ class MockDomeController:
         """
         self.log.debug(f"Received command 'crawlAz' with argument velocity={velocity}")
 
-        # No conversion from radians to degrees needed since both the commands and the mock az controller
-        # use radians.
+        # No conversion from radians to degrees needed since both the commands
+        # and the mock az controller use radians.
         await self.amcs.crawlAz(velocity)
 
     async def crawl_el(self, velocity):
@@ -328,8 +358,8 @@ class MockDomeController:
         """
         self.log.info(f"Received command 'crawlEl' with argument velocity={velocity}")
 
-        # No conversion from radians to degrees needed since both the commands and the mock az controller
-        # use radians.
+        # No conversion from radians to degrees needed since both the commands
+        # and the mock az controller use radians.
         await self.lwscs.crawlEl(velocity)
 
     async def set_louvers(self, position):
@@ -338,12 +368,10 @@ class MockDomeController:
         Parameters
         ----------
         position: array of float
-            An array of positions, in percentage with 0 meaning closed and 100 fully open, for each louver.
-            A position of -1 means "do not move".
+            An array of positions, in percentage with 0 meaning closed and 100
+            fully open, for each louver. A position of -1 means "do not move".
         """
-        self.log.info(
-            f"Received command 'setLouvers' with argument position={position}"
-        )
+        self.log.info(f"Received command 'setLouvers' with argument position={position}")
         await self.lcs.setLouvers(position)
 
     async def close_louvers(self):
@@ -384,8 +412,8 @@ class MockDomeController:
         system: `str`
             The name of the system to configure.
         settings: `list` of `dict`
-            An array containing a single dict with key,value pairs for all the parameters that need to be
-            configured. The structure is::
+            An array containing a single dict with key,value pairs for all the
+            parameters that need to be configured. The structure is::
 
                 [
                     {
@@ -395,14 +423,13 @@ class MockDomeController:
                     }
                   ]
 
-            It is assumed that the values of the configuration parameters are validated to lie within the
-            limits before being passed on to this function.
-            It is assumed that all configuration parameters are present and that their values represent the
-            value to set even unchanged.
+            It is assumed that the values of the configuration parameters are
+            validated to lie within the limits before being passed on to this
+            function.
+            It is assumed that all configuration parameters are present and
+            that their values represent the value to set even unchanged.
         """
-        self.log.info(
-            f"Received command 'config' with arguments system={system} and settings={settings}"
-        )
+        self.log.info(f"Received command 'config' with arguments system={system} and settings={settings}")
         config = settings[0]
         if system == LlcName.AMCS.value:
             for field in ("jmax", "amax", "vmax"):
@@ -429,9 +456,7 @@ class MockDomeController:
         temperature: `float`
             The temperature, in degrees Celsius, to set.
         """
-        self.log.info(
-            f"Received command 'setTemperature' with argument temperature={temperature}"
-        )
+        self.log.info(f"Received command 'setTemperature' with argument temperature={temperature}")
         await self.thcs.setTemperature(temperature)
 
     async def inflate(self, action):
@@ -460,16 +485,20 @@ class MockDomeController:
 async def main():
     """Main method that gets executed in stand alone mode.
     """
+    logging.info("main method")
     # An arbitrarily chosen port. Nothing special about it.
     port = 5000
+    logging.info("Constructing mock controller.")
     mock_ctrl = MockDomeController(port=port)
-    logging.info("main")
+    logging.info("Starting mock controller.")
     await mock_ctrl.start(keep_running=True)
 
 
 if __name__ == "__main__":
+    logging.info("main")
     loop = asyncio.get_event_loop()
     try:
+        logging.info("Calling main method")
         loop.run_until_complete(main())
     except (asyncio.CancelledError, KeyboardInterrupt):
         pass

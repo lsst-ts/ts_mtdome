@@ -1,3 +1,24 @@
+# This file is part of ts_Dome.
+#
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 __all__ = ["LlcStatus"]
 
 import logging
@@ -14,8 +35,9 @@ _NUM_MOTORS = 68
 class LcsStatus(BaseMockStatus):
     """Represents the status of the Louvers Control System in simulation mode.
 
-    If the position of a louver is non-zero, it is considered OPEN even if it only is 1% open. If the
-    position of a louver is zero, it is considered closed.
+    If the position of a louver is non-zero, it is considered OPEN even if it
+    only is 1% open. If the position of a louver is zero, it is considered
+    closed.
     """
 
     def __init__(self):
@@ -34,7 +56,8 @@ class LcsStatus(BaseMockStatus):
         self.power_draw = 0.0
 
     async def determine_status(self, current_tai):
-        """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
+        """Determine the status of the Lower Level Component and store it in
+        the llc_status `dict`.
         """
         time_diff = current_tai - self.command_time_tai
         self.log.debug(
@@ -64,8 +87,9 @@ class LcsStatus(BaseMockStatus):
         Parameters
         ----------
         position: array of float
-            An array with the positions (percentage) to set the louvers to. 0 means closed, 180 means wide
-            open, -1 means do not move. These limits are not checked.
+            An array with the positions (percentage) to set the louvers to. 0
+            means closed, 180 means wide open, -1 means do not move. These
+            limits are not checked.
         """
         self.command_time_tai = salobj.current_tai()
         for louver_id, pos in enumerate(position):

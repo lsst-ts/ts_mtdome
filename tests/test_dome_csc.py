@@ -1,3 +1,24 @@
+# This file is part of ts_Dome.
+#
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import asynctest
 import logging
 
@@ -12,24 +33,17 @@ NUM_LOUVERS = 34
 NUM_MON_SENSORS = 16
 NUM_THERMO_SENSORS = 16
 
-logging.basicConfig(
-    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
-)
+logging.basicConfig(format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG)
 
 
 class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
     def basic_make_csc(self, initial_state, config_dir, simulation_mode, **kwargs):
         return Dome.DomeCsc(
-            initial_state=initial_state,
-            config_dir=config_dir,
-            simulation_mode=simulation_mode,
-            mock_port=0,
+            initial_state=initial_state, config_dir=config_dir, simulation_mode=simulation_mode, mock_port=0,
         )
 
     async def test_standard_state_transitions(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
             await self.check_standard_state_transitions(
                 enabled_commands=(
                     "moveAz",
@@ -51,122 +65,78 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             )
 
     async def test_unsupported_command(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             try:
-                # This command is not supported by the DomeCsc so an Error should be returned by the
-                # controller leading to a KeyError in DomeCsc
-                await self.csc.write_then_read_reply(
-                    command="unsupported_command", parameters={}
-                )
+                # This command is not supported by the DomeCsc so an Error
+                # should be returned by the controller leading to a KeyError in
+                # DomeCsc
+                await self.csc.write_then_read_reply(command="unsupported_command", parameters={})
                 self.fail("Expected a KeyError.")
             except KeyError:
                 pass
 
     async def test_incorrect_parameter(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             try:
-                # This command is supported by the DomeCsc but it takes an argument so an Error should be
-                # returned by the controller leading to a ValueError in DomeCsc
+                # This command is supported by the DomeCsc but it takes an
+                # argument so an Error should be returned by the controller
+                # leading to a ValueError in DomeCsc
                 await self.csc.write_then_read_reply(command="moveAz", parameters={})
                 self.fail("Expected a ValueError.")
             except ValueError:
                 pass
 
     async def test_do_moveAz(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             desired_position = 40
             desired_velocity = 0.1
             await self.remote.cmd_moveAz.set_start(
-                position=desired_position,
-                velocity=desired_velocity,
-                timeout=STD_TIMEOUT,
+                position=desired_position, velocity=desired_velocity, timeout=STD_TIMEOUT,
             )
 
     async def test_do_moveEl(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             desired_position = 40
-            await self.remote.cmd_moveEl.set_start(
-                position=desired_position, timeout=STD_TIMEOUT
-            )
+            await self.remote.cmd_moveEl.set_start(position=desired_position, timeout=STD_TIMEOUT)
 
     async def test_do_stopAz(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             await self.remote.cmd_stopAz.set_start()
 
     async def test_do_stopEl(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             await self.remote.cmd_stopEl.set_start()
 
     async def test_do_stop(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             await self.remote.cmd_stop.set_start()
 
     async def test_do_crawlAz(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             desired_velocity = 0.1
             await self.remote.cmd_crawlAz.set_start(
                 velocity=desired_velocity, timeout=STD_TIMEOUT,
             )
 
     async def test_do_crawlEl(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             desired_velocity = 0.1
             await self.remote.cmd_crawlEl.set_start(
                 velocity=desired_velocity, timeout=STD_TIMEOUT,
             )
 
     async def test_do_setLouvers(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             louver_id = 5
             target_position = 100
             desired_position = np.full(NUM_LOUVERS, -1.0, dtype=float)
@@ -176,66 +146,38 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             )
 
     async def test_do_closeLouvers(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             await self.remote.cmd_closeLouvers.set_start()
 
     async def test_do_stopLouvers(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             await self.remote.cmd_stopLouvers.set_start()
 
     async def test_do_openShutter(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             await self.remote.cmd_openShutter.set_start()
 
     async def test_do_closeShutter(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             await self.remote.cmd_closeShutter.set_start()
 
     async def test_do_stopShutter(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             await self.remote.cmd_stopShutter.set_start()
 
     async def test_do_park(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             await self.remote.cmd_park.set_start()
 
     async def test_do_setTemperature(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             desired_temperature = 10.0
             await self.remote.cmd_setTemperature.set_start(
                 temperature=desired_temperature, timeout=STD_TIMEOUT,
@@ -245,9 +187,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1,
         ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
 
             # All values are below the limits.
             system = LlcName.AMCS.value
@@ -282,37 +222,24 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 pass
 
     async def test_fans(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
-            await self.csc.write_then_read_reply(
-                command="fans", action=Dome.OnOff.ON.name
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
+            await self.csc.write_then_read_reply(command="fans", action=Dome.OnOff.ON.name)
 
     async def test_inflate(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
-            await self.csc.write_then_read_reply(
-                command="inflate", action=Dome.OnOff.ON.name
-            )
+        async with self.make_csc(initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
+            await self.csc.write_then_read_reply(command="inflate", action=Dome.OnOff.ON.name)
 
     async def test_status(self):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1,
         ):
-            # It should be possible to always execute the status command but the connection with the lower
-            # level components only gets made in DISABLED and ENABLED state so that's why the state gets
-            # set to ENABLED here.
-            await salobj.set_summary_state(
-                remote=self.remote, state=salobj.State.ENABLED
-            )
+            # It should be possible to always execute the status command but
+            # the connection with the lower level components only gets made in
+            # DISABLED and ENABLED state  so that's why the state gets set to
+            # ENABLED here.
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
 
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]

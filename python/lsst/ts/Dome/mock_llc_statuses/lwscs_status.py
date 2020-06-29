@@ -1,3 +1,24 @@
+# This file is part of ts_Dome.
+#
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 __all__ = ["LwscsLimits"]
 
 import logging
@@ -14,14 +35,16 @@ _NUM_MOTORS = 2
 
 
 class LwscsStatus(BaseMockStatus):
-    """Represents the status of the Light and Wind Screen Control System in simulation mode.
+    """Represents the status of the Light and Wind Screen Control System in
+    simulation mode.
     """
 
     def __init__(self):
         super().__init__()
         self.log = logging.getLogger("MockLwscsStatus")
         self.lwscs_limits = LwscsLimits()
-        # default values which may be overriden by calling moveEl, crawlEl of config
+        # default values which may be overriden by calling moveEl, crawlEl or
+        # config
         self.jmax = self.lwscs_limits.jmax
         self.amax = self.lwscs_limits.amax
         self.vmax = self.lwscs_limits.vmax
@@ -45,7 +68,8 @@ class LwscsStatus(BaseMockStatus):
         self.power_draw = 0.0
 
     async def determine_status(self, current_tai):
-        """Determine the status of the Lower Level Component and store it in the llc_status `dict`.
+        """Determine the status of the Lower Level Component and store it in
+        the llc_status `dict`.
         """
         time_diff = float(current_tai - self.command_time_tai)
         if self.status != LlcStatus.STOPPED:
@@ -88,8 +112,8 @@ class LwscsStatus(BaseMockStatus):
         Parameters
         ----------
         position: `float`
-            The position (deg) to move to. 0 means point to the horizon and 180 point to the zenith. These
-            limits are not checked.
+            The position (deg) to move to. 0 means point to the horizon and 180
+            point to the zenith. These limits are not checked.
         """
         self.status = LlcStatus.MOVING
         self.position_orig = self.position_actual
@@ -100,13 +124,14 @@ class LwscsStatus(BaseMockStatus):
             self.motion_velocity = -self.vmax
 
     async def crawlEl(self, velocity):
-        """Crawl the light and wind screen in the given direction at the given velocity.
+        """Crawl the light and wind screen in the given direction at the given
+        velocity.
 
         Parameters
         ----------
         velocity: `float`
-            The velocity (deg/s) at which to crawl. The velocity is not checked against the velocity limits
-            for the light and wind screen.
+            The velocity (deg/s) at which to crawl. The velocity is not checked
+            against the velocity limits for the light and wind screen.
         """
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
