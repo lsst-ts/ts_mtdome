@@ -434,11 +434,17 @@ class MockDomeController:
         if system == LlcName.AMCS.value:
             for field in ("jmax", "amax", "vmax"):
                 if field in config:
-                    setattr(self.amcs.amcs_limits, field, config[field])
+                    # DM-25758: All config values are passed on as arrays so in
+                    # these cases we need to extract the only value in the
+                    # array.
+                    setattr(self.amcs.amcs_limits, field, config[field][0])
         elif system == LlcName.LWSCS.value:
             for field in ("jmax", "amax", "vmax"):
                 if field in config:
-                    setattr(self.lwscs.lwscs_limits, field, config[field])
+                    # DM-25758: All config values are passed on as arrays so in
+                    # these cases we need to extract the only value in the
+                    # array.
+                    setattr(self.lwscs.lwscs_limits, field, config[field][0])
         else:
             raise KeyError(f"Unknown system {system}.")
 

@@ -36,6 +36,18 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
         pass
 
     # noinspection PyMethodMayBeStatic
+    def extract_scalar_values_from_common_parameters(self, configuration_parameters):
+        # DM-25758: All config values are passed on as arrays so in these cases
+        # we need to extract the only value in the array.
+        config_params_without_arrays = {}
+        for field in configuration_parameters:
+            if field in ("jmax", "amax", "vmax"):
+                config_params_without_arrays[field] = configuration_parameters[field][0]
+            else:
+                config_params_without_arrays[field] = configuration_parameters[field]
+        return config_params_without_arrays
+
+    # noinspection PyMethodMayBeStatic
     def validate_common_parameters(self, configuration_parameters, common_limits):
         """Validate the data are against the configuration limits of the lower
         level component.
