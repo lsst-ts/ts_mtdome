@@ -34,7 +34,7 @@ Usage
 
 The primary classes are:
 
-* `DomeCsc`: controller for the auxiliary telescope dome.
+* `DomeCsc`: controller for the Simonyi Survey Telescope dome.
 * `MockDomeController`: simulator for the dome TCP/IP interface.
 
 Run the ``Dome`` controller  using ``bin/run_Dome.py`` (which only exists after you build the package).

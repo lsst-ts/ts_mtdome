@@ -14,12 +14,12 @@ First release of the Dome CSC and simulator.
 This version already includes many useful things:
 
 * A functioning Dome CSC which accepts all Dome Commands defined in ts_xml
-* A functioning mock controller which accepts al JSON-style commands sent by the Dome CSC
+* A functioning mock controller which accepts all JSON-style commands sent by the Dome CSC
 * Functioning basic mock Lower Level Components which report their statuses. The following functionality has been implemented:
 
   * Azimuth rotation: simulates moving and crawling by taking into account the velocity parameters. No acceleration is simulated.
   * Aperture shutter: simulates instantaneous opening and closing.
-  * Louvres: simluates instantaneous opening and closing.
+  * Louvers: simluates instantaneous opening and closing.
   * Light and Wind Screen: simulates moving and crawling by taking into account the velocity parameters. No acceleration is simulated.
   * Interlock Monitoring: only reports a status.
   * Temperature regulation: simulates instantaneous setting of the temperature

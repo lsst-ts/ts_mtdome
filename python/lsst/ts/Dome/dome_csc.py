@@ -46,8 +46,8 @@ _THCS_STATUS_PERIOD = 2.0
 
 
 class DomeCsc(salobj.ConfigurableCsc):
-    """Upper level Commandable SAL Component to interface with the LSST Dome
-    lower level components.
+    """Upper level Commandable SAL Component to interface with the Simonyi
+    Survey Telescope Dome lower level components.
 
     Parameters
     ----------
@@ -218,9 +218,10 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         Returns
         -------
-        configuration_parameters : `dict`
-            A dict of the form {"reply": {"param1": value1, "param2": value2}}
-            where "reply" can for instance be "OK" or "ERROR".
+        data : `dict`
+            A dict of the form {"response": ResponseCode, "timeout":
+            TimeoutValue} where "response" can be zero for "OK" or non-zero
+            for "ERROR".
          """
         command_dict = dict(command=command, parameters=params)
         st = encoding_tools.encode(**command_dict)
