@@ -834,7 +834,7 @@ class MockTestCase(asynctest.TestCase):
 
         parameters = {
             "system": LlcName.AMCS.value,
-            "settings": [{"jmax": amcs_jmax, "amax": amcs_amax, "vmax": amcs_vmax}],
+            "settings": [{"jmax": [amcs_jmax], "amax": [amcs_amax], "vmax": [amcs_vmax]}],
         }
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
@@ -843,7 +843,7 @@ class MockTestCase(asynctest.TestCase):
 
         parameters = {
             "system": LlcName.LWSCS.value,
-            "settings": [{"jmax": lwscs_jmax, "amax": lwscs_amax, "vmax": lwscs_vmax}],
+            "settings": [{"jmax": [lwscs_jmax], "amax": [lwscs_amax], "vmax": [lwscs_vmax]}],
         }
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
