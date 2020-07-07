@@ -28,8 +28,7 @@ This package has the following requirements:
 
 * ts_salobj
 
-The package is compatible with LSST DM's ``scons`` build system and ``eups`` package management system.
-Assuming you have the basic LSST DM stack installed you can do the following, from within the package directory:
+The package is compatible with LSST DM's ``scons`` build system and ``eups`` package management system. Assuming you have the basic LSST DM stack installed you can do the following, from within the package directory:
 
 * ``setup -r .`` to setup the package and dependencies.
 * ``scons`` to build the package and run unit tests.
@@ -54,8 +53,7 @@ Run the ``Dome`` controller  using ``bin/run_Dome.py`` (which only exists after 
 Contributing
 ============
 
-``lsst.ts.Dome`` is developed at https://github.com/lsst-ts/ts_Dome.
-You can find Jira issues for this module using `labels=ts_Dome <https://jira.lsstcorp.org/issues/?jql=project%20%3D%20DM%20AND%20labels%20%20%3D%20ts_Dome>`_.
+``lsst.ts.Dome`` is developed at https://github.com/lsst-ts/ts_Dome. You can find Jira issues for this module using `labels=ts_Dome <https://jira.lsstcorp.org/issues/?jql=project%20%3D%20DM%20AND%20labels%20%20%3D%20ts_Dome>`_.
 
 .. _lsst.ts.Dome-pyapi:
 
