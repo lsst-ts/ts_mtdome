@@ -10,8 +10,16 @@ Controller for the Simonyi Survey Telescope dome at Vera C. Rubin Observatory.
 
 .. _lsst.ts.Dome-using:
 
-Using lsst.ts.Dome
+Using lsst.ts.salobj
 ====================
+
+.. toctree::
+    protocols
+    commands
+    component_statuses
+    configuration_parameters
+    response_codes
+    :maxdepth: 2
 
 Build and Test
 --------------
