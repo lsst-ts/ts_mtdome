@@ -6,6 +6,17 @@
 Version History
 ###############
 
+v0.2.0
+======
+
+Added documentation regarding communication protocols, commands, response codes, component statuses and configuration parameters.
+
+Requires:
+
+* ts_salobj 5.15
+* ts_idl
+* IDL file for Dome from ts_xml 4.8
+
 v0.1.0
 ======
 
