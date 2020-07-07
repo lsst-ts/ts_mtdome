@@ -20,19 +20,19 @@ This document describes the commands that will be sent from the Upper Level DCS 
       - Unit
       - Remarks
     * - moveAz
-      - | azimuth
-        | azRate
+      - | position
+        | velocity
       - | double
         | double
       - | rad
         | rad/s
-      - | 0 <= azimuth < 2π
+      - | 0 <= position < 2π
         | Positive means in the direction of increasing azimuth, negative in the direction of decreasing azimuth.
     * - moveEl
-      - elevation
+      - position
       - double
       - rad
-      - 0 <= azimuth < ½π
+      - 0 <= position < ½π
     * - stopAz
       -
       -
@@ -49,12 +49,12 @@ This document describes the commands that will be sent from the Upper Level DCS 
       -
       -
     * - crawlAz
-      - azRate
+      - velocity
       - double
       - rad/s
       - Positive means in the direction of increasing azimuth, negative in the direction of decreasing azimuth.
     * - crawlEl
-      - elRate
+      - velocity
       - double
       - rad/s
       - Positive means in the direction of increasing elevation, negative in the direction of decreasing elevation.
