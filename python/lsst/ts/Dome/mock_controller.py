@@ -119,7 +119,9 @@ class MockDomeController:
             False.
         """
         self.log.info("Start called")
-        self._server = await asyncio.start_server(self.cmd_loop, host="127.0.0.1", port=self.port)
+        self._server = await asyncio.start_server(
+            self.cmd_loop, host="127.0.0.1", port=self.port
+        )
         # Request the assigned port from the server so the code starting the
         # mock controller can use it to connect.
         if self.port == 0:
@@ -294,7 +296,9 @@ class MockDomeController:
             The velocity, in deg/sec, to start crawling at once the position
             has been reached.
         """
-        self.log.info(f"Received command 'moveAz' with arguments position={position} and velocity={velocity}")
+        self.log.info(
+            f"Received command 'moveAz' with arguments position={position} and velocity={velocity}"
+        )
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
@@ -371,37 +375,39 @@ class MockDomeController:
             An array of positions, in percentage with 0 meaning closed and 100
             fully open, for each louver. A position of -1 means "do not move".
         """
-        self.log.info(f"Received command 'setLouvers' with argument position={position}")
+        self.log.info(
+            f"Received command 'setLouvers' with argument position={position}"
+        )
         await self.lcs.setLouvers(position)
 
     async def close_louvers(self):
         """Close all louvers.
         """
-        self.log.info(f"Received command 'closeLouvers'")
+        self.log.info("Received command 'closeLouvers'")
         await self.lcs.closeLouvers()
 
     async def stop_louvers(self):
         """Stop the motion of all louvers.
         """
-        self.log.info(f"Received command 'stopLouvers'")
+        self.log.info("Received command 'stopLouvers'")
         await self.lcs.stopLouvers()
 
     async def open_shutter(self):
         """Open the shutter.
         """
-        self.log.info(f"Received command 'openShutter'")
+        self.log.info("Received command 'openShutter'")
         await self.apscs.openShutter()
 
     async def close_shutter(self):
         """Close the shutter.
         """
-        self.log.info(f"Received command 'closeShutter'")
+        self.log.info("Received command 'closeShutter'")
         await self.apscs.closeShutter()
 
     async def stop_shutter(self):
         """Stop the motion of the shutter.
         """
-        self.log.info(f"Received command 'stopShutter'")
+        self.log.info("Received command 'stopShutter'")
         await self.apscs.stopShutter()
 
     async def config(self, system, settings):
@@ -429,7 +435,9 @@ class MockDomeController:
             It is assumed that all configuration parameters are present and
             that their values represent the value to set even unchanged.
         """
-        self.log.info(f"Received command 'config' with arguments system={system} and settings={settings}")
+        self.log.info(
+            f"Received command 'config' with arguments system={system} and settings={settings}"
+        )
         config = settings[0]
         if system == LlcName.AMCS.value:
             for field in ("jmax", "amax", "vmax"):
@@ -451,7 +459,7 @@ class MockDomeController:
     async def park(self):
         """Park the dome.
         """
-        self.log.info(f"Received command 'park'")
+        self.log.info("Received command 'park'")
         await self.amcs.park()
 
     async def set_temperature(self, temperature):
@@ -462,7 +470,9 @@ class MockDomeController:
         temperature: `float`
             The temperature, in degrees Celsius, to set.
         """
-        self.log.info(f"Received command 'setTemperature' with argument temperature={temperature}")
+        self.log.info(
+            f"Received command 'setTemperature' with argument temperature={temperature}"
+        )
         await self.thcs.setTemperature(temperature)
 
     async def inflate(self, action):

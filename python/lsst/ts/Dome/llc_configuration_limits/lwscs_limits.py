@@ -73,7 +73,8 @@ class LwscsLimits(CommonAmcsAndLwscsLimits):
         # This dict will hold the converted values which we will return at the
         # end of thius function if all validations are passed.
         converted_configuration_parameters = self.validate_common_parameters(
-            config_params_without_arrays, {"jmax": self.jmax, "amax": self.amax, "vmax": self.vmax},
+            config_params_without_arrays,
+            {"jmax": self.jmax, "amax": self.amax, "vmax": self.vmax},
         )
 
         # All configuration values fall within their limits and no unknown
