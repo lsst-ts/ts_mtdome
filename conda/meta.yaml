@@ -35,7 +35,7 @@ test:
     - ts-dds
     - ts-idl
     - ts-salobj
-    - black
+    - black == 19.10b0
   source_files:
     - python
     - bin

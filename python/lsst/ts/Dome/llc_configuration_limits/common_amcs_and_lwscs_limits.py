@@ -75,7 +75,9 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
         for key in common_limits.keys():
             # Validate the provided value  against the limit.
             if math.radians(configuration_parameters[key]) <= common_limits[key]:
-                converted_configuration_parameters[key] = math.radians(common_limits[key])
+                converted_configuration_parameters[key] = math.radians(
+                    common_limits[key]
+                )
             else:
                 # If the value is larger than the limit, raise a ValueError
                 raise ValueError(

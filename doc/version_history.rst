@@ -6,6 +6,20 @@
 Version History
 ###############
 
+v0.2.1
+======
+
+Reformat code with black.
+Fix f-strings with no string substitution.
+Pin black version in meta.yaml to 19.10b0
+
+Requires:
+
+* ts_salobj 5.15
+* ts_idl
+* IDL file for Dome from ts_xml 4.8
+
+
 v0.2.0
 ======
 

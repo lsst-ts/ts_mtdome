@@ -52,7 +52,11 @@ class ThcsStatus(BaseMockStatus):
             f"time_diff = {time_diff}"
         )
         self.llc_status = [
-            {"status": self.status.value, "temperature": self.temperature.tolist(), "timestamp": current_tai}
+            {
+                "status": self.status.value,
+                "temperature": self.temperature.tolist(),
+                "timestamp": current_tai,
+            }
         ]
         self.log.debug(f"thcs_state = {self.llc_status}")
 

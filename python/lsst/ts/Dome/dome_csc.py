@@ -62,9 +62,15 @@ class DomeCsc(salobj.ConfigurableCsc):
     """
 
     def __init__(
-        self, config_dir=None, initial_state=salobj.State.STANDBY, simulation_mode=0, mock_port=None,
+        self,
+        config_dir=None,
+        initial_state=salobj.State.STANDBY,
+        simulation_mode=0,
+        mock_port=None,
     ):
-        schema_path = pathlib.Path(__file__).resolve().parents[4].joinpath("schema", "Dome.yaml")
+        schema_path = (
+            pathlib.Path(__file__).resolve().parents[4].joinpath("schema", "Dome.yaml")
+        )
 
         self.reader = None
         self.writer = None
@@ -141,7 +147,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             (self.statusMonCS, _MONCS_STATUS_PERIOD),
             (self.statusThCS, _THCS_STATUS_PERIOD),
         ):
-            self.status_tasks.append(asyncio.create_task(self.one_status_loop(method, interval)))
+            self.status_tasks.append(
+                asyncio.create_task(self.one_status_loop(method, interval))
+            )
 
     async def disconnect(self):
         """Disconnect from the TCP/IP controller, if connected, and stop the
@@ -229,14 +237,18 @@ class DomeCsc(salobj.ConfigurableCsc):
             self.log.debug(f"Sending command {st}")
             self.writer.write(st.encode() + b"\r\n")
             await self.writer.drain()
-            read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT)
+            read_bytes = await asyncio.wait_for(
+                self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
+            )
             data = encoding_tools.decode(read_bytes.decode())
 
             response = data["response"]
             if response > ResponseCode.OK:
                 self.log.error(f"Received ERROR {data}.")
                 if response == ResponseCode.INCORRECT_PARAMETER:
-                    raise ValueError(f"The command {command} contains an incorrect parameter.")
+                    raise ValueError(
+                        f"The command {command} contains an incorrect parameter."
+                    )
                 elif response == ResponseCode.UNSUPPORTED_COMMAND:
                     raise KeyError(f"The command {command} is unsupported.")
 
@@ -255,7 +267,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             f"Moving Dome to azimuth {data.position} and then start crawling at azRate {data.velocity}"
         )
         await self.write_then_read_reply(
-            command="moveAz", position=math.radians(data.position), velocity=math.radians(data.velocity),
+            command="moveAz",
+            position=math.radians(data.position),
+            velocity=math.radians(data.velocity),
         )
 
     async def do_moveEl(self, data):
@@ -268,7 +282,9 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         self.log.debug(f"Moving LWS to elevation {data.position}")
-        await self.write_then_read_reply(command="moveEl", position=math.radians(data.position))
+        await self.write_then_read_reply(
+            command="moveEl", position=math.radians(data.position)
+        )
 
     async def do_stopAz(self, data):
         """Stop AZ.
@@ -312,7 +328,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply(command="crawlAz", velocity=math.radians(data.velocity))
+        await self.write_then_read_reply(
+            command="crawlAz", velocity=math.radians(data.velocity)
+        )
 
     async def do_crawlEl(self, data):
         """Crawl El.
@@ -323,7 +341,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply(command="crawlEl", velocity=math.radians(data.velocity))
+        await self.write_then_read_reply(
+            command="crawlEl", velocity=math.radians(data.velocity)
+        )
 
     async def do_setLouvers(self, data):
         """Set Louver.
@@ -411,7 +431,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply(command="setTemperature", temperature=data.temperature)
+        await self.write_then_read_reply(
+            command="setTemperature", temperature=data.temperature
+        )
 
     async def config_llcs(self, system, settings):
         """Config command not to be executed by SAL.
@@ -437,7 +459,9 @@ class DomeCsc(salobj.ConfigurableCsc):
         elif system == LlcName.LWSCS.value:
             self.lwscs_limits.validate(settings)
 
-        await self.write_then_read_reply(command="config", system=system, settings=[settings])
+        await self.write_then_read_reply(
+            command="config", system=system, settings=[settings]
+        )
 
     async def fans(self, data):
         """Fans command not to be executed by SAL.
@@ -563,7 +587,9 @@ class DomeCsc(salobj.ConfigurableCsc):
             removed.
         """
         dict_with_keys_removed = {
-            x: dict_with_too_many_keys[x] for x in dict_with_too_many_keys if x not in _KEYS_TO_REMOVE
+            x: dict_with_too_many_keys[x]
+            for x in dict_with_too_many_keys
+            if x not in _KEYS_TO_REMOVE
         }
         return dict_with_keys_removed
 
@@ -594,7 +620,9 @@ class DomeCsc(salobj.ConfigurableCsc):
 
     async def implement_simulation_mode(self, simulation_mode):
         if simulation_mode not in (0, 1):
-            raise salobj.ExpectedError(f"Simulation_mode={simulation_mode} must be 0 or 1")
+            raise salobj.ExpectedError(
+                f"Simulation_mode={simulation_mode} must be 0 or 1"
+            )
 
     async def one_status_loop(self, method, interval):
         """Run one status method forever at the specified interval.
@@ -630,7 +658,9 @@ class DomeCsc(salobj.ConfigurableCsc):
     @classmethod
     def add_arguments(cls, parser):
         super(DomeCsc, cls).add_arguments(parser)
-        parser.add_argument("-s", "--simulate", action="store_true", help="Run in simuation mode?")
+        parser.add_argument(
+            "-s", "--simulate", action="store_true", help="Run in simuation mode?"
+        )
 
     @classmethod
     def add_kwargs_from_args(cls, args, kwargs):

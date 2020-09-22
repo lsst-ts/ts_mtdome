@@ -80,7 +80,7 @@ class ApscsStatus(BaseMockStatus):
     async def openShutter(self):
         """Open the shutter.
         """
-        self.log.debug(f"Received command 'openShutter'")
+        self.log.debug("Received command 'openShutter'")
         self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.OPEN
         # Both positions are expressed in percentage.
@@ -90,7 +90,7 @@ class ApscsStatus(BaseMockStatus):
     async def closeShutter(self):
         """Close the shutter.
         """
-        self.log.debug(f"Received command 'closeShutter'")
+        self.log.debug("Received command 'closeShutter'")
         self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.CLOSED
         # Both positions are expressed in percentage.
@@ -100,6 +100,6 @@ class ApscsStatus(BaseMockStatus):
     async def stopShutter(self):
         """Stop all motion of the shutter.
         """
-        self.log.debug(f"Received command 'stopShutter'")
+        self.log.debug("Received command 'stopShutter'")
         self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.STOPPED
