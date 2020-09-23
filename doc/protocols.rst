@@ -78,11 +78,14 @@ and a reply to a status command should look like this
     {
       'response': 0,
       'AMCS': {
-        'status': 'Stopped',
-        'positionError': 0.0,
+        'status': {
+          'Error': ['No Errors'],
+          'status': 'Stopped',
+          'Fans': 'On',
+          'Inflate': 'On'
+        }
         'positionActual': 0,
         'positionCommanded': 0,
-        'velocityError': 0.0,
         'velocityActual': 0,
         'velocityCommmanded': 0,
         'driveTorqueActual': [0.0, 0.0, 0.0, 0.0, 0.0],
@@ -102,7 +105,7 @@ Configuration Protocol
 
 When configuration parameters are sent, the complete set of configuration parameters for one lower level component will be sent at the same time from the upper level to the lower level. This way the other sub-systems can continue operations while the sub-system(s) that receive configuration parameters can reconfigure themselves. This means that all parameters and their values of the sub-system will be sent together, even the ones for which the value has not changed. This way it can be ensured that always all changes are sent and that no parameter gets forgotten. The upper level component will check and verify that all parameter values fall within the minimum and maximum allowed values for each individual parameter. However, since actual hardware can break it would be necessary for the lower level components to check the configuration parameters as well before applying them.
 
-For the format of the protocol, we will use the same format as for the status command replies, with the exceptions that, due to limitations in the LabVIEW JSON support, both the value for the settings keyword and the values for the parameters always need to be arrays, even if only a single value is specified. So this means that the protocol will be of the form
+For the format of the protocol, the system gets specified separately and the configuration parameters to set are specified as an array of [target, setting] pairs. Due to limitations in the LabVIEW JSON support, both the value for the settings keyword and the values for the parameters always need to be arrays, even if only a single value is specified. So this means that the protocol will be of the form
 
 .. code-block:: none
 
@@ -112,9 +115,12 @@ For the format of the protocol, we will use the same format as for the status co
         "system": "SYSTEM_ID",
         "settings": [
             {
-              "Parameter1_name": [Value],
-              "Parameter2_name": [Value1,Value2,Value3,...],
-              ...
+              "target": "ParamX",
+              "setting": [Value1]
+            },
+            {
+              "target": "ParamY",
+              "setting": [Value1, Value2, Value3, ...]
             }
           ]
       }

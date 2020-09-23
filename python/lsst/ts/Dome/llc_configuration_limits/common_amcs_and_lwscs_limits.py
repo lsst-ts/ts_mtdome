@@ -22,8 +22,10 @@
 __all__ = ["CommonAmcsAndLwscsLimits"]
 
 from abc import abstractmethod
-from .abstract_limits import AbstractLimits
 import math
+import logging
+
+from .abstract_limits import AbstractLimits
 
 
 class CommonAmcsAndLwscsLimits(AbstractLimits):
@@ -34,18 +36,6 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
     @abstractmethod
     def validate(self, configuration_parameters):
         pass
-
-    # noinspection PyMethodMayBeStatic
-    def extract_scalar_values_from_common_parameters(self, configuration_parameters):
-        # DM-25758: All config values are passed on as arrays so in these cases
-        # we need to extract the only value in the array.
-        config_params_without_arrays = {}
-        for field in configuration_parameters:
-            if field in ("jmax", "amax", "vmax"):
-                config_params_without_arrays[field] = configuration_parameters[field][0]
-            else:
-                config_params_without_arrays[field] = configuration_parameters[field]
-        return config_params_without_arrays
 
     # noinspection PyMethodMayBeStatic
     def validate_common_parameters(self, configuration_parameters, common_limits):
@@ -70,25 +60,45 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
         """
         # This dict will hold the converted values which we will return at the
         # end of this function if all validations are passed.
-        converted_configuration_parameters = {}
+        converted_configuration_parameters = []
+        validated_keys = set()
+        logging.getLogger("CommonLimits").info(
+            f"Validating params {configuration_parameters}"
+        )
 
-        for key in common_limits.keys():
-            # Validate the provided value  against the limit.
-            if math.radians(configuration_parameters[key]) <= common_limits[key]:
-                converted_configuration_parameters[key] = math.radians(
-                    common_limits[key]
-                )
-            else:
-                # If the value is larger than the limit, raise a ValueError
-                raise ValueError(
-                    f"The value {configuration_parameters[key]} for {key} is larger than the "
-                    f"limit {common_limits[key]}."
-                )
+        for setting in configuration_parameters:
+            logging.getLogger("CommonLimits").info(f"Validating setting {setting}")
+            key = setting["target"]
+            value = setting["setting"]
+            converted_value = []
+            validated_keys.add(key)
+            for v in value:
+                # Validate the provided value against the limit.
+                if math.radians(v) <= common_limits[key]:
+                    converted_value.append(math.radians(v))
+                else:
+                    # If the value is larger than the limit, raise a ValueError
+                    raise ValueError(
+                        f"The value {key} for {setting} is larger than the "
+                        f"limit {common_limits[key]}."
+                    )
+            converted_configuration_parameters.append(
+                {"target": key, "setting": converted_value}
+            )
+
+        # Check if any key is missing
+        unchecked_keys = common_limits.keys() - validated_keys
+        if unchecked_keys:
+            # If yes then raise a KeyError because all parameters need to be
+            # present.
+            raise KeyError(
+                f"The set of configuration parameters is missing these {unchecked_keys}"
+            )
 
         # Check if any unknown configuration parameters remain.
-        extra_keys = set(configuration_parameters.keys()) - common_limits.keys()
+        extra_keys = validated_keys - common_limits.keys()
         if extra_keys:
-            # If yes then raise a ValueError.
+            # If yes then raise a KeyError.
             raise KeyError(
                 f"Found these unknown configuration parameters: {configuration_parameters.keys()}."
             )
@@ -96,4 +106,7 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
         # All configuration values fall within their limits and no unknown
         # configuration parameters were found so we can return the converted
         # values.
+        logging.getLogger("CommonLimits").info(
+            f"Returning validated params {converted_configuration_parameters}"
+        )
         return converted_configuration_parameters

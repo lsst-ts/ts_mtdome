@@ -64,21 +64,19 @@ class LcsStatus(BaseMockStatus):
             f"current_tai = {current_tai}, self.command_time_tai = {self.command_time_tai}, "
             f"time_diff = {time_diff}"
         )
-        self.llc_status = [
-            {
-                "status": self.status.tolist(),
-                "positionActual": self.position_actual.tolist(),
-                "positionCommanded": self.position_commanded.tolist(),
-                "driveTorqueActual": self.drive_torque_actual.tolist(),
-                "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
-                "driveCurrentActual": self.drive_current_actual.tolist(),
-                "driveTemperature": self.drive_temperature.tolist(),
-                "encoderHeadRaw": self.encoder_head_raw.tolist(),
-                "encoderHeadCalibrated": self.encoder_head_calibrated.tolist(),
-                "powerDraw": self.power_draw,
-                "timestamp": current_tai,
-            }
-        ]
+        self.llc_status = {
+            "status": self.status.tolist(),
+            "positionActual": self.position_actual.tolist(),
+            "positionCommanded": self.position_commanded.tolist(),
+            "driveTorqueActual": self.drive_torque_actual.tolist(),
+            "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
+            "driveCurrentActual": self.drive_current_actual.tolist(),
+            "driveTemperature": self.drive_temperature.tolist(),
+            "encoderHeadRaw": self.encoder_head_raw.tolist(),
+            "encoderHeadCalibrated": self.encoder_head_calibrated.tolist(),
+            "powerDraw": self.power_draw,
+            "timestampUTC": current_tai,
+        }
         self.log.debug(f"lcs_state = {self.llc_status}")
 
     async def setLouvers(self, position):
@@ -102,15 +100,13 @@ class LcsStatus(BaseMockStatus):
                 self.position_commanded[louver_id] = pos
 
     async def closeLouvers(self):
-        """Close all louvers.
-        """
+        """Close all louvers."""
         self.command_time_tai = salobj.current_tai()
         self.status[:] = LlcStatus.CLOSED.value
         self.position_actual[:] = 0.0
         self.position_commanded[:] = 0.0
 
     async def stopLouvers(self):
-        """Stop all motion of all louvers.
-        """
+        """Stop all motion of all louvers."""
         self.command_time_tai = salobj.current_tai()
         self.status[:] = LlcStatus.STOPPED.value

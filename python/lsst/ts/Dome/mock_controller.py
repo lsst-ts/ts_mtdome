@@ -438,21 +438,26 @@ class MockDomeController:
         self.log.info(
             f"Received command 'config' with arguments system={system} and settings={settings}"
         )
-        config = settings[0]
         if system == LlcName.AMCS.value:
-            for field in ("jmax", "amax", "vmax"):
-                if field in config:
-                    # DM-25758: All config values are passed on as arrays so in
+            # DM-26653: The structure of the settings variable has changed so
+            # we need slightly more complex code here. For info about the new
+            # structure, see the project docs at
+            # https://ts-dome.lsst.io/protocols.html#configuration-protocol
+            for field in settings:
+                if field["target"] in ("jmax", "amax", "vmax"):
+                    # DM-25758: All param values are passed on as arrays so in
                     # these cases we need to extract the only value in the
                     # array.
-                    setattr(self.amcs.amcs_limits, field, config[field][0])
+                    setattr(self.amcs.amcs_limits, field["target"], field["setting"][0])
         elif system == LlcName.LWSCS.value:
-            for field in ("jmax", "amax", "vmax"):
-                if field in config:
-                    # DM-25758: All config values are passed on as arrays so in
+            for field in settings:
+                if field["target"] in ("jmax", "amax", "vmax"):
+                    # DM-25758: All param values are passed on as arrays so in
                     # these cases we need to extract the only value in the
                     # array.
-                    setattr(self.lwscs.lwscs_limits, field, config[field][0])
+                    setattr(
+                        self.lwscs.lwscs_limits, field["target"], field["setting"][0]
+                    )
         else:
             raise KeyError(f"Unknown system {system}.")
 

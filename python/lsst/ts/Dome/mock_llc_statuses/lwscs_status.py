@@ -85,25 +85,23 @@ class LwscsStatus(BaseMockStatus):
                     self.position_orig = self.position_actual
                     self.position_actual = self.position_commanded
                     self.status = LlcStatus.STOPPED
-        self.llc_status = [
-            {
-                "status": self.status.value,
-                "positionActual": self.position_actual,
-                "positionCommanded": self.position_commanded,
-                "velocityActual": self.velocity_actual,
-                "velocityCommanded": self.velocity_commanded,
-                "driveTorqueActual": self.drive_torque_actual.tolist(),
-                "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
-                "driveCurrentActual": self.drive_current_actual.tolist(),
-                "driveTemperature": self.drive_temperature.tolist(),
-                "encoderHeadRaw": self.encoder_head_raw.tolist(),
-                "encoderHeadCalibrated": self.encoder_head_calibrated.tolist(),
-                "resolverRaw": self.resolver_raw.tolist(),
-                "resolverCalibrated": self.resolver_calibrated.tolist(),
-                "powerDraw": self.power_draw,
-                "timestamp": current_tai,
-            }
-        ]
+        self.llc_status = {
+            "status": self.status.value,
+            "positionActual": self.position_actual,
+            "positionCommanded": self.position_commanded,
+            "velocityActual": self.velocity_actual,
+            "velocityCommanded": self.velocity_commanded,
+            "driveTorqueActual": self.drive_torque_actual.tolist(),
+            "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
+            "driveCurrentActual": self.drive_current_actual.tolist(),
+            "driveTemperature": self.drive_temperature.tolist(),
+            "encoderHeadRaw": self.encoder_head_raw.tolist(),
+            "encoderHeadCalibrated": self.encoder_head_calibrated.tolist(),
+            "resolverRaw": self.resolver_raw.tolist(),
+            "resolverCalibrated": self.resolver_calibrated.tolist(),
+            "powerDraw": self.power_draw,
+            "timestampUTC": current_tai,
+        }
         self.log.debug(f"lwscs_state = {self.llc_status}")
 
     async def moveEl(self, position):
@@ -143,7 +141,6 @@ class LwscsStatus(BaseMockStatus):
             self.position_commanded = 0
 
     async def stopEl(self):
-        """Stop moving the light and wind screen.
-        """
+        """Stop moving the light and wind screen."""
         self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.STOPPED

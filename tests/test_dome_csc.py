@@ -274,12 +274,20 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             # All values are below the limits.
             system = LlcName.AMCS.value
-            settings = {"jmax": [1.0], "amax": [0.5], "vmax": [1.0]}
+            settings = [
+                {"target": "jmax", "setting": [1.0]},
+                {"target": "amax", "setting": [0.5]},
+                {"target": "vmax", "setting": [1.0]},
+            ]
             await self.csc.config_llcs(system, settings)
 
             # The value of AMCS amax is too high.
             system = LlcName.AMCS.value
-            settings = {"jmax": [1.0], "amax": [1.0], "vmax": [1.0]}
+            settings = [
+                {"target": "jmax", "setting": [1.0]},
+                {"target": "amax", "setting": [1.0]},
+                {"target": "vmax", "setting": [1.0]},
+            ]
             try:
                 await self.csc.config_llcs(system, settings)
                 self.fail("Expected a ValueError.")
@@ -288,7 +296,12 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             # The param AMCS smax doesn't exist.
             system = LlcName.AMCS.value
-            settings = {"jmax": [1.0], "amax": [0.5], "vmax": [1.0], "smax": [1.0]}
+            settings = [
+                {"target": "jmax", "setting": [1.0]},
+                {"target": "amax", "setting": [0.5]},
+                {"target": "vmax", "setting": [1.0]},
+                {"target": "smax", "setting": [1.0]},
+            ]
             try:
                 await self.csc.config_llcs(system, settings)
                 self.fail("Expected a KeyError.")
@@ -297,7 +310,10 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             # No parameter can be missing.
             system = LlcName.AMCS.value
-            settings = {"jmax": [1.0], "amax": [0.5]}
+            settings = [
+                {"target": "jmax", "setting": [1.0]},
+                {"target": "amax", "setting": [0.5]},
+            ]
             try:
                 await self.csc.config_llcs(system, settings)
                 self.fail("Expected a KeyError.")
@@ -341,7 +357,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(
-                amcs_status["status"], Dome.LlcStatus.STOPPED.value,
+                amcs_status["status"]["status"], Dome.LlcStatus.STOPPED.value,
             )
             self.assertEqual(
                 amcs_status["positionActual"], 0,

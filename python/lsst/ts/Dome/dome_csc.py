@@ -34,7 +34,8 @@ from .response_code import ResponseCode
 
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout in s to be used by this module
-_KEYS_TO_REMOVE = {"status"}
+# DM-26653: Added "positionError" since this key is still under discussion.
+_KEYS_TO_REMOVE = {"status", "positionError"}
 _KEYS_IN_RADIANS = {"positionError", "positionActual", "positionCommanded"}
 
 _AMCS_STATUS_PERIOD = 0.2
@@ -56,10 +57,24 @@ class DomeCsc(salobj.ConfigurableCsc):
     initial_state : `salobj.State`
         The initial state of the CSC
     simulation_mode : `int`
-        Simulation mode (1) or not (0)
+        Simulation mode. Allowed values:
+
+        * 0: regular operation.
+        * 1: simulation: use a mock low level HVAC controller.
     mock_port : `int`
         The port that the mock controller will listen on
+
+    Notes
+    -----
+    **Simulation Modes**
+
+    Supported simulation modes:
+
+    * 0: regular operation
+    * 1: simulation mode: start a mock TCP/IP Dome controller and talk to it
     """
+
+    valid_simulation_modes = (0, 1)
 
     def __init__(
         self,
@@ -97,8 +112,7 @@ class DomeCsc(salobj.ConfigurableCsc):
 
         self.amcs_limits = AmcsLimits()
         self.lwscs_limits = LwscsLimits()
-
-        self.log.info("__init__")
+        self.log.info("DomeCsc constructed")
 
     async def connect(self):
         """Connect to the dome controller's TCP/IP port.
@@ -136,8 +150,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             self.status_tasks.pop().cancel()
 
     async def start_status_tasks(self):
-        """Start all status tasks
-        """
+        """Start all status tasks."""
         await self.cancel_status_tasks()
         for method, interval in (
             (self.statusAMCS, _AMCS_STATUS_PERIOD),
@@ -194,8 +207,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             raise
 
     async def stop_mock_ctrl(self):
-        """Stop the mock controller, if running.
-        """
+        """Stop the mock controller, if running."""
         self.log.info("stop_mock_ctrl")
         mock_ctrl = self.mock_ctrl
         self.mock_ctrl = None
@@ -230,7 +242,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             A dict of the form {"response": ResponseCode, "timeout":
             TimeoutValue} where "response" can be zero for "OK" or non-zero
             for "ERROR".
-         """
+        """
         command_dict = dict(command=command, parameters=params)
         st = encoding_tools.encode(**command_dict)
         async with self.communication_lock:
@@ -241,6 +253,7 @@ class DomeCsc(salobj.ConfigurableCsc):
                 self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
             )
             data = encoding_tools.decode(read_bytes.decode())
+            self.log.debug(f"Received reply {data}")
 
             response = data["response"]
             if response > ResponseCode.OK:
@@ -454,13 +467,15 @@ class DomeCsc(salobj.ConfigurableCsc):
                 "vmax"
 
         """
+        self.log.info(f"Settings before validation {settings}")
         if system == LlcName.AMCS.value:
             self.amcs_limits.validate(settings)
         elif system == LlcName.LWSCS.value:
             self.lwscs_limits.validate(settings)
+        self.log.info(f"Settings after validation {settings}")
 
         await self.write_then_read_reply(
-            command="config", system=system, settings=[settings]
+            command="config", system=system, settings=settings
         )
 
     async def fans(self, data):
@@ -554,13 +569,17 @@ class DomeCsc(salobj.ConfigurableCsc):
         command = f"status{llc_name.value}"
         status = await self.write_then_read_reply(command=command)
         # Store the status for unit tests.
-        self.lower_level_status[llc_name.value] = status[llc_name.value][0]
+        self.lower_level_status[llc_name.value] = status[llc_name.value]
 
         telemetry_in_degrees = {}
-        telemetry_in_radians = status[llc_name.value][0]
+        telemetry_in_radians = status[llc_name.value]
         for key in telemetry_in_radians.keys():
             if key in _KEYS_IN_RADIANS and llc_name in [LlcName.AMCS, LlcName.LWSCS]:
                 telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
+            elif key == "timestampUTC":
+                # DM-26653: The name of this parameter is still under
+                # discussion.
+                telemetry_in_degrees["timestamp"] = telemetry_in_radians["timestampUTC"]
             else:
                 # No conversion needed since the value does not express an
                 # angle
@@ -618,12 +637,6 @@ class DomeCsc(salobj.ConfigurableCsc):
     async def configure(self, config):
         self.config = config
 
-    async def implement_simulation_mode(self, simulation_mode):
-        if simulation_mode not in (0, 1):
-            raise salobj.ExpectedError(
-                f"Simulation_mode={simulation_mode} must be 0 or 1"
-            )
-
     async def one_status_loop(self, method, interval):
         """Run one status method forever at the specified interval.
 
@@ -654,15 +667,3 @@ class DomeCsc(salobj.ConfigurableCsc):
     @staticmethod
     def get_config_pkg():
         return "ts_config_mttcs"
-
-    @classmethod
-    def add_arguments(cls, parser):
-        super(DomeCsc, cls).add_arguments(parser)
-        parser.add_argument(
-            "-s", "--simulate", action="store_true", help="Run in simuation mode?"
-        )
-
-    @classmethod
-    def add_kwargs_from_args(cls, args, kwargs):
-        super(DomeCsc, cls).add_kwargs_from_args(args, kwargs)
-        kwargs["simulation_mode"] = 1 if args.simulate else 0

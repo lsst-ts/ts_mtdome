@@ -60,26 +60,23 @@ class ApscsStatus(BaseMockStatus):
             f"current_tai = {current_tai}, self.command_time_tai = {self.command_time_tai}, "
             f"time_diff = {time_diff}"
         )
-        self.llc_status = [
-            {
-                "status": self.status.value,
-                "positionActual": self.position_actual,
-                "positionCommanded": self.position_commanded,
-                "driveTorqueActual": self.drive_torque_actual.tolist(),
-                "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
-                "driveCurrentActual": self.drive_current_actual.tolist(),
-                "driveTemperature": self.drive_temperature.tolist(),
-                "resolverHeadRaw": self.resolver_head_raw.tolist(),
-                "resolverHeadCalibrated": self.resolver_head_calibrated.tolist(),
-                "powerDraw": self.power_draw,
-                "timestamp": current_tai,
-            }
-        ]
+        self.llc_status = {
+            "status": self.status.value,
+            "positionActual": self.position_actual,
+            "positionCommanded": self.position_commanded,
+            "driveTorqueActual": self.drive_torque_actual.tolist(),
+            "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
+            "driveCurrentActual": self.drive_current_actual.tolist(),
+            "driveTemperature": self.drive_temperature.tolist(),
+            "resolverHeadRaw": self.resolver_head_raw.tolist(),
+            "resolverHeadCalibrated": self.resolver_head_calibrated.tolist(),
+            "powerDraw": self.power_draw,
+            "timestampUTC": current_tai,
+        }
         self.log.debug(f"apcs_state = {self.llc_status}")
 
     async def openShutter(self):
-        """Open the shutter.
-        """
+        """Open the shutter."""
         self.log.debug("Received command 'openShutter'")
         self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.OPEN
@@ -88,8 +85,7 @@ class ApscsStatus(BaseMockStatus):
         self.position_commanded = 100.0
 
     async def closeShutter(self):
-        """Close the shutter.
-        """
+        """Close the shutter."""
         self.log.debug("Received command 'closeShutter'")
         self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.CLOSED
@@ -98,8 +94,7 @@ class ApscsStatus(BaseMockStatus):
         self.position_commanded = 0.0
 
     async def stopShutter(self):
-        """Stop all motion of the shutter.
-        """
+        """Stop all motion of the shutter."""
         self.log.debug("Received command 'stopShutter'")
         self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.STOPPED
