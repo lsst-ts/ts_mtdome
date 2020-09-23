@@ -51,13 +51,11 @@ class ThcsStatus(BaseMockStatus):
             f"current_tai = {current_tai}, self.command_time_tai = {self.command_time_tai}, "
             f"time_diff = {time_diff}"
         )
-        self.llc_status = [
-            {
-                "status": self.status.value,
-                "temperature": self.temperature.tolist(),
-                "timestamp": current_tai,
-            }
-        ]
+        self.llc_status = {
+            "status": self.status.value,
+            "temperature": self.temperature.tolist(),
+            "timestampUTC": current_tai,
+        }
         self.log.debug(f"thcs_state = {self.llc_status}")
 
     async def setTemperature(self, temperature):

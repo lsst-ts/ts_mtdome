@@ -175,9 +175,9 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + time_diff
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value][0]
+        amcs_status = self.data[LlcName.AMCS.value]
         self.assertEqual(
-            amcs_status["status"], expected_status.value,
+            amcs_status["status"]["status"], expected_status.value,
         )
         if expected_status == Dome.LlcStatus.MOVING:
             self.assertAlmostEqual(amcs_status["positionActual"], expected_position)
@@ -334,9 +334,9 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value][0]
+        amcs_status = self.data[LlcName.AMCS.value]
         self.assertEqual(
-            amcs_status["status"], Dome.LlcStatus.CRAWLING.value,
+            amcs_status["status"]["status"], Dome.LlcStatus.CRAWLING.value,
         )
         self.assertGreaterEqual(
             amcs_status["positionActual"], math.radians(0.05),
@@ -366,9 +366,9 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value][0]
+        amcs_status = self.data[LlcName.AMCS.value]
         self.assertEqual(
-            amcs_status["status"], Dome.LlcStatus.MOVING.value,
+            amcs_status["status"]["status"], Dome.LlcStatus.MOVING.value,
         )
         self.assertGreaterEqual(
             amcs_status["positionActual"], math.radians(0.5),
@@ -386,9 +386,9 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value][0]
+        amcs_status = self.data[LlcName.AMCS.value]
         self.assertEqual(
-            amcs_status["status"], Dome.LlcStatus.STOPPED.value,
+            amcs_status["status"]["status"], Dome.LlcStatus.STOPPED.value,
         )
         self.assertGreaterEqual(
             amcs_status["positionActual"], math.radians(1.0),
@@ -414,7 +414,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value][0]
+        lwscs_status = self.data[LlcName.LWSCS.value]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.MOVING.value,
         )
@@ -429,7 +429,7 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value][0]
+        lwscs_status = self.data[LlcName.LWSCS.value]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.MOVING.value,
         )
@@ -444,7 +444,7 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value][0]
+        lwscs_status = self.data[LlcName.LWSCS.value]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
@@ -469,7 +469,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value][0]
+        lwscs_status = self.data[LlcName.LWSCS.value]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.MOVING.value,
         )
@@ -489,7 +489,7 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value][0]
+        lwscs_status = self.data[LlcName.LWSCS.value]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
@@ -553,25 +553,25 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.AMCS.value][0]
+        status = self.data[LlcName.AMCS.value]
         self.assertEqual(
-            status["status"], Dome.LlcStatus.STOPPED.value,
+            status["status"]["status"], Dome.LlcStatus.STOPPED.value,
         )
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.APSCS.value][0]
+        status = self.data[LlcName.APSCS.value]
         self.assertEqual(
             status["status"], Dome.LlcStatus.STOPPED.value,
         )
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.LCS.value][0]
+        status = self.data[LlcName.LCS.value]
         self.assertEqual(
             status["status"], [Dome.LlcStatus.STOPPED.value] * _NUM_LOUVERS,
         )
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.LWSCS.value][0]
+        status = self.data[LlcName.LWSCS.value]
         self.assertEqual(
             status["status"], Dome.LlcStatus.STOPPED.value,
         )
@@ -593,7 +593,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value][0]
+        lwscs_status = self.data[LlcName.LWSCS.value]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.CRAWLING.value,
         )
@@ -659,7 +659,7 @@ class MockTestCase(asynctest.TestCase):
 
         # See mock_llc_statuses.lcs_status for what the structure of lcs_status
         # looks like as well as for the meaning of LlcStatus.
-        lcs_status = self.data[LlcName.LCS.value][0]
+        lcs_status = self.data[LlcName.LCS.value]
         for index, status in enumerate(lcs_status["status"]):
             if index in louver_ids:
                 if target_positions[louver_ids.index(index)] > 0:
@@ -713,7 +713,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        lcs_status = self.data[LlcName.LCS.value][0]
+        lcs_status = self.data[LlcName.LCS.value]
         self.assertEqual(
             lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * _NUM_LOUVERS,
         )
@@ -754,7 +754,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        lcs_status = self.data[LlcName.LCS.value][0]
+        lcs_status = self.data[LlcName.LCS.value]
         self.assertEqual(
             lcs_status["status"], [Dome.LlcStatus.STOPPED.value] * _NUM_LOUVERS,
         )
@@ -787,7 +787,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        apscs_status = self.data[LlcName.APSCS.value][0]
+        apscs_status = self.data[LlcName.APSCS.value]
         self.assertEqual(
             apscs_status["status"], Dome.LlcStatus.OPEN.value,
         )
@@ -814,7 +814,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        apscs_status = self.data[LlcName.APSCS.value][0]
+        apscs_status = self.data[LlcName.APSCS.value]
         self.assertEqual(
             apscs_status["status"], Dome.LlcStatus.CLOSED.value,
         )
@@ -849,7 +849,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        apscs_status = self.data[LlcName.APSCS.value][0]
+        apscs_status = self.data[LlcName.APSCS.value]
         self.assertEqual(
             apscs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
@@ -871,8 +871,17 @@ class MockTestCase(asynctest.TestCase):
         parameters = {
             "system": LlcName.AMCS.value,
             "settings": [
-                {"jmax": [amcs_jmax], "amax": [amcs_amax], "vmax": [amcs_vmax]}
-            ],
+                {
+                    "target": "jmax",
+                    "setting": [amcs_jmax]
+                }, {
+                    "target": "amax",
+                    "setting": [amcs_amax]
+                }, {
+                    "target": "vmax",
+                    "setting": [amcs_vmax]
+                }
+            ]
         }
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
@@ -882,8 +891,17 @@ class MockTestCase(asynctest.TestCase):
         parameters = {
             "system": LlcName.LWSCS.value,
             "settings": [
-                {"jmax": [lwscs_jmax], "amax": [lwscs_amax], "vmax": [lwscs_vmax]}
-            ],
+                {
+                    "target": "jmax",
+                    "setting": [lwscs_jmax]
+                }, {
+                    "target": "amax",
+                    "setting": [lwscs_amax]
+                }, {
+                    "target": "vmax",
+                    "setting": [lwscs_vmax]
+                }
+            ]
         }
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
@@ -926,9 +944,9 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value][0]
+        amcs_status = self.data[LlcName.AMCS.value]
         self.assertEqual(
-            amcs_status["status"], Dome.LlcStatus.PARKED.value,
+            amcs_status["status"]["status"], Dome.LlcStatus.PARKED.value,
         )
         self.assertEqual(
             amcs_status["positionActual"], 0,
@@ -956,7 +974,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusThCS", parameters={})
         self.data = await self.read()
-        thcs_status = self.data[LlcName.THCS.value][0]
+        thcs_status = self.data[LlcName.THCS.value]
         self.assertEqual(
             thcs_status["status"], Dome.LlcStatus.ENABLED.value,
         )
@@ -987,9 +1005,9 @@ class MockTestCase(asynctest.TestCase):
     async def test_status(self):
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value][0]
+        amcs_status = self.data[LlcName.AMCS.value]
         self.assertEqual(
-            amcs_status["status"], Dome.LlcStatus.STOPPED.value,
+            amcs_status["status"]["status"], Dome.LlcStatus.STOPPED.value,
         )
         self.assertEqual(
             amcs_status["positionActual"], 0,
@@ -997,7 +1015,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        apscs_status = self.data[LlcName.APSCS.value][0]
+        apscs_status = self.data[LlcName.APSCS.value]
         self.assertEqual(
             apscs_status["status"], Dome.LlcStatus.CLOSED.value,
         )
@@ -1007,7 +1025,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        lcs_status = self.data[LlcName.LCS.value][0]
+        lcs_status = self.data[LlcName.LCS.value]
         self.assertEqual(
             lcs_status["status"], [Dome.LlcStatus.CLOSED.value] * _NUM_LOUVERS,
         )
@@ -1017,7 +1035,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value][0]
+        lwscs_status = self.data[LlcName.LWSCS.value]
         self.assertEqual(
             lwscs_status["status"], Dome.LlcStatus.STOPPED.value,
         )
@@ -1027,7 +1045,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusMonCS", parameters={})
         self.data = await self.read()
-        moncs_status = self.data[LlcName.MONCS.value][0]
+        moncs_status = self.data[LlcName.MONCS.value]
         self.assertEqual(
             moncs_status["status"], Dome.LlcStatus.DISABLED.value,
         )
@@ -1037,7 +1055,7 @@ class MockTestCase(asynctest.TestCase):
 
         await self.write(command="statusThCS", parameters={})
         self.data = await self.read()
-        thcs_status = self.data[LlcName.THCS.value][0]
+        thcs_status = self.data[LlcName.THCS.value]
         self.assertEqual(
             thcs_status["status"], Dome.LlcStatus.DISABLED.value,
         )

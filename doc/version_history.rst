@@ -6,12 +6,25 @@
 Version History
 ###############
 
+v0.3.0
+======
+
+| The statuses from the lower level components are not a dict in a list but a dict.
+| The configuration protocol no longer has [key, value] pairs, but {target: key, setting: value} dicts.
+
+Requires:
+
+* ts_salobj 5.15
+* ts_idl
+* IDL file for Dome from ts_xml 4.8
+
+
 v0.2.1
 ======
 
-Reformat code with black.
-Fix f-strings with no string substitution.
-Pin black version in meta.yaml to 19.10b0
+| Reformat code with black.
+| Fix f-strings with no string substitution.
+| Pin black version in meta.yaml to 19.10b0
 
 Requires:
 

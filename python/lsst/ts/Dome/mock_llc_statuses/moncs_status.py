@@ -50,11 +50,9 @@ class MoncsStatus(BaseMockStatus):
             f"current_tai = {current_tai}, self.command_time_tai = {self.command_time_tai}, "
             f"time_diff = {time_diff}"
         )
-        self.llc_status = [
-            {
-                "status": self.status.value,
-                "data": self.data.tolist(),
-                "timestamp": current_tai,
-            }
-        ]
+        self.llc_status = {
+            "status": self.status.value,
+            "data": self.data.tolist(),
+            "timestampUTC": current_tai,
+        }
         self.log.debug(f"moncs_state = {self.llc_status}")

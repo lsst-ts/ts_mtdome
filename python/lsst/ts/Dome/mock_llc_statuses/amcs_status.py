@@ -37,7 +37,7 @@ _NUM_MOTORS = 5
 
 class AmcsStatus(BaseMockStatus):
     """Represents the status of the Azimuth Motion Control System in simulation
-     mode.
+    mode.
     """
 
     def __init__(self):
@@ -132,24 +132,30 @@ class AmcsStatus(BaseMockStatus):
                     )
                 else:
                     raise ValueError(f"Unknown state {self.status.value}")
-        self.llc_status = [
-            {
+        self.llc_status = {
+            "status": {
+                "Error": ["No Error"],
                 "status": self.status.value,
-                "positionActual": self.position_actual,
-                "positionCommanded": self.position_commanded,
-                "velocityActual": self.velocity_actual,
-                "velocityCommanded": self.velocity_commanded,
-                "driveTorqueActual": self.drive_torque_actual.tolist(),
-                "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
-                "driveCurrentActual": self.drive_current_actual.tolist(),
-                "driveTemperature": self.drive_temperature.tolist(),
-                "encoderHeadRaw": self.encoder_head_raw.tolist(),
-                "encoderHeadCalibrated": self.encoder_head_calibrated.tolist(),
-                "resolverRaw": self.resolver_raw.tolist(),
-                "resolverCalibrated": self.resolver_calibrated.tolist(),
-                "timestamp": current_tai,
-            }
-        ]
+                "Fans": self.fans_enabled.name,
+                "Inflate": self.seal_inflated.name
+            },
+            "positionActual": self.position_actual,
+            "positionCommanded": self.position_commanded,
+            "velocityActual": self.velocity_actual,
+            "velocityCommanded": self.velocity_commanded,
+            "driveTorqueActual": self.drive_torque_actual.tolist(),
+            "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
+            "driveCurrentActual": self.drive_current_actual.tolist(),
+            "driveTemperature": self.drive_temperature.tolist(),
+            "encoderHeadRaw": self.encoder_head_raw.tolist(),
+            "encoderHeadCalibrated": self.encoder_head_calibrated.tolist(),
+            "resolverRaw": self.resolver_raw.tolist(),
+            "resolverCalibrated": self.resolver_calibrated.tolist(),
+            # DM-26653: The name of this key is still under discussion and
+            # could be modified to "timestampUTC"
+            "timestamp": current_tai,
+        }
+
         self.log.debug(f"amcs_state = {self.llc_status}")
 
     async def moveAz(self, position, velocity):
@@ -198,14 +204,12 @@ class AmcsStatus(BaseMockStatus):
             self.position_commanded = -math.inf
 
     async def stopAz(self):
-        """Stop all motion of the dome.
-        """
+        """Stop all motion of the dome."""
         self.command_time_tai = salobj.current_tai()
         self.status = LlcStatus.STOPPED
 
     async def park(self):
-        """Park the dome, meaning that it will be moved to azimuth 0.
-        """
+        """Park the dome, meaning that it will be moved to azimuth 0."""
         self.status = LlcStatus.PARKING
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
