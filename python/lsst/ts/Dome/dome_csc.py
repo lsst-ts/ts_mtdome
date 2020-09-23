@@ -63,7 +63,18 @@ class DomeCsc(salobj.ConfigurableCsc):
         * 1: simulation: use a mock low level HVAC controller.
     mock_port : `int`
         The port that the mock controller will listen on
+
+    Notes
+    -----
+    **Simulation Modes**
+
+    Supported simulation modes:
+
+    * 0: regular operation
+    * 1: simulation mode: start a mock TCP/IP Dome controller and talk to it
     """
+
+    valid_simulation_modes = (0, 1)
 
     def __init__(
         self,
@@ -72,10 +83,9 @@ class DomeCsc(salobj.ConfigurableCsc):
         simulation_mode=0,
         mock_port=None,
     ):
-        if simulation_mode not in (0, 1):
-            raise salobj.ExpectedError(f"Simulation_mode={simulation_mode} must be 0 or 1")
-
-        schema_path = pathlib.Path(__file__).resolve().parents[4].joinpath("schema", "Dome.yaml")
+        schema_path = (
+            pathlib.Path(__file__).resolve().parents[4].joinpath("schema", "Dome.yaml")
+        )
 
         self.reader = None
         self.writer = None
@@ -648,9 +658,6 @@ class DomeCsc(salobj.ConfigurableCsc):
         except Exception:
             self.log.exception(f"one_status_loop({method}) failed")
 
-    async def implement_simulation_mode(self, simulation_mode):
-        pass
-
     @property
     def connected(self):
         if None in (self.reader, self.writer):
@@ -660,15 +667,3 @@ class DomeCsc(salobj.ConfigurableCsc):
     @staticmethod
     def get_config_pkg():
         return "ts_config_mttcs"
-
-    @classmethod
-    def add_arguments(cls, parser):
-        super(DomeCsc, cls).add_arguments(parser)
-        parser.add_argument(
-            "-s", "--simulate", action="store_true", help="Run in simuation mode?"
-        )
-
-    @classmethod
-    def add_kwargs_from_args(cls, args, kwargs):
-        super(DomeCsc, cls).add_kwargs_from_args(args, kwargs)
-        kwargs["simulation_mode"] = 1 if args.simulate else 0

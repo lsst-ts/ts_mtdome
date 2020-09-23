@@ -14,7 +14,7 @@ v0.3.0
 
 Requires:
 
-* ts_salobj 5.15
+* ts_salobj 6.0
 * ts_idl
 * IDL file for Dome from ts_xml 4.8
 

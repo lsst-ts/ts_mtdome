@@ -10,7 +10,7 @@ pipeline {
             steps {
                 script {
                     sh """
-                    docker pull lsstts/salobj:develop
+                    docker pull lsstts/develop-env:develop
                     """
                 }
             }

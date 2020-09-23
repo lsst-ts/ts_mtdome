@@ -275,32 +275,18 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             # All values are below the limits.
             system = LlcName.AMCS.value
             settings = [
-                {
-                    "target": "jmax",
-                    "setting": [1.0]
-                }, {
-                    "target": "amax",
-                    "setting": [0.5]
-                }, {
-                    "target": "vmax",
-                    "setting": [1.0]
-                }
+                {"target": "jmax", "setting": [1.0]},
+                {"target": "amax", "setting": [0.5]},
+                {"target": "vmax", "setting": [1.0]},
             ]
             await self.csc.config_llcs(system, settings)
 
             # The value of AMCS amax is too high.
             system = LlcName.AMCS.value
             settings = [
-                {
-                    "target": "jmax",
-                    "setting": [1.0]
-                }, {
-                    "target": "amax",
-                    "setting": [1.0]
-                }, {
-                    "target": "vmax",
-                    "setting": [1.0]
-                }
+                {"target": "jmax", "setting": [1.0]},
+                {"target": "amax", "setting": [1.0]},
+                {"target": "vmax", "setting": [1.0]},
             ]
             try:
                 await self.csc.config_llcs(system, settings)
@@ -311,19 +297,10 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             # The param AMCS smax doesn't exist.
             system = LlcName.AMCS.value
             settings = [
-                {
-                    "target": "jmax",
-                    "setting": [1.0]
-                }, {
-                    "target": "amax",
-                    "setting": [0.5]
-                }, {
-                    "target": "vmax",
-                    "setting": [1.0]
-                }, {
-                    "target": "smax",
-                    "setting": [1.0]
-                }
+                {"target": "jmax", "setting": [1.0]},
+                {"target": "amax", "setting": [0.5]},
+                {"target": "vmax", "setting": [1.0]},
+                {"target": "smax", "setting": [1.0]},
             ]
             try:
                 await self.csc.config_llcs(system, settings)
@@ -334,13 +311,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             # No parameter can be missing.
             system = LlcName.AMCS.value
             settings = [
-                {
-                    "target": "jmax",
-                    "setting": [1.0]
-                }, {
-                    "target": "amax",
-                    "setting": [0.5]
-                }
+                {"target": "jmax", "setting": [1.0]},
+                {"target": "amax", "setting": [0.5]},
             ]
             try:
                 await self.csc.config_llcs(system, settings)

@@ -137,7 +137,7 @@ class AmcsStatus(BaseMockStatus):
                 "Error": ["No Error"],
                 "status": self.status.value,
                 "Fans": self.fans_enabled.name,
-                "Inflate": self.seal_inflated.name
+                "Inflate": self.seal_inflated.name,
             },
             "positionActual": self.position_actual,
             "positionCommanded": self.position_commanded,

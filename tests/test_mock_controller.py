@@ -871,17 +871,10 @@ class MockTestCase(asynctest.TestCase):
         parameters = {
             "system": LlcName.AMCS.value,
             "settings": [
-                {
-                    "target": "jmax",
-                    "setting": [amcs_jmax]
-                }, {
-                    "target": "amax",
-                    "setting": [amcs_amax]
-                }, {
-                    "target": "vmax",
-                    "setting": [amcs_vmax]
-                }
-            ]
+                {"target": "jmax", "setting": [amcs_jmax]},
+                {"target": "amax", "setting": [amcs_amax]},
+                {"target": "vmax", "setting": [amcs_vmax]},
+            ],
         }
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
@@ -891,17 +884,10 @@ class MockTestCase(asynctest.TestCase):
         parameters = {
             "system": LlcName.LWSCS.value,
             "settings": [
-                {
-                    "target": "jmax",
-                    "setting": [lwscs_jmax]
-                }, {
-                    "target": "amax",
-                    "setting": [lwscs_amax]
-                }, {
-                    "target": "vmax",
-                    "setting": [lwscs_vmax]
-                }
-            ]
+                {"target": "jmax", "setting": [lwscs_jmax]},
+                {"target": "amax", "setting": [lwscs_amax]},
+                {"target": "vmax", "setting": [lwscs_vmax]},
+            ],
         }
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()

@@ -444,18 +444,20 @@ class MockDomeController:
             # structure, see the project docs at
             # https://ts-dome.lsst.io/protocols.html#configuration-protocol
             for field in settings:
-                if field['target'] in ("jmax", "amax", "vmax"):
+                if field["target"] in ("jmax", "amax", "vmax"):
                     # DM-25758: All param values are passed on as arrays so in
                     # these cases we need to extract the only value in the
                     # array.
-                    setattr(self.amcs.amcs_limits, field['target'], field['setting'][0])
+                    setattr(self.amcs.amcs_limits, field["target"], field["setting"][0])
         elif system == LlcName.LWSCS.value:
             for field in settings:
-                if field['target'] in ("jmax", "amax", "vmax"):
+                if field["target"] in ("jmax", "amax", "vmax"):
                     # DM-25758: All param values are passed on as arrays so in
                     # these cases we need to extract the only value in the
                     # array.
-                    setattr(self.lwscs.lwscs_limits, field['target'], field['setting'][0])
+                    setattr(
+                        self.lwscs.lwscs_limits, field["target"], field["setting"][0]
+                    )
         else:
             raise KeyError(f"Unknown system {system}.")
 

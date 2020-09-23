@@ -62,12 +62,14 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
         # end of this function if all validations are passed.
         converted_configuration_parameters = []
         validated_keys = set()
-        logging.getLogger("CommonLimits").info(f"Validating params {configuration_parameters}")
+        logging.getLogger("CommonLimits").info(
+            f"Validating params {configuration_parameters}"
+        )
 
         for setting in configuration_parameters:
             logging.getLogger("CommonLimits").info(f"Validating setting {setting}")
-            key = setting['target']
-            value = setting['setting']
+            key = setting["target"]
+            value = setting["setting"]
             converted_value = []
             validated_keys.add(key)
             for v in value:
@@ -80,7 +82,9 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
                         f"The value {key} for {setting} is larger than the "
                         f"limit {common_limits[key]}."
                     )
-            converted_configuration_parameters.append({"target": key, "setting": converted_value})
+            converted_configuration_parameters.append(
+                {"target": key, "setting": converted_value}
+            )
 
         # Check if any key is missing
         unchecked_keys = common_limits.keys() - validated_keys
@@ -102,6 +106,7 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
         # All configuration values fall within their limits and no unknown
         # configuration parameters were found so we can return the converted
         # values.
-        logging.getLogger("CommonLimits")\
-            .info(f"Returning validated params {converted_configuration_parameters}")
+        logging.getLogger("CommonLimits").info(
+            f"Returning validated params {converted_configuration_parameters}"
+        )
         return converted_configuration_parameters
