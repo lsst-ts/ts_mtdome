@@ -29,8 +29,8 @@ import numpy as np
 from lsst.ts import salobj
 from .base_mock_status import BaseMockStatus
 from ..llc_configuration_limits.amcs_limits import AmcsLimits
-from ..llc_status import LlcStatus
 from ..on_off import OnOff
+from lsst.ts.idl.enums.Dome import MotionState
 
 _NUM_MOTORS = 5
 
@@ -53,12 +53,12 @@ class AmcsStatus(BaseMockStatus):
         self.motion_velocity = 0
         # the velocity during a crawl that follows a move
         self.crawl_velocity = 0
-        # the inflated (True) or deflated (False) state of the inflatable seal
-        self.seal_inflated = OnOff.OFF
-        # the enabled (True) or disabled (False) state of the fans
+        # variables holding the status of the mock AZ motion. The error codes
+        # will be specified in a future Dome Software meeting.
+        self.status = MotionState.STOPPED
+        self.error = ["No Error"]
         self.fans_enabled = OnOff.OFF
-        # variables holding the status of the mock AZ motion
-        self.status = LlcStatus.STOPPED
+        self.seal_inflated = OnOff.OFF
         self.position_orig = 0.0
         self.position_actual = 0
         self.position_commanded = 0
@@ -82,7 +82,7 @@ class AmcsStatus(BaseMockStatus):
             f"current_tai = {current_tai}, self.command_time_tai = {self.command_time_tai}, "
             f"time_diff = {time_diff}"
         )
-        if self.status != LlcStatus.STOPPED:
+        if self.status != MotionState.STOPPED:
             azimuth_step = self.motion_velocity * time_diff
             self.position_actual = self.position_orig + azimuth_step
 
@@ -99,30 +99,30 @@ class AmcsStatus(BaseMockStatus):
                 and self.position_actual <= self.position_commanded
             ):
                 self.position_actual = self.position_commanded
-                if self.status == LlcStatus.MOVING:
+                if self.status == MotionState.MOVING:
                     if self.crawl_velocity > 0:
                         # make sure that the dome never stops moving because it
                         # is crawling
                         self.position_commanded = math.inf
                         self.motion_velocity = self.crawl_velocity
-                        self.status = LlcStatus.CRAWLING
+                        self.status = MotionState.CRAWLING
                     elif self.crawl_velocity < 0:
                         # make sure that the dome never stops moving because it
                         # is crawling
                         self.position_commanded = -math.inf
                         self.motion_velocity = self.crawl_velocity
-                        self.status = LlcStatus.CRAWLING
+                        self.status = MotionState.CRAWLING
                     else:
                         # make sure that the dome has stopped moving because
                         # the requested crawl velocity is 0
                         self.position_commanded = self.position_actual
                         self.motion_velocity = self.crawl_velocity
-                        self.status = LlcStatus.STOPPED
-                elif self.status == LlcStatus.PARKING:
+                        self.status = MotionState.STOPPED
+                elif self.status == MotionState.PARKING:
                     self.position_commanded = self.position_actual
                     self.motion_velocity = 0
-                    self.status = LlcStatus.PARKED
-                elif self.status == LlcStatus.CRAWLING:
+                    self.status = MotionState.PARKED
+                elif self.status == MotionState.CRAWLING:
                     # this situation should never happen and probably never
                     # will because the commanded position should have been set
                     # to +/- math.inf
@@ -134,10 +134,10 @@ class AmcsStatus(BaseMockStatus):
                     raise ValueError(f"Unknown state {self.status.value}")
         self.llc_status = {
             "status": {
-                "Error": ["No Error"],
+                "error": self.error,
                 "status": self.status.value,
-                "Fans": self.fans_enabled.name,
-                "Inflate": self.seal_inflated.name,
+                "fans": self.fans_enabled.name,
+                "inflate": self.seal_inflated.name,
             },
             "positionActual": self.position_actual,
             "positionCommanded": self.position_commanded,
@@ -174,7 +174,7 @@ class AmcsStatus(BaseMockStatus):
             against the velocity limits for the dome.
         """
         self.log.debug(f"moveAz with position={position} and velocity={velocity}")
-        self.status = LlcStatus.MOVING
+        self.status = MotionState.MOVING
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
         self.position_commanded = position
@@ -195,7 +195,7 @@ class AmcsStatus(BaseMockStatus):
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
         self.motion_velocity = velocity
-        self.status = LlcStatus.CRAWLING
+        self.status = MotionState.CRAWLING
         if self.motion_velocity >= 0:
             # make sure that the dome never stops moving
             self.position_commanded = math.inf
@@ -206,11 +206,11 @@ class AmcsStatus(BaseMockStatus):
     async def stopAz(self):
         """Stop all motion of the dome."""
         self.command_time_tai = salobj.current_tai()
-        self.status = LlcStatus.STOPPED
+        self.status = MotionState.STOPPED
 
     async def park(self):
         """Park the dome, meaning that it will be moved to azimuth 0."""
-        self.status = LlcStatus.PARKING
+        self.status = MotionState.PARKING
         self.position_orig = self.position_actual
         self.command_time_tai = salobj.current_tai()
         self.position_commanded = 0.0

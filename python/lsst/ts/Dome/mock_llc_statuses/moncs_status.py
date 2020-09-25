@@ -25,7 +25,7 @@ import logging
 import numpy as np
 
 from .base_mock_status import BaseMockStatus
-from ..llc_status import LlcStatus
+from lsst.ts.idl.enums.Dome import MotionState
 
 _NUM_SENSORS = 16
 
@@ -38,7 +38,7 @@ class MoncsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockMoncsStatus")
         # variables holding the status of the mock Louvres
-        self.status = LlcStatus.DISABLED
+        self.status = MotionState.CLOSED
         self.data = np.zeros(_NUM_SENSORS, dtype=float)
 
     async def determine_status(self, current_tai):

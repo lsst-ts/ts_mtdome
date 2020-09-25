@@ -23,7 +23,6 @@ __all__ = ["CommonAmcsAndLwscsLimits"]
 
 from abc import abstractmethod
 import math
-import logging
 
 from .abstract_limits import AbstractLimits
 
@@ -62,12 +61,8 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
         # end of this function if all validations are passed.
         converted_configuration_parameters = []
         validated_keys = set()
-        logging.getLogger("CommonLimits").info(
-            f"Validating params {configuration_parameters}"
-        )
 
         for setting in configuration_parameters:
-            logging.getLogger("CommonLimits").info(f"Validating setting {setting}")
             key = setting["target"]
             value = setting["setting"]
             converted_value = []
@@ -106,7 +101,4 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
         # All configuration values fall within their limits and no unknown
         # configuration parameters were found so we can return the converted
         # values.
-        logging.getLogger("CommonLimits").info(
-            f"Returning validated params {converted_configuration_parameters}"
-        )
         return converted_configuration_parameters
