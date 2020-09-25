@@ -31,6 +31,7 @@ from lsst.ts import salobj
 from lsst.ts.Dome import encoding_tools
 from .mock_controller import MockDomeController
 from .response_code import ResponseCode
+from lsst.ts.idl.enums.Dome import EnabledState, MotionState
 
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout in s to be used by this module
@@ -137,6 +138,18 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.reader, self.writer = await asyncio.wait_for(
             connect_coro, timeout=self.config.connection_timeout
         )
+
+        # DM-26374: Send enabled events for az and el since they are always
+        # enabled.
+        self.evt_azEnabled.set_put(state=EnabledState.ENABLED)
+        self.evt_elEnabled.set_put(state=EnabledState.ENABLED)
+
+        # DM-26374: Send events for the brakes, interlocks and locking pins
+        # with a default value of 0 (meaning nothing engaged) until the
+        # corresponding enums have been defined. This will be done in DM-26863.
+        self.evt_brakesEngaged.set_put(brakes=0)
+        self.evt_interlocks.set_put(interlocks=0)
+        self.evt_lockingPinsEngaged.set_put(engaged=0)
 
         # Start polling for the status of the lower level components
         # periodically.
@@ -284,6 +297,7 @@ class DomeCsc(salobj.ConfigurableCsc):
             position=math.radians(data.position),
             velocity=math.radians(data.velocity),
         )
+        self.evt_azTarget.set_put(position=data.position, velocity=data.velocity)
 
     async def do_moveEl(self, data):
         """Move El.
@@ -298,6 +312,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         await self.write_then_read_reply(
             command="moveEl", position=math.radians(data.position)
         )
+        self.evt_elTarget.set_put(position=data.position, velocity=0)
 
     async def do_stopAz(self, data):
         """Stop AZ.
@@ -344,6 +359,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         await self.write_then_read_reply(
             command="crawlAz", velocity=math.radians(data.velocity)
         )
+        self.evt_azTarget.set_put(position=float("nan"), velocity=data.velocity)
 
     async def do_crawlEl(self, data):
         """Crawl El.
@@ -357,6 +373,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         await self.write_then_read_reply(
             command="crawlEl", velocity=math.radians(data.velocity)
         )
+        self.evt_elTarget.set_put(position=float("nan"), velocity=data.velocity)
 
     async def do_setLouvers(self, data):
         """Set Louver.
@@ -434,6 +451,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         await self.write_then_read_reply(command="park")
+        self.evt_azTarget.set_put(position=0, velocity=0)
 
     async def do_setTemperature(self, data):
         """Set Temperature.
@@ -588,6 +606,37 @@ class DomeCsc(salobj.ConfigurableCsc):
         telemetry = self.remove_keys_from_dict(telemetry_in_degrees)
         # Send the telemetry.
         self.send_telemetry(telemetry, topic)
+
+        # DM-26374: Check for errors and send the events.
+        if llc_name == LlcName.AMCS:
+            status = status[llc_name.value]["status"]
+            # The error codes will be specified in a future Dome Software
+            # meeting.
+            if status["error"] != ["No Error"]:
+                faultCode = ", ".join(status["error"])
+                self.evt_azEnabled.set_put(
+                    state=EnabledState.FAULT, faultCode=faultCode
+                )
+            else:
+                motion_state = MotionState(status["status"])
+                in_position = False
+                if motion_state in [
+                    MotionState.STOPPED,
+                    MotionState.CRAWLING,
+                    MotionState.PARKED,
+                ]:
+                    in_position = True
+                self.evt_azMotion.set_put(state=motion_state, inPosition=in_position)
+        elif llc_name == LlcName.LWSCS:
+            status = status[llc_name.value]["status"]
+            motion_state = MotionState(status)
+            in_position = False
+            if motion_state in [
+                MotionState.STOPPED,
+                MotionState.CRAWLING,
+            ]:
+                in_position = True
+            self.evt_elMotion.set_put(state=motion_state, inPosition=in_position)
 
     # noinspection PyMethodMayBeStatic
     def remove_keys_from_dict(self, dict_with_too_many_keys):
