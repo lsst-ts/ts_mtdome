@@ -23,7 +23,6 @@ __all__ = ["CommonAmcsAndLwscsLimits"]
 
 from abc import abstractmethod
 import math
-import logging
 
 from .abstract_limits import AbstractLimits
 
