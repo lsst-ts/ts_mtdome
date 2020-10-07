@@ -99,12 +99,12 @@ class MockDomeController:
         self.current_tai = 0
 
         # Variables to hold the status of the lower level components.
-        self.amcs = mock_llc_statuses.AmcsStatus()
-        self.apscs = mock_llc_statuses.ApscsStatus()
-        self.lcs = mock_llc_statuses.LcsStatus()
-        self.lwscs = mock_llc_statuses.LwscsStatus()
-        self.moncs = mock_llc_statuses.MoncsStatus()
-        self.thcs = mock_llc_statuses.ThcsStatus()
+        self.amcs = None
+        self.apscs = None
+        self.lcs = None
+        self.lwscs = None
+        self.moncs = None
+        self.thcs = None
 
     async def start(self, keep_running=False):
         """Start the TCP/IP server.
@@ -127,7 +127,15 @@ class MockDomeController:
         if self.port == 0:
             self.port = self._server.sockets[0].getsockname()[1]
 
+        await self.determine_current_tai()
+
         self.log.info("Starting LLCs")
+        self.amcs = mock_llc_statuses.AmcsStatus(current_tai=self.current_tai)
+        self.apscs = mock_llc_statuses.ApscsStatus()
+        self.lcs = mock_llc_statuses.LcsStatus()
+        self.lwscs = mock_llc_statuses.LwscsStatus(current_tai=self.current_tai)
+        self.moncs = mock_llc_statuses.MoncsStatus()
+        self.thcs = mock_llc_statuses.ThcsStatus()
 
         if keep_running:
             await self._server.serve_forever()
@@ -157,16 +165,6 @@ class MockDomeController:
         self.log.debug(st)
         await self._writer.drain()
 
-    async def write_error(self, code):
-        """Generic method for writing errors.
-
-        Parameters
-        ----------
-        code: `ErrorCode`
-            The error code to write.
-        """
-        await self.write("ERROR", CODE=code.value)
-
     async def cmd_loop(self, reader, writer):
         """Execute commands and output replies.
 
@@ -183,7 +181,6 @@ class MockDomeController:
             self.log.debug("Waiting for next command.")
             timeout = self.long_timeout
 
-            line = None
             try:
                 line = await reader.readuntil(b"\r\n")
                 line = line.decode().strip()
@@ -207,13 +204,22 @@ class MockDomeController:
                     else:
                         func = self.dispatch_dict[cmd]
                         kwargs = items["parameters"]
-                        if cmd[:6] == "status":
+                        if cmd.startswith("status"):
                             # the status commands take care of sending a reply
                             # themselves
                             send_response = False
-                        if cmd == "stopAz" or cmd == "stopEl":
-                            timeout = self.short_timeout
-                        await func(**kwargs)
+                        if cmd in [
+                            "moveAz",
+                            "crawlAz",
+                            "stopAz",
+                            "moveEl",
+                            "crawlEl",
+                            "stopEl",
+                            "park",
+                        ]:
+                            timeout = await func(**kwargs)
+                        else:
+                            await func(**kwargs)
                 except (TypeError, RuntimeError):
                     self.log.exception(f"Command '{line}' failed")
                     # CODE=3 in this case means "Missing or incorrect
@@ -302,7 +308,8 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
-        await self.amcs.moveAz(position, velocity)
+        duration = await self.amcs.moveAz(position, velocity, self.current_tai)
+        return duration
 
     async def move_el(self, position):
         """Move the light and wind screen.
@@ -316,19 +323,22 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
-        await self.lwscs.moveEl(position)
+        duration = await self.lwscs.moveEl(position, self.current_tai)
+        return duration
 
     async def stop_az(self):
         """Stop all dome motion.
         """
         self.log.info("Received command 'stopAz'")
-        await self.amcs.stopAz()
+        duration = await self.amcs.stopAz(self.current_tai)
+        return duration
 
     async def stop_el(self):
         """Stop all light and wind screen motion.
         """
         self.log.info("Received command 'stopEl'")
-        await self.lwscs.stopEl()
+        duration = await self.lwscs.stopEl(self.current_tai)
+        return duration
 
     async def stop_llc(self):
         """Move all lower level components.
@@ -350,7 +360,8 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
-        await self.amcs.crawlAz(velocity)
+        duration = await self.amcs.crawlAz(velocity, self.current_tai)
+        return duration
 
     async def crawl_el(self, velocity):
         """Crawl the light and wind screen.
@@ -364,7 +375,8 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
-        await self.lwscs.crawlEl(velocity)
+        duration = await self.lwscs.crawlEl(velocity, self.current_tai)
+        return duration
 
     async def set_louvers(self, position):
         """Set the positions of the louvers.
@@ -465,7 +477,8 @@ class MockDomeController:
         """Park the dome.
         """
         self.log.info("Received command 'park'")
-        await self.amcs.park()
+        duration = await self.amcs.park(self.current_tai)
+        return duration
 
     async def set_temperature(self, temperature):
         """Set the preferred temperature in the dome.
