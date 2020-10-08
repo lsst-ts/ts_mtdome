@@ -41,6 +41,17 @@ class MockDomeController:
 
     Notes
     -----
+    There are six sub-systems that are under control:
+
+    * AMCS: Azimuth Motion Control System
+    * ApSCS: Aperture Shutter Control System
+    * LCS: Louvers Control System
+    * LWSCS: Light and Wind Screen Control System
+    * MonCS: Monitoring Control System, which interfaces with the Dome
+        Interlock System
+    * ThCS: Thermal Control System, which interfaces with the Dome
+        Environment Control System
+
     To start the server:
 
         ctrl = MockDomeController(...)
@@ -92,19 +103,19 @@ class MockDomeController:
             "statusMonCS": self.status_moncs,
             "statusThCS": self.status_thcs,
         }
-        # Timeouts used by this class and by its unit test
-        self.long_timeout = 20
-        self.short_timeout = 2
+        # Durations used by this class and by its unit test
+        self.long_duration = 20
+        self.short_duration = 2
         # Time keeping
         self.current_tai = 0
 
         # Variables to hold the status of the lower level components.
-        self.amcs = None
-        self.apscs = None
-        self.lcs = None
-        self.lwscs = None
-        self.moncs = None
-        self.thcs = None
+        self.amcs_status = None
+        self.apscs_status = None
+        self.lcs_status = None
+        self.lwscs_status = None
+        self.moncs_status = None
+        self.thcs_status = None
 
     async def start(self, keep_running=False):
         """Start the TCP/IP server.
@@ -130,12 +141,12 @@ class MockDomeController:
         await self.determine_current_tai()
 
         self.log.info("Starting LLCs")
-        self.amcs = mock_llc_statuses.AmcsStatus(current_tai=self.current_tai)
-        self.apscs = mock_llc_statuses.ApscsStatus()
-        self.lcs = mock_llc_statuses.LcsStatus()
-        self.lwscs = mock_llc_statuses.LwscsStatus(current_tai=self.current_tai)
-        self.moncs = mock_llc_statuses.MoncsStatus()
-        self.thcs = mock_llc_statuses.ThcsStatus()
+        self.amcs_status = mock_llc_statuses.AmcsStatus(start_tai=self.current_tai)
+        self.apscs_status = mock_llc_statuses.ApscsStatus()
+        self.lcs_status = mock_llc_statuses.LcsStatus()
+        self.lwscs_status = mock_llc_statuses.LwscsStatus(start_tai=self.current_tai)
+        self.moncs_status = mock_llc_statuses.MoncsStatus()
+        self.thcs_status = mock_llc_statuses.ThcsStatus()
 
         if keep_running:
             await self._server.serve_forever()
@@ -179,7 +190,6 @@ class MockDomeController:
         self._writer = writer
         while True:
             self.log.debug("Waiting for next command.")
-            timeout = self.long_timeout
 
             try:
                 line = await reader.readuntil(b"\r\n")
@@ -200,7 +210,7 @@ class MockDomeController:
                         self.log.error(f"Command '{line}' unknown")
                         # CODE=2 in this case means "Unsupported command."
                         response = ResponseCode.UNSUPPORTED_COMMAND
-                        timeout = -1
+                        duration = -1
                     else:
                         func = self.dispatch_dict[cmd]
                         kwargs = items["parameters"]
@@ -208,62 +218,57 @@ class MockDomeController:
                             # the status commands take care of sending a reply
                             # themselves
                             send_response = False
-                        if cmd in [
-                            "moveAz",
-                            "crawlAz",
-                            "stopAz",
-                            "moveEl",
-                            "crawlEl",
-                            "stopEl",
-                            "park",
-                        ]:
-                            timeout = await func(**kwargs)
-                        else:
-                            await func(**kwargs)
+
+                        duration = await func(**kwargs)
                 except (TypeError, RuntimeError):
                     self.log.exception(f"Command '{line}' failed")
                     # CODE=3 in this case means "Missing or incorrect
                     # parameter(s)."
                     response = ResponseCode.INCORRECT_PARAMETER
-                    timeout = -1
+                    duration = -1
                 if send_response:
-                    await self.write(response=response, timeout=timeout)
+                    if duration is None:
+                        duration = self.long_duration
+                    # DM-25189: timeout should be renamed duration and this
+                    # needs to be discussed with EIE. As soon as this is done
+                    # and agreed upon, I will open another issue to fix this.
+                    await self.write(response=response, timeout=duration)
 
     async def status_amcs(self):
         """Request the status from the AMCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.amcs, LlcName.AMCS)
+        await self.request_and_send_status(self.amcs_status, LlcName.AMCS)
 
     async def status_apscs(self):
         """Request the status from the ApSCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.apscs, LlcName.APSCS)
+        await self.request_and_send_status(self.apscs_status, LlcName.APSCS)
 
     async def status_lcs(self):
         """Request the status from the LCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.lcs, LlcName.LCS)
+        await self.request_and_send_status(self.lcs_status, LlcName.LCS)
 
     async def status_lwscs(self):
         """Request the status from the LWSCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.lwscs, LlcName.LWSCS)
+        await self.request_and_send_status(self.lwscs_status, LlcName.LWSCS)
 
     async def status_moncs(self):
         """Request the status from the MonCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.moncs, LlcName.MONCS)
+        await self.request_and_send_status(self.moncs_status, LlcName.MONCS)
 
     async def status_thcs(self):
         """Request the status from the ThCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.thcs, LlcName.THCS)
+        await self.request_and_send_status(self.thcs_status, LlcName.THCS)
 
     async def request_and_send_status(self, llc, llc_name):
         """Request the status of the given Lower Level Component and write it
@@ -299,8 +304,13 @@ class MockDomeController:
         position: `float`
             Desired azimuth, in radians, in range [0, 2 pi)
         velocity: `float`
-            The velocity, in deg/sec, to start crawling at once the position
+            The velocity, in rad/sec, to start crawling at once the position
             has been reached.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
         """
         self.log.info(
             f"Received command 'moveAz' with arguments position={position} and velocity={velocity}"
@@ -308,8 +318,7 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
-        duration = await self.amcs.moveAz(position, velocity, self.current_tai)
-        return duration
+        return await self.amcs_status.moveAz(position, velocity, self.current_tai)
 
     async def move_el(self, position):
         """Move the light and wind screen.
@@ -318,27 +327,44 @@ class MockDomeController:
         ----------
         position: `float`
             Desired elevation, in radians, in range [0, pi/2)
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
         """
         self.log.info(f"Received command 'moveEl' with argument position={position}")
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
-        duration = await self.lwscs.moveEl(position, self.current_tai)
-        return duration
+        return await self.lwscs_status.moveEl(position, self.current_tai)
 
     async def stop_az(self):
         """Stop all dome motion.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
         """
         self.log.info("Received command 'stopAz'")
-        duration = await self.amcs.stopAz(self.current_tai)
-        return duration
+        return await self.amcs_status.stopAz(self.current_tai)
 
     async def stop_el(self):
         """Stop all light and wind screen motion.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
         """
         self.log.info("Received command 'stopEl'")
-        duration = await self.lwscs.stopEl(self.current_tai)
-        return duration
+        return await self.lwscs_status.stopEl(self.current_tai)
 
     async def stop_llc(self):
         """Move all lower level components.
@@ -354,14 +380,18 @@ class MockDomeController:
         Parameters
         ----------
         velocity: `float`
-            The velocity, in deg/sec, to crawl at.
+            The velocity, in rad/sec, to crawl at.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
         """
         self.log.debug(f"Received command 'crawlAz' with argument velocity={velocity}")
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
-        duration = await self.amcs.crawlAz(velocity, self.current_tai)
-        return duration
+        return await self.amcs_status.crawlAz(velocity, self.current_tai)
 
     async def crawl_el(self, velocity):
         """Crawl the light and wind screen.
@@ -369,14 +399,18 @@ class MockDomeController:
         Parameters
         ----------
         velocity: `float`
-            The velocity, in deg/sec, to crawl at.
+            The velocity, in rad/sec, to crawl at.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
         """
         self.log.info(f"Received command 'crawlEl' with argument velocity={velocity}")
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
-        duration = await self.lwscs.crawlEl(velocity, self.current_tai)
-        return duration
+        return await self.lwscs_status.crawlEl(velocity, self.current_tai)
 
     async def set_louvers(self, position):
         """Set the positions of the louvers.
@@ -390,37 +424,37 @@ class MockDomeController:
         self.log.info(
             f"Received command 'setLouvers' with argument position={position}"
         )
-        await self.lcs.setLouvers(position)
+        await self.lcs_status.setLouvers(position)
 
     async def close_louvers(self):
         """Close all louvers.
         """
         self.log.info("Received command 'closeLouvers'")
-        await self.lcs.closeLouvers()
+        await self.lcs_status.closeLouvers()
 
     async def stop_louvers(self):
         """Stop the motion of all louvers.
         """
         self.log.info("Received command 'stopLouvers'")
-        await self.lcs.stopLouvers()
+        await self.lcs_status.stopLouvers()
 
     async def open_shutter(self):
         """Open the shutter.
         """
         self.log.info("Received command 'openShutter'")
-        await self.apscs.openShutter()
+        await self.apscs_status.openShutter()
 
     async def close_shutter(self):
         """Close the shutter.
         """
         self.log.info("Received command 'closeShutter'")
-        await self.apscs.closeShutter()
+        await self.apscs_status.closeShutter()
 
     async def stop_shutter(self):
         """Stop the motion of the shutter.
         """
         self.log.info("Received command 'stopShutter'")
-        await self.apscs.stopShutter()
+        await self.apscs_status.stopShutter()
 
     async def config(self, system, settings):
         """Configure the lower level components.
@@ -460,7 +494,11 @@ class MockDomeController:
                     # DM-25758: All param values are passed on as arrays so in
                     # these cases we need to extract the only value in the
                     # array.
-                    setattr(self.amcs.amcs_limits, field["target"], field["setting"][0])
+                    setattr(
+                        self.amcs_status.amcs_limits,
+                        field["target"],
+                        field["setting"][0],
+                    )
         elif system == LlcName.LWSCS.value:
             for field in settings:
                 if field["target"] in ("jmax", "amax", "vmax"):
@@ -468,17 +506,23 @@ class MockDomeController:
                     # these cases we need to extract the only value in the
                     # array.
                     setattr(
-                        self.lwscs.lwscs_limits, field["target"], field["setting"][0]
+                        self.lwscs_status.lwscs_limits,
+                        field["target"],
+                        field["setting"][0],
                     )
         else:
             raise KeyError(f"Unknown system {system}.")
 
     async def park(self):
         """Park the dome.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
         """
         self.log.info("Received command 'park'")
-        duration = await self.amcs.park(self.current_tai)
-        return duration
+        return await self.amcs_status.park(self.current_tai)
 
     async def set_temperature(self, temperature):
         """Set the preferred temperature in the dome.
@@ -491,7 +535,7 @@ class MockDomeController:
         self.log.info(
             f"Received command 'setTemperature' with argument temperature={temperature}"
         )
-        await self.thcs.setTemperature(temperature)
+        await self.thcs_status.setTemperature(temperature)
 
     async def inflate(self, action):
         """Inflate or deflate the inflatable seal.
@@ -502,7 +546,7 @@ class MockDomeController:
             ON means inflate and OFF deflate the inflatable seal.
         """
         self.log.info(f"Received command 'inflate' with argument action={action}")
-        await self.amcs.inflate(action)
+        await self.amcs_status.inflate(action)
 
     async def fans(self, action):
         """Enable or disable the fans in the dome.
@@ -513,7 +557,7 @@ class MockDomeController:
             ON means fans on and OFF fans off.
         """
         self.log.info(f"Received command 'fans' with argument action={action}")
-        await self.amcs.fans(action)
+        await self.amcs_status.fans(action)
 
 
 async def main():

@@ -41,11 +41,11 @@ class AmcsStatus(BaseMockStatus):
 
     Parameters
     ----------
-    current_tai: `float`
+    start_tai: `float`
         The current TAI time.
     """
 
-    def __init__(self, current_tai):
+    def __init__(self, start_tai):
         super().__init__()
         self.log = logging.getLogger("MockAzcsStatus")
         self.amcs_limits = AmcsLimits()
@@ -56,7 +56,7 @@ class AmcsStatus(BaseMockStatus):
         self.vmax = self.amcs_limits.vmax
         # variables helping with the state of the mock AZ motion
         self.azimuth_motion = AzimuthMotion(
-            initial_position=0.0, max_speed=self.vmax, current_tai=current_tai
+            start_position=0.0, max_speed=self.vmax, start_tai=start_tai
         )
         self.duration = 0.0
         # variables holding the status of the mock AZ motion. The error codes
@@ -77,12 +77,12 @@ class AmcsStatus(BaseMockStatus):
         self.resolver_raw = np.zeros(_NUM_MOTORS, dtype=float)
         self.resolver_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
 
-    async def determine_status(self, current_tai):
+    async def determine_status(self, start_tai):
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
         """
         position, motion_state = self.azimuth_motion.get_position_and_motion_state(
-            tai=current_tai
+            tai=start_tai
         )
         self.llc_status = {
             "status": {
@@ -105,12 +105,12 @@ class AmcsStatus(BaseMockStatus):
             "resolverCalibrated": self.resolver_calibrated.tolist(),
             # DM-26653: The name of this key is still under discussion and
             # could be modified to "timestampUTC"
-            "timestamp": current_tai,
+            "timestamp": start_tai,
         }
 
         self.log.debug(f"amcs_state = {self.llc_status}")
 
-    async def moveAz(self, position, velocity, current_tai):
+    async def moveAz(self, position, velocity, start_tai):
         """Move the dome at maximum velocity to the specified azimuth. Azimuth
         is measured from 0 at north via 90 at east and 180 at south to 270 west
         and 360 = 0. The value of azimuth is not checked for the range between
@@ -124,20 +124,20 @@ class AmcsStatus(BaseMockStatus):
             The velocity (deg/s) at which to crawl once the commanded azimuth
             has been reached at maximum velocity. The velocity is not checked
             against the velocity limits for the dome.
-        current_tai: `float`
+        start_tai: `float`
             The current TAI time
         """
         self.log.debug(f"moveAz with position={position} and velocity={velocity}")
         self.position_commanded = position
         self.duration = self.azimuth_motion.set_target_position_and_velocity(
-            commanded_tai=current_tai,
-            target_position=position,
+            start_tai=start_tai,
+            end_position=position,
             crawl_velocity=velocity,
-            do_move=True,
+            motion_state=MotionState.MOVING,
         )
         return self.duration
 
-    async def crawlAz(self, velocity, current_tai):
+    async def crawlAz(self, velocity, start_tai):
         """Crawl the dome in the given direction at the given velocity.
 
         Parameters
@@ -145,7 +145,7 @@ class AmcsStatus(BaseMockStatus):
         velocity: `float`
             The velocity (deg/s) at which to crawl. The velocity is not checked
             against the velocity limits for the dome.
-        current_tai: `float`
+        start_tai: `float`
             The current TAI time
         """
         if velocity >= 0:
@@ -155,37 +155,37 @@ class AmcsStatus(BaseMockStatus):
             # make sure that the dome never stops moving
             self.position_commanded = -math.inf
         self.duration = self.azimuth_motion.set_target_position_and_velocity(
-            commanded_tai=current_tai,
-            target_position=self.position_commanded,
+            start_tai=start_tai,
+            end_position=self.position_commanded,
             crawl_velocity=velocity,
-            do_move=False,
+            motion_state=MotionState.CRAWLING,
         )
         return self.duration
 
-    async def stopAz(self, current_tai):
+    async def stopAz(self, start_tai):
         """Stop all motion of the dome.
 
         Parameters
         ----------
-        current_tai: `float`
+        start_tai: `float`
             The current TAI time
         """
-        self.azimuth_motion.stop(current_tai)
+        self.azimuth_motion.stop(start_tai)
         self.duration = 0.0
         return self.duration
 
-    async def park(self, current_tai):
+    async def park(self, start_tai):
         """Park the dome, meaning that it will be moved to azimuth 0.
 
 
         Parameters
         ----------
-        current_tai: `float`
+        start_tai: `float`
             The current TAI time
         """
         self.status = MotionState.PARKING
         self.position_commanded = 0.0
-        self.duration = self.azimuth_motion.park(current_tai)
+        self.duration = self.azimuth_motion.park(start_tai)
         return self.duration
 
     async def inflate(self, action):

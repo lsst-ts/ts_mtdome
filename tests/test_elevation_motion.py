@@ -29,18 +29,18 @@ logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
 )
 
-_COMMANDED_TAI = 10001.0
+_start_tai = 10001.0
 
 
 class ElevationMotionTestCase(asynctest.TestCase):
     async def prepare_elevation_motion(
-        self, initial_position, min_position, max_position, max_speed, current_tai
+        self, start_position, min_position, max_position, max_speed, start_tai
     ):
         """Prepare the ElevationMotion for future commands.
 
         Parameters
         ----------
-        initial_position: `float`
+        start_position: `float`
             The initial position.
         min_position: `float`
             The minimum allowed position.
@@ -48,25 +48,25 @@ class ElevationMotionTestCase(asynctest.TestCase):
             The maximum allowed position.
         max_speed: `float`
             The maximum allowed speed.
-        current_tai: `float`
+        start_tai: `float`
             The current TAI time.
         """
         self.elevation_motion = ElevationMotion(
-            initial_position=initial_position,
+            start_position=start_position,
             min_position=min_position,
             max_position=max_position,
             max_speed=max_speed,
-            current_tai=current_tai,
+            start_tai=start_tai,
         )
 
     async def verify_elevation_motion_duration(
-        self, commanded_tai, target_position, velocity, expected_duration,
+        self, start_tai, target_position, velocity, expected_duration,
     ):
         """Verify that the ElevationMotion computes the correct duration.
 
         Parameters
         ----------
-        commanded_tai: `float`
+        start_tai: `float`
             The TAI time at which the command was issued.
         target_position: `float`
             The target position.
@@ -76,9 +76,7 @@ class ElevationMotionTestCase(asynctest.TestCase):
             The expected duration.
         """
         duration = self.elevation_motion.set_target_position_and_velocity(
-            commanded_tai=commanded_tai,
-            target_position=target_position,
-            velocity=velocity,
+            start_tai=start_tai, target_position=target_position, velocity=velocity,
         )
         self.assertEqual(expected_duration, duration)
 
@@ -107,39 +105,39 @@ class ElevationMotionTestCase(asynctest.TestCase):
         """Test the ElevationMotion when moving from position 0 to
         position 10.
         """
-        initial_position = 0.0
-        commanded_tai = _COMMANDED_TAI
+        start_position = 0.0
+        start_tai = _start_tai
         min_position = 0.0
         max_position = 90.0
         max_speed = 3.5
         target_position = 10.0
         velocity = 3.5
-        expected_duration = (target_position - initial_position) / velocity
+        expected_duration = (target_position - start_position) / velocity
         await self.prepare_elevation_motion(
-            initial_position=initial_position,
+            start_position=start_position,
             min_position=min_position,
             max_position=max_position,
             max_speed=max_speed,
-            current_tai=commanded_tai,
+            start_tai=start_tai,
         )
         await self.verify_elevation_motion_duration(
-            commanded_tai=commanded_tai,
+            start_tai=start_tai,
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 1.0,
+            tai=_start_tai + 1.0,
             expected_position=3.5,
             expected_motion_state=MotionState.MOVING,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 2.5,
+            tai=_start_tai + 2.5,
             expected_position=8.75,
             expected_motion_state=MotionState.MOVING,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 3.0,
+            tai=_start_tai + 3.0,
             expected_position=10.0,
             expected_motion_state=MotionState.STOPPED,
         )
@@ -148,39 +146,39 @@ class ElevationMotionTestCase(asynctest.TestCase):
         """Test the ElevationMotion when moving from position 10 to
         position 0.
         """
-        initial_position = 10.0
-        commanded_tai = _COMMANDED_TAI
+        start_position = 10.0
+        start_tai = _start_tai
         min_position = 0.0
         max_position = 90.0
         max_speed = 3.5
         target_position = 0.0
         velocity = -3.5
-        expected_duration = (target_position - initial_position) / velocity
+        expected_duration = (target_position - start_position) / velocity
         await self.prepare_elevation_motion(
-            initial_position=initial_position,
+            start_position=start_position,
             min_position=min_position,
             max_position=max_position,
             max_speed=max_speed,
-            current_tai=commanded_tai,
+            start_tai=start_tai,
         )
         await self.verify_elevation_motion_duration(
-            commanded_tai=commanded_tai,
+            start_tai=start_tai,
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 1.0,
+            tai=_start_tai + 1.0,
             expected_position=6.5,
             expected_motion_state=MotionState.MOVING,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 2.5,
+            tai=_start_tai + 2.5,
             expected_position=1.25,
             expected_motion_state=MotionState.MOVING,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 3.0,
+            tai=_start_tai + 3.0,
             expected_position=0.0,
             expected_motion_state=MotionState.STOPPED,
         )
@@ -188,54 +186,54 @@ class ElevationMotionTestCase(asynctest.TestCase):
     async def test_crawl_pos(self):
         """Test the ElevationMotion when crawling in positive direction.
         """
-        initial_position = 0.0
-        commanded_tai = _COMMANDED_TAI
+        start_position = 0.0
+        start_tai = _start_tai
         min_position = 0.0
         max_position = 90.0
         max_speed = 3.5
         target_position = 10.0
         velocity = 1.0
-        expected_duration = (target_position - initial_position) / velocity
+        expected_duration = (target_position - start_position) / velocity
         await self.prepare_elevation_motion(
-            initial_position=initial_position,
+            start_position=start_position,
             min_position=min_position,
             max_position=max_position,
             max_speed=max_speed,
-            current_tai=commanded_tai,
+            start_tai=start_tai,
         )
         await self.verify_elevation_motion_duration(
-            commanded_tai=commanded_tai,
+            start_tai=start_tai,
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 1.0,
+            tai=_start_tai + 1.0,
             expected_position=1.0,
             expected_motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 2.5,
+            tai=_start_tai + 2.5,
             expected_position=2.5,
             expected_motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 10.1,
+            tai=_start_tai + 10.1,
             expected_position=10.1,
             expected_motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 89.0,
+            tai=_start_tai + 89.0,
             expected_position=89.0,
             expected_motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 90.0,
+            tai=_start_tai + 90.0,
             expected_position=90.0,
             expected_motion_state=MotionState.STOPPED,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 91.0,
+            tai=_start_tai + 91.0,
             expected_position=90.0,
             expected_motion_state=MotionState.STOPPED,
         )
@@ -244,39 +242,39 @@ class ElevationMotionTestCase(asynctest.TestCase):
         """Test the ElevationMotion when crawling from position 10 to
         position 0.
         """
-        initial_position = 10.0
-        commanded_tai = _COMMANDED_TAI
+        start_position = 10.0
+        start_tai = _start_tai
         min_position = 0.0
         max_position = 90.0
         max_speed = 3.5
         target_position = 0.0
         velocity = -1.0
-        expected_duration = (target_position - initial_position) / velocity
+        expected_duration = (target_position - start_position) / velocity
         await self.prepare_elevation_motion(
-            initial_position=initial_position,
+            start_position=start_position,
             min_position=min_position,
             max_position=max_position,
             max_speed=max_speed,
-            current_tai=commanded_tai,
+            start_tai=start_tai,
         )
         await self.verify_elevation_motion_duration(
-            commanded_tai=commanded_tai,
+            start_tai=start_tai,
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 1.0,
+            tai=_start_tai + 1.0,
             expected_position=9.0,
             expected_motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 2.5,
+            tai=_start_tai + 2.5,
             expected_position=7.5,
             expected_motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 10.1,
+            tai=_start_tai + 10.1,
             expected_position=0.0,
             expected_motion_state=MotionState.STOPPED,
         )
@@ -285,35 +283,35 @@ class ElevationMotionTestCase(asynctest.TestCase):
         """Test the ElevationMotion when moving from position 0 to
         position 10 and then gets stopped.
         """
-        initial_position = 0.0
-        commanded_tai = _COMMANDED_TAI
+        start_position = 0.0
+        start_tai = _start_tai
         min_position = 0.0
         max_position = 90.0
         max_speed = 3.5
         target_position = 10.0
         velocity = 3.5
-        expected_duration = (target_position - initial_position) / velocity
+        expected_duration = (target_position - start_position) / velocity
         await self.prepare_elevation_motion(
-            initial_position=initial_position,
+            start_position=start_position,
             min_position=min_position,
             max_position=max_position,
             max_speed=max_speed,
-            current_tai=commanded_tai,
+            start_tai=start_tai,
         )
         await self.verify_elevation_motion_duration(
-            commanded_tai=commanded_tai,
+            start_tai=start_tai,
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
         )
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 1.0,
+            tai=_start_tai + 1.0,
             expected_position=3.5,
             expected_motion_state=MotionState.MOVING,
         )
-        self.elevation_motion.stop(commanded_tai=_COMMANDED_TAI + 2.0)
+        self.elevation_motion.stop(start_tai=_start_tai + 2.0)
         await self.verify_elevation_motion_position(
-            tai=_COMMANDED_TAI + 3.0,
+            tai=_start_tai + 3.0,
             expected_position=7.0,
             expected_motion_state=MotionState.STOPPED,
         )
@@ -322,24 +320,24 @@ class ElevationMotionTestCase(asynctest.TestCase):
         """Test the ElevationMotion when trying to move to a too low
         position.
         """
-        initial_position = 10.0
-        commanded_tai = _COMMANDED_TAI
+        start_position = 10.0
+        start_tai = _start_tai
         min_position = 0.0
         max_position = 90.0
         max_speed = 3.5
         target_position = -91.0
         velocity = -3.5
-        expected_duration = (target_position - initial_position) / velocity
+        expected_duration = (target_position - start_position) / velocity
         await self.prepare_elevation_motion(
-            initial_position=initial_position,
+            start_position=start_position,
             min_position=min_position,
             max_position=max_position,
             max_speed=max_speed,
-            current_tai=commanded_tai,
+            start_tai=start_tai,
         )
         try:
             await self.verify_elevation_motion_duration(
-                commanded_tai=commanded_tai,
+                start_tai=start_tai,
                 target_position=target_position,
                 velocity=velocity,
                 expected_duration=expected_duration,
@@ -352,24 +350,24 @@ class ElevationMotionTestCase(asynctest.TestCase):
         """Test the ElevationMotion when trying to move to a too high
         position.
         """
-        initial_position = 10.0
-        commanded_tai = _COMMANDED_TAI
+        start_position = 10.0
+        start_tai = _start_tai
         min_position = 0.0
         max_position = 90.0
         max_speed = 3.5
         target_position = 91.0
         velocity = 3.5
-        expected_duration = (target_position - initial_position) / velocity
+        expected_duration = (target_position - start_position) / velocity
         await self.prepare_elevation_motion(
-            initial_position=initial_position,
+            start_position=start_position,
             min_position=min_position,
             max_position=max_position,
             max_speed=max_speed,
-            current_tai=commanded_tai,
+            start_tai=start_tai,
         )
         try:
             await self.verify_elevation_motion_duration(
-                commanded_tai=commanded_tai,
+                start_tai=start_tai,
                 target_position=target_position,
                 velocity=velocity,
                 expected_duration=expected_duration,

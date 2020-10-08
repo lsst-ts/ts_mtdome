@@ -52,7 +52,7 @@ class MockTestCase(asynctest.TestCase):
 
         self.mock_ctrl = Dome.MockDomeController(port=port)
         # Replace the determine_current_tai method with a mock method so that
-        # the current_tai value on the mock_ctrl object can be set to make sure
+        # the start_tai value on the mock_ctrl object can be set to make sure
         # that the mock_ctrl object  behaves as if that amount of time has
         # passed.
         self.mock_ctrl.determine_current_tai = CoroutineMock()
@@ -118,14 +118,14 @@ class MockTestCase(asynctest.TestCase):
         self.assertEqual(self.data["timeout"], -1)
 
     async def prepare_amcs_move(
-        self, initial_position, target_position, target_velocity,
+        self, start_position, target_position, target_velocity,
     ):
         """Utility method for preparing the initial state of AMCS for easier
         testing.
 
         Parameters
         ----------
-        initial_position: `float`
+        start_position: `float`
             The initial position of AMCS in radians.
         target_position: `float`
             The target position for the AMCS rotation in radians.
@@ -139,15 +139,17 @@ class MockTestCase(asynctest.TestCase):
         """
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
-        self.mock_ctrl.amcs.azimuth_motion._commanded_tai = self.mock_ctrl.current_tai
-        self.mock_ctrl.amcs.azimuth_motion._initial_position = initial_position
+        self.mock_ctrl.amcs_status.azimuth_motion._start_tai = (
+            self.mock_ctrl.current_tai
+        )
+        self.mock_ctrl.amcs_status.azimuth_motion._start_position = start_position
         await self.write(
             command="moveAz",
             parameters={"position": target_position, "velocity": target_velocity},
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs.duration)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs_status.duration)
 
     async def verify_amcs_move(
         self, time_diff, expected_status, expected_position, crawl_velocity=0
@@ -194,14 +196,14 @@ class MockTestCase(asynctest.TestCase):
     async def test_moveAz_zero_pos_pos(self):
         # Test moving the AMCS to a position in positive direction starting
         # from position 0 and ending in a positive crawl velocity
-        initial_position = 0
+        start_position = 0
         target_position = math.radians(10)
         target_velocity = math.radians(0.1)
         await self.prepare_amcs_move(
-            initial_position, target_position, target_velocity,
+            start_position, target_position, target_velocity,
         )
 
-        # Make the amcs rotate and check both status and position at the
+        # Make the amcs_status rotate and check both status and position at the
         # specified times
         await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(1.5))
         await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(3.0))
@@ -215,14 +217,14 @@ class MockTestCase(asynctest.TestCase):
     async def test_moveAz_zero_pos_neg(self):
         # Test moving the AMCS to a position in positive direction starting
         # from position 0 and ending in a negative crawl velocity
-        initial_position = 0
+        start_position = 0
         target_position = math.radians(10)
         target_velocity = math.radians(-0.1)
         await self.prepare_amcs_move(
-            initial_position, target_position, target_velocity,
+            start_position, target_position, target_velocity,
         )
 
-        # Make the amcs rotate and check both status and position at the
+        # Make the amcs_status rotate and check both status and position at the
         # specified times
         await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(1.5))
         await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(3.0))
@@ -236,14 +238,14 @@ class MockTestCase(asynctest.TestCase):
     async def test_moveAz_zero_pos_zero(self):
         # Test moving the AMCS to a position in positive direction starting
         # from position 0 and ending in a stand still, i.e. a 0 crawl velocity
-        initial_position = 0
+        start_position = 0
         target_position = math.radians(10)
         target_velocity = 0
         await self.prepare_amcs_move(
-            initial_position, target_position, target_velocity,
+            start_position, target_position, target_velocity,
         )
 
-        # Make the amcs rotate and check both status and position at the
+        # Make the amcs_status rotate and check both status and position at the
         # specified times
         await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(1.5))
         await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(3.0))
@@ -257,14 +259,14 @@ class MockTestCase(asynctest.TestCase):
     async def test_moveAz_twenty_neg_pos(self):
         # Test moving the AMCS to a position in negative direction starting
         # from position 20 degrees and ending in a positive crawl velocity
-        initial_position = math.radians(20)
+        start_position = math.radians(20)
         target_position = math.radians(10)
         target_velocity = math.radians(0.1)
         await self.prepare_amcs_move(
-            initial_position, target_position, target_velocity,
+            start_position, target_position, target_velocity,
         )
 
-        # Make the amcs rotate and check both status and position at the
+        # Make the amcs_status rotate and check both status and position at the
         # specified times
         await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(18.5))
         await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(17.0))
@@ -278,14 +280,14 @@ class MockTestCase(asynctest.TestCase):
     async def test_moveAz_twenty_neg_neg(self):
         # Test moving the AMCS to a position in positive direction starting
         # from position 20 degrees and ending in a negative crawl velocity
-        initial_position = math.radians(20)
+        start_position = math.radians(20)
         target_position = math.radians(10)
         target_velocity = math.radians(-0.1)
         await self.prepare_amcs_move(
-            initial_position, target_position, target_velocity,
+            start_position, target_position, target_velocity,
         )
 
-        # Make the amcs rotate and check both status and position at the
+        # Make the amcs_status rotate and check both status and position at the
         # specified times
         await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(18.5))
         await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(17.0))
@@ -298,14 +300,14 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_moveAz_zero_neg_zero(self):
         # Test moving the AMCS when an error occurs
-        initial_position = math.radians(20)
+        start_position = math.radians(20)
         target_position = math.radians(10)
         target_velocity = 0
         await self.prepare_amcs_move(
-            initial_position, target_position, target_velocity,
+            start_position, target_position, target_velocity,
         )
 
-        # Make the amcs rotate and check both status and position at the
+        # Make the amcs_status rotate and check both status and position at the
         # specified times
         await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(18.5))
         await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(17.0))
@@ -319,11 +321,11 @@ class MockTestCase(asynctest.TestCase):
     async def test_moveAz_error(self):
         # Test moving the AMCS to a position in positive direction starting
         # from position 0 and ending in a stand still, i.e. a 0 crawl velocity
-        initial_position = math.radians(20)
+        start_position = math.radians(20)
         target_position = math.radians(10)
         target_velocity = 0
         await self.prepare_amcs_move(
-            initial_position, target_position, target_velocity,
+            start_position, target_position, target_velocity,
         )
 
         # Introduce an error. This will be improved once error codes have been
@@ -332,7 +334,7 @@ class MockTestCase(asynctest.TestCase):
             "Drive 1 temperature too high",
             "Drive 2 temperature too high",
         ]
-        self.mock_ctrl.amcs.error = expected_error
+        self.mock_ctrl.amcs_status.error = expected_error
 
         # Give some time to the mock device to move and theck the error status.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
@@ -348,12 +350,12 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = _CURRENT_TAI
         # Set the mock device status TAI time to the mock controller time for
         # easier control
-        self.mock_ctrl.amcs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.amcs_status.command_time_tai = self.mock_ctrl.current_tai
         target_velocity = math.radians(0.1)
         await self.write(command="crawlAz", parameters={"velocity": target_velocity})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs.duration)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs_status.duration)
 
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
@@ -376,7 +378,7 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = _CURRENT_TAI
         # Set the mock device status TAI time to the mock controller time for
         # easier control
-        self.mock_ctrl.amcs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.amcs_status.command_time_tai = self.mock_ctrl.current_tai
         target_position = math.radians(10)
         target_velocity = math.radians(0.1)
         await self.write(
@@ -385,7 +387,7 @@ class MockTestCase(asynctest.TestCase):
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs.duration)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs_status.duration)
 
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
@@ -408,7 +410,7 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs.duration)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs_status.duration)
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
@@ -423,13 +425,13 @@ class MockTestCase(asynctest.TestCase):
             amcs_status["positionActual"], math.radians(1.9),
         )
 
-    async def prepare_lwscs_move(self, initial_position, target_position):
+    async def prepare_lwscs_move(self, start_position, target_position):
         """Utility method for preparing the initial state of LWSCS for easier
         testing.
 
         Parameters
         ----------
-        initial_position: `float`
+        start_position: `float`
             The initial position of LWSCS in radians.
         target_position: `float`
             The target position for the LWSCS rotation in radians.
@@ -440,11 +442,11 @@ class MockTestCase(asynctest.TestCase):
         """
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
-        self.mock_ctrl.lwscs.elevation_motion._initial_position = initial_position
+        self.mock_ctrl.lwscs_status.elevation_motion._start_position = start_position
         await self.write(command="moveEl", parameters={"position": target_position})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.lwscs.duration)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.lwscs_status.duration)
 
     async def verify_lwscs_move(self, time_diff, expected_status, expected_position):
         """Verify the expected status and position after the given time
@@ -471,10 +473,10 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_moveEl_zero_five(self):
         # Test moving the LWSCS from 0 to 5 degrees. This should succeed.
-        initial_position = 0
+        start_position = 0
         target_position = math.radians(5)
         await self.prepare_lwscs_move(
-            initial_position=initial_position, target_position=target_position
+            start_position=start_position, target_position=target_position
         )
 
         # Move EL and check the position.
@@ -496,10 +498,10 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_moveEl_five_zero(self):
         # Test moving the LWSCS from 5 to 0 degrees. This should succeed.
-        initial_position = math.radians(5)
+        start_position = math.radians(5)
         target_position = math.radians(0)
         await self.prepare_lwscs_move(
-            initial_position=initial_position, target_position=target_position
+            start_position=start_position, target_position=target_position
         )
 
         # Move EL and check the position.
@@ -521,24 +523,24 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_moveEl_five_min_five(self):
         # Test moving the LWSCS from 5 to -5 degrees. This should NOT succeed.
-        initial_position = math.radians(5)
+        start_position = math.radians(5)
         target_position = math.radians(-5)
         # Sending the command should result in a ValueError. The exception
         # encountered here is a TimeoutError, which is why a much more general
         # Exception is caught.
         try:
             await self.prepare_lwscs_move(
-                initial_position=initial_position, target_position=target_position
+                start_position=start_position, target_position=target_position
             )
             self.fail("A ValueError should have been raised.")
         except Exception:
             pass
 
     async def test_stopEl(self):
-        initial_position = 0
+        start_position = 0
         target_position = math.radians(5)
         await self.prepare_lwscs_move(
-            initial_position=initial_position, target_position=target_position
+            start_position=start_position, target_position=target_position
         )
 
         # Move EL and check the position and status.
@@ -551,7 +553,7 @@ class MockTestCase(asynctest.TestCase):
         # await self.write(command="stopEl", parameters={})
         # self.data = await self.read()
         # self.assertEqual(self.data["response"], 0)
-        # self.assertEqual(self.data["timeout"], self.mock_ctrl.short_timeout)
+        # self.assertEqual(self.data["timeout"], self.mock_ctrl.short_duration)
 
         # Move EL and check the position and status.
         await self.verify_lwscs_move(
@@ -565,10 +567,10 @@ class MockTestCase(asynctest.TestCase):
         self.mock_ctrl.current_tai = _CURRENT_TAI
         # Set the mock device statuses TAI time to the mock controller time for
         # easier control
-        self.mock_ctrl.amcs.command_time_tai = self.mock_ctrl.current_tai
-        self.mock_ctrl.apscs.command_time_tai = self.mock_ctrl.current_tai
-        self.mock_ctrl.lcs.command_time_tai = self.mock_ctrl.current_tai
-        self.mock_ctrl.lwscs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.amcs_status.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.apscs_status.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.lcs_status.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.lwscs_status.command_time_tai = self.mock_ctrl.current_tai
 
         target_position = math.radians(10)
         target_velocity = math.radians(0.1)
@@ -578,13 +580,13 @@ class MockTestCase(asynctest.TestCase):
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs.duration)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs_status.duration)
 
         target_position = math.radians(5)
         await self.write(command="moveEl", parameters={"position": target_position})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.lwscs.duration)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.lwscs_status.duration)
 
         louver_id = 5
         target_position = 100
@@ -595,12 +597,12 @@ class MockTestCase(asynctest.TestCase):
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
         await self.write(command="openShutter", parameters={})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
@@ -608,7 +610,7 @@ class MockTestCase(asynctest.TestCase):
         await self.write(command="stop", parameters={})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
         # Give some time to the mock devices to stop moving.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
@@ -637,13 +639,13 @@ class MockTestCase(asynctest.TestCase):
             status["status"], MotionState.STOPPED,
         )
 
-    async def prepare_lwscs_crawl(self, initial_position, target_velocity):
+    async def prepare_lwscs_crawl(self, start_position, target_velocity):
         """Utility method for preparing the initial state of LWSCS for easier
         testing.
 
         Parameters
         ----------
-        initial_position: `float`
+        start_position: `float`
             The initial position of LWSCS in radians.
         target_velocity: `float`
             The target velocity for the LWSCS rotation in radians/second.
@@ -654,13 +656,13 @@ class MockTestCase(asynctest.TestCase):
         """
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
-        self.mock_ctrl.lwscs.elevation_motion._initial_position = initial_position
+        self.mock_ctrl.lwscs_status.elevation_motion._start_position = start_position
         await self.write(
             command="crawlEl", parameters={"velocity": target_velocity},
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.lwscs.duration)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.lwscs_status.duration)
 
     async def verify_lwscs_crawl(self, time_diff, expected_status, expected_position):
         """Verify the expected status and position after the given time
@@ -687,7 +689,7 @@ class MockTestCase(asynctest.TestCase):
 
     async def test_crawlEl(self):
         await self.prepare_lwscs_crawl(
-            initial_position=0, target_velocity=math.radians(0.1)
+            start_position=0, target_velocity=math.radians(0.1)
         )
 
         # Let EL crawl a little and check the position
@@ -725,13 +727,13 @@ class MockTestCase(asynctest.TestCase):
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
         # Set the mock device statuses TAI time to the mock controller time for
         # easier control
-        self.mock_ctrl.lcs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.lcs_status.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to open.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
@@ -799,13 +801,13 @@ class MockTestCase(asynctest.TestCase):
         await self.write(command="closeLouvers", parameters={})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
         # Set the mock device statuses TAI time to the mock controller time for
         # easier control
-        self.mock_ctrl.lcs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.lcs_status.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to close.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
@@ -832,20 +834,20 @@ class MockTestCase(asynctest.TestCase):
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
         # Set the mock device statuses TAI time to the mock controller time for
         # easier control
-        self.mock_ctrl.lcs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.lcs_status.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to open.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
         await self.write(command="stopLouvers", parameters={})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
         # Give some time to the mock device to stop.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
@@ -873,13 +875,13 @@ class MockTestCase(asynctest.TestCase):
         await self.write(command="openShutter", parameters={})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
         # Set the mock device statuses TAI time to the mock controller time for
         # easier control
-        self.mock_ctrl.apscs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.apscs_status.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to open.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
@@ -900,13 +902,13 @@ class MockTestCase(asynctest.TestCase):
         await self.write(command="closeShutter", parameters={})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
         # Set the mock device statuses TAI time to the mock controller time for
         # easier control
-        self.mock_ctrl.apscs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.apscs_status.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to close.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
@@ -927,20 +929,20 @@ class MockTestCase(asynctest.TestCase):
         await self.write(command="openShutter", parameters={})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
         # Set the mock device statuses TAI time to the mock controller time for
         # easier control
-        self.mock_ctrl.apscs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.apscs_status.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to open.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
         await self.write(command="stopShutter", parameters={})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
         # Give some time to the mock device to stop.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
@@ -975,11 +977,11 @@ class MockTestCase(asynctest.TestCase):
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
-        self.assertEqual(self.mock_ctrl.amcs.amcs_limits.jmax, amcs_jmax)
-        self.assertEqual(self.mock_ctrl.amcs.amcs_limits.amax, amcs_amax)
-        self.assertEqual(self.mock_ctrl.amcs.amcs_limits.vmax, amcs_vmax)
+        self.assertEqual(self.mock_ctrl.amcs_status.amcs_limits.jmax, amcs_jmax)
+        self.assertEqual(self.mock_ctrl.amcs_status.amcs_limits.amax, amcs_amax)
+        self.assertEqual(self.mock_ctrl.amcs_status.amcs_limits.vmax, amcs_vmax)
 
         # All LWSCS values within the limits.
         lwscs_jmax = math.radians(2.5)
@@ -997,18 +999,18 @@ class MockTestCase(asynctest.TestCase):
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
-        self.assertEqual(self.mock_ctrl.lwscs.lwscs_limits.jmax, lwscs_jmax)
-        self.assertEqual(self.mock_ctrl.lwscs.lwscs_limits.amax, lwscs_amax)
-        self.assertEqual(self.mock_ctrl.lwscs.lwscs_limits.vmax, lwscs_vmax)
+        self.assertEqual(self.mock_ctrl.lwscs_status.lwscs_limits.jmax, lwscs_jmax)
+        self.assertEqual(self.mock_ctrl.lwscs_status.lwscs_limits.amax, lwscs_amax)
+        self.assertEqual(self.mock_ctrl.lwscs_status.lwscs_limits.vmax, lwscs_vmax)
 
     async def test_park(self):
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
         # Set the mock device statuses TAI time to the mock controller time for
         # easier control
-        self.mock_ctrl.amcs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.amcs_status.command_time_tai = self.mock_ctrl.current_tai
         target_position = math.radians(1)
         target_velocity = math.radians(0.1)
         await self.write(
@@ -1017,7 +1019,7 @@ class MockTestCase(asynctest.TestCase):
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs.duration)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs_status.duration)
 
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
@@ -1025,7 +1027,7 @@ class MockTestCase(asynctest.TestCase):
         await self.write(command="park", parameters={})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs.duration)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs_status.duration)
 
         # Give some time to the mock device to park.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 5.0
@@ -1050,13 +1052,13 @@ class MockTestCase(asynctest.TestCase):
         )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
         # Set the mock device statuses TAI time to the mock controller time for
         # easier control
-        self.mock_ctrl.thcs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.thcs_status.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to set the temperature.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
@@ -1081,11 +1083,8 @@ class MockTestCase(asynctest.TestCase):
         await self.write(command="inflate", parameters={"action": Dome.OnOff.ON.name})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
-        # The status of the inflatable seal is not part of the output of amcs
-        # status so this is the only way to check the result of executing the
-        # inflate command
-        self.assertEqual(self.mock_ctrl.amcs.seal_inflated, Dome.OnOff.ON)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        self.assertEqual(self.mock_ctrl.amcs_status.seal_inflated, Dome.OnOff.ON)
         # Also check that the inflate status is set in the AMCS status.
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
@@ -1105,11 +1104,8 @@ class MockTestCase(asynctest.TestCase):
         await self.write(command="fans", parameters={"action": Dome.OnOff.ON.name})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_timeout)
-        # The status of the fans is not part of the output of amcs status so
-        # this is the only way to check the result of executing the fans
-        # command
-        self.assertEqual(self.mock_ctrl.amcs.fans_enabled, Dome.OnOff.ON)
+        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        self.assertEqual(self.mock_ctrl.amcs_status.fans_enabled, Dome.OnOff.ON)
         # Also check that the fans status is set in the AMCS status.
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()

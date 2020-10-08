@@ -25,6 +25,7 @@ import logging
 import math
 
 from lsst.ts.idl.enums.Dome import MotionState
+import lsst.ts.salobj as salobj
 
 
 class AzimuthMotion:
@@ -32,35 +33,57 @@ class AzimuthMotion:
 
     Parameters
     ----------
-    initial_position: `float`
-        The initial position [rad].
+    start_position: `float`
+        The start position [rad] of the move.
     max_speed: `float`
         The maximum allowed speed [rad/s].
-    current_tai: `float`
-        The current TAI time.
+    start_tai: `float`
+        The TAI time of the start of the move. This also needs to be set in the
+        constructor so this class knows what the TAI time currently is.
 
     Notes
     -----
     This simulator can either move the dome to a target position at maximum
     speed and start crawling from there with the specified crawl velocity, or
-    crawl at the specified velocity. It handles the 0/2pi radians (0/360
-    degrees) boundary. When either moving or crawling, a new move or handle
-    command is handled, the azimuth motion/crawl can be stopped and the dome
-    can be parked.
+    crawl at the specified velocity. It handles the 0/2pi radians boundary.
+    When either moving or crawling, a new move or handle command is handled,
+    the azimuth motion/crawl can be stopped and the dome can be parked.
     """
 
-    def __init__(self, initial_position, max_speed, current_tai):
-        self._initial_position = initial_position
-        self._motion_state = MotionState.STOPPED
-        self._commanded_tai = current_tai
-        self._target_position = 0
+    def __init__(self, start_position, max_speed, start_tai):
+        # This defines the start position of a move or a crawl.
+        self._start_position = start_position
+        # The commanded MotionState, against which the computed MotionState
+        # will be compared. By default the azimuth motion starts in STOPPED
+        # state. The MotionState only changes when a new command is received.
+        self._commanded_motion_state = MotionState.STOPPED
+        # This defines the end position of the move, after which crawling will
+        # start in case of a move command. Ignored in case of a crawl command.
+        # In case of a park command, the end position will always be 0 and no
+        # crawling will follow.
+        self._end_position = 0
+        # This defines the TAI time at which a move or crawl will start.
+        self._start_tai = start_tai
+        # This defines the TAI time at which the move will end, after which
+        # crawling will start in case of a move command. Ignored in case of a
+        # crawl command. Also used in case of a park command but no crawl will
+        # follow.
+        self._end_tai = 0
+        # This is not a constant but can be configured by the Dome CSC, which
+        # is why it is a parameter.
         self._max_speed = max_speed
+        # When a move or park command is received, the move velocity is
+        # determined as the move speed in the correct direction.
         self._move_velocity = 0
+        # When a move or crawl command is received, it specifies the crawl
+        # velocity.
         self._crawl_velocity = 0
-        self._do_move = True
+        # The computed motion state
+        self._motion_state = None
+
         self.log = logging.getLogger("MockCircularCrawlingActuator")
 
-    def determine_distance_and_move_speed(self):
+    def determine_distance_and_move_velocity(self):
         """Determines the smallest distance [rad] between the initial and
         target positions assuming motion around a circle. The move velocity is
         determined at the same time as well.
@@ -69,30 +92,25 @@ class AzimuthMotion:
         -------
         distance: `float`
             The smallest distance between the initial and target positions.
+        move_velocity: `float`
+            The velocity at which the move will be performed.
 
         """
-        distance = self._target_position - self._initial_position
-        self._move_velocity = self._max_speed
-        if distance >= math.pi:
-            distance -= 2 * math.pi
-            self._move_velocity = -self._max_speed
-        elif distance > 0:
-            self._move_velocity = self._max_speed
-        elif distance < -math.pi:
-            distance += 2 * math.pi
-            self._move_velocity = self._max_speed
-        elif distance < 0:
-            self._move_velocity = -self._max_speed
-        return distance
+        distance = salobj.angle_diff(
+            math.degrees(self._end_position), math.degrees(self._start_position)
+        ).rad
+        move_velocity = self._max_speed if distance >= 0 else -self._max_speed
+        return distance, move_velocity
 
     def get_duration(self, distance):
         duration = math.fabs(distance / self._move_velocity)
-        if not self._do_move:
+        if self._commanded_motion_state == MotionState.CRAWLING:
+            # A crawl command is executed instantaneously.
             duration = 0
         return duration
 
     def set_target_position_and_velocity(
-        self, commanded_tai, target_position, crawl_velocity, do_move
+        self, start_tai, end_position, crawl_velocity, motion_state
     ):
         """Sets the target_position and crawl velocity and returns the duration
         of the move.
@@ -102,14 +120,14 @@ class AzimuthMotion:
 
         Parameters
         ----------
-        commanded_tai: `float`
+        start_tai: `float`
             The TAI time at which the command was issued.
-        target_position: `float`
-            The target position [rad]. Ignored if `do_move` is False.
+        end_position: `float`
+            The end position [rad] of the move. Ignored if `do_move` is False.
         crawl_velocity: `float`
             The velocity [rad/s] at which to crawl once the move is done.
-        do_move: `bool`
-            Move and then crawl (True) or crawl only (False).
+        motion_state: `MotionState`
+            MOVING or CRAWLING. The value is not checked.
 
         Returns
         -------
@@ -128,14 +146,13 @@ class AzimuthMotion:
                 f" than the max speed {self._max_speed}."
             )
 
-        position, motion_state = self.get_position_and_motion_state(tai=commanded_tai)
-        self._initial_position = position
-        self._commanded_tai = commanded_tai
-        self._target_position = target_position
+        self._commanded_motion_state = motion_state
+        self._start_tai = start_tai
+        self._end_position = end_position
         self._crawl_velocity = crawl_velocity
-        self._do_move = do_move
-        distance = self.determine_distance_and_move_speed()
+        distance, self._move_velocity = self.determine_distance_and_move_velocity()
         duration = self.get_duration(distance)
+        self._end_tai = self._start_tai + duration
         return duration
 
     def get_position_and_motion_state(self, tai):
@@ -152,83 +169,83 @@ class AzimuthMotion:
             The position [rad] at the given TAI time, taking both the move
             (optional)) and crawl velocities into account.
         """
-        distance = self.determine_distance_and_move_speed()
-        duration = self.get_duration(distance)
-        if not self._do_move and self._motion_state not in [
-            MotionState.PARKING,
-            MotionState.STOPPING,
-        ]:
-            position = self._initial_position + self._crawl_velocity * (
-                tai - self._commanded_tai
-            )
-            self._motion_state = MotionState.CRAWLING
-            if self._crawl_velocity == 0:
-                self._motion_state = MotionState.STOPPED
-        elif tai - self._commanded_tai >= duration:
-            if self._motion_state in [MotionState.PARKING, MotionState.PARKED]:
+        if tai >= self._end_tai:
+            if self._commanded_motion_state in [
+                MotionState.PARKING,
+                MotionState.PARKED,
+            ]:
                 self._motion_state = MotionState.PARKED
-                position = self._target_position
+                position = self._end_position
                 self._move_velocity = 0
                 self._crawl_velocity = 0
-            elif self._motion_state in [MotionState.STOPPING, MotionState.STOPPED]:
+            elif self._commanded_motion_state in [
+                MotionState.STOPPING,
+                MotionState.STOPPED,
+            ]:
                 self._motion_state = MotionState.STOPPED
-                position = self._target_position
+                position = self._end_position
                 self._move_velocity = 0
                 self._crawl_velocity = 0
             else:
-                diff_since_crawl_started = tai - self._commanded_tai - duration
+                diff_since_crawl_started = tai - self._end_tai
+                calculation_position = self._end_position
+                if self._commanded_motion_state == MotionState.CRAWLING:
+                    calculation_position = self._start_position
                 position = (
-                    self._target_position
+                    calculation_position
                     + self._crawl_velocity * diff_since_crawl_started
                 )
                 self._motion_state = MotionState.CRAWLING
                 if self._crawl_velocity == 0:
                     self._motion_state = MotionState.STOPPED
-        else:
-            position = self._initial_position + self._move_velocity * (
-                tai - self._commanded_tai
+        elif tai < self._start_tai:
+            raise ValueError(
+                f"Encountered TAI {tai} which is smaller than start TAI {self._start_tai}"
             )
-            if self._motion_state not in [
-                MotionState.PARKING,
-                MotionState.STOPPING,
-            ]:
+        else:
+            position = self._start_position + self._move_velocity * (
+                tai - self._start_tai
+            )
+            if self._commanded_motion_state == MotionState.PARKING:
+                self._motion_state = MotionState.PARKING
+            elif self._commanded_motion_state == MotionState.STOPPING:
+                self._motion_state = MotionState.STOPPED
+            else:
                 self._motion_state = MotionState.MOVING
 
-        if position >= 2 * math.pi:
-            position -= 2 * math.pi
-        elif position < 0:
-            position += 2 * math.pi
+        position = salobj.angle_wrap_nonnegative(math.degrees(position)).rad
         return position, self._motion_state
 
-    def stop(self, commanded_tai):
+    def stop(self, start_tai):
         """Stops the current motion instantaneously.
 
         Parameters
         ----------
-        commanded_tai: `float`
+        start_tai: `float`
             The TAI time at which the command was issued.
         """
-        position, motion_state = self.get_position_and_motion_state(tai=commanded_tai)
-        self._commanded_tai = commanded_tai
-        self._initial_position = position
-        self._target_position = position
+        position, motion_state = self.get_position_and_motion_state(tai=start_tai)
+        self._start_tai = start_tai
+        self._start_position = position
+        self._end_position = position
         self._move_velocity = 0
         self._crawl_velocity = 0
-        self._motion_state = MotionState.STOPPING
+        self._commanded_motion_state = MotionState.STOPPING
 
-    def park(self, commanded_tai):
+    def park(self, start_tai):
         """Parks the dome.
 
         Parameters
         ----------
-        commanded_tai: `float`
+        start_tai: `float`
             The TAI time at which the command was issued.
         """
-        position, motion_state = self.get_position_and_motion_state(tai=commanded_tai)
-        self._commanded_tai = commanded_tai
-        self._initial_position = position
-        self._target_position = 0
-        self.determine_distance_and_move_speed()
+        position, motion_state = self.get_position_and_motion_state(tai=start_tai)
+        self._start_tai = start_tai
+        self._start_position = position
+        self._end_position = 0
         self._crawl_velocity = 0
-        self._motion_state = MotionState.PARKING
-        self._do_move = True
+        self._commanded_motion_state = MotionState.PARKING
+        distance, self._move_velocity = self.determine_distance_and_move_velocity()
+        self._end_tai = self._start_tai + self.get_duration(distance)
+        return self._end_tai

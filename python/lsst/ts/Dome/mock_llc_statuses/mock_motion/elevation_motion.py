@@ -33,7 +33,7 @@ class ElevationMotion:
 
     Parameters
     ----------
-    initial_position: `float`
+    start_position: `float`
         The initial position.
     min_position: `float`
         The minimum allowed position.
@@ -42,7 +42,7 @@ class ElevationMotion:
     max_speed: `float`
         The maximum allowed speed. If the provided abs(velocity) is lower then
         `MotionState` CRAWLING is assumed, MOVING otherwise.
-    current_tai: `float`
+    start_tai: `float`
         The current TAI time.
 
     Notes
@@ -57,33 +57,31 @@ class ElevationMotion:
     """
 
     def __init__(
-        self, initial_position, min_position, max_position, max_speed, current_tai
+        self, start_position, min_position, max_position, max_speed, start_tai
     ):
-        self._initial_position = initial_position
+        self._start_position = start_position
         self._min_position = min_position
         self._max_position = max_position
         self._max_speed = max_speed
         self._motion_state = MotionState.STOPPED
-        self._commanded_tai = current_tai
+        self._start_tai = start_tai
         self._target_position = 0
         self._velocity = 0
         self.log = logging.getLogger("MockPointToPointActuator")
 
     @property
-    def initial_position(self):
-        return self._initial_position
+    def start_position(self):
+        return self._start_position
 
-    def set_target_position_and_velocity(
-        self, commanded_tai, target_position, velocity
-    ):
-        """Sets the target_position and velocity and returns the duration of
+    def set_target_position_and_velocity(self, start_tai, target_position, velocity):
+        """Sets the end_position and velocity and returns the duration of
         the move.
 
         No aceleration is taken into account.
 
         Parameters
         ----------
-        commanded_tai: `float`
+        start_tai: `float`
             The TAI time at which the command was issued.
         target_position: `float`
             The target position.
@@ -112,12 +110,12 @@ class ElevationMotion:
                 f"The target speed {math.fabs(velocity)} is larger than the "
                 f"max speed {self._max_speed}."
             )
-        position, motion_state = self.get_position_and_motion_state(tai=commanded_tai)
-        self._initial_position = position
-        self._commanded_tai = commanded_tai
+        position, motion_state = self.get_position_and_motion_state(tai=start_tai)
+        self._start_position = position
+        self._start_tai = start_tai
         self._target_position = target_position
         self._velocity = velocity
-        duration = (self._target_position - self._initial_position) / self._velocity
+        duration = (self._target_position - self._start_position) / self._velocity
         return duration
 
     def get_position_and_motion_state(self, tai):
@@ -133,7 +131,7 @@ class ElevationMotion:
         position: `float`
             The position at the given TAI time.
         """
-        position = self._initial_position + self._velocity * (tai - self._commanded_tai)
+        position = self._start_position + self._velocity * (tai - self._start_tai)
         self._motion_state = MotionState.MOVING
         if self._velocity == 0:
             self._motion_state = MotionState.STOPPED
@@ -143,12 +141,12 @@ class ElevationMotion:
         if self._motion_state == MotionState.CRAWLING:
             if position >= self._max_position:
                 position = self._max_position
-                self._initial_position = self._max_position
+                self._start_position = self._max_position
                 self._velocity = 0
                 self._motion_state = MotionState.STOPPED
             elif position <= self._min_position:
                 position = self._min_position
-                self._initial_position = self._min_position
+                self._start_position = self._min_position
                 self._velocity = 0
                 self._motion_state = MotionState.STOPPED
         elif self._motion_state == MotionState.MOVING:
@@ -162,15 +160,15 @@ class ElevationMotion:
                 self._motion_state = MotionState.STOPPED
         return position, self._motion_state
 
-    def stop(self, commanded_tai):
+    def stop(self, start_tai):
         """Stops the current motion instantaneously.
 
         Parameters
         ----------
-        commanded_tai: `float`
+        start_tai: `float`
             The TAI time at which the command was issued.
         """
-        position, motion_state = self.get_position_and_motion_state(tai=commanded_tai)
-        self._initial_position = position
+        position, motion_state = self.get_position_and_motion_state(tai=start_tai)
+        self._start_position = position
         self._target_position = position
         self._velocity = 0

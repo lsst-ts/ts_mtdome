@@ -126,7 +126,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             self.csc.mock_ctrl.current_tai = salobj.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
+            self.csc.mock_ctrl.amcs_status.command_time_tai = (
+                self.csc.mock_ctrl.current_tai
+            )
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -171,7 +173,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             self.csc.mock_ctrl.current_tai = salobj.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
-            self.csc.mock_ctrl.lwscs.command_time_tai = self.csc.mock_ctrl.current_tai
+            self.csc.mock_ctrl.lwscs_status.command_time_tai = (
+                self.csc.mock_ctrl.current_tai
+            )
 
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
@@ -254,7 +258,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             self.csc.mock_ctrl.current_tai = salobj.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
+            self.csc.mock_ctrl.amcs_status.command_time_tai = (
+                self.csc.mock_ctrl.current_tai
+            )
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -295,7 +301,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             self.csc.mock_ctrl.current_tai = salobj.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
-            self.csc.mock_ctrl.lwscs.command_time_tai = self.csc.mock_ctrl.current_tai
+            self.csc.mock_ctrl.lwscs_status.command_time_tai = (
+                self.csc.mock_ctrl.current_tai
+            )
 
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
@@ -381,7 +389,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             self.csc.mock_ctrl.current_tai = salobj.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
+            self.csc.mock_ctrl.amcs_status.command_time_tai = (
+                self.csc.mock_ctrl.current_tai
+            )
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -496,7 +506,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             self.csc.mock_ctrl.current_tai = salobj.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
+            self.csc.mock_ctrl.amcs_status.command_time_tai = (
+                self.csc.mock_ctrl.current_tai
+            )
 
             await self.csc.write_then_read_reply(
                 command="fans", action=Dome.OnOff.ON.name
@@ -520,7 +532,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             self.csc.mock_ctrl.current_tai = salobj.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
+            self.csc.mock_ctrl.amcs_status.command_time_tai = (
+                self.csc.mock_ctrl.current_tai
+            )
 
             await self.csc.write_then_read_reply(
                 command="inflate", action=Dome.OnOff.ON.name
@@ -621,7 +635,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 "Drive 2 temperature too high",
             ]
             expected_fault_code = ", ".join(expected_error)
-            self.csc.mock_ctrl.amcs.error = expected_error
+            self.csc.mock_ctrl.amcs_status.error = expected_error
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(
