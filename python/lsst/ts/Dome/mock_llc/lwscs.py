@@ -26,7 +26,7 @@ import math
 
 import numpy as np
 
-from .base_mock_status import BaseMockStatus
+from .base_mock_llc import BaseMockStatus
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
 from lsst.ts.idl.enums.Dome import MotionState
 from .mock_motion.elevation_motion import ElevationMotion
@@ -115,11 +115,11 @@ class LwscsStatus(BaseMockStatus):
             The current TAI time
         """
         self.position_commanded = position
-        motion_velocity = self.vmax
-        if self.position_commanded < self.elevation_motion.start_position:
-            motion_velocity = -self.vmax
         self.duration = self.elevation_motion.set_target_position_and_velocity(
-            start_tai=start_tai, target_position=position, velocity=motion_velocity,
+            start_tai=start_tai,
+            end_position=position,
+            crawl_velocity=0,
+            motion_state=MotionState.MOVING,
         )
         return self.duration
 
@@ -140,8 +140,9 @@ class LwscsStatus(BaseMockStatus):
             self.position_commanded = 0
         self.duration = self.elevation_motion.set_target_position_and_velocity(
             start_tai=start_tai,
-            target_position=self.position_commanded,
-            velocity=velocity,
+            end_position=self.position_commanded,
+            crawl_velocity=velocity,
+            motion_state=MotionState.CRAWLING,
         )
         return self.duration
 

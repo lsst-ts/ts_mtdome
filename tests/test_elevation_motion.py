@@ -21,8 +21,9 @@
 
 import asynctest
 import logging
+import math
 
-from lsst.ts.Dome.mock_llc_statuses.mock_motion import ElevationMotion
+from lsst.ts.Dome.mock_llc.mock_motion import ElevationMotion
 from lsst.ts.idl.enums.Dome import MotionState
 
 logging.basicConfig(
@@ -30,6 +31,8 @@ logging.basicConfig(
 )
 
 _start_tai = 10001.0
+_MIN_POSITION = 0
+_MAX_POSITION = math.radians(90)
 
 
 class ElevationMotionTestCase(asynctest.TestCase):
@@ -60,7 +63,7 @@ class ElevationMotionTestCase(asynctest.TestCase):
         )
 
     async def verify_elevation_motion_duration(
-        self, start_tai, target_position, velocity, expected_duration,
+        self, start_tai, target_position, velocity, expected_duration, motion_state,
     ):
         """Verify that the ElevationMotion computes the correct duration.
 
@@ -74,9 +77,14 @@ class ElevationMotionTestCase(asynctest.TestCase):
             The velocity for the motion.
         expected_duration: `float`
             The expected duration.
+        motion_state: `MotionState`
+            The commanded MotionState.
         """
         duration = self.elevation_motion.set_target_position_and_velocity(
-            start_tai=start_tai, target_position=target_position, velocity=velocity,
+            start_tai=start_tai,
+            end_position=target_position,
+            crawl_velocity=velocity,
+            motion_state=motion_state,
         )
         self.assertEqual(expected_duration, duration)
 
@@ -107,11 +115,11 @@ class ElevationMotionTestCase(asynctest.TestCase):
         """
         start_position = 0.0
         start_tai = _start_tai
-        min_position = 0.0
-        max_position = 90.0
-        max_speed = 3.5
-        target_position = 10.0
-        velocity = 3.5
+        min_position = _MIN_POSITION
+        max_position = _MAX_POSITION
+        max_speed = math.radians(3.5)
+        target_position = math.radians(10.0)
+        velocity = math.radians(3.5)
         expected_duration = (target_position - start_position) / velocity
         await self.prepare_elevation_motion(
             start_position=start_position,
@@ -125,20 +133,21 @@ class ElevationMotionTestCase(asynctest.TestCase):
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
+            motion_state=MotionState.MOVING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 1.0,
-            expected_position=3.5,
+            expected_position=math.radians(3.5),
             expected_motion_state=MotionState.MOVING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 2.5,
-            expected_position=8.75,
+            expected_position=math.radians(8.75),
             expected_motion_state=MotionState.MOVING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 3.0,
-            expected_position=10.0,
+            expected_position=math.radians(10.0),
             expected_motion_state=MotionState.STOPPED,
         )
 
@@ -146,13 +155,13 @@ class ElevationMotionTestCase(asynctest.TestCase):
         """Test the ElevationMotion when moving from position 10 to
         position 0.
         """
-        start_position = 10.0
+        start_position = math.radians(10.0)
         start_tai = _start_tai
-        min_position = 0.0
-        max_position = 90.0
-        max_speed = 3.5
+        min_position = _MIN_POSITION
+        max_position = _MAX_POSITION
+        max_speed = math.radians(3.5)
         target_position = 0.0
-        velocity = -3.5
+        velocity = math.radians(-3.5)
         expected_duration = (target_position - start_position) / velocity
         await self.prepare_elevation_motion(
             start_position=start_position,
@@ -166,15 +175,16 @@ class ElevationMotionTestCase(asynctest.TestCase):
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
+            motion_state=MotionState.MOVING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 1.0,
-            expected_position=6.5,
+            expected_position=math.radians(6.5),
             expected_motion_state=MotionState.MOVING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 2.5,
-            expected_position=1.25,
+            expected_position=math.radians(1.25),
             expected_motion_state=MotionState.MOVING,
         )
         await self.verify_elevation_motion_position(
@@ -188,12 +198,12 @@ class ElevationMotionTestCase(asynctest.TestCase):
         """
         start_position = 0.0
         start_tai = _start_tai
-        min_position = 0.0
-        max_position = 90.0
-        max_speed = 3.5
-        target_position = 10.0
-        velocity = 1.0
-        expected_duration = (target_position - start_position) / velocity
+        min_position = _MIN_POSITION
+        max_position = _MAX_POSITION
+        max_speed = math.radians(3.5)
+        target_position = math.radians(10.0)
+        velocity = math.radians(1.0)
+        expected_duration = 0
         await self.prepare_elevation_motion(
             start_position=start_position,
             min_position=min_position,
@@ -206,35 +216,36 @@ class ElevationMotionTestCase(asynctest.TestCase):
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
+            motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 1.0,
-            expected_position=1.0,
+            expected_position=math.radians(1.0),
             expected_motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 2.5,
-            expected_position=2.5,
+            expected_position=math.radians(2.5),
             expected_motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 10.1,
-            expected_position=10.1,
+            expected_position=math.radians(10.1),
             expected_motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 89.0,
-            expected_position=89.0,
+            expected_position=math.radians(89.0),
             expected_motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 90.0,
-            expected_position=90.0,
+            expected_position=math.radians(90.0),
             expected_motion_state=MotionState.STOPPED,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 91.0,
-            expected_position=90.0,
+            expected_position=math.radians(90.0),
             expected_motion_state=MotionState.STOPPED,
         )
 
@@ -242,14 +253,14 @@ class ElevationMotionTestCase(asynctest.TestCase):
         """Test the ElevationMotion when crawling from position 10 to
         position 0.
         """
-        start_position = 10.0
+        start_position = math.radians(10.0)
         start_tai = _start_tai
-        min_position = 0.0
-        max_position = 90.0
-        max_speed = 3.5
+        min_position = _MIN_POSITION
+        max_position = _MAX_POSITION
+        max_speed = math.radians(3.5)
         target_position = 0.0
-        velocity = -1.0
-        expected_duration = (target_position - start_position) / velocity
+        velocity = math.radians(-1.0)
+        expected_duration = 0
         await self.prepare_elevation_motion(
             start_position=start_position,
             min_position=min_position,
@@ -262,20 +273,21 @@ class ElevationMotionTestCase(asynctest.TestCase):
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
+            motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 1.0,
-            expected_position=9.0,
+            expected_position=math.radians(9.0),
             expected_motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 2.5,
-            expected_position=7.5,
+            expected_position=math.radians(7.5),
             expected_motion_state=MotionState.CRAWLING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 10.1,
-            expected_position=0.0,
+            expected_position=math.radians(0.0),
             expected_motion_state=MotionState.STOPPED,
         )
 
@@ -285,11 +297,11 @@ class ElevationMotionTestCase(asynctest.TestCase):
         """
         start_position = 0.0
         start_tai = _start_tai
-        min_position = 0.0
-        max_position = 90.0
-        max_speed = 3.5
-        target_position = 10.0
-        velocity = 3.5
+        min_position = _MIN_POSITION
+        max_position = _MAX_POSITION
+        max_speed = math.radians(3.5)
+        target_position = math.radians(10.0)
+        velocity = math.radians(3.5)
         expected_duration = (target_position - start_position) / velocity
         await self.prepare_elevation_motion(
             start_position=start_position,
@@ -303,16 +315,17 @@ class ElevationMotionTestCase(asynctest.TestCase):
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
+            motion_state=MotionState.MOVING,
         )
         await self.verify_elevation_motion_position(
             tai=_start_tai + 1.0,
-            expected_position=3.5,
+            expected_position=math.radians(3.5),
             expected_motion_state=MotionState.MOVING,
         )
         self.elevation_motion.stop(start_tai=_start_tai + 2.0)
         await self.verify_elevation_motion_position(
             tai=_start_tai + 3.0,
-            expected_position=7.0,
+            expected_position=math.radians(7.0),
             expected_motion_state=MotionState.STOPPED,
         )
 
@@ -320,13 +333,13 @@ class ElevationMotionTestCase(asynctest.TestCase):
         """Test the ElevationMotion when trying to move to a too low
         position.
         """
-        start_position = 10.0
+        start_position = math.radians(10.0)
         start_tai = _start_tai
-        min_position = 0.0
-        max_position = 90.0
-        max_speed = 3.5
-        target_position = -91.0
-        velocity = -3.5
+        min_position = _MIN_POSITION
+        max_position = _MAX_POSITION
+        max_speed = math.radians(3.5)
+        target_position = math.radians(-91.0)
+        velocity = math.radians(-3.5)
         expected_duration = (target_position - start_position) / velocity
         await self.prepare_elevation_motion(
             start_position=start_position,
@@ -341,6 +354,7 @@ class ElevationMotionTestCase(asynctest.TestCase):
                 target_position=target_position,
                 velocity=velocity,
                 expected_duration=expected_duration,
+                motion_state=MotionState.MOVING,
             )
             self.fail("Expected a ValueError.")
         except ValueError:
@@ -350,13 +364,13 @@ class ElevationMotionTestCase(asynctest.TestCase):
         """Test the ElevationMotion when trying to move to a too high
         position.
         """
-        start_position = 10.0
+        start_position = math.radians(10.0)
         start_tai = _start_tai
-        min_position = 0.0
-        max_position = 90.0
-        max_speed = 3.5
-        target_position = 91.0
-        velocity = 3.5
+        min_position = _MIN_POSITION
+        max_position = _MAX_POSITION
+        max_speed = math.radians(3.5)
+        target_position = math.radians(91.0)
+        velocity = math.radians(3.5)
         expected_duration = (target_position - start_position) / velocity
         await self.prepare_elevation_motion(
             start_position=start_position,
@@ -371,6 +385,7 @@ class ElevationMotionTestCase(asynctest.TestCase):
                 target_position=target_position,
                 velocity=velocity,
                 expected_duration=expected_duration,
+                motion_state=MotionState.MOVING,
             )
             self.fail("Expected a ValueError.")
         except ValueError:

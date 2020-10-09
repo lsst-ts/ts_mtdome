@@ -19,9 +19,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .amcs_status import AmcsStatus
-from .apscs_status import ApscsStatus
-from .lcs_status import LcsStatus
-from .lwscs_status import LwscsStatus
-from .moncs_status import MoncsStatus
-from .thcs_status import ThcsStatus
+from .amcs import AmcsStatus
+from .apscs import ApscsStatus
+from .lcs import LcsStatus
+from .lwscs import LwscsStatus
+from .moncs import MoncsStatus
+from .thcs import ThcsStatus

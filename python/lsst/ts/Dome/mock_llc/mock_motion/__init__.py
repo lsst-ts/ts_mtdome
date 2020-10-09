@@ -19,5 +19,5 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .elevation_motion import ElevationMotion
 from .azimuth_motion import AzimuthMotion
+from .elevation_motion import ElevationMotion

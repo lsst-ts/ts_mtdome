@@ -26,7 +26,7 @@ import math
 
 import numpy as np
 
-from .base_mock_status import BaseMockStatus
+from .base_mock_llc import BaseMockStatus
 from ..llc_configuration_limits.amcs_limits import AmcsLimits
 from lsst.ts.idl.enums.Dome import MotionState
 from .mock_motion.azimuth_motion import AzimuthMotion

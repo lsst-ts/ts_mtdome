@@ -23,7 +23,7 @@ import asynctest
 import logging
 import math
 
-from lsst.ts.Dome.mock_llc_statuses.mock_motion import AzimuthMotion
+from lsst.ts.Dome.mock_llc.mock_motion import AzimuthMotion
 from lsst.ts.idl.enums.Dome import MotionState
 
 logging.basicConfig(

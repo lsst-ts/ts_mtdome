@@ -27,7 +27,7 @@ import logging
 from lsst.ts.Dome.llc_name import LlcName
 from lsst.ts import salobj
 from lsst.ts.Dome import encoding_tools
-from lsst.ts.Dome import mock_llc_statuses
+from lsst.ts.Dome import mock_llc
 from lsst.ts.Dome.response_code import ResponseCode
 
 
@@ -109,13 +109,13 @@ class MockDomeController:
         # Time keeping
         self.current_tai = 0
 
-        # Variables to hold the status of the lower level components.
-        self.amcs_status = None
-        self.apscs_status = None
-        self.lcs_status = None
-        self.lwscs_status = None
-        self.moncs_status = None
-        self.thcs_status = None
+        # Variables for the lower level components.
+        self.amcs = None
+        self.apscs = None
+        self.lcs = None
+        self.lwscs = None
+        self.moncs = None
+        self.thcs = None
 
     async def start(self, keep_running=False):
         """Start the TCP/IP server.
@@ -141,12 +141,12 @@ class MockDomeController:
         await self.determine_current_tai()
 
         self.log.info("Starting LLCs")
-        self.amcs_status = mock_llc_statuses.AmcsStatus(start_tai=self.current_tai)
-        self.apscs_status = mock_llc_statuses.ApscsStatus()
-        self.lcs_status = mock_llc_statuses.LcsStatus()
-        self.lwscs_status = mock_llc_statuses.LwscsStatus(start_tai=self.current_tai)
-        self.moncs_status = mock_llc_statuses.MoncsStatus()
-        self.thcs_status = mock_llc_statuses.ThcsStatus()
+        self.amcs = mock_llc.AmcsStatus(start_tai=self.current_tai)
+        self.apscs = mock_llc.ApscsStatus()
+        self.lcs = mock_llc.LcsStatus()
+        self.lwscs = mock_llc.LwscsStatus(start_tai=self.current_tai)
+        self.moncs = mock_llc.MoncsStatus()
+        self.thcs = mock_llc.ThcsStatus()
 
         if keep_running:
             await self._server.serve_forever()
@@ -238,37 +238,37 @@ class MockDomeController:
         """Request the status from the AMCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.amcs_status, LlcName.AMCS)
+        await self.request_and_send_status(self.amcs, LlcName.AMCS)
 
     async def status_apscs(self):
         """Request the status from the ApSCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.apscs_status, LlcName.APSCS)
+        await self.request_and_send_status(self.apscs, LlcName.APSCS)
 
     async def status_lcs(self):
         """Request the status from the LCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.lcs_status, LlcName.LCS)
+        await self.request_and_send_status(self.lcs, LlcName.LCS)
 
     async def status_lwscs(self):
         """Request the status from the LWSCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.lwscs_status, LlcName.LWSCS)
+        await self.request_and_send_status(self.lwscs, LlcName.LWSCS)
 
     async def status_moncs(self):
         """Request the status from the MonCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.moncs_status, LlcName.MONCS)
+        await self.request_and_send_status(self.moncs, LlcName.MONCS)
 
     async def status_thcs(self):
         """Request the status from the ThCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.thcs_status, LlcName.THCS)
+        await self.request_and_send_status(self.thcs, LlcName.THCS)
 
     async def request_and_send_status(self, llc, llc_name):
         """Request the status of the given Lower Level Component and write it
@@ -276,7 +276,7 @@ class MockDomeController:
 
         Parameters
         ----------
-        llc: mock_llc_statuses
+        llc: mock_llc
             The Lower Level Component to request the status for.
         llc_name: LlcName
             The name of the Lower Level Component.
@@ -318,7 +318,7 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
-        return await self.amcs_status.moveAz(position, velocity, self.current_tai)
+        return await self.amcs.moveAz(position, velocity, self.current_tai)
 
     async def move_el(self, position):
         """Move the light and wind screen.
@@ -330,14 +330,14 @@ class MockDomeController:
 
         Returns
         -------
-        `float`
+        duration: `float`
             The estimated duration of the execution of the command.
         """
         self.log.info(f"Received command 'moveEl' with argument position={position}")
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
-        return await self.lwscs_status.moveEl(position, self.current_tai)
+        return await self.lwscs.moveEl(position, self.current_tai)
 
     async def stop_az(self):
         """Stop all dome motion.
@@ -346,14 +346,9 @@ class MockDomeController:
         -------
         `float`
             The estimated duration of the execution of the command.
-
-        Returns
-        -------
-        `float`
-            The estimated duration of the execution of the command.
         """
         self.log.info("Received command 'stopAz'")
-        return await self.amcs_status.stopAz(self.current_tai)
+        return await self.amcs.stopAz(self.current_tai)
 
     async def stop_el(self):
         """Stop all light and wind screen motion.
@@ -364,7 +359,7 @@ class MockDomeController:
             The estimated duration of the execution of the command.
         """
         self.log.info("Received command 'stopEl'")
-        return await self.lwscs_status.stopEl(self.current_tai)
+        return await self.lwscs.stopEl(self.current_tai)
 
     async def stop_llc(self):
         """Move all lower level components.
@@ -391,7 +386,7 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
-        return await self.amcs_status.crawlAz(velocity, self.current_tai)
+        return await self.amcs.crawlAz(velocity, self.current_tai)
 
     async def crawl_el(self, velocity):
         """Crawl the light and wind screen.
@@ -410,7 +405,7 @@ class MockDomeController:
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
-        return await self.lwscs_status.crawlEl(velocity, self.current_tai)
+        return await self.lwscs.crawlEl(velocity, self.current_tai)
 
     async def set_louvers(self, position):
         """Set the positions of the louvers.
@@ -424,37 +419,37 @@ class MockDomeController:
         self.log.info(
             f"Received command 'setLouvers' with argument position={position}"
         )
-        await self.lcs_status.setLouvers(position)
+        await self.lcs.setLouvers(position)
 
     async def close_louvers(self):
         """Close all louvers.
         """
         self.log.info("Received command 'closeLouvers'")
-        await self.lcs_status.closeLouvers()
+        await self.lcs.closeLouvers()
 
     async def stop_louvers(self):
         """Stop the motion of all louvers.
         """
         self.log.info("Received command 'stopLouvers'")
-        await self.lcs_status.stopLouvers()
+        await self.lcs.stopLouvers()
 
     async def open_shutter(self):
         """Open the shutter.
         """
         self.log.info("Received command 'openShutter'")
-        await self.apscs_status.openShutter()
+        await self.apscs.openShutter()
 
     async def close_shutter(self):
         """Close the shutter.
         """
         self.log.info("Received command 'closeShutter'")
-        await self.apscs_status.closeShutter()
+        await self.apscs.closeShutter()
 
     async def stop_shutter(self):
         """Stop the motion of the shutter.
         """
         self.log.info("Received command 'stopShutter'")
-        await self.apscs_status.stopShutter()
+        await self.apscs.stopShutter()
 
     async def config(self, system, settings):
         """Configure the lower level components.
@@ -495,9 +490,7 @@ class MockDomeController:
                     # these cases we need to extract the only value in the
                     # array.
                     setattr(
-                        self.amcs_status.amcs_limits,
-                        field["target"],
-                        field["setting"][0],
+                        self.amcs.amcs_limits, field["target"], field["setting"][0],
                     )
         elif system == LlcName.LWSCS.value:
             for field in settings:
@@ -506,9 +499,7 @@ class MockDomeController:
                     # these cases we need to extract the only value in the
                     # array.
                     setattr(
-                        self.lwscs_status.lwscs_limits,
-                        field["target"],
-                        field["setting"][0],
+                        self.lwscs.lwscs_limits, field["target"], field["setting"][0],
                     )
         else:
             raise KeyError(f"Unknown system {system}.")
@@ -522,7 +513,7 @@ class MockDomeController:
             The estimated duration of the execution of the command.
         """
         self.log.info("Received command 'park'")
-        return await self.amcs_status.park(self.current_tai)
+        return await self.amcs.park(self.current_tai)
 
     async def set_temperature(self, temperature):
         """Set the preferred temperature in the dome.
@@ -535,7 +526,7 @@ class MockDomeController:
         self.log.info(
             f"Received command 'setTemperature' with argument temperature={temperature}"
         )
-        await self.thcs_status.setTemperature(temperature)
+        await self.thcs.setTemperature(temperature)
 
     async def inflate(self, action):
         """Inflate or deflate the inflatable seal.
@@ -546,7 +537,7 @@ class MockDomeController:
             ON means inflate and OFF deflate the inflatable seal.
         """
         self.log.info(f"Received command 'inflate' with argument action={action}")
-        await self.amcs_status.inflate(action)
+        await self.amcs.inflate(action)
 
     async def fans(self, action):
         """Enable or disable the fans in the dome.
@@ -557,7 +548,7 @@ class MockDomeController:
             ON means fans on and OFF fans off.
         """
         self.log.info(f"Received command 'fans' with argument action={action}")
-        await self.amcs_status.fans(action)
+        await self.amcs.fans(action)
 
 
 async def main():
