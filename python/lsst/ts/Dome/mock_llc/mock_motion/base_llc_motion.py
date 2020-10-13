@@ -47,16 +47,20 @@ class BaseLlcMotion(ABC):
         # will be compared. By default the elevation motion starts in STOPPED
         # state. The MotionState only changes when a new command is received.
         self._commanded_motion_state = MotionState.STOPPED
-        # This defines the TAI time at which a move or crawl will start.
+        # This defines the TAI time, unix seconds, at which a move or crawl
+        # will start. To model the real dome, this should be the current time.
+        # However, for unit tests it can be convenient to use other values.
         self._start_tai = start_tai
-        # This defines the TAI time at which the move will end, after which
-        # all motion is stopped. Ignored in case of a crawl command.
+        # This defines the TAI time, unix seconds, at which the move will end,
+        # after which all motion is stopped. Ignored in case of a crawl
+        # command. To model the real dome, this should be the current time.
+        # However, for unit tests it can be convenient to use other values.
         self._end_tai = 0
         # When a move or crawl command is received, it specifies the crawl
         # crawl_velocity.
         self._crawl_velocity = 0
 
-    def get_distance(self):
+    def _get_distance(self):
         """Determines the smallest distance [rad] between the initial and
         target positions assuming motion around a circle.
 
@@ -70,15 +74,16 @@ class BaseLlcMotion(ABC):
         ).rad
         return distance
 
-    def get_duration(self):
-        """Determines the duration of the move, or zero in case of a crawl.
+    def _get_duration(self):
+        """Determines the duration of the move using the distance of the move
+        and the maximum speed, or zero in case of a crawl.
 
         Returns
         -------
         duration: `float`
             The duration of the move, or zero in case of a crawl.
         """
-        duration = math.fabs(self.get_distance()) / self._max_speed
+        duration = math.fabs(self._get_distance()) / self._max_speed
         if self._commanded_motion_state == MotionState.CRAWLING:
             # A crawl command is executed instantaneously.
             duration = 0
@@ -95,7 +100,9 @@ class BaseLlcMotion(ABC):
         Parameters
         ----------
         start_tai: `float`
-            The TAI time at which the command was issued.
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
         end_position: `float`
             The target position.
         crawl_velocity: `float`
@@ -130,12 +137,12 @@ class BaseLlcMotion(ABC):
         self._start_tai = start_tai
         self._end_position = end_position
         self._crawl_velocity = crawl_velocity
-        duration = self.get_duration()
+        duration = self._get_duration()
         self._end_tai = self._start_tai + duration
         return duration
 
     @abstractmethod
-    def get_position_and_motion_state(self, tai):
+    def get_position_velocity_and_motion_state(self, tai):
         pass
 
     @abstractmethod

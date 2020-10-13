@@ -42,7 +42,9 @@ class AmcsStatus(BaseMockStatus):
     Parameters
     ----------
     start_tai: `float`
-        The current TAI time.
+        The TAI time, unix seconds, at the time at which this class is
+        instantiated.  To model the real dome, this should be the current time.
+        However, for unit tests it can be convenient to use other values.
     """
 
     def __init__(self, start_tai):
@@ -66,7 +68,6 @@ class AmcsStatus(BaseMockStatus):
         self.fans_enabled = OnOff.OFF
         self.seal_inflated = OnOff.OFF
         self.position_commanded = 0
-        self.velocity_actual = 0
         self.velocity_commanded = 0
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
         self.drive_torque_commanded = np.zeros(_NUM_MOTORS, dtype=float)
@@ -77,13 +78,22 @@ class AmcsStatus(BaseMockStatus):
         self.resolver_raw = np.zeros(_NUM_MOTORS, dtype=float)
         self.resolver_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
 
-    async def determine_status(self, start_tai):
+    async def determine_status(self, current_tai):
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
+
+        Parameters
+        ----------
+        current_tai: `float`
+            The TAI time, unix seconds, for which the status is requested. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
         """
-        position, motion_state = self.azimuth_motion.get_position_and_motion_state(
-            tai=start_tai
-        )
+        (
+            position,
+            velocity,
+            motion_state,
+        ) = self.azimuth_motion.get_position_velocity_and_motion_state(tai=current_tai)
         self.llc_status = {
             "status": {
                 "error": self.error,
@@ -93,7 +103,7 @@ class AmcsStatus(BaseMockStatus):
             },
             "positionActual": position,
             "positionCommanded": self.position_commanded,
-            "velocityActual": self.velocity_actual,
+            "velocityActual": velocity,
             "velocityCommanded": self.velocity_commanded,
             "driveTorqueActual": self.drive_torque_actual.tolist(),
             "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
@@ -105,7 +115,7 @@ class AmcsStatus(BaseMockStatus):
             "resolverCalibrated": self.resolver_calibrated.tolist(),
             # DM-26653: The name of this key is still under discussion and
             # could be modified to "timestampUTC"
-            "timestamp": start_tai,
+            "timestamp": current_tai,
         }
 
         self.log.debug(f"amcs_state = {self.llc_status}")
@@ -125,7 +135,9 @@ class AmcsStatus(BaseMockStatus):
             has been reached at maximum velocity. The velocity is not checked
             against the velocity limits for the dome.
         start_tai: `float`
-            The current TAI time
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
         """
         self.log.debug(f"moveAz with position={position} and velocity={velocity}")
         self.position_commanded = position
@@ -146,7 +158,9 @@ class AmcsStatus(BaseMockStatus):
             The velocity (deg/s) at which to crawl. The velocity is not checked
             against the velocity limits for the dome.
         start_tai: `float`
-            The current TAI time
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
         """
         if velocity >= 0:
             # make sure that the dome never stops moving
@@ -168,20 +182,24 @@ class AmcsStatus(BaseMockStatus):
         Parameters
         ----------
         start_tai: `float`
-            The current TAI time
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
         """
         self.azimuth_motion.stop(start_tai)
         self.duration = 0.0
         return self.duration
 
     async def park(self, start_tai):
-        """Park the dome, meaning that it will be moved to azimuth 0.
+        """Park the dome by moving it to azimuth 0.
 
 
         Parameters
         ----------
         start_tai: `float`
-            The current TAI time
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
         """
         self.status = MotionState.PARKING
         self.position_commanded = 0.0

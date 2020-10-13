@@ -41,7 +41,9 @@ class LwscsStatus(BaseMockStatus):
     Parameters
     ----------
     start_tai: `float`
-        The current TAI time.
+        The TAI time, unix seconds, at the time at which this class is
+        instantiated.  To model the real dome, this should be the current time.
+        However, for unit tests it can be convenient to use other values.
     """
 
     def __init__(self, start_tai):
@@ -65,7 +67,6 @@ class LwscsStatus(BaseMockStatus):
         # variables holding the status of the mock EL motion
         self.status = MotionState.STOPPED
         self.position_commanded = 0
-        self.velocity_actual = 0
         self.velocity_commanded = 0
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
         self.drive_torque_commanded = np.zeros(_NUM_MOTORS, dtype=float)
@@ -77,18 +78,29 @@ class LwscsStatus(BaseMockStatus):
         self.resolver_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
         self.power_draw = 0.0
 
-    async def determine_status(self, start_tai):
+    async def determine_status(self, current_tai):
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
+
+        Parameters
+        ----------
+        current_tai: `float`
+            The TAI time, unix seconds, for which the status is requested. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
         """
-        position, motion_state = self.elevation_motion.get_position_and_motion_state(
-            tai=start_tai
+        (
+            position,
+            velocity,
+            motion_state,
+        ) = self.elevation_motion.get_position_velocity_and_motion_state(
+            tai=current_tai
         )
         self.llc_status = {
             "status": motion_state,
             "positionActual": position,
             "positionCommanded": self.position_commanded,
-            "velocityActual": self.velocity_actual,
+            "velocityActual": velocity,
             "velocityCommanded": self.velocity_commanded,
             "driveTorqueActual": self.drive_torque_actual.tolist(),
             "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
@@ -99,7 +111,7 @@ class LwscsStatus(BaseMockStatus):
             "resolverRaw": self.resolver_raw.tolist(),
             "resolverCalibrated": self.resolver_calibrated.tolist(),
             "powerDraw": self.power_draw,
-            "timestampUTC": start_tai,
+            "timestampUTC": current_tai,
         }
         self.log.debug(f"lwscs_state = {self.llc_status}")
 
@@ -112,7 +124,9 @@ class LwscsStatus(BaseMockStatus):
             The position (rad) to move to. 0 means point to the horizon and
             pi/2 point to the zenith. These limits are not checked.
         start_tai: `float`
-            The current TAI time
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
         """
         self.position_commanded = position
         self.duration = self.elevation_motion.set_target_position_and_velocity(
@@ -133,7 +147,9 @@ class LwscsStatus(BaseMockStatus):
             The velocity (deg/s) at which to crawl. The velocity is not checked
             against the velocity limits for the light and wind screen.
         start_tai: `float`
-            The current TAI time
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
         """
         self.position_commanded = math.pi
         if velocity < 0:
@@ -152,7 +168,9 @@ class LwscsStatus(BaseMockStatus):
         Parameters
         ----------
         start_tai: `float`
-            The current TAI time
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
 
         """
         self.elevation_motion.stop(start_tai)
