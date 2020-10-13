@@ -44,16 +44,18 @@ class ElevationMotion(BaseLlcMotion):
     max_speed: `float`
         The maximum allowed speed [rad/s].
     start_tai: `float`
-        The current TAI time.
+        The current TAI time, unix seconds. To  model the real dome, this
+        should be the current time. However, for unit tests it can be
+        convenient to use other values.
 
     Notes
     -----
     This simulator can either move the light and wind screen to a target
     position at maximum speed and stop, or crawl at the specified velocity. It
-    handles the 0 and 1/2pi radians (0 and 90 degrees) boundaries by stopping
-    there. When either moving or crawling, a new move or crawl command is
-    handled and the elevation motion/crawl can be stopped. To "park" the light
-    and wind screen, it needs to be moved to position 0.
+    handles the min_position and max_position boundaries by stopping there.
+    When either moving or crawling, a new move or crawl command is handled and
+    the elevation motion/crawl can be stopped. To "park" the light and wind
+    screen, it needs to be moved to min_position.
 
     """
 
@@ -69,19 +71,23 @@ class ElevationMotion(BaseLlcMotion):
         )
         self.log = logging.getLogger("MockPointToPointActuator")
 
-    def get_position_and_motion_state(self, tai):
+    def get_position_velocity_and_motion_state(self, tai):
         """Computes the position and `MotionState` for the given TAI time.
 
         Parameters
         ----------
         tai: `float`
-            The TAI time for which to compute the position.
+            The TAI time, unix seconds, for which to compute the position. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
 
         Returns
         -------
         position: `float`
             The position [rad] at the given TAI time, taking both the move
-            (optional)) and crawl velocities into account.
+            (optional) and crawl velocities into account.
+        velocity: `float`
+            The velocity [rad/s] at the given TAI time.
         motion_state: `MotionState`
             The MotionState at the given TAI time.
         """
@@ -93,6 +99,7 @@ class ElevationMotion(BaseLlcMotion):
             ]:
                 motion_state = MotionState.STOPPED
                 position = self._end_position
+                velocity = 0
             else:
                 diff_since_crawl_started = tai - self._end_tai
                 position = (
@@ -100,29 +107,37 @@ class ElevationMotion(BaseLlcMotion):
                     + self._crawl_velocity * diff_since_crawl_started
                 )
                 motion_state = MotionState.CRAWLING
+                velocity = self._crawl_velocity
                 if position >= self._max_position:
                     position = self._max_position
                     motion_state = MotionState.STOPPED
+                    velocity = 0
                 elif position <= self._min_position:
                     position = self._min_position
                     motion_state = MotionState.STOPPED
+                    velocity = 0
                 if self._crawl_velocity == 0:
                     motion_state = MotionState.STOPPED
+                    velocity = 0
         elif tai < self._start_tai:
             raise ValueError(
                 f"Encountered TAI {tai} which is smaller than start TAI {self._start_tai}"
             )
         else:
             frac_time = (tai - self._start_tai) / (self._end_tai - self._start_tai)
-            distance = self.get_distance()
+            distance = self._get_distance()
             position = self._start_position + distance * frac_time
+            velocity = self._max_speed
+            if distance < 0:
+                velocity = -self._max_speed
             if self._commanded_motion_state == MotionState.STOPPING:
                 motion_state = MotionState.STOPPED
+                velocity = 0
             else:
                 motion_state = MotionState.MOVING
 
         position = salobj.angle_wrap_nonnegative(math.degrees(position)).rad
-        return position, motion_state
+        return position, velocity, motion_state
 
     def stop(self, start_tai):
         """Stops the current motion instantaneously.
@@ -130,9 +145,13 @@ class ElevationMotion(BaseLlcMotion):
         Parameters
         ----------
         start_tai: `float`
-            The TAI time at which the command was issued.
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
         """
-        position, motion_state = self.get_position_and_motion_state(tai=start_tai)
+        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
+            tai=start_tai
+        )
         self._start_tai = start_tai
         self._start_position = position
         self._end_position = position
@@ -141,6 +160,13 @@ class ElevationMotion(BaseLlcMotion):
 
     def park(self, start_tai):
         """Not used for the elevation motion.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
 
         Raises
         ----------

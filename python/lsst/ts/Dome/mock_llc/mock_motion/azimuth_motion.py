@@ -39,8 +39,9 @@ class AzimuthMotion(BaseLlcMotion):
     max_speed: `float`
         The maximum allowed speed [rad/s].
     start_tai: `float`
-        The TAI time of the start of the move. This also needs to be set in the
-        constructor so this class knows what the TAI time currently is.
+        The TAI time, unix seconds, of the start of the move. This also needs
+        to be set in the constructor so this class knows what the TAI time
+        currently is.
 
     Notes
     -----
@@ -73,13 +74,15 @@ class AzimuthMotion(BaseLlcMotion):
         Parameters
         ----------
         start_tai: `float`
-            The TAI time at which the command was issued.
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
         end_position: `float`
             The end position [rad] of the move. Ignored if `do_move` is False.
         crawl_velocity: `float`
             The crawl_velocity [rad/s] at which to crawl once the move is done.
         motion_state: `MotionState`
-            MOVING or CRAWLING. The value is not checked.
+            MOVING or CRAWLING. The value is checked.
 
         Returns
         -------
@@ -90,6 +93,8 @@ class AzimuthMotion(BaseLlcMotion):
         ------
         ValueError
             If abs(crawl_velocity) > max_speed.
+        ValueError
+            if MotionState is not MOVING or CRAWLING.
 
         """
         if math.fabs(crawl_velocity) > self._max_speed:
@@ -97,28 +102,34 @@ class AzimuthMotion(BaseLlcMotion):
                 f"The target crawl speed {math.fabs(crawl_velocity)} is larger"
                 f" than the max speed {self._max_speed}."
             )
+        if motion_state not in [MotionState.MOVING, MotionState.CRAWLING]:
+            raise ValueError(f"motion_speed should be MOVING or CRAWLING.")
 
         self._commanded_motion_state = motion_state
         self._start_tai = start_tai
         self._end_position = end_position
         self._crawl_velocity = crawl_velocity
-        duration = self.get_duration()
+        duration = self._get_duration()
         self._end_tai = self._start_tai + duration
         return duration
 
-    def get_position_and_motion_state(self, tai):
+    def get_position_velocity_and_motion_state(self, tai):
         """Computes the position and `MotionState` for the given TAI time.
 
         Parameters
         ----------
         tai: `float`
-            The TAI time for which to compute the position.
+            The TAI time, unix seconds, for which to compute the position. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
 
         Returns
         -------
         position: `float`
             The position [rad] at the given TAI time, taking both the move
-            (optional)) and crawl velocities into account.
+            (optional) and crawl velocities into account.
+        velocity: `float`
+            The velocity [rad/s] at the given TAI time.
         motion_state: `MotionState`
             The MotionState at the given TAI time.
         """
@@ -129,12 +140,14 @@ class AzimuthMotion(BaseLlcMotion):
             ]:
                 motion_state = MotionState.PARKED
                 position = self._end_position
+                velocity = 0
             elif self._commanded_motion_state in [
                 MotionState.STOPPING,
                 MotionState.STOPPED,
             ]:
                 motion_state = MotionState.STOPPED
                 position = self._end_position
+                velocity = 0
             else:
                 diff_since_crawl_started = tai - self._end_tai
                 calculation_position = self._end_position
@@ -145,25 +158,31 @@ class AzimuthMotion(BaseLlcMotion):
                     + self._crawl_velocity * diff_since_crawl_started
                 )
                 motion_state = MotionState.CRAWLING
+                velocity = self._crawl_velocity
                 if self._crawl_velocity == 0:
                     motion_state = MotionState.STOPPED
+                    velocity = 0
         elif tai < self._start_tai:
             raise ValueError(
                 f"Encountered TAI {tai} which is smaller than start TAI {self._start_tai}"
             )
         else:
             frac_time = (tai - self._start_tai) / (self._end_tai - self._start_tai)
-            distance = self.get_distance()
+            distance = self._get_distance()
             position = self._start_position + distance * frac_time
+            velocity = self._max_speed
+            if distance < 0:
+                velocity = -self._max_speed
             if self._commanded_motion_state == MotionState.PARKING:
                 motion_state = MotionState.PARKING
             elif self._commanded_motion_state == MotionState.STOPPING:
                 motion_state = MotionState.STOPPED
+                velocity = 0
             else:
                 motion_state = MotionState.MOVING
 
         position = salobj.angle_wrap_nonnegative(math.degrees(position)).rad
-        return position, motion_state
+        return position, velocity, motion_state
 
     def stop(self, start_tai):
         """Stops the current motion instantaneously.
@@ -171,9 +190,13 @@ class AzimuthMotion(BaseLlcMotion):
         Parameters
         ----------
         start_tai: `float`
-            The TAI time at which the command was issued.
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
         """
-        position, motion_state = self.get_position_and_motion_state(tai=start_tai)
+        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
+            tai=start_tai
+        )
         self._start_tai = start_tai
         self._start_position = position
         self._end_position = position
@@ -186,13 +209,17 @@ class AzimuthMotion(BaseLlcMotion):
         Parameters
         ----------
         start_tai: `float`
-            The TAI time at which the command was issued.
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
         """
-        position, motion_state = self.get_position_and_motion_state(tai=start_tai)
+        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
+            tai=start_tai
+        )
         self._start_tai = start_tai
         self._start_position = position
         self._end_position = 0
         self._crawl_velocity = 0
         self._commanded_motion_state = MotionState.PARKING
-        self._end_tai = self._start_tai + self.get_duration()
+        self._end_tai = self._start_tai + self._get_duration()
         return self._end_tai
