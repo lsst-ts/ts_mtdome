@@ -447,6 +447,19 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             except ValueError:
                 pass
 
+            # The value of AMCS amax is too low.
+            system = LlcName.AMCS.value
+            settings = [
+                {"target": "jmax", "setting": [1.0]},
+                {"target": "amax", "setting": [-0.5]},
+                {"target": "vmax", "setting": [1.0]},
+            ]
+            try:
+                await self.csc.config_llcs(system, settings)
+                self.fail("Expected a ValueError.")
+            except ValueError:
+                pass
+
             # The param AMCS smax doesn't exist.
             system = LlcName.AMCS.value
             settings = [
@@ -607,7 +620,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 "Drive 1 temperature too high",
                 "Drive 2 temperature too high",
             ]
-            expected_faultCode = ", ".join(expected_error)
+            expected_fault_code = ", ".join(expected_error)
             self.csc.mock_ctrl.amcs.error = expected_error
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
@@ -623,7 +636,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.assert_next_sample(
                 topic=self.remote.evt_azEnabled,
                 state=EnabledState.FAULT,
-                faultCode=expected_faultCode,
+                faultCode=expected_fault_code,
             )
 
     async def test_bin_script(self):

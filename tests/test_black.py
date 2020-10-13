@@ -1,6 +1,6 @@
 # This file is part of ts_Dome.
 #
-# Developed for the LSST Data Management System.
+# Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -19,14 +19,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .dome_csc import *
-from .llc_configuration_limits import *
-from .mock_controller import *
-from .mock_llc import *
-from .on_off import OnOff
-from .response_code import ResponseCode
+import unittest
+import pathlib
 
-try:
-    from .version import *
-except ModuleNotFoundError:
-    __version__ = "?"
+from lsst.ts import salobj
+
+
+class BlackTestCase(unittest.TestCase):
+    def test_black_formatted(self):
+        salobj.assert_black_formatted(pathlib.Path(__file__).parents[1])
+
+
+if __name__ == "__main__":
+    unittest.main()

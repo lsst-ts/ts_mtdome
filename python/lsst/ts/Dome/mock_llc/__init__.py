@@ -19,14 +19,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .dome_csc import *
-from .llc_configuration_limits import *
-from .mock_controller import *
-from .mock_llc import *
-from .on_off import OnOff
-from .response_code import ResponseCode
-
-try:
-    from .version import *
-except ModuleNotFoundError:
-    __version__ = "?"
+from .amcs import AmcsStatus
+from .apscs import ApscsStatus
+from .lcs import LcsStatus
+from .lwscs import LwscsStatus
+from .moncs import MoncsStatus
+from .thcs import ThcsStatus
