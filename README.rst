@@ -4,7 +4,7 @@ ts_Dome
 
 ``ts_Dome`` is a Commandable SAL Component (CSC) to control the dome for the Simonyi Survey Telescope at the Vera C. Rubin Observatory.
 
-`Documentation <https://ts-dome.lsst.io>`_
+`Documentation <https://ts-atdome.lsst.io>`_
 
 The package is compatible with Vera Rubin LSST DM's ``scons`` build system, and the `eups <https://github.com/RobertLuptonTheGood/eups>`_ package management system.
 Assuming you have the basic DM stack installed you can do the following, from within the package directory:

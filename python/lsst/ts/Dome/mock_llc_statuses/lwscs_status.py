@@ -19,17 +19,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["LwscsStatus"]
+__all__ = ["LwscsLimits"]
 
 import logging
 import math
 
 import numpy as np
 
-from .base_mock_llc import BaseMockStatus
+from lsst.ts import salobj
+from .base_mock_status import BaseMockStatus
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
 from lsst.ts.idl.enums.Dome import MotionState
-from .mock_motion.elevation_motion import ElevationMotion
 
 _NUM_MOTORS = 2
 
@@ -37,14 +37,9 @@ _NUM_MOTORS = 2
 class LwscsStatus(BaseMockStatus):
     """Represents the status of the Light and Wind Screen Control System in
     simulation mode.
-
-    Parameters
-    ----------
-    start_tai: `float`
-        The current TAI time.
     """
 
-    def __init__(self, start_tai):
+    def __init__(self):
         super().__init__()
         self.log = logging.getLogger("MockLwscsStatus")
         self.lwscs_limits = LwscsLimits()
@@ -54,16 +49,11 @@ class LwscsStatus(BaseMockStatus):
         self.amax = self.lwscs_limits.amax
         self.vmax = self.lwscs_limits.vmax
         # variables helping with the state of the mock EL motion
-        self.elevation_motion = ElevationMotion(
-            start_position=0,
-            min_position=0,
-            max_position=math.pi,
-            max_speed=math.fabs(self.vmax),
-            start_tai=start_tai,
-        )
-        self.duration = 0.0
+        self.motion_velocity = self.vmax
         # variables holding the status of the mock EL motion
         self.status = MotionState.STOPPED
+        self.position_orig = 0.0
+        self.position_actual = 0
         self.position_commanded = 0
         self.velocity_actual = 0
         self.velocity_commanded = 0
@@ -77,16 +67,27 @@ class LwscsStatus(BaseMockStatus):
         self.resolver_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
         self.power_draw = 0.0
 
-    async def determine_status(self, start_tai):
+    async def determine_status(self, current_tai):
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
         """
-        position, motion_state = self.elevation_motion.get_position_and_motion_state(
-            tai=start_tai
-        )
+        time_diff = float(current_tai - self.command_time_tai)
+        if self.status != MotionState.STOPPED:
+            elevation_step = self.motion_velocity * time_diff
+            self.position_actual = self.position_orig + elevation_step
+            if self.motion_velocity >= 0:
+                if self.position_actual >= self.position_commanded:
+                    self.position_orig = self.position_actual
+                    self.position_actual = self.position_commanded
+                    self.status = MotionState.STOPPED
+            else:
+                if self.position_actual <= self.position_commanded:
+                    self.position_orig = self.position_actual
+                    self.position_actual = self.position_commanded
+                    self.status = MotionState.STOPPED
         self.llc_status = {
-            "status": motion_state,
-            "positionActual": position,
+            "status": self.status.value,
+            "positionActual": self.position_actual,
             "positionCommanded": self.position_commanded,
             "velocityActual": self.velocity_actual,
             "velocityCommanded": self.velocity_commanded,
@@ -99,31 +100,28 @@ class LwscsStatus(BaseMockStatus):
             "resolverRaw": self.resolver_raw.tolist(),
             "resolverCalibrated": self.resolver_calibrated.tolist(),
             "powerDraw": self.power_draw,
-            "timestampUTC": start_tai,
+            "timestampUTC": current_tai,
         }
         self.log.debug(f"lwscs_state = {self.llc_status}")
 
-    async def moveEl(self, position, start_tai):
+    async def moveEl(self, position):
         """Move the light and wind screen to the given elevation.
 
         Parameters
         ----------
         position: `float`
-            The position (rad) to move to. 0 means point to the horizon and
-            pi/2 point to the zenith. These limits are not checked.
-        start_tai: `float`
-            The current TAI time
+            The position (deg) to move to. 0 means point to the horizon and 180
+            point to the zenith. These limits are not checked.
         """
+        self.status = MotionState.MOVING
+        self.position_orig = self.position_actual
+        self.command_time_tai = salobj.current_tai()
         self.position_commanded = position
-        self.duration = self.elevation_motion.set_target_position_and_velocity(
-            start_tai=start_tai,
-            end_position=position,
-            crawl_velocity=0,
-            motion_state=MotionState.MOVING,
-        )
-        return self.duration
+        self.motion_velocity = self.vmax
+        if self.position_commanded < self.position_actual:
+            self.motion_velocity = -self.vmax
 
-    async def crawlEl(self, velocity, start_tai):
+    async def crawlEl(self, velocity):
         """Crawl the light and wind screen in the given direction at the given
         velocity.
 
@@ -132,29 +130,17 @@ class LwscsStatus(BaseMockStatus):
         velocity: `float`
             The velocity (deg/s) at which to crawl. The velocity is not checked
             against the velocity limits for the light and wind screen.
-        start_tai: `float`
-            The current TAI time
         """
-        self.position_commanded = math.pi
-        if velocity < 0:
+        self.position_orig = self.position_actual
+        self.command_time_tai = salobj.current_tai()
+        self.motion_velocity = velocity
+        self.status = MotionState.CRAWLING
+        if self.motion_velocity >= 0:
+            self.position_commanded = math.radians(90)
+        else:
             self.position_commanded = 0
-        self.duration = self.elevation_motion.set_target_position_and_velocity(
-            start_tai=start_tai,
-            end_position=self.position_commanded,
-            crawl_velocity=velocity,
-            motion_state=MotionState.CRAWLING,
-        )
-        return self.duration
 
-    async def stopEl(self, start_tai):
-        """Stop moving the light and wind screen.
-
-        Parameters
-        ----------
-        start_tai: `float`
-            The current TAI time
-
-        """
-        self.elevation_motion.stop(start_tai)
-        self.duration = 0.0
-        return self.duration
+    async def stopEl(self):
+        """Stop moving the light and wind screen."""
+        self.command_time_tai = salobj.current_tai()
+        self.status = MotionState.STOPPED

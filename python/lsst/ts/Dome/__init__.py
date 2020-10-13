@@ -22,7 +22,7 @@
 from .dome_csc import *
 from .llc_configuration_limits import *
 from .mock_controller import *
-from .mock_llc import *
+from .mock_llc_statuses import *
 from .on_off import OnOff
 from .response_code import ResponseCode
 

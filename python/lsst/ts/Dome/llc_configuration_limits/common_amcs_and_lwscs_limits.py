@@ -56,15 +56,6 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
         -------
         converted_configuration_parameters: `dict`
             The converted configuration parameters.
-
-        Raises
-        ------
-        ValueError
-            Raised when the value of a configuration parameter is smaller than
-            zero or larger than the limit for that parameter.
-        KeyError
-            Raised when a configuration parameter is missing or when an
-            unknown configuration parameter is encountered.
         """
         # This dict will hold the converted values which we will return at the
         # end of this function if all validations are passed.
@@ -78,7 +69,7 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
             validated_keys.add(key)
             for v in value:
                 # Validate the provided value against the limit.
-                if 0 <= math.radians(v) <= common_limits[key]:
+                if math.radians(v) <= common_limits[key]:
                     converted_value.append(math.radians(v))
                 else:
                     # If the value is larger than the limit, raise a ValueError

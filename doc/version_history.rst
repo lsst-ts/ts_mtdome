@@ -6,20 +6,6 @@
 Version History
 ###############
 
-v0.4.0
-======
-
-| The Lower Level Component simulators for AMCS and LWSCS now handle 0/360 azimuth and 0/90 elevation limits correctly.
-| The Lower Level Component simulators for AMCS and LWSCS now correctly report the duration of the commands to execute.
-| Added a test to verify that all code has been formatted by Black.
-
-Requires:
-
-* ts_salobj 6.0
-* ts_idl
-* IDL file for Dome from ts_xml 4.8
-
-
 v0.3.0
 ======
 

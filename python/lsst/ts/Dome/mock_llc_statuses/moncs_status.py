@@ -24,7 +24,7 @@ __all__ = ["MoncsStatus"]
 import logging
 import numpy as np
 
-from .base_mock_llc import BaseMockStatus
+from .base_mock_status import BaseMockStatus
 from lsst.ts.idl.enums.Dome import MotionState
 
 _NUM_SENSORS = 16

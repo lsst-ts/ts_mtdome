@@ -696,6 +696,9 @@ class DomeCsc(salobj.ConfigurableCsc):
         interval: `float`
             The interval (sec) at which to run the status method.
 
+        Returns
+        -------
+
         """
         try:
             while True:
