@@ -65,7 +65,7 @@ pipeline {
             steps {
                 script {
                     sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && setup ts_sal -t current && make_idl_files.py Dome\"
+                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && setup ts_sal -t current && make_idl_files.py MTDome\"
                     """
                 }
             }
@@ -83,7 +83,7 @@ pipeline {
             steps {
                 script {
                     sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd repo && eups declare -r . -t saluser && setup ts_Dome -t saluser && export LSST_DDS_IP=192.168.0.1 && pytest --color=no -ra --junitxml=tests/results/results.xml\"
+                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd repo && eups declare -r . -t saluser && setup ts_MTDome -t saluser && export LSST_DDS_IP=192.168.0.1 && pytest --color=no -ra --junitxml=tests/results/results.xml\"
                     """
                 }
             }
@@ -97,13 +97,13 @@ pipeline {
             sh "docker exec -u saluser \${container_name} sh -c \"" +
                 "source ~/.setup.sh && " +
                 "cd /home/saluser/repo/ && " +
-                "setup ts_Dome -t saluser && " +
+                "setup ts_MTDome -t saluser && " +
                 "package-docs build\""
             script {
                 def RESULT = sh returnStatus: true, script: "docker exec -u saluser \${container_name} sh -c \"" +
                     "source ~/.setup.sh && " +
                     "cd /home/saluser/repo/ && " +
-                    "setup ts_Dome -t saluser && " +
+                    "setup ts_MTDome -t saluser && " +
                     "ltd upload --product ts-dome --git-ref \${GIT_BRANCH} --dir doc/_build/html\""
                 if ( RESULT != 0 ) {
                     unstable("Failed to push documentation.")

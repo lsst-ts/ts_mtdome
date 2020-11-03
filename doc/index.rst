@@ -1,16 +1,16 @@
-.. py:currentmodule:: lsst.ts.Dome
+.. py:currentmodule:: lsst.ts.MTDome
 
-.. _lsst.ts.Dome:
+.. _lsst.ts.MTDome:
 
 ##############
-lsst.ts.Dome
+lsst.ts.MTDome
 ##############
 
 Controller for the Simonyi Survey Telescope dome at Vera C. Rubin Observatory.
 
-.. _lsst.ts.Dome-using:
+.. _lsst.ts.MTDome-using:
 
-Using lsst.ts.Dome
+Using lsst.ts.MTDome
 ====================
 
 .. toctree::
@@ -28,7 +28,8 @@ This package has the following requirements:
 
 * ts_salobj
 
-The package is compatible with LSST DM's ``scons`` build system and ``eups`` package management system. Assuming you have the basic LSST DM stack installed you can do the following, from within the package directory:
+The package is compatible with LSST DM's ``scons`` build system and ``eups`` package management system.
+Assuming you have the basic LSST DM stack installed you can do the following, from within the package directory:
 
 * ``setup -r .`` to setup the package and dependencies.
 * ``scons`` to build the package and run unit tests.
@@ -41,26 +42,27 @@ Usage
 
 The primary classes are:
 
-* `DomeCsc`: controller for the Simonyi Survey Telescope dome.
+* `MTDomeCsc`: controller for the Simonyi Survey Telescope dome.
 * `MockDomeController`: simulator for the dome TCP/IP interface.
 
-Run the ``Dome`` controller  using ``bin/run_Dome.py`` (which only exists after you build the package).
+Run the ``MTDome`` controller  using ``bin/run_mtdome.py``.
 
 .. _building single package docs: https://developer.lsst.io/stack/building-single-package-docs.html
 
-.. _lsst.ts.Dome-contributing:
+.. _lsst.ts.MTDome-contributing:
 
 Contributing
 ============
 
-``lsst.ts.Dome`` is developed at https://github.com/lsst-ts/ts_Dome. You can find Jira issues for this module using `labels=ts_Dome <https://jira.lsstcorp.org/issues/?jql=project%20%3D%20DM%20AND%20labels%20%20%3D%20ts_Dome>`_.
+``lsst.ts.MTDome`` is developed at https://github.com/lsst-ts/ts_MTDome.
+You can find Jira issues for this module using `labels=ts_MTDome <https://jira.lsstcorp.org/issues/?jql=project%3DDM%20AND%20labels%3Dts_MTDome>`_.
 
-.. _lsst.ts.Dome-pyapi:
+.. _lsst.ts.MTDome-pyapi:
 
 Python API reference
 ====================
 
-.. automodapi:: lsst.ts.Dome
+.. automodapi:: lsst.ts.MTDome
     :no-main-docstr:
 
 Version History

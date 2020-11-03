@@ -1,6 +1,6 @@
-# This file is part of ts_Dome.
+# This file is part of ts_MTDome.
 #
-# Developed for the LSST Data Management System.
+# Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -19,15 +19,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["LlcName"]
+__all__ = ["ResponseCode"]
 
 import enum
 
 
-class LlcName(enum.Enum):
-    AMCS = "AMCS"
-    APSCS = "ApSCS"
-    LCS = "LCS"
-    LWSCS = "LWSCS"
-    MONCS = "MonCS"
-    THCS = "ThCS"
+class ResponseCode(enum.IntEnum):
+    """`enum` with response codes.
+    """
+
+    OK = 0
+    UNSUPPORTED_COMMAND = 2
+    INCORRECT_PARAMETER = 3

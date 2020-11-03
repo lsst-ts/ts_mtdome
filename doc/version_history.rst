@@ -1,10 +1,25 @@
-.. py:currentmodule:: lsst.ts.Dome
+.. py:currentmodule:: lsst.ts.MTDome
 
-.. _lsst.ts.Dome.version_history:
+.. _lsst.ts.MTDome.version_history:
 
 ###############
 Version History
 ###############
+
+v0.5.0
+======
+
+| Renamed Dome to MTDome.
+| Documentation moved to  `New Dome Software Documentation`_
+
+.. _New Dome Software Documentation: https://ts-mtdome.lsst.io
+
+Requires:
+
+* ts_salobj 6.0
+* ts_idl
+* IDL file for Dome from ts_xml 4.8
+
 
 v0.4.0
 ======

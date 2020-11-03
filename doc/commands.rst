@@ -1,12 +1,14 @@
-.. py:currentmodule:: lsst.ts.Dome
+.. py:currentmodule:: lsst.ts.MTDome
 
-.. _lsst.ts.Dome-commands:
+.. _lsst.ts.MTDome-commands:
 
 ####################
 Lower Level Commands
 ####################
 
-This document describes the commands that will be sent from the Upper Level DCS to the Lower Level Components. This is not a finalized list and if the need arises for it, it will be modified accordingly. The units are `AstroPy Units`_.
+This document describes the commands that will be sent from the Upper Level DCS to the Lower Level Components.
+This is not a finalized list and if the need arises for it, it will be modified accordingly.
+The units are `AstroPy Units`_.
 
     .. _AstroPy Units: https://docs.astropy.org/en/stable/units/index.html#module-astropy.units.si
 

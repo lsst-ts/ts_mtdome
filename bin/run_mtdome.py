@@ -1,6 +1,8 @@
-# This file is part of ts_Dome.
+#!/usr/bin/env python
 #
-# Developed for the LSST Data Management System.
+# This file is part of ts_MTDome.
+#
+# Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -18,16 +20,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+import asyncio
+import logging
 
-__all__ = ["ResponseCode"]
+from lsst.ts import MTDome
 
-import enum
+logging.basicConfig(
+    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.INFO,
+)
 
 
-class ResponseCode(enum.IntEnum):
-    """`enum` with response codes.
-    """
-
-    OK = 0
-    UNSUPPORTED_COMMAND = 2
-    INCORRECT_PARAMETER = 3
+asyncio.run(MTDome.MTDomeCsc.amain(index=None))

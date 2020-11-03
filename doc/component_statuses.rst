@@ -1,16 +1,18 @@
-.. py:currentmodule:: lsst.ts.Dome
+.. py:currentmodule:: lsst.ts.MTDome
 
-.. _lsst.ts.Dome-component_statuses:
+.. _lsst.ts.MTDome-component_statuses:
 
 ###############################
  Lower Level Component Statuses
 ###############################
 
-The simplest approach to this is for the status to reflect the command that currently is being executed or just has been executed. For instance, in case of the dome AZ motion the statuses could be moving, crawling, parking, stopping, parked and stopped where moving, crawling, parking and stopping reflect that the move, crawl, park and stop commands are being executed and where parked and stopped reflect that a park, stop or move command have been executed and successfully finished.
+The simplest approach to this is for the status to reflect the command that currently is being executed or just has been executed.
+For instance, in case of the dome AZ motion the statuses could be moving, crawling, parking, stopping, parked and stopped where moving, crawling, parking and stopping reflect that the move, crawl, park and stop commands are being executed and where parked and stopped reflect that a park, stop or move command have been executed and successfully finished.
 
 In case of AMCS the status should not only include the status of the Dome but also if the inflatable seal has been inflated or deflated.
 
-In case of LCS the situation is a bit more complicated since all louvers will report their status at the same time. We should therefore use a comma separated list of statuses enclosed in square brackets, e.g. [moving, stopped, moving, moving, stopped, stopped, ...].
+In case of LCS the situation is a bit more complicated since all louvers will report their status at the same time.
+We should therefore use a comma separated list of statuses enclosed in square brackets, e.g. [moving, stopped, moving, moving, stopped, stopped, ...].
 
 Following that logic, the list of statuses would be:
 

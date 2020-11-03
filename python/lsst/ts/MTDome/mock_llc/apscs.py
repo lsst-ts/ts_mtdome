@@ -1,6 +1,6 @@
-# This file is part of ts_Dome.
+# This file is part of ts_MTDome.
 #
-# Developed for the LSST Data Management System.
+# Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -26,7 +26,7 @@ import numpy as np
 
 from lsst.ts import salobj
 from .base_mock_llc import BaseMockStatus
-from lsst.ts.idl.enums.Dome import MotionState
+from lsst.ts.idl.enums.MTDome import MotionState
 
 _NUM_MOTORS = 4
 
@@ -61,7 +61,7 @@ class ApscsStatus(BaseMockStatus):
             f"time_diff = {time_diff}"
         )
         self.llc_status = {
-            "status": self.status.value,
+            "status": self.status.name,
             "positionActual": self.position_actual,
             "positionCommanded": self.position_commanded,
             "driveTorqueActual": self.drive_torque_actual.tolist(),

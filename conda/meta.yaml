@@ -1,6 +1,6 @@
 {% set data= load_setup_py_data() %}
 package:
-  name: ts-dome
+  name: ts-mtdome
   version: {{ data.get('version') }}
 
 source:
