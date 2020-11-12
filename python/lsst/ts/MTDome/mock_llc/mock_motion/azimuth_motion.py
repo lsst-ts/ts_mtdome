@@ -1,6 +1,6 @@
-# This file is part of ts_Dome.
+# This file is part of ts_MTDome.
 #
-# Developed for the LSST Data Management System.
+# Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -19,57 +19,99 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["ElevationMotion"]
+__all__ = ["AzimuthMotion"]
 
 import logging
 import math
 
 from .base_llc_motion import BaseLlcMotion
-from lsst.ts.idl.enums.Dome import MotionState
+from lsst.ts.idl.enums.MTDome import MotionState
 import lsst.ts.salobj as salobj
 
 
-class ElevationMotion(BaseLlcMotion):
-    """Simulator for the elevation motion of the light and wind screen of the
-    Dome.
+class AzimuthMotion(BaseLlcMotion):
+    """Simulator for the azimuth motion of the MTDome.
 
     Parameters
     ----------
     start_position: `float`
-        The initial position [rad].
-    min_position: `float`
-        The minimum allowed position [rad].
-    max_position: `float`
-        The maximum allowed position [rad].
+        The start position [rad] of the move.
     max_speed: `float`
         The maximum allowed speed [rad/s].
     start_tai: `float`
-        The current TAI time, unix seconds. To  model the real dome, this
-        should be the current time. However, for unit tests it can be
-        convenient to use other values.
+        The TAI time, unix seconds, of the start of the move. This also needs
+        to be set in the constructor so this class knows what the TAI time
+        currently is.
 
     Notes
     -----
-    This simulator can either move the light and wind screen to a target
-    position at maximum speed and stop, or crawl at the specified velocity. It
-    handles the min_position and max_position boundaries by stopping there.
-    When either moving or crawling, a new move or crawl command is handled and
-    the elevation motion/crawl can be stopped. To "park" the light and wind
-    screen, it needs to be moved to min_position.
-
+    This simulator can either move the dome to a target position at maximum
+    speed and start crawling from there with the specified crawl velocity, or
+    crawl at the specified velocity. It handles the 0/2pi radians boundary.
+    When either moving or crawling, a new move or handle command is handled,
+    the azimuth motion/crawl can be stopped and the dome can be parked.
     """
 
-    def __init__(
-        self, start_position, min_position, max_position, max_speed, start_tai
-    ):
+    def __init__(self, start_position, max_speed, start_tai):
         super().__init__(
             start_position=start_position,
-            min_position=min_position,
-            max_position=max_position,
+            min_position=0,
+            max_position=2 * math.pi,
             max_speed=max_speed,
             start_tai=start_tai,
         )
-        self.log = logging.getLogger("MockPointToPointActuator")
+        self.log = logging.getLogger("MockCircularCrawlingActuator")
+
+    def set_target_position_and_velocity(
+        self, start_tai, end_position, crawl_velocity, motion_state
+    ):
+        """Sets the end_position and crawl velocity and returns the duration
+        of the move.
+
+        No aceleration is taken into account. The time taken by crawling is not
+        taken into account either.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
+        end_position: `float`
+            The end position [rad] of the move. Ignored if `do_move` is False.
+        crawl_velocity: `float`
+            The crawl_velocity [rad/s] at which to crawl once the move is done.
+        motion_state: `MotionState`
+            MOVING or CRAWLING. The value is checked.
+
+        Returns
+        -------
+        duration: `float`
+            The duration [s] of the move.
+
+        Raises
+        ------
+        ValueError
+            If abs(crawl_velocity) > max_speed.
+        ValueError
+            if MotionState is not MOVING or CRAWLING.
+
+        """
+        if math.fabs(crawl_velocity) > self._max_speed:
+            raise ValueError(
+                f"The target crawl speed {math.fabs(crawl_velocity)} is larger"
+                f" than the max speed {self._max_speed}."
+            )
+        if motion_state not in [MotionState.MOVING, MotionState.CRAWLING]:
+            raise ValueError(f"motion_speed should be MOVING or CRAWLING.")
+
+        self._commanded_motion_state = motion_state
+        self._start_tai = start_tai
+        self._end_position = end_position
+        self._crawl_velocity = crawl_velocity
+        duration = self._get_duration()
+        self._end_tai = self._start_tai + duration
+        return duration
 
     def get_position_velocity_and_motion_state(self, tai):
         """Computes the position and `MotionState` for the given TAI time.
@@ -93,29 +135,30 @@ class ElevationMotion(BaseLlcMotion):
         """
         if tai >= self._end_tai:
             if self._commanded_motion_state in [
+                MotionState.PARKING,
+                MotionState.PARKED,
+            ]:
+                motion_state = MotionState.PARKED
+                position = self._end_position
+                velocity = 0
+            elif self._commanded_motion_state in [
                 MotionState.STOPPING,
                 MotionState.STOPPED,
-                MotionState.MOVING,
             ]:
                 motion_state = MotionState.STOPPED
                 position = self._end_position
                 velocity = 0
             else:
                 diff_since_crawl_started = tai - self._end_tai
+                calculation_position = self._end_position
+                if self._commanded_motion_state == MotionState.CRAWLING:
+                    calculation_position = self._start_position
                 position = (
-                    self._start_position
+                    calculation_position
                     + self._crawl_velocity * diff_since_crawl_started
                 )
                 motion_state = MotionState.CRAWLING
                 velocity = self._crawl_velocity
-                if position >= self._max_position:
-                    position = self._max_position
-                    motion_state = MotionState.STOPPED
-                    velocity = 0
-                elif position <= self._min_position:
-                    position = self._min_position
-                    motion_state = MotionState.STOPPED
-                    velocity = 0
                 if self._crawl_velocity == 0:
                     motion_state = MotionState.STOPPED
                     velocity = 0
@@ -130,7 +173,9 @@ class ElevationMotion(BaseLlcMotion):
             velocity = self._max_speed
             if distance < 0:
                 velocity = -self._max_speed
-            if self._commanded_motion_state == MotionState.STOPPING:
+            if self._commanded_motion_state == MotionState.PARKING:
+                motion_state = MotionState.PARKING
+            elif self._commanded_motion_state == MotionState.STOPPING:
                 motion_state = MotionState.STOPPED
                 velocity = 0
             else:
@@ -159,7 +204,7 @@ class ElevationMotion(BaseLlcMotion):
         self._commanded_motion_state = MotionState.STOPPING
 
     def park(self, start_tai):
-        """Not used for the elevation motion.
+        """Parks the dome.
 
         Parameters
         ----------
@@ -167,10 +212,14 @@ class ElevationMotion(BaseLlcMotion):
             The TAI time, unix seconds, at which the command was issued. To
             model the real dome, this should be the current time. However, for
             unit tests it can be convenient to use other values.
-
-        Raises
-        ----------
-        NotImplementedError:
-            The Light and Wind Screen cannot be parked.
         """
-        raise NotImplementedError("The Light and Wind Screen cannot be parked.")
+        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
+            tai=start_tai
+        )
+        self._start_tai = start_tai
+        self._start_position = position
+        self._end_position = 0
+        self._crawl_velocity = 0
+        self._commanded_motion_state = MotionState.PARKING
+        self._end_tai = self._start_tai + self._get_duration()
+        return self._end_tai

@@ -1,12 +1,13 @@
-.. py:currentmodule:: lsst.ts.Dome
+.. py:currentmodule:: lsst.ts.MTDome
 
-.. _lsst.ts.Dome-response_codes:
+.. _lsst.ts.MTDome-response_codes:
 
 ########################
  Software Response Codes
 ########################
 
-Here is a list of agreed software error codes and their meaning. This list, as with the commands and statuses, is not necessarily complete and will be reviewed regularly.
+Here is a list of agreed software error codes and their meaning.
+This list, as with the commands and statuses, is not necessarily complete and will be reviewed regularly.
 
 .. csv-table::
     :widths: 20, 30, 50

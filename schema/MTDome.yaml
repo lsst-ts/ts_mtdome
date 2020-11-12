@@ -1,15 +1,14 @@
 $schema: http://json-schema.org/draft-07/schema#
-$id: https://github.com/lsst-ts/ts_Dome/blob/master/schema/Dome.yaml
-# title must end with one or more spaces followed by the schema version, which must begin with "v"
-title: Dome v1
-description: Schema for Dome configuration files
+$id: https://github.com/lsst-ts/ts_MTDome/blob/master/schema/MTDome.yaml
+title: MTDome v1
+description: Schema for MTDome configuration files
 type: object
 properties:
   host:
     description: IP address of the TCP/IP interface
     type: string
     format: hostname
-    default: "127.0.0.1"
+    default: "host.docker.internal"
   port:
     description: Port number of the TCP/IP interface
     type: integer

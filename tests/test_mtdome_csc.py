@@ -1,6 +1,6 @@
-# This file is part of ts_Dome.
+# This file is part of ts_MTDome.
 #
-# Developed for the LSST Data Management System.
+# Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -24,10 +24,10 @@ import logging
 
 import numpy as np
 
-from lsst.ts import Dome
-from lsst.ts.Dome.llc_name import LlcName
+from lsst.ts import MTDome
+from lsst.ts.MTDome.llc_name import LlcName
 from lsst.ts import salobj
-from lsst.ts.idl.enums.Dome import EnabledState, MotionState
+from lsst.ts.idl.enums.MTDome import EnabledState, MotionState
 
 STD_TIMEOUT = 2  # standard command timeout (sec)
 NUM_LOUVERS = 34
@@ -41,7 +41,7 @@ logging.basicConfig(
 
 class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
     def basic_make_csc(self, initial_state, config_dir, simulation_mode, **kwargs):
-        return Dome.DomeCsc(
+        return MTDome.MTDomeCsc(
             initial_state=initial_state,
             config_dir=config_dir,
             simulation_mode=simulation_mode,
@@ -94,7 +94,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             try:
                 # This command is not supported by the DomeCsc so an Error
                 # should be returned by the controller leading to a KeyError in
-                # DomeCsc
+                # MTDomeCsc.
                 await self.csc.write_then_read_reply(
                     command="unsupported_command", parameters={}
                 )
@@ -108,9 +108,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
         ):
             await self.set_csc_to_enabled()
             try:
-                # This command is supported by the DomeCsc but it takes an
+                # This command is supported by the MTDomeCsc but it takes an
                 # argument so an Error should be returned by the controller
-                # leading to a ValueError in DomeCsc
+                # leading to a ValueError in MTDomeCsc.
                 await self.csc.write_then_read_reply(command="moveAz", parameters={})
                 self.fail("Expected a ValueError.")
             except ValueError:
@@ -153,7 +153,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(
-                amcs_status["status"]["status"], MotionState.MOVING,
+                amcs_status["status"]["status"], MotionState.MOVING.name,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -191,7 +191,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusLWSCS()
             amcs_status = self.csc.lower_level_status[LlcName.LWSCS.value]
             self.assertEqual(
-                amcs_status["status"], MotionState.MOVING,
+                amcs_status["status"], MotionState.MOVING.name,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
@@ -277,7 +277,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(
-                amcs_status["status"]["status"], MotionState.CRAWLING,
+                amcs_status["status"]["status"], MotionState.CRAWLING.name,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -315,7 +315,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusLWSCS()
             amcs_status = self.csc.lower_level_status[LlcName.LWSCS.value]
             self.assertEqual(
-                amcs_status["status"], MotionState.CRAWLING,
+                amcs_status["status"], MotionState.CRAWLING.name,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
@@ -401,7 +401,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(
-                amcs_status["status"]["status"], MotionState.PARKED,
+                amcs_status["status"]["status"], MotionState.PARKED.name,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -499,7 +499,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.csc.write_then_read_reply(
-                command="fans", action=Dome.OnOff.ON.name
+                command="fans", action=MTDome.OnOff.ON.name
             )
 
             # Give some time to the mock device to move.
@@ -507,8 +507,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
-            self.assertEqual(amcs_status["status"]["status"], MotionState.STOPPED)
-            self.assertEqual(amcs_status["status"]["fans"], Dome.OnOff.ON.name)
+            self.assertEqual(amcs_status["status"]["status"], MotionState.STOPPED.name)
+            self.assertEqual(amcs_status["status"]["fans"], MTDome.OnOff.ON.name)
 
     async def test_inflate(self):
         async with self.make_csc(
@@ -523,7 +523,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.csc.write_then_read_reply(
-                command="inflate", action=Dome.OnOff.ON.name
+                command="inflate", action=MTDome.OnOff.ON.name
             )
 
             # Give some time to the mock device to move.
@@ -531,8 +531,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
-            self.assertEqual(amcs_status["status"]["status"], MotionState.STOPPED)
-            self.assertEqual(amcs_status["status"]["inflate"], Dome.OnOff.ON.name)
+            self.assertEqual(amcs_status["status"]["status"], MotionState.STOPPED.name)
+            self.assertEqual(amcs_status["status"]["inflate"], MTDome.OnOff.ON.name)
 
     async def test_status(self):
         async with self.make_csc(
@@ -547,7 +547,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(
-                amcs_status["status"]["status"], MotionState.STOPPED,
+                amcs_status["status"]["status"], MotionState.STOPPED.name,
             )
             self.assertEqual(
                 amcs_status["positionActual"], 0,
@@ -561,7 +561,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusApSCS()
             apscs_status = self.csc.lower_level_status[LlcName.APSCS.value]
             self.assertEqual(
-                apscs_status["status"], MotionState.CLOSED,
+                apscs_status["status"], MotionState.CLOSED.name,
             )
             self.assertEqual(
                 apscs_status["positionActual"], 0,
@@ -570,7 +570,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusLCS()
             lcs_status = self.csc.lower_level_status[LlcName.LCS.value]
             self.assertEqual(
-                lcs_status["status"], [MotionState.CLOSED] * NUM_LOUVERS,
+                lcs_status["status"], [MotionState.CLOSED.name] * NUM_LOUVERS,
             )
             self.assertEqual(
                 lcs_status["positionActual"], [0.0] * NUM_LOUVERS,
@@ -579,7 +579,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusLWSCS()
             lwscs_status = self.csc.lower_level_status[LlcName.LWSCS.value]
             self.assertEqual(
-                lwscs_status["status"], MotionState.STOPPED,
+                lwscs_status["status"], MotionState.STOPPED.name,
             )
             self.assertEqual(
                 lwscs_status["positionActual"], 0,
@@ -593,7 +593,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusMonCS()
             moncs_status = self.csc.lower_level_status[LlcName.MONCS.value]
             self.assertEqual(
-                moncs_status["status"], MotionState.CLOSED,
+                moncs_status["status"], MotionState.CLOSED.name,
             )
             self.assertEqual(
                 moncs_status["data"], [0.0] * NUM_MON_SENSORS,
@@ -602,7 +602,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusThCS()
             thcs_status = self.csc.lower_level_status[LlcName.THCS.value]
             self.assertEqual(
-                thcs_status["status"], MotionState.CLOSED,
+                thcs_status["status"], MotionState.CLOSED.name,
             )
             self.assertEqual(
                 thcs_status["temperature"], [0.0] * NUM_THERMO_SENSORS,
@@ -625,7 +625,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(
-                amcs_status["status"]["status"], MotionState.STOPPED,
+                amcs_status["status"]["status"], MotionState.STOPPED.name,
             )
             self.assertEqual(
                 amcs_status["status"]["error"], expected_error,
@@ -640,4 +640,4 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             )
 
     async def test_bin_script(self):
-        await self.check_bin_script(name="Dome", index=None, exe_name="run_dome.py")
+        await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome.py")

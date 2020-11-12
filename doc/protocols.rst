@@ -1,12 +1,12 @@
-.. py:currentmodule:: lsst.ts.Dome
+.. py:currentmodule:: lsst.ts.MTDome
 
-.. _lsst.ts.Dome-protocols:
+.. _lsst.ts.MTDome-protocols:
 
 #######################
 Communication Protocols
 #######################
 
-This page describes the communication protocols used by the `DomeCSC` to communicate with the Lower Level Components.
+This page describes the communication protocols used by the `MTDomeCSC` to communicate with the Lower Level Components.
 
 Command Protocol
 ----------------
@@ -103,9 +103,16 @@ and a reply to a status command should look like this
 Configuration Protocol
 ----------------------
 
-When configuration parameters are sent, the complete set of configuration parameters for one lower level component will be sent at the same time from the upper level to the lower level. This way the other sub-systems can continue operations while the sub-system(s) that receive configuration parameters can reconfigure themselves. This means that all parameters and their values of the sub-system will be sent together, even the ones for which the value has not changed. This way it can be ensured that always all changes are sent and that no parameter gets forgotten. The upper level component will check and verify that all parameter values fall within the minimum and maximum allowed values for each individual parameter. However, since actual hardware can break it would be necessary for the lower level components to check the configuration parameters as well before applying them.
+When configuration parameters are sent, the complete set of configuration parameters for one lower level component will be sent at the same time from the upper level to the lower level.
+This way the other sub-systems can continue operations while the sub-system(s) that receive configuration parameters can reconfigure themselves.
+This means that all parameters and their values of the sub-system will be sent together, even the ones for which the value has not changed.
+This way it can be ensured that always all changes are sent and that no parameter gets forgotten.
+The upper level component will check and verify that all parameter values fall within the minimum and maximum allowed values for each individual parameter.
+However, since actual hardware can break it would be necessary for the lower level components to check the configuration parameters as well before applying them.
 
-For the format of the protocol, the system gets specified separately and the configuration parameters to set are specified as an array of [target, setting] pairs. Due to limitations in the LabVIEW JSON support, both the value for the settings keyword and the values for the parameters always need to be arrays, even if only a single value is specified. So this means that the protocol will be of the form
+For the format of the protocol, the system gets specified separately and the configuration parameters to set are specified as an array of [target, setting] pairs.
+Due to limitations in the LabVIEW JSON support, both the value for the settings keyword and the values for the parameters always need to be arrays, even if only a single value is specified.
+So this means that the protocol will be of the form
 
 .. code-block:: none
 
@@ -126,9 +133,13 @@ For the format of the protocol, the system gets specified separately and the con
       }
     }
 
-The reply to the command should be OK with a timeout. The timeout signifies the amount of time needed for the lower level component to verify and apply the configuration parameters. During the timeout no other commands should be accepted by the sub-system except the status command.
+The reply to the command should be OK with a timeout.
+The timeout signifies the amount of time needed for the lower level component to verify and apply the configuration parameters.
+During the timeout no other commands should be accepted by the sub-system except the status command.
 
-If one or more of the parameters could not be configured correctly then this should be reflected in the reply to the status command. If one or more of the proposed values of the parameters fall outside of the range of the minimum and maximum values then none of the parameters should be applied. It therefore is essential to check all values first and to only apply all of them once it has been verified that the values are acceptable.
+If one or more of the parameters could not be configured correctly then this should be reflected in the reply to the status command.
+If one or more of the proposed values of the parameters fall outside of the range of the minimum and maximum values then none of the parameters should be applied.
+It therefore is essential to check all values first and to only apply all of them once it has been verified that the values are acceptable.
 
 If during the timeout another command except the status command is received then the reply to that command should be ERROR with an error code signifying that the system is configuring itself (the value of that error code is TBD).
 

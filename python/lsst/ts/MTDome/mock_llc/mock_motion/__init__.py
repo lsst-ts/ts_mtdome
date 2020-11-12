@@ -1,6 +1,6 @@
-# This file is part of ts_Dome.
+# This file is part of ts_MTDome.
 #
-# Developed for the LSST Data Management System.
+# Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -19,9 +19,5 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .amcs import AmcsStatus
-from .apscs import ApscsStatus
-from .lcs import LcsStatus
-from .lwscs import LwscsStatus
-from .moncs import MoncsStatus
-from .thcs import ThcsStatus
+from .azimuth_motion import AzimuthMotion
+from .elevation_motion import ElevationMotion

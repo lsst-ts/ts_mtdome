@@ -1,6 +1,6 @@
-# This file is part of ts_Dome.
+# This file is part of ts_MTDome.
 #
-# Developed for the LSST Data Management System.
+# Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -19,20 +19,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["MockDomeController"]
+__all__ = ["MockMTDomeController"]
 
 import asyncio
 import logging
 
-from lsst.ts.Dome.llc_name import LlcName
 from lsst.ts import salobj
-from lsst.ts.Dome import encoding_tools
-from lsst.ts.Dome import mock_llc
-from lsst.ts.Dome.response_code import ResponseCode
+from lsst.ts.MTDome import encoding_tools
+from lsst.ts.MTDome import mock_llc
+from lsst.ts.MTDome.llc_name import LlcName
+from lsst.ts.MTDome.response_code import ResponseCode
 
 
-class MockDomeController:
-    """Mock DomeController that talks over TCP/IP.
+class MockMTDomeController:
+    """Mock MTDome Controller that talks over TCP/IP.
 
     Parameters
     ----------
@@ -47,14 +47,14 @@ class MockDomeController:
     * ApSCS: Aperture Shutter Control System
     * LCS: Louvers Control System
     * LWSCS: Light and Wind Screen Control System
-    * MonCS: Monitoring Control System, which interfaces with the Dome
+    * MonCS: Monitoring Control System, which interfaces with the MTDome
         Interlock System
-    * ThCS: Thermal Control System, which interfaces with the Dome
+    * ThCS: Thermal Control System, which interfaces with the MTDome
         Environment Control System
 
     To start the server:
 
-        ctrl = MockDomeController(...)
+        ctrl = MockMTDomeController(...)
         await ctrl.start()
 
     To stop the server:
@@ -72,7 +72,7 @@ class MockDomeController:
         self.port = port
         self._server = None
         self._writer = None
-        self.log = logging.getLogger("MockDomeController")
+        self.log = logging.getLogger("MockMTDomeController")
         # Dict of command: (has_argument, function).
         # The function is called with:
         # * No arguments, if `has_argument` False.
@@ -556,8 +556,8 @@ async def main():
     # An arbitrarily chosen port. Nothing special about it.
     port = 5000
     logging.info("Constructing mock controller.")
-    mock_ctrl = MockDomeController(port=port)
-    logging.info("Starting mock controller.")
+    mock_ctrl = MockMTDomeController(port=port)
+    logging.info("Starting mock MTDome controller.")
     await mock_ctrl.start(keep_running=True)
 
 

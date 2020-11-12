@@ -1,6 +1,6 @@
-# This file is part of ts_Dome.
+# This file is part of ts_MTDome.
 #
-# Developed for the LSST Data Management System.
+# Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["DomeCsc"]
+__all__ = ["MTDomeCsc"]
 
 import asyncio
 import math
@@ -28,10 +28,10 @@ import pathlib
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .llc_name import LlcName
 from lsst.ts import salobj
-from lsst.ts.Dome import encoding_tools
-from .mock_controller import MockDomeController
+from lsst.ts.MTDome import encoding_tools
+from .mock_controller import MockMTDomeController
 from .response_code import ResponseCode
-from lsst.ts.idl.enums.Dome import EnabledState, MotionState
+from lsst.ts.idl.enums.MTDome import EnabledState, MotionState
 
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout in s to be used by this module
@@ -47,7 +47,7 @@ _MONCS_STATUS_PERIOD = 2.0
 _THCS_STATUS_PERIOD = 2.0
 
 
-class DomeCsc(salobj.ConfigurableCsc):
+class MTDomeCsc(salobj.ConfigurableCsc):
     """Upper level Commandable SAL Component to interface with the Simonyi
     Survey Telescope Dome lower level components.
 
@@ -85,7 +85,10 @@ class DomeCsc(salobj.ConfigurableCsc):
         mock_port=None,
     ):
         schema_path = (
-            pathlib.Path(__file__).resolve().parents[4].joinpath("schema", "Dome.yaml")
+            pathlib.Path(__file__)
+            .resolve()
+            .parents[4]
+            .joinpath("schema", "MTDome.yaml")
         )
 
         self.reader = None
@@ -96,7 +99,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         self.mock_port = mock_port  # mock port, or None if not used
 
         super().__init__(
-            name="Dome",
+            name="MTDome",
             index=0,
             schema_path=schema_path,
             config_dir=config_dir,
@@ -210,7 +213,7 @@ class DomeCsc(salobj.ConfigurableCsc):
                 port = self.mock_port
             else:
                 port = self.config.port
-            self.mock_ctrl = MockDomeController(port)
+            self.mock_ctrl = MockMTDomeController(port)
             await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
 
         except Exception as e:
@@ -232,7 +235,7 @@ class DomeCsc(salobj.ConfigurableCsc):
         disconnect to the lower level components (or the mock_controller) when
         needed.
         """
-        self.log.info(f"handle_summary_state {salobj.State(self.summary_state).name}")
+        self.log.info(f"handle_summary_state {self.summary_state}")
         if self.disabled_or_enabled:
             if not self.connected:
                 await self.connect()
@@ -589,6 +592,13 @@ class DomeCsc(salobj.ConfigurableCsc):
         # Store the status for unit tests.
         self.lower_level_status[llc_name.value] = status[llc_name.value]
 
+        # Temporarily fix data array length for THCS
+        if llc_name == LlcName.THCS:
+            temp_data = status[llc_name.value]["temperature"]
+            if len(temp_data) < 16:
+                temp_data = temp_data + [0.0, 0.0, 0.0]
+                status[llc_name.value]["temperature"] = temp_data
+
         telemetry_in_degrees = {}
         telemetry_in_radians = status[llc_name.value]
         for key in telemetry_in_radians.keys():
@@ -613,12 +623,12 @@ class DomeCsc(salobj.ConfigurableCsc):
             # The error codes will be specified in a future Dome Software
             # meeting.
             if status["error"] != ["No Error"]:
-                faultCode = ", ".join(status["error"])
+                fault_code = ", ".join(status["error"])
                 self.evt_azEnabled.set_put(
-                    state=EnabledState.FAULT, faultCode=faultCode
+                    state=EnabledState.FAULT, faultCode=fault_code
                 )
             else:
-                motion_state = MotionState(status["status"])
+                motion_state = MotionState[status["status"]]
                 in_position = False
                 if motion_state in [
                     MotionState.STOPPED,
@@ -629,7 +639,7 @@ class DomeCsc(salobj.ConfigurableCsc):
                 self.evt_azMotion.set_put(state=motion_state, inPosition=in_position)
         elif llc_name == LlcName.LWSCS:
             status = status[llc_name.value]["status"]
-            motion_state = MotionState(status)
+            motion_state = MotionState[status]
             in_position = False
             if motion_state in [
                 MotionState.STOPPED,

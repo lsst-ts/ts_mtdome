@@ -16,10 +16,10 @@ base_prefix = pathlib.PurePosixPath(sys.base_prefix)
 data_files_path = tools_path.relative_to(base_prefix).parents[1]
 
 setuptools.setup(
-    name="ts_Dome",
+    name="ts_MTDome",
     description="LSST main telescope dome controller",
     use_scm_version={
-        "write_to": "python/lsst/ts/Dome/version.py",
+        "write_to": "python/lsst/ts/MTDome/version.py",
         "write_to_template": scm_version_template,
     },
     setup_requires=["setuptools_scm", "pytest-runner"],
@@ -27,13 +27,13 @@ setuptools.setup(
     package_dir={"": "python"},
     packages=setuptools.find_namespace_packages(where="python"),
     package_data={"": ["*.rst", "*.yaml", "*.xml"]},
-    data_files=[(os.path.join(data_files_path, "schema"), ["schema/Dome.yaml"])],
-    scripts=["bin/run_dome.py"],
+    data_files=[(os.path.join(data_files_path, "schema"), ["schema/MTDome.yaml"])],
+    scripts=["bin/run_mtdome.py"],
     tests_require=tests_require,
     extras_require={"dev": dev_requires},
     license="GPL",
     project_urls={
         "Bug Tracker": "https://jira.lsstcorp.org/secure/Dashboard.jspa",
-        "Source Code": "https://github.com/lsst-ts/ts_Dome",
+        "Source Code": "https://github.com/lsst-ts/ts_MTDome",
     },
 )

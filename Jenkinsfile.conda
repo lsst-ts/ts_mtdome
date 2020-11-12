@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        package_name = "dome"
+        package_name = "mtdome"
         package_version = sh(returnStdout: true, script: "git describe --tags --always --dirty").trim()
         dockerImageName = "lsstts/conda_package_builder:latest"
         container_name = "salobj_${BUILD_ID}_${JENKINS_NODE_COOKIE}"
