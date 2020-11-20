@@ -104,7 +104,7 @@ pipeline {
                     "source ~/.setup.sh && " +
                     "cd /home/saluser/repo/ && " +
                     "setup ts_MTDome -t saluser && " +
-                    "ltd upload --product ts-dome --git-ref \${GIT_BRANCH} --dir doc/_build/html\""
+                    "ltd upload --product ts-mtdome --git-ref \${GIT_BRANCH} --dir doc/_build/html\""
                 if ( RESULT != 0 ) {
                     unstable("Failed to push documentation.")
                 }

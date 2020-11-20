@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["ThcsStatus"]
+__all__ = ["ThcsStatus", "NUM_THERMO_SENSORS"]
 
 import logging
 import numpy as np
@@ -28,7 +28,7 @@ from lsst.ts import salobj
 from .base_mock_llc import BaseMockStatus
 from lsst.ts.idl.enums.MTDome import MotionState
 
-_NUM_SENSORS = 16
+NUM_THERMO_SENSORS = 13
 
 
 class ThcsStatus(BaseMockStatus):
@@ -40,7 +40,7 @@ class ThcsStatus(BaseMockStatus):
         self.log = logging.getLogger("MockThcsStatus")
         # variables holding the status of the mock Louvres
         self.status = MotionState.CLOSED
-        self.temperature = np.zeros(_NUM_SENSORS, dtype=float)
+        self.temperature = np.zeros(NUM_THERMO_SENSORS, dtype=float)
 
     async def determine_status(self, current_tai):
         """Determine the status of the Lower Level Component and store it in
