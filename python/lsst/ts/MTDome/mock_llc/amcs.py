@@ -33,6 +33,8 @@ from .mock_motion.azimuth_motion import AzimuthMotion
 from ..on_off import OnOff
 
 _NUM_MOTORS = 5
+_NUM_ENCODERS = 5
+_NUM_RESOLVERS = 3
 
 
 class AmcsStatus(BaseMockStatus):
@@ -73,10 +75,10 @@ class AmcsStatus(BaseMockStatus):
         self.drive_torque_commanded = np.zeros(_NUM_MOTORS, dtype=float)
         self.drive_current_actual = np.zeros(_NUM_MOTORS, dtype=float)
         self.drive_temperature = np.full(_NUM_MOTORS, 20.0, dtype=float)
-        self.encoder_head_raw = np.zeros(_NUM_MOTORS, dtype=float)
-        self.encoder_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
-        self.resolver_raw = np.zeros(_NUM_MOTORS, dtype=float)
-        self.resolver_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
+        self.encoder_head_raw = np.zeros(_NUM_ENCODERS, dtype=float)
+        self.encoder_head_calibrated = np.zeros(_NUM_ENCODERS, dtype=float)
+        self.resolver_raw = np.zeros(_NUM_RESOLVERS, dtype=float)
+        self.resolver_calibrated = np.zeros(_NUM_RESOLVERS, dtype=float)
 
     async def determine_status(self, current_tai):
         """Determine the status of the Lower Level Component and store it in

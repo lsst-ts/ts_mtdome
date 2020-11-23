@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["LcsStatus"]
+__all__ = ["LcsStatus", "NUM_LOUVERS"]
 
 import logging
 import numpy as np
@@ -28,7 +28,7 @@ from lsst.ts import salobj
 from .base_mock_llc import BaseMockStatus
 from lsst.ts.idl.enums.MTDome import MotionState
 
-_NUM_LOUVERS = 34
+NUM_LOUVERS = 34
 _NUM_MOTORS = 68
 
 
@@ -44,9 +44,9 @@ class LcsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockLcsStatus")
         # variables holding the status of the mock Louvres
-        self.status = np.full(_NUM_LOUVERS, MotionState.CLOSED.name, dtype=object)
-        self.position_actual = np.zeros(_NUM_LOUVERS, dtype=float)
-        self.position_commanded = np.zeros(_NUM_LOUVERS, dtype=float)
+        self.status = np.full(NUM_LOUVERS, MotionState.CLOSED.name, dtype=object)
+        self.position_actual = np.zeros(NUM_LOUVERS, dtype=float)
+        self.position_commanded = np.zeros(NUM_LOUVERS, dtype=float)
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
         self.drive_torque_commanded = np.zeros(_NUM_MOTORS, dtype=float)
         self.drive_current_actual = np.zeros(_NUM_MOTORS, dtype=float)

@@ -26,13 +26,13 @@ import numpy as np
 
 from lsst.ts import MTDome
 from lsst.ts.MTDome.llc_name import LlcName
+from lsst.ts.MTDome.mock_llc.lcs import NUM_LOUVERS
+from lsst.ts.MTDome.mock_llc.moncs import NUM_MON_SENSORS
+from lsst.ts.MTDome.mock_llc.thcs import NUM_THERMO_SENSORS
 from lsst.ts import salobj
 from lsst.ts.idl.enums.MTDome import EnabledState, MotionState
 
 STD_TIMEOUT = 2  # standard command timeout (sec)
-NUM_LOUVERS = 34
-NUM_MON_SENSORS = 16
-NUM_THERMO_SENSORS = 16
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
