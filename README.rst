@@ -16,8 +16,8 @@ Assuming you have the basic DM stack installed you can do the following, from wi
   This requires ``documenteer``; see `building single package docs <https://developer.lsst.io/stack/building-single-package-docs.html>`_ for installation instructions.
 
 
-This code uses ``pre-commit`` to maintain ``black`` formatting and ``flake8`` compliance.
+This code is automatically formatted by ``black`` using a git pre-commit hook.
 To enable this:
 
-* Run ``pre-commit install`` once.
-* If directed, run ``git config --unset-all core.hooksPath`` once.
+* Install the ``black`` Python package.
+* Run ``git config core.hooksPath .githooks`` once in this repository.

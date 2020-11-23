@@ -29,15 +29,15 @@ import numpy as np
 
 from lsst.ts import MTDome
 from lsst.ts.MTDome.llc_name import LlcName
-from lsst.ts.MTDome.mock_llc.lcs import NUM_LOUVERS
-from lsst.ts.MTDome.mock_llc.moncs import NUM_MON_SENSORS
-from lsst.ts.MTDome.mock_llc.thcs import NUM_THERMO_SENSORS
-
 from lsst.ts.idl.enums.MTDome import MotionState
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
 )
+
+_NUM_LOUVERS = 34
+_NUM_MON_SENSORS = 16
+_NUM_THERMO_SENSORS = 16
 
 _CURRENT_TAI = 100001
 
@@ -588,7 +588,7 @@ class MockTestCase(asynctest.TestCase):
 
         louver_id = 5
         target_position = 100
-        position = np.full(NUM_LOUVERS, -1.0, dtype=float)
+        position = np.full(_NUM_LOUVERS, -1.0, dtype=float)
         position[louver_id] = target_position
         await self.write(
             command="setLouvers", parameters={"position": position.tolist()},
@@ -628,7 +628,7 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         status = self.data[LlcName.LCS.value]
         self.assertEqual(
-            status["status"], [MotionState.STOPPED.name] * NUM_LOUVERS,
+            status["status"], [MotionState.STOPPED.name] * _NUM_LOUVERS,
         )
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
@@ -717,7 +717,7 @@ class MockTestCase(asynctest.TestCase):
         target positions are lined up.
 
         """
-        position = np.full(NUM_LOUVERS, -1.0, dtype=float)
+        position = np.full(_NUM_LOUVERS, -1.0, dtype=float)
         for index, louver_id in enumerate(louver_ids):
             position[louver_id] = target_positions[index]
         await self.write(
@@ -813,19 +813,19 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         lcs_status = self.data[LlcName.LCS.value]
         self.assertEqual(
-            lcs_status["status"], [MotionState.CLOSED.name] * NUM_LOUVERS,
+            lcs_status["status"], [MotionState.CLOSED.name] * _NUM_LOUVERS,
         )
         self.assertEqual(
-            lcs_status["positionActual"], [0.0] * NUM_LOUVERS,
+            lcs_status["positionActual"], [0.0] * _NUM_LOUVERS,
         )
         self.assertEqual(
-            lcs_status["positionCommanded"], [0.0] * NUM_LOUVERS,
+            lcs_status["positionCommanded"], [0.0] * _NUM_LOUVERS,
         )
 
     async def test_stopLouvers(self):
         louver_id = 5
         target_position = 100
-        position = np.full(NUM_LOUVERS, -1.0, dtype=float)
+        position = np.full(_NUM_LOUVERS, -1.0, dtype=float)
         position[louver_id] = target_position
         await self.write(
             command="setLouvers", parameters={"position": position.tolist()},
@@ -854,19 +854,19 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         lcs_status = self.data[LlcName.LCS.value]
         self.assertEqual(
-            lcs_status["status"], [MotionState.STOPPED.name] * NUM_LOUVERS,
+            lcs_status["status"], [MotionState.STOPPED.name] * _NUM_LOUVERS,
         )
         self.assertEqual(
             lcs_status["positionActual"],
             [0.0] * louver_id
             + [target_position]
-            + [0.0] * (NUM_LOUVERS - louver_id - 1),
+            + [0.0] * (_NUM_LOUVERS - louver_id - 1),
         )
         self.assertEqual(
             lcs_status["positionCommanded"],
             [0.0] * louver_id
             + [target_position]
-            + [0.0] * (NUM_LOUVERS - louver_id - 1),
+            + [0.0] * (_NUM_LOUVERS - louver_id - 1),
         )
 
     async def test_openShutter(self):
@@ -1067,7 +1067,7 @@ class MockTestCase(asynctest.TestCase):
             thcs_status["status"], MotionState.OPEN.name,
         )
         self.assertEqual(
-            thcs_status["temperature"], [temperature] * NUM_THERMO_SENSORS,
+            thcs_status["temperature"], [temperature] * _NUM_THERMO_SENSORS,
         )
 
     async def test_inflate(self):
@@ -1137,10 +1137,10 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         lcs_status = self.data[LlcName.LCS.value]
         self.assertEqual(
-            lcs_status["status"], [MotionState.CLOSED.name] * NUM_LOUVERS,
+            lcs_status["status"], [MotionState.CLOSED.name] * _NUM_LOUVERS,
         )
         self.assertEqual(
-            lcs_status["positionActual"], [0.0] * NUM_LOUVERS,
+            lcs_status["positionActual"], [0.0] * _NUM_LOUVERS,
         )
 
         await self.write(command="statusLWSCS", parameters={})
@@ -1160,7 +1160,7 @@ class MockTestCase(asynctest.TestCase):
             moncs_status["status"], MotionState.CLOSED.name,
         )
         self.assertEqual(
-            moncs_status["data"], [0.0] * NUM_MON_SENSORS,
+            moncs_status["data"], [0.0] * _NUM_MON_SENSORS,
         )
 
         await self.write(command="statusThCS", parameters={})
@@ -1170,7 +1170,7 @@ class MockTestCase(asynctest.TestCase):
             thcs_status["status"], MotionState.CLOSED.name,
         )
         self.assertEqual(
-            thcs_status["temperature"], [0.0] * NUM_THERMO_SENSORS,
+            thcs_status["temperature"], [0.0] * _NUM_THERMO_SENSORS,
         )
 
 

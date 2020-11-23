@@ -6,21 +6,6 @@
 Version History
 ###############
 
-v0.6.0
-======
-
-| Switched to pre-commit
-| Switched to ts-conda-build
-| Switched to JenkinsShared for the conda build
-| Small code updates due to modifications in ts_xml for MTDome
-
-Requires:
-
-* ts_salobj 6.0
-* ts_idl
-* IDL file for Dome from ts_xml 7.8
-
-
 v0.5.0
 ======
 

@@ -20,9 +20,21 @@ build:
 
 test:
   requires:
-    - ts-conda-build
-    - ts-idl {{ idl_version }}
-    - ts-salobj {{ salobj_version }}
+    - pytest
+    - pytest-flake8
+    - pytest-cov
+    - asynctest
+    - pytest-tornasync
+    - numpy
+    - astropy
+    - jsonschema
+    - pyyaml
+    - boto3
+    - moto
+    - ts-simactuators
+    - ts-dds
+    - ts-idl
+    - ts-salobj
     - black == 19.10b0
   source_files:
     - python
@@ -44,5 +56,5 @@ requirements:
     - python
     - setuptools
     - setuptools_scm
-    - ts-idl {{ idl_version }}
-    - ts-salobj {{ salobj_version }}
+    - ts-salobj
+    - ts-simactuators

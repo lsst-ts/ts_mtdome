@@ -592,6 +592,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # Store the status for unit tests.
         self.lower_level_status[llc_name.value] = status[llc_name.value]
 
+        # Temporarily fix data array length for THCS
+        if llc_name == LlcName.THCS:
+            temp_data = status[llc_name.value]["temperature"]
+            if len(temp_data) < 16:
+                temp_data = temp_data + [0.0, 0.0, 0.0]
+                status[llc_name.value]["temperature"] = temp_data
+
         telemetry_in_degrees = {}
         telemetry_in_radians = status[llc_name.value]
         for key in telemetry_in_radians.keys():
