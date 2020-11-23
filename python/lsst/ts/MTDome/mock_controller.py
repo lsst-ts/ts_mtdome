@@ -480,10 +480,6 @@ class MockMTDomeController:
             f"Received command 'config' with arguments system={system} and settings={settings}"
         )
         if system == LlcName.AMCS.value:
-            # DM-26653: The structure of the settings variable has changed so
-            # we need slightly more complex code here. For info about the new
-            # structure, see the project docs at
-            # https://ts-mtdome.lsst.io/protocols.html#configuration-protocol
             for field in settings:
                 if field["target"] in ("jmax", "amax", "vmax"):
                     # DM-25758: All param values are passed on as arrays so in

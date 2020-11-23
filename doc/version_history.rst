@@ -9,10 +9,10 @@ Version History
 v0.6.0
 ======
 
-| Switched to pre-commit
-| Switched to ts-conda-build
-| Switched to JenkinsShared for the conda build
-| Small code updates due to modifications in ts_xml for MTDome
+* Switched to pre-commit
+* Switched to ts-conda-build
+* Switched to JenkinsShared for the conda build
+* Small code updates due to modifications in ts_xml for MTDome
 
 Requires:
 
@@ -24,8 +24,8 @@ Requires:
 v0.5.0
 ======
 
-| Renamed Dome to MTDome.
-| Documentation moved to  `New Dome Software Documentation`_
+* Renamed Dome to MTDome.
+* Documentation moved to  `New Dome Software Documentation`_
 
 .. _New Dome Software Documentation: https://ts-mtdome.lsst.io
 
@@ -39,9 +39,9 @@ Requires:
 v0.4.0
 ======
 
-| The Lower Level Component simulators for AMCS and LWSCS now handle 0/360 azimuth and 0/90 elevation limits correctly.
-| The Lower Level Component simulators for AMCS and LWSCS now correctly report the duration of the commands to execute.
-| Added a test to verify that all code has been formatted by Black.
+* The Lower Level Component simulators for AMCS and LWSCS now handle 0/360 azimuth and 0/90 elevation limits correctly.
+* The Lower Level Component simulators for AMCS and LWSCS now correctly report the duration of the commands to execute.
+* Added a test to verify that all code has been formatted by Black.
 
 Requires:
 
@@ -53,8 +53,8 @@ Requires:
 v0.3.0
 ======
 
-| The statuses from the lower level components are not a dict in a list but a dict.
-| The configuration protocol no longer has [key, value] pairs, but {target: key, setting: value} dicts.
+* The statuses from the lower level components are not a dict in a list but a dict.
+* The configuration protocol no longer has [key, value] pairs, but {target: key, setting: value} dicts.
 
 Requires:
 
@@ -66,9 +66,9 @@ Requires:
 v0.2.1
 ======
 
-| Reformat code with black.
-| Fix f-strings with no string substitution.
-| Pin black version in meta.yaml to 19.10b0
+* Reformat code with black.
+* Fix f-strings with no string substitution.
+* Pin black version in meta.yaml to 19.10b0
 
 Requires:
 

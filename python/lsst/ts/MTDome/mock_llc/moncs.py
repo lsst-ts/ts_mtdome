@@ -37,7 +37,6 @@ class MoncsStatus(BaseMockStatus):
     def __init__(self):
         super().__init__()
         self.log = logging.getLogger("MockMoncsStatus")
-        # variables holding the status of the mock Louvres
         self.status = MotionState.CLOSED
         self.data = np.zeros(NUM_MON_SENSORS, dtype=float)
 
