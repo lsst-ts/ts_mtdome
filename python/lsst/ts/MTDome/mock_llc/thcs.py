@@ -38,7 +38,6 @@ class ThcsStatus(BaseMockStatus):
     def __init__(self):
         super().__init__()
         self.log = logging.getLogger("MockThcsStatus")
-        # variables holding the status of the mock Louvres
         self.status = MotionState.CLOSED
         self.temperature = np.zeros(NUM_THERMO_SENSORS, dtype=float)
 
