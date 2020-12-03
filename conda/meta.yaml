@@ -23,7 +23,6 @@ test:
     - ts-conda-build
     - ts-idl {{ idl_version }}
     - ts-salobj {{ salobj_version }}
-    - black == 19.10b0
   source_files:
     - python
     - bin
