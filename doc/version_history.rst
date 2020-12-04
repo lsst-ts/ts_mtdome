@@ -6,6 +6,20 @@
 Version History
 ###############
 
+v0.6.1
+======
+
+Changes:
+
+* Update Jenkinsfile.conda to use the shared library.
+* Pin the versions of ts_idl and ts_salobj in conda/meta.yaml.
+
+Requires:
+
+* ts_salobj 6.0
+* ts_idl
+* IDL file for Dome from ts_xml 7.8
+
 v0.6.0
 ======
 
