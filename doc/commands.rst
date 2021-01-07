@@ -38,7 +38,7 @@ The units are `AstroPy Units`_.
     | [key, value]", "| unitless
     | unitless", "| See the `Command and Configuration Protocols`_ document."
     "park"
-    "setTemperature", "temp", "double", "Celsius"
+    "setTemperature", "temperature", "double", "Celsius"
     "fans", "action", "string", "unitless", "ON or OFF"
     "inflate", "action", "string", "unitless", "ON or OFF"
     "statusAMCS"

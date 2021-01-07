@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "response": {
+      "type": "number"
+    },
+    "ApSCS": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "positionActual": {
+          "type": "number"
+        },
+        "positionCommanded": {
+          "type": "number"
+        },
+        "driveTorqueActual": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "driveTorqueCommanded": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "driveCurrentActual": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "driveTemperature": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "resolverHeadRaw": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "resolverHeadCalibrated": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "powerDraw": {
+          "type": "number"
+        },
+        "timestampUTC": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "status",
+        "positionActual",
+        "positionCommanded",
+        "driveTorqueActual",
+        "driveTorqueCommanded",
+        "driveCurrentActual",
+        "driveTemperature",
+        "resolverHeadRaw",
+        "resolverHeadCalibrated",
+        "powerDraw",
+        "timestampUTC"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "response",
+    "ApSCS"
+  ],
+  "additionalProperties": false
+}

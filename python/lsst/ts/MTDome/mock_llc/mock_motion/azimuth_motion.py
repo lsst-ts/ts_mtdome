@@ -1,8 +1,8 @@
 # This file is part of ts_MTDome.
 #
-# Developed for the LSST Telescope and Site Systems.
-# This product includes software developed by the LSST Project
-# (https://www.lsst.org).
+# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# This product includes software developed by the Vera Rubin Observatory
+# Project (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
 # for details of code ownership.
 #
@@ -103,7 +103,7 @@ class AzimuthMotion(BaseLlcMotion):
                 f" than the max speed {self._max_speed}."
             )
         if motion_state not in [MotionState.MOVING, MotionState.CRAWLING]:
-            raise ValueError(f"motion_speed should be MOVING or CRAWLING.")
+            raise ValueError("motion_speed should be MOVING or CRAWLING.")
 
         self._commanded_motion_state = motion_state
         self._start_tai = start_tai

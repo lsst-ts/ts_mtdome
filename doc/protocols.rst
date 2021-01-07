@@ -15,39 +15,48 @@ Using JSON, this is how the command string should be constructed:
 
 * The various components are grouped in key, value pairs.
 * Any value may be another collection of key, value pairs.
-* For any command, the the string "command" is a key and the name of the command the value. This will be followed by a "parameters" key and the value will be the command parameters as a collection of key, value pairs. If a command doesn't take any parameters then the value will be empty. In that case, the parameters key may also be omitted.
-* Any command will immediately result in a reply. The reply will always contain two key, value pairs. One key will be "response" with a numeric response code as value. The other key will be "timeout" with the timeout as numeric value. The list of response codes and their meaning can be found here: `Software Response Codes`_.
+* For any command, the the string "command" is a key and the name of the command the value.
+  This will be followed by a "parameters" key and the value will be the command parameters as a collection of key, value pairs.
+  If a command doesn't take any parameters then the value will be empty.
+  In that case, the parameters key may also be omitted.
+* Any command will immediately result in a reply.
+  The reply will always contain two key, value pairs.
+  One key will be "response" with a numeric response code as value.
+  The other key will be "timeout" with the timeout as numeric value.
+  The list of response codes and their meaning can be found here: `Software Response Codes`_.
 
   * If the reply is 0 (meaning OK) then it should be accompanied by a timeout value indicating how long it will take to execute the command.
 
-    * The reply to a status command should be given immediately and the timeout value will omitted. The lower level component status returned with the reply will be part of the same message and should be added as a separate key, value pair with the short name of the lower level component as key and a collection of the status parameters with their values as value.
+    * The reply to a status command should be given immediately and the timeout value will omitted.
+      The lower level component status returned with the reply will be part of the same message and should be added as a separate key, value pair with the short name of the lower level component as key and a collection of the status parameters with their values as value.
 
   * If the reply is larger than 0 (meaning ERROR) then the value indicates the error code and the timeout should be set to -1.
 
-* Strings should be enclosed in single or double quotes. Numerical values should not be enclosed in quotes.
+* Strings should be enclosed in single or double quotes.
+  Numerical values should not be enclosed in quotes.
 * Any resulting protocol string should be terminated by CR+LF ('\r\n').
 
 .. _Software Response Codes: ./response_codes.html
 
 For example, commands should be constructed like this:
 
-.. code-block:: none
+.. code-block:: json
 
-  {
-    "command": "openShutter",
-    "parameters": {}
-  }
-  {
-    "command": "moveAz",
-    "parameters": {
-      "azimuth": 1.3962634015954636,
-      "azRate": 0.001
-    }
-  }
+   {
+     "command": "openShutter",
+     "parameters": {}
+   }
+   {
+     "command": "moveAz",
+     "parameters": {
+       "azimuth": 1.3962634015954636,
+       "azRate": 0.001
+     }
+   }
 
 Replies should be formatted like this
 
-.. code-block:: none
+.. code-block:: json
 
     {
       "response": 0,
@@ -60,7 +69,7 @@ Replies should be formatted like this
 
 Status commands, similarly, look like this
 
-.. code-block:: none
+.. code-block:: json
 
     {
       "command": "statusAMCS",
@@ -71,34 +80,34 @@ Status commands, similarly, look like this
       "parameters": {}
     }
 
-and a reply to a status command should look like this
+and a reply to the statusAMCS command should look like this
 
-.. code-block:: none
+.. code-block:: json
 
-    {
-      'response': 0,
-      'AMCS': {
-        'status': {
-          'Error': ['No Errors'],
-          'status': 'Stopped',
-          'Fans': 'On',
-          'Inflate': 'On'
-        }
-        'positionActual': 0,
-        'positionCommanded': 0,
-        'velocityActual': 0,
-        'velocityCommmanded': 0,
-        'driveTorqueActual': [0.0, 0.0, 0.0, 0.0, 0.0],
-        'driveTorqueCommanded': [0.0, 0.0, 0.0, 0.0, 0.0],
-        'driveCurrentActual': [0.0, 0.0, 0.0, 0.0, 0.0],
-        'driveTemperature': [20.0, 20.0, 20.0, 20.0, 20.0],
-        'encoderHeadRaw': [0.0, 0.0, 0.0, 0.0, 0.0],
-        'encoderHeadCalibrated': [0.0, 0.0, 0.0, 0.0, 0.0],
-        'resolverRaw': [0.0, 0.0, 0.0, 0.0, 0.0],
-        'resolverCalibrated': [0.0, 0.0, 0.0, 0.0, 0.0]
-        'timestamp': 0,
-      }
-    }
+   {
+     "response": 0,
+     "AMCS": {
+       "status": {
+         "Error": ["No Errors"],
+         "status": "Stopped",
+         "Fans": "On",
+         "Inflate": "On"
+       },
+       "positionActual": 0,
+       "positionCommanded": 0,
+       "velocityActual": 0,
+       "velocityCommmanded": 0,
+       "driveTorqueActual": [0.0, 0.0, 0.0, 0.0, 0.0],
+       "driveTorqueCommanded": [0.0, 0.0, 0.0, 0.0, 0.0],
+       "driveCurrentActual": [0.0, 0.0, 0.0, 0.0, 0.0],
+       "driveTemperature": [20.0, 20.0, 20.0, 20.0, 20.0],
+       "encoderHeadRaw": [0.0, 0.0, 0.0, 0.0, 0.0],
+       "encoderHeadCalibrated": [0.0, 0.0, 0.0, 0.0, 0.0],
+       "resolverRaw": [0.0, 0.0, 0.0, 0.0, 0.0],
+       "resolverCalibrated": [0.0, 0.0, 0.0, 0.0, 0.0],
+       "timestamp": 0
+     }
+   }
 
 Configuration Protocol
 ----------------------
@@ -114,24 +123,24 @@ For the format of the protocol, the system gets specified separately and the con
 Due to limitations in the LabVIEW JSON support, both the value for the settings keyword and the values for the parameters always need to be arrays, even if only a single value is specified.
 So this means that the protocol will be of the form
 
-.. code-block:: none
+.. code-block:: json
 
-    {
-      "command": "config",
-      "parameters": {
-        "system": "SYSTEM_ID",
-        "settings": [
-            {
-              "target": "ParamX",
-              "setting": [Value1]
-            },
-            {
-              "target": "ParamY",
-              "setting": [Value1, Value2, Value3, ...]
-            }
-          ]
-      }
-    }
+   {
+     "command": "config",
+     "parameters": {
+       "system": "SYSTEM_ID",
+       "settings": [
+         {
+           "target": "ParamX",
+           "setting": ["Value1"]
+         },
+         {
+           "target": "ParamY",
+           "setting": ["Value1", "Value2", "Value3"]
+         }
+       ]
+     }
+   }
 
 The reply to the command should be OK with a timeout.
 The timeout signifies the amount of time needed for the lower level component to verify and apply the configuration parameters.
@@ -146,3 +155,63 @@ If during the timeout another command except the status command is received then
 A list of all configurable parameters and their maximum and minimum values can be found here: `Lower Level Configuration Parameters`_.
 
 .. _Lower Level Configuration Parameters: ./configuration_parameters.html
+
+JSON Schemas
+------------
+
+In order to validate the JSON messages, eight JSON schemas have been constructed.
+When the schemas are used for validation, the keys in the JSON data can be used to select which schema to use.
+The selection can be done for instance as follows:
+
+* If the "command" key is present, use the command schema.
+* If the "timeout" key is present, use the response schema.
+* In all other cases, test for the presence of the key containing the sub-system name ("APCS", "ApSCS", etc) and use the corresponding status schema.
+
+This is the command schema.
+It looks rather complex since it covers all available commands (including the "config" command), however otherwise 24 separate schemas would need to be created.
+For a full list of the commands and their parameters, see `Lower Level Commands`_.
+
+.. _Lower Level Commands: ./commands.html
+
+.. literalinclude:: ../python/lsst/ts/MTDome/schemas/command.jschema
+   :language: json
+
+This is the response schema.
+
+.. literalinclude:: ../python/lsst/ts/MTDome/schemas/response.jschema
+   :language: json
+
+This is the AMCS status schema.
+
+.. literalinclude:: ../python/lsst/ts/MTDome/schemas/amcs_status.jschema
+   :language: json
+
+This is the ApSCS status schema.
+
+.. literalinclude:: ../python/lsst/ts/MTDome/schemas/apscs_status.jschema
+   :language: json
+
+
+This is the LCS status schema.
+
+.. literalinclude:: ../python/lsst/ts/MTDome/schemas/lcs_status.jschema
+   :language: json
+
+
+This is the LWSCS status schema.
+
+.. literalinclude:: ../python/lsst/ts/MTDome/schemas/lwscs_status.jschema
+   :language: json
+
+
+This is the MonCS status schema.
+
+.. literalinclude:: ../python/lsst/ts/MTDome/schemas/moncs_status.jschema
+   :language: json
+
+
+This is the ThCS status schema.
+
+.. literalinclude:: ../python/lsst/ts/MTDome/schemas/thcs_status.jschema
+   :language: json
+
