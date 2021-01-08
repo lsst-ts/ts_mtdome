@@ -1,8 +1,8 @@
 # This file is part of ts_MTDome.
 #
-# Developed for the LSST Telescope and Site Systems.
-# This product includes software developed by the LSST Project
-# (https://www.lsst.org).
+# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# This product includes software developed by the Vera Rubin Observatory
+# Project (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
 # for details of code ownership.
 #
@@ -64,6 +64,8 @@ class MockTestCase(asynctest.TestCase):
         rw_coro = asyncio.open_connection(host="127.0.0.1", port=port)
         self.reader, self.writer = await asyncio.wait_for(rw_coro, timeout=1)
 
+        MTDome.encoding_tools.validation_raises_exception = True
+
         self.log = logging.getLogger("MockTestCase")
 
     async def read(self):
@@ -97,18 +99,30 @@ class MockTestCase(asynctest.TestCase):
             self.writer.close()
 
     async def test_command_does_not_exist(self):
+        # Temporarily disable validation exceptions for the unit test.
+        # Validation of the commands should be done by the client and the
+        # simulator has such validation built in.
+        MTDome.encoding_tools.validation_raises_exception = False
         await self.write(command="non-existent_command", parameters={})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 2)
         self.assertEqual(self.data["timeout"], -1)
 
     async def test_missing_command_parameter(self):
+        # Temporarily disable validation exceptions for the unit test.
+        # Validation of the commands should be done by the client and the
+        # simulator has such validation built in.
+        MTDome.encoding_tools.validation_raises_exception = False
         await self.write(command="moveAz", parameters={})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 3)
         self.assertEqual(self.data["timeout"], -1)
 
     async def test_too_many_command_parameters(self):
+        # Temporarily disable validation exceptions for the unit test.
+        # Validation of the commands should be done by the client and the
+        # simulator has such validation built in.
+        MTDome.encoding_tools.validation_raises_exception = False
         await self.write(
             command="moveAz",
             parameters={"position": 0.1, "velocity": 0.1, "acceleration": 0.1},

@@ -1,8 +1,8 @@
 # This file is part of ts_MTDome.
 #
-# Developed for the LSST Telescope and Site Systems.
-# This product includes software developed by the LSST Project
-# (https://www.lsst.org).
+# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# This product includes software developed by the Vera Rubin Observatory
+# Project (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
 # for details of code ownership.
 #
@@ -19,7 +19,38 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import logging
 import json
+import os
+
+import jsonschema
+
+# The directory in which this file resides for later reference.
+script_dir = os.path.dirname(__file__)
+
+
+def _load_schema(schema_name):
+    return json.loads(open(os.path.join(script_dir, "schemas", schema_name)).read())
+
+
+# dict to help look up the schema to use for validation
+schemas = {
+    "command": _load_schema("command.jschema"),
+    "timeout": _load_schema("response.jschema"),
+    "AMCS": _load_schema("amcs_status.jschema"),
+    "ApSCS": _load_schema("apscs_status.jschema"),
+    "LCS": _load_schema("lcs_status.jschema"),
+    "LWSCS": _load_schema("lwscs_status.jschema"),
+    "MonCS": _load_schema("moncs_status.jschema"),
+    "ThCS": _load_schema("thcs_status.jschema"),
+}
+
+# Logger
+log = logging.getLogger("EncodingTools")
+
+# Whether or not validation errors should raise an exception. Unit tests should
+# set this to true.
+validation_raises_exception = False
 
 
 def encode(**params):
@@ -57,4 +88,50 @@ def decode(st):
     -------
         A decoded Python representation of the string.
     """
-    return json.loads(st)
+    data = json.loads(st)
+    validate(data)
+    return data
+
+
+def validate(data):
+    """Validates the data against a JSON schema and logs an error in case the
+    validation fails.
+
+    There are eight schemas: one for the commands, one for each of six status
+    command responses and one for all other command responses. This function
+    determines which schema to use based on the keys in the data. Commands are
+    validated as well to ensure that the simulator receives correct commands
+    and this should be done by other clients too.
+
+    Parameters
+    ----------
+    data: `dict`
+        The data to validate. The format of the dict is explained in the
+        `encode` function.
+
+    Raises
+    ------
+    ValidationError:
+        In case the validation fails.
+    ValueError:
+        In case the retrieved data doesn't contain a known key.
+
+    """
+
+    log.info(f"command schema = {schemas['command']}")
+    try:
+        for k, v in schemas.items():
+            if k in data.keys():
+                jsonschema.validate(data, v)
+                break
+        else:
+            message = f"Validation failed because no known key found in data {data!r}"
+            if validation_raises_exception:
+                raise RuntimeError(message)
+            else:
+                log.error(message)
+    except jsonschema.ValidationError as e:
+        if validation_raises_exception:
+            raise e
+        else:
+            log.exception("Validation failed.", e)

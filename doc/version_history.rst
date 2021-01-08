@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v0.7.0
+======
+
+Changes:
+
+* Added validation of outgoing and incoming JSON data based on JSON schemas.
+
+Requires:
+
+* ts_salobj 6.1
+* ts_idl
+* IDL file for MTDome from ts_xml 7.0
+
 v0.6.1
 ======
 
@@ -18,7 +31,7 @@ Requires:
 
 * ts_salobj 6.0
 * ts_idl
-* IDL file for Dome from ts_xml 7.8
+* IDL file for MTDome from ts_xml 7.0
 
 v0.6.0
 ======
@@ -32,7 +45,7 @@ Requires:
 
 * ts_salobj 6.0
 * ts_idl
-* IDL file for Dome from ts_xml 7.8
+* IDL file for MTDome from ts_xml 7.0
 
 
 v0.5.0
@@ -47,7 +60,7 @@ Requires:
 
 * ts_salobj 6.0
 * ts_idl
-* IDL file for Dome from ts_xml 4.8
+* IDL file for MTDome from ts_xml 7.0
 
 
 v0.4.0
