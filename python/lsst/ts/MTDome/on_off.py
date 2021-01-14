@@ -26,5 +26,5 @@ import enum
 
 class OnOff(enum.Enum):
 
-    ON = enum.auto()
-    OFF = enum.auto()
+    ON = True
+    OFF = False

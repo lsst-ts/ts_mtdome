@@ -25,10 +25,10 @@
               "type": "string"
             },
             "fans": {
-              "type": "string"
+              "type": "boolean"
             },
             "inflate": {
-              "type": "string"
+              "type": "boolean"
             }
           },
           "required": [
@@ -131,7 +131,7 @@
             }
           ]
         },
-        "timestamp": {
+        "timestampUTC": {
           "type": "number"
         }
       },
@@ -149,7 +149,7 @@
         "encoderHeadCalibrated",
         "resolverRaw",
         "resolverCalibrated",
-        "timestamp"
+        "timestampUTC"
       ],
       "additionalProperties": false
     }

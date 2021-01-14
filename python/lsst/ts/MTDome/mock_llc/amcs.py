@@ -100,8 +100,8 @@ class AmcsStatus(BaseMockStatus):
             "status": {
                 "error": self.error,
                 "status": motion_state.name,
-                "fans": self.fans_enabled.name,
-                "inflate": self.seal_inflated.name,
+                "fans": self.fans_enabled.value,
+                "inflate": self.seal_inflated.value,
             },
             "positionActual": position,
             "positionCommanded": self.position_commanded,
@@ -117,7 +117,7 @@ class AmcsStatus(BaseMockStatus):
             "resolverCalibrated": self.resolver_calibrated.tolist(),
             # DM-26653: The name of this key is still under discussion and
             # could be modified to "timestampUTC"
-            "timestamp": current_tai,
+            "timestampUTC": current_tai,
         }
 
         self.log.debug(f"amcs_state = {self.llc_status}")
@@ -220,7 +220,7 @@ class AmcsStatus(BaseMockStatus):
             The value should be ON or OFF but the value doesn't get validated
             here.
         """
-        self.seal_inflated = OnOff[action]
+        self.seal_inflated = OnOff(action)
         self.duration = 0.0
         return self.duration
 
@@ -236,6 +236,6 @@ class AmcsStatus(BaseMockStatus):
             The value should be ON or OFF but the value doesn't get validated
             here.
         """
-        self.fans_enabled = OnOff[action]
+        self.fans_enabled = OnOff(action)
         self.duration = 0.0
         return self.duration

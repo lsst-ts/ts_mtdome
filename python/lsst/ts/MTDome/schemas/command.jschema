@@ -401,7 +401,7 @@
             "type": "object",
             "properties": {
               "action": {
-                "type": "string"
+                "type": "boolean"
               }
             },
             "required": [
@@ -426,7 +426,7 @@
             "type": "object",
             "properties": {
               "action": {
-                "type": "string"
+                "type": "boolean"
               }
             },
             "required": [

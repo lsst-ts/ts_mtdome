@@ -499,7 +499,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.csc.write_then_read_reply(
-                command="fans", action=MTDome.OnOff.ON.name
+                command="fans", action=MTDome.OnOff.ON.value
             )
 
             # Give some time to the mock device to move.
@@ -508,7 +508,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(amcs_status["status"]["status"], MotionState.STOPPED.name)
-            self.assertEqual(amcs_status["status"]["fans"], MTDome.OnOff.ON.name)
+            self.assertEqual(amcs_status["status"]["fans"], MTDome.OnOff.ON.value)
 
     async def test_inflate(self):
         async with self.make_csc(
@@ -523,7 +523,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.csc.write_then_read_reply(
-                command="inflate", action=MTDome.OnOff.ON.name
+                command="inflate", action=MTDome.OnOff.ON.value
             )
 
             # Give some time to the mock device to move.
@@ -532,7 +532,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(amcs_status["status"]["status"], MotionState.STOPPED.name)
-            self.assertEqual(amcs_status["status"]["inflate"], MTDome.OnOff.ON.name)
+            self.assertEqual(amcs_status["status"]["inflate"], MTDome.OnOff.ON.value)
 
     async def test_status(self):
         async with self.make_csc(
