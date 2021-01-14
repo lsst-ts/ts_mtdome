@@ -1090,9 +1090,11 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         amcs_status = self.data[LlcName.AMCS.value]
         self.assertEqual(
-            amcs_status["status"]["inflate"], MTDome.OnOff.OFF.name,
+            amcs_status["status"]["inflate"], MTDome.OnOff.OFF.value,
         )
-        await self.write(command="inflate", parameters={"action": MTDome.OnOff.ON.name})
+        await self.write(
+            command="inflate", parameters={"action": MTDome.OnOff.ON.value}
+        )
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
         self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
@@ -1102,7 +1104,7 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         amcs_status = self.data[LlcName.AMCS.value]
         self.assertEqual(
-            amcs_status["status"]["inflate"], MTDome.OnOff.ON.name,
+            amcs_status["status"]["inflate"], MTDome.OnOff.ON.value,
         )
 
     async def test_fans(self):
@@ -1111,9 +1113,9 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         amcs_status = self.data[LlcName.AMCS.value]
         self.assertEqual(
-            amcs_status["status"]["fans"], MTDome.OnOff.OFF.name,
+            amcs_status["status"]["fans"], MTDome.OnOff.OFF.value,
         )
-        await self.write(command="fans", parameters={"action": MTDome.OnOff.ON.name})
+        await self.write(command="fans", parameters={"action": MTDome.OnOff.ON.value})
         self.data = await self.read()
         self.assertEqual(self.data["response"], 0)
         self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
@@ -1123,7 +1125,7 @@ class MockTestCase(asynctest.TestCase):
         self.data = await self.read()
         amcs_status = self.data[LlcName.AMCS.value]
         self.assertEqual(
-            amcs_status["status"]["fans"], MTDome.OnOff.ON.name,
+            amcs_status["status"]["fans"], MTDome.OnOff.ON.value,
         )
 
     async def test_status(self):

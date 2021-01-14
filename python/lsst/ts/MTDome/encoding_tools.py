@@ -118,7 +118,6 @@ def validate(data):
 
     """
 
-    log.info(f"command schema = {schemas['command']}")
     try:
         for k, v in schemas.items():
             if k in data.keys():

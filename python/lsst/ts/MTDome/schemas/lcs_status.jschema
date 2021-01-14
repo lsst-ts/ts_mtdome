@@ -104,7 +104,21 @@
         "timestampUTC": {
           "type": "number"
         }
-      }
+      },
+      "required": [
+        "status",
+        "positionActual",
+        "positionCommanded",
+        "driveTorqueActual",
+        "driveTorqueCommanded",
+        "driveCurrentActual",
+        "driveTemperature",
+        "encoderHeadRaw",
+        "encoderHeadCalibrated",
+        "powerDraw",
+        "timestampUTC"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
