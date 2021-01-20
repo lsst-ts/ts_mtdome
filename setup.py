@@ -26,7 +26,7 @@ setuptools.setup(
     install_requires=install_requires,
     package_dir={"": "python"},
     packages=setuptools.find_namespace_packages(where="python"),
-    package_data={"": ["*.rst", "*.yaml", "*.xml"]},
+    package_data={"": ["*.rst", "*.yaml", "*.xml", "*.jschema"]},
     data_files=[(os.path.join(data_files_path, "schema"), ["schema/MTDome.yaml"])],
     scripts=["bin/run_mtdome.py"],
     tests_require=tests_require,
