@@ -21,6 +21,7 @@
 
 import asynctest
 import logging
+import pytest
 
 import numpy as np
 
@@ -86,6 +87,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             topic=self.remote.evt_lockingPinsEngaged, engaged=0
         )
 
+    @pytest.mark.skip(reason="DM-28428: no way of currently testing this")
     async def test_unsupported_command(self):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
@@ -102,6 +104,7 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             except KeyError:
                 pass
 
+    @pytest.mark.skip(reason="DM-28428: no way of currently testing this")
     async def test_incorrect_parameter(self):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
