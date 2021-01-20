@@ -24,6 +24,7 @@ import asynctest
 from asynctest.mock import CoroutineMock
 import logging
 import math
+import pytest
 
 import numpy as np
 
@@ -98,6 +99,7 @@ class MockTestCase(asynctest.TestCase):
         if self.writer:
             self.writer.close()
 
+    @pytest.mark.skip(reason="DM-28428: no way of currently testing this")
     async def test_command_does_not_exist(self):
         # Temporarily disable validation exceptions for the unit test.
         # Validation of the commands should be done by the client and the
@@ -108,6 +110,7 @@ class MockTestCase(asynctest.TestCase):
         self.assertEqual(self.data["response"], 2)
         self.assertEqual(self.data["timeout"], -1)
 
+    @pytest.mark.skip(reason="DM-28428: no way of currently testing this")
     async def test_missing_command_parameter(self):
         # Temporarily disable validation exceptions for the unit test.
         # Validation of the commands should be done by the client and the
