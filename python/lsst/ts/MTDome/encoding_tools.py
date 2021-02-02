@@ -48,10 +48,6 @@ schemas = {
 # Logger
 log = logging.getLogger("EncodingTools")
 
-# Whether or not validation errors should raise an exception. Unit tests should
-# set this to true.
-validation_raises_exception = False
-
 
 def encode(**params):
     """Encode the given parameters.
@@ -124,13 +120,6 @@ def validate(data):
                 jsonschema.validate(data, v)
                 break
         else:
-            message = f"Validation failed because no known key found in data {data!r}"
-            if validation_raises_exception:
-                raise RuntimeError(message)
-            else:
-                log.error(message)
+            log.error(f"Validation failed because no known key found in data {data!r}")
     except jsonschema.ValidationError as e:
-        if validation_raises_exception:
-            raise e
-        else:
-            log.exception("Validation failed.", e)
+        log.exception("Validation failed.", e)

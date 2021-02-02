@@ -24,7 +24,6 @@ import asynctest
 from asynctest.mock import CoroutineMock
 import logging
 import math
-import pytest
 
 import numpy as np
 
@@ -98,28 +97,6 @@ class MockTestCase(asynctest.TestCase):
             await asyncio.wait_for(self.mock_ctrl.stop(), 5)
         if self.writer:
             self.writer.close()
-
-    @pytest.mark.skip(reason="DM-28428: no way of currently testing this")
-    async def test_command_does_not_exist(self):
-        # Temporarily disable validation exceptions for the unit test.
-        # Validation of the commands should be done by the client and the
-        # simulator has such validation built in.
-        MTDome.encoding_tools.validation_raises_exception = False
-        await self.write(command="non-existent_command", parameters={})
-        self.data = await self.read()
-        self.assertEqual(self.data["response"], 2)
-        self.assertEqual(self.data["timeout"], -1)
-
-    @pytest.mark.skip(reason="DM-28428: no way of currently testing this")
-    async def test_missing_command_parameter(self):
-        # Temporarily disable validation exceptions for the unit test.
-        # Validation of the commands should be done by the client and the
-        # simulator has such validation built in.
-        MTDome.encoding_tools.validation_raises_exception = False
-        await self.write(command="moveAz", parameters={})
-        self.data = await self.read()
-        self.assertEqual(self.data["response"], 3)
-        self.assertEqual(self.data["timeout"], -1)
 
     async def test_too_many_command_parameters(self):
         # Temporarily disable validation exceptions for the unit test.

@@ -6,7 +6,33 @@
 Version History
 ###############
 
-v0.7.0
+v0.7.2
+======
+
+Changes:
+
+* Disabled several unit test cases.
+
+Requires:
+
+* ts_salobj 6.1
+* ts_idl
+* IDL file for MTDome from ts_xml 7.0
+
+v0.7.1
+======
+
+Changes:
+
+* Small fixes related to the JSON schemas.
+
+Requires:
+
+* ts_salobj 6.1
+* ts_idl
+* IDL file for MTDome from ts_xml 7.0
+
+v0.7.
 ======
 
 Changes:
