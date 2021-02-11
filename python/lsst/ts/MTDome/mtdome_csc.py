@@ -37,7 +37,12 @@ _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout in s to be used by this module
 # DM-26653: Added "positionError" since this key is still under discussion.
 _KEYS_TO_REMOVE = {"status", "positionError"}
-_KEYS_IN_RADIANS = {"positionError", "positionActual", "positionCommanded"}
+_KEYS_IN_RADIANS = {
+    "positionActual",
+    "positionCommanded",
+    "velocityActual",
+    "velocityCommanded",
+}
 
 _AMCS_STATUS_PERIOD = 0.2
 _APsCS_STATUS_PERIOD = 2.0

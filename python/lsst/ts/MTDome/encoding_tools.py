@@ -21,16 +21,21 @@
 
 import logging
 import json
-import os
+import pathlib
 
 import jsonschema
 
-# The directory in which this file resides for later reference.
-script_dir = os.path.dirname(__file__)
+
+# Logger
+log = logging.getLogger("EncodingTools")
 
 
 def _load_schema(schema_name):
-    return json.loads(open(os.path.join(script_dir, "schemas", schema_name)).read())
+    schema_file = (
+        pathlib.Path(__file__).resolve().parents[4].joinpath("schema", schema_name)
+    )
+    with open(schema_file) as f:
+        return json.loads(f.read())
 
 
 # dict to help look up the schema to use for validation
@@ -44,9 +49,6 @@ schemas = {
     "MonCS": _load_schema("moncs_status.jschema"),
     "ThCS": _load_schema("thcs_status.jschema"),
 }
-
-# Logger
-log = logging.getLogger("EncodingTools")
 
 
 def encode(**params):
