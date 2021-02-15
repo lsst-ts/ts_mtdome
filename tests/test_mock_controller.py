@@ -29,6 +29,7 @@ import numpy as np
 
 from lsst.ts import MTDome
 from lsst.ts.MTDome.llc_name import LlcName
+from lsst.ts.MTDome.mock_llc.amcs import PARK_POSITION
 from lsst.ts.MTDome.mock_llc.lcs import NUM_LOUVERS
 from lsst.ts.MTDome.mock_llc.moncs import NUM_MON_SENSORS
 from lsst.ts.MTDome.mock_llc.thcs import NUM_THERMO_SENSORS
@@ -1031,10 +1032,10 @@ class MockTestCase(asynctest.TestCase):
             amcs_status["status"]["status"], MotionState.PARKED.name,
         )
         self.assertEqual(
-            amcs_status["positionActual"], 0,
+            amcs_status["positionActual"], PARK_POSITION,
         )
         self.assertEqual(
-            amcs_status["positionCommanded"], 0,
+            amcs_status["positionCommanded"], PARK_POSITION,
         )
 
     async def test_setTemperature(self):
