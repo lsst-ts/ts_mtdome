@@ -26,7 +26,7 @@ import yaml
 CONFIG_SCHEMA = yaml.safe_load(
     """
     $schema: http://json-schema.org/draft-07/schema#
-    $id: https://github.com/lsst-ts/ts_mtdome/blob/master/python/lsst/ts/MTDome/config_schema.yaml
+    $id: https://github.com/lsst-ts/ts_mtdome/blob/master/python/lsst/ts/MTDome/config_schema.py
     title: MTDome v1
     description: Schema for MTDome configuration files
     type: object

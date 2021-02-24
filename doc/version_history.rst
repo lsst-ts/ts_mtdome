@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v1.0.0
+======
+
+Changes:
+
+* Updates for ts_xml 8.0 and ts_salobj 6.3
+
+Requires:
+
+* ts_salobj 6.3
+* ts_idl
+* IDL file for MTDome from ts_xml 8.0
+
 v0.7.2
 ======
 
