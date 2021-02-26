@@ -25,9 +25,9 @@ This configuration only affects single-package Sphinx documentation builds.
 """
 
 from documenteer.conf.pipelinespkg import *  # noqa
-import lsst.ts.salobj  # noqa
+import lsst.ts.MTDome  # noqa
 
-project = "ts_salobj"
+project = "ts_MTDome"
 html_theme_options["logotext"] = project  # noqa
 html_title = project
 html_short_title = project
