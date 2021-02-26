@@ -1,8 +1,8 @@
 # This file is part of ts_MTDome.
 #
 # Developed for the Vera Rubin Observatory Telescope and Site Systems.
-# This product includes software developed by the Vera Rubin Observatory
-# Project (https://www.lsst.org).
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
 # for details of code ownership.
 #
@@ -70,6 +70,16 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                     "park",
                     "setTemperature",
                 ),
+            )
+
+    async def test_version(self):
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await self.assert_next_sample(
+                self.remote.evt_softwareVersions,
+                cscVersion=MTDome.__version__,
+                subsystemVersions="",
             )
 
     async def set_csc_to_enabled(self):

@@ -1,8 +1,8 @@
 # This file is part of ts_MTDome.
 #
 # Developed for the Vera Rubin Observatory Telescope and Site Systems.
-# This product includes software developed by the Vera Rubin Observatory
-# Project (https://www.lsst.org).
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
 # for details of code ownership.
 #
@@ -23,8 +23,9 @@ __all__ = ["MTDomeCsc"]
 
 import asyncio
 import math
-import pathlib
 
+from .config_schema import CONFIG_SCHEMA
+from . import __version__
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .llc_name import LlcName
 from lsst.ts import salobj
@@ -81,6 +82,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     """
 
     valid_simulation_modes = (0, 1)
+    version = __version__
 
     def __init__(
         self,
@@ -89,13 +91,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         simulation_mode=0,
         mock_port=None,
     ):
-        schema_path = (
-            pathlib.Path(__file__)
-            .resolve()
-            .parents[4]
-            .joinpath("schema", "MTDome.yaml")
-        )
-
         self.reader = None
         self.writer = None
         self.config = None
@@ -106,7 +101,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         super().__init__(
             name="MTDome",
             index=0,
-            schema_path=schema_path,
+            config_schema=CONFIG_SCHEMA,
             config_dir=config_dir,
             initial_state=initial_state,
             simulation_mode=simulation_mode,
