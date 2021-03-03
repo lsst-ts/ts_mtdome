@@ -1,8 +1,8 @@
 # This file is part of ts_MTDome.
 #
 # Developed for the Vera Rubin Observatory Telescope and Site Systems.
-# This product includes software developed by the Vera Rubin Observatory
-# Project (https://www.lsst.org).
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
 # for details of code ownership.
 #
@@ -21,7 +21,6 @@
 
 import asynctest
 import logging
-import pytest
 
 import numpy as np
 
@@ -73,6 +72,16 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
                 ),
             )
 
+    async def test_version(self):
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
+        ):
+            await self.assert_next_sample(
+                self.remote.evt_softwareVersions,
+                cscVersion=MTDome.__version__,
+                subsystemVersions="",
+            )
+
     async def set_csc_to_enabled(self):
         await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
         await self.assert_next_sample(
@@ -86,38 +95,6 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
         await self.assert_next_sample(
             topic=self.remote.evt_lockingPinsEngaged, engaged=0
         )
-
-    @pytest.mark.skip(reason="DM-28428: no way of currently testing this")
-    async def test_unsupported_command(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await self.set_csc_to_enabled()
-            try:
-                # This command is not supported by the DomeCsc so an Error
-                # should be returned by the controller leading to a KeyError in
-                # MTDomeCsc.
-                await self.csc.write_then_read_reply(
-                    command="unsupported_command", parameters={}
-                )
-                self.fail("Expected a KeyError.")
-            except KeyError:
-                pass
-
-    @pytest.mark.skip(reason="DM-28428: no way of currently testing this")
-    async def test_incorrect_parameter(self):
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
-        ):
-            await self.set_csc_to_enabled()
-            try:
-                # This command is supported by the MTDomeCsc but it takes an
-                # argument so an Error should be returned by the controller
-                # leading to a ValueError in MTDomeCsc.
-                await self.csc.write_then_read_reply(command="moveAz", parameters={})
-                self.fail("Expected a ValueError.")
-            except ValueError:
-                pass
 
     async def test_do_moveAz(self):
         async with self.make_csc(

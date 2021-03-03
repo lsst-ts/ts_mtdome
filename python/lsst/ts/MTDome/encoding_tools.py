@@ -1,8 +1,8 @@
 # This file is part of ts_MTDome.
 #
 # Developed for the Vera Rubin Observatory Telescope and Site Systems.
-# This product includes software developed by the Vera Rubin Observatory
-# Project (https://www.lsst.org).
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
 # for details of code ownership.
 #
@@ -21,16 +21,21 @@
 
 import logging
 import json
-import os
+import pathlib
 
 import jsonschema
 
-# The directory in which this file resides for later reference.
-script_dir = os.path.dirname(__file__)
+
+# Logger
+log = logging.getLogger("EncodingTools")
 
 
 def _load_schema(schema_name):
-    return json.loads(open(os.path.join(script_dir, "schemas", schema_name)).read())
+    schema_file = (
+        pathlib.Path(__file__).resolve().parents[4].joinpath("schema", schema_name)
+    )
+    with open(schema_file) as f:
+        return json.loads(f.read())
 
 
 # dict to help look up the schema to use for validation
@@ -44,13 +49,6 @@ schemas = {
     "MonCS": _load_schema("moncs_status.jschema"),
     "ThCS": _load_schema("thcs_status.jschema"),
 }
-
-# Logger
-log = logging.getLogger("EncodingTools")
-
-# Whether or not validation errors should raise an exception. Unit tests should
-# set this to true.
-validation_raises_exception = False
 
 
 def encode(**params):
@@ -124,13 +122,6 @@ def validate(data):
                 jsonschema.validate(data, v)
                 break
         else:
-            message = f"Validation failed because no known key found in data {data!r}"
-            if validation_raises_exception:
-                raise RuntimeError(message)
-            else:
-                log.error(message)
+            log.error(f"Validation failed because no known key found in data {data!r}")
     except jsonschema.ValidationError as e:
-        if validation_raises_exception:
-            raise e
-        else:
-            log.exception("Validation failed.", e)
+        log.exception("Validation failed.", e)

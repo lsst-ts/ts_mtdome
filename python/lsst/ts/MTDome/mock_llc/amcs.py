@@ -1,8 +1,8 @@
 # This file is part of ts_MTDome.
 #
 # Developed for the Vera Rubin Observatory Telescope and Site Systems.
-# This product includes software developed by the Vera Rubin Observatory
-# Project (https://www.lsst.org).
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
 # for details of code ownership.
 #
@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["AmcsStatus"]
+__all__ = ["AmcsStatus", "PARK_POSITION"]
 
 import logging
 import math
@@ -35,6 +35,8 @@ from ..on_off import OnOff
 _NUM_MOTORS = 5
 _NUM_ENCODERS = 5
 _NUM_RESOLVERS = 3
+
+PARK_POSITION = 0.0
 
 
 class AmcsStatus(BaseMockStatus):
@@ -60,7 +62,7 @@ class AmcsStatus(BaseMockStatus):
         self.vmax = self.amcs_limits.vmax
         # variables helping with the state of the mock AZ motion
         self.azimuth_motion = AzimuthMotion(
-            start_position=0.0, max_speed=self.vmax, start_tai=start_tai
+            start_position=PARK_POSITION, max_speed=self.vmax, start_tai=start_tai
         )
         self.duration = 0.0
         # variables holding the status of the mock AZ motion. The error codes
@@ -69,8 +71,8 @@ class AmcsStatus(BaseMockStatus):
         self.error = ["No Error"]
         self.fans_enabled = OnOff.OFF
         self.seal_inflated = OnOff.OFF
-        self.position_commanded = 0
-        self.velocity_commanded = 0
+        self.position_commanded = PARK_POSITION
+        self.velocity_commanded = PARK_POSITION
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
         self.drive_torque_commanded = np.zeros(_NUM_MOTORS, dtype=float)
         self.drive_current_actual = np.zeros(_NUM_MOTORS, dtype=float)
@@ -115,8 +117,6 @@ class AmcsStatus(BaseMockStatus):
             "encoderHeadCalibrated": self.encoder_head_calibrated.tolist(),
             "resolverRaw": self.resolver_raw.tolist(),
             "resolverCalibrated": self.resolver_calibrated.tolist(),
-            # DM-26653: The name of this key is still under discussion and
-            # could be modified to "timestampUTC"
             "timestampUTC": current_tai,
         }
 
@@ -204,7 +204,7 @@ class AmcsStatus(BaseMockStatus):
             tests it can be convenient to use other values.
         """
         self.status = MotionState.PARKING
-        self.position_commanded = 0.0
+        self.position_commanded = PARK_POSITION
         self.duration = self.azimuth_motion.park(start_tai)
         return self.duration
 

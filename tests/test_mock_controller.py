@@ -1,8 +1,8 @@
 # This file is part of ts_MTDome.
 #
 # Developed for the Vera Rubin Observatory Telescope and Site Systems.
-# This product includes software developed by the Vera Rubin Observatory
-# Project (https://www.lsst.org).
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
 # for details of code ownership.
 #
@@ -24,12 +24,12 @@ import asynctest
 from asynctest.mock import CoroutineMock
 import logging
 import math
-import pytest
 
 import numpy as np
 
 from lsst.ts import MTDome
 from lsst.ts.MTDome.llc_name import LlcName
+from lsst.ts.MTDome.mock_llc.amcs import PARK_POSITION
 from lsst.ts.MTDome.mock_llc.lcs import NUM_LOUVERS
 from lsst.ts.MTDome.mock_llc.moncs import NUM_MON_SENSORS
 from lsst.ts.MTDome.mock_llc.thcs import NUM_THERMO_SENSORS
@@ -98,28 +98,6 @@ class MockTestCase(asynctest.TestCase):
             await asyncio.wait_for(self.mock_ctrl.stop(), 5)
         if self.writer:
             self.writer.close()
-
-    @pytest.mark.skip(reason="DM-28428: no way of currently testing this")
-    async def test_command_does_not_exist(self):
-        # Temporarily disable validation exceptions for the unit test.
-        # Validation of the commands should be done by the client and the
-        # simulator has such validation built in.
-        MTDome.encoding_tools.validation_raises_exception = False
-        await self.write(command="non-existent_command", parameters={})
-        self.data = await self.read()
-        self.assertEqual(self.data["response"], 2)
-        self.assertEqual(self.data["timeout"], -1)
-
-    @pytest.mark.skip(reason="DM-28428: no way of currently testing this")
-    async def test_missing_command_parameter(self):
-        # Temporarily disable validation exceptions for the unit test.
-        # Validation of the commands should be done by the client and the
-        # simulator has such validation built in.
-        MTDome.encoding_tools.validation_raises_exception = False
-        await self.write(command="moveAz", parameters={})
-        self.data = await self.read()
-        self.assertEqual(self.data["response"], 3)
-        self.assertEqual(self.data["timeout"], -1)
 
     async def test_too_many_command_parameters(self):
         # Temporarily disable validation exceptions for the unit test.
@@ -1054,10 +1032,10 @@ class MockTestCase(asynctest.TestCase):
             amcs_status["status"]["status"], MotionState.PARKED.name,
         )
         self.assertEqual(
-            amcs_status["positionActual"], 0,
+            amcs_status["positionActual"], PARK_POSITION,
         )
         self.assertEqual(
-            amcs_status["positionCommanded"], 0,
+            amcs_status["positionCommanded"], PARK_POSITION,
         )
 
     async def test_setTemperature(self):
