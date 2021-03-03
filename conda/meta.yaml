@@ -27,6 +27,7 @@ test:
     - python
     - bin
     - tests
+    - schema
     - setup.cfg
   commands:
     - py.test
