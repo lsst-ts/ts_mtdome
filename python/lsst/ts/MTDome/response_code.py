@@ -25,8 +25,7 @@ import enum
 
 
 class ResponseCode(enum.IntEnum):
-    """`enum` with response codes.
-    """
+    """`enum` with response codes."""
 
     OK = 0
     UNSUPPORTED_COMMAND = 2

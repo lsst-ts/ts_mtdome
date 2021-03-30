@@ -19,9 +19,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import asynctest
 import logging
 import math
+import unittest
 
 from lsst.ts.MTDome.mock_llc.mock_motion import ElevationMotion
 from lsst.ts.idl.enums.MTDome import MotionState
@@ -35,7 +35,7 @@ _MIN_POSITION = 0
 _MAX_POSITION = math.radians(90)
 
 
-class ElevationMotionTestCase(asynctest.TestCase):
+class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
     async def prepare_elevation_motion(
         self, start_position, min_position, max_position, max_speed, start_tai
     ):
@@ -63,7 +63,12 @@ class ElevationMotionTestCase(asynctest.TestCase):
         )
 
     async def verify_elevation_motion_duration(
-        self, start_tai, target_position, velocity, expected_duration, motion_state,
+        self,
+        start_tai,
+        target_position,
+        velocity,
+        expected_duration,
+        motion_state,
     ):
         """Verify that the ElevationMotion computes the correct duration.
 
@@ -205,8 +210,7 @@ class ElevationMotionTestCase(asynctest.TestCase):
         )
 
     async def test_crawl_pos(self):
-        """Test the ElevationMotion when crawling in positive direction.
-        """
+        """Test the ElevationMotion when crawling in positive direction."""
         start_position = 0.0
         start_tai = _start_tai
         min_position = _MIN_POSITION
