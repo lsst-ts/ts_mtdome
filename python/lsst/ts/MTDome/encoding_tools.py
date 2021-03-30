@@ -70,7 +70,7 @@ def encode(**params):
     Returns
     -------
         An encoded string representation of the string and parameters.
-     """
+    """
     return json.dumps({**params})
 
 

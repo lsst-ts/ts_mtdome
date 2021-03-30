@@ -32,7 +32,8 @@ NUM_THERMO_SENSORS = 13
 
 
 class ThcsStatus(BaseMockStatus):
-    """Represents the status of the Thermal Control System in simulation mode.
+    """Represents the status of the Thermal Control System in simulation
+    mode.
     """
 
     def __init__(self):

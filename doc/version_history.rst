@@ -6,6 +6,21 @@
 Version History
 ###############
 
+v1.1.0
+======
+
+Changes:
+
+* Removed the use of asynctest
+* Upgraded the version of Black to 20.8b1
+* Upgraded the version of ts-conda-build to 0.3
+
+Requires:
+
+* ts_salobj 6.3
+* ts_idl
+* IDL file for MTDome from ts_xml 8.0
+
 v1.0.1
 ======
 

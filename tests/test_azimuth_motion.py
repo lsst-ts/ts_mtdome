@@ -19,9 +19,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import asynctest
 import logging
 import math
+import unittest
 
 from lsst.ts.MTDome.mock_llc.mock_motion import AzimuthMotion
 from lsst.ts.idl.enums.MTDome import MotionState
@@ -34,7 +34,7 @@ _MAX_SPEED = math.radians(4.0)
 _start_tai = 10001.0
 
 
-class AzimuthMotionTestCase(asynctest.TestCase):
+class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
     async def prepare_azimuth_motion(self, start_position, max_speed, start_tai):
         """Prepare the AzimuthMotion for future commands.
 
@@ -48,7 +48,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
             The start TAI time.
         """
         self.azimuth_motion = AzimuthMotion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
 
     async def verify_azimuth_motion_duration(
@@ -120,7 +122,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
         crawl_velocity = math.radians(0.1)
         expected_duration = (target_position - start_position) / max_speed
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -165,7 +169,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
         crawl_velocity = math.radians(-0.1)
         expected_duration = (target_position - start_position) / max_speed
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -210,7 +216,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
         crawl_velocity = math.radians(0.1)
         expected_duration = math.fabs((target_position - start_position) / max_speed)
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -255,7 +263,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
         crawl_velocity = math.radians(-0.1)
         expected_duration = math.fabs((target_position - start_position) / max_speed)
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -302,7 +312,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
             (target_position - start_position - 2 * math.pi) / max_speed
         )
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -355,7 +367,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
             (target_position - start_position - 2 * math.pi) / max_speed
         )
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -408,7 +422,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
             (target_position - start_position + 2 * math.pi) / max_speed
         )
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -461,7 +477,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
             (target_position - start_position + 2 * math.pi) / max_speed
         )
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -513,7 +531,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
         crawl_velocity = math.radians(1.0)
         expected_duration = 0.0
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -571,7 +591,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
         crawl_velocity = math.radians(-1.0)
         expected_duration = 0.0
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -628,7 +650,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
         crawl_velocity = 0
         expected_duration = (target_position - start_position) / max_speed
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -662,7 +686,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
         crawl_velocity = math.radians(0.1)
         expected_duration = (target_position - start_position) / max_speed
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -702,7 +728,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
         crawl_velocity = math.radians(1.0)
         expected_duration = 0.0
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -736,7 +764,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
         crawl_velocity = 0
         expected_duration = (target_position - start_position) / max_speed
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -776,7 +806,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
         crawl_velocity = math.radians(0.1)
         expected_duration = (target_position - start_position) / max_speed
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -828,7 +860,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
         crawl_velocity = math.radians(1.0)
         expected_duration = 0.0
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         await self.verify_azimuth_motion_duration(
             start_tai=start_tai,
@@ -880,7 +914,9 @@ class AzimuthMotionTestCase(asynctest.TestCase):
         crawl_velocity = math.radians(5.0)
         expected_duration = 0.0
         await self.prepare_azimuth_motion(
-            start_position=start_position, max_speed=max_speed, start_tai=start_tai,
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
         )
         try:
             await self.verify_azimuth_motion_duration(

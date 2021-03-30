@@ -66,8 +66,8 @@ class LwscsLimits(CommonAmcsAndLwscsLimits):
 
         # DM-25758: All config values are passed on as arrays so in these cases
         # we need to extract the only value in the array.
-        config_params_without_arrays = self.extract_scalar_values_from_common_parameters(
-            configuration_parameters
+        config_params_without_arrays = (
+            self.extract_scalar_values_from_common_parameters(configuration_parameters)
         )
 
         # This dict will hold the converted values which we will return at the

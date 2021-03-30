@@ -31,7 +31,8 @@ NUM_MON_SENSORS = 16
 
 
 class MoncsStatus(BaseMockStatus):
-    """Represents the status of the Monitor Control System in simulation mode.
+    """Represents the status of the Monitor Control System in simulation
+    mode.
     """
 
     def __init__(self):

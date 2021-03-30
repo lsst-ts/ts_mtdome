@@ -19,8 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import asynctest
 import logging
+import unittest
 
 import numpy as np
 
@@ -39,7 +39,7 @@ logging.basicConfig(
 )
 
 
-class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
+class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     def basic_make_csc(self, initial_state, config_dir, simulation_mode, **kwargs):
         return MTDome.MTDomeCsc(
             initial_state=initial_state,
@@ -133,7 +133,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(
-                amcs_status["status"]["status"], MotionState.MOVING.name,
+                amcs_status["status"]["status"],
+                MotionState.MOVING.name,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -171,7 +172,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusLWSCS()
             amcs_status = self.csc.lower_level_status[LlcName.LWSCS.value]
             self.assertEqual(
-                amcs_status["status"], MotionState.MOVING.name,
+                amcs_status["status"],
+                MotionState.MOVING.name,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
@@ -244,9 +246,12 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             desired_velocity = 0.1
             await self.remote.cmd_crawlAz.set_start(
-                velocity=desired_velocity, timeout=STD_TIMEOUT,
+                velocity=desired_velocity,
+                timeout=STD_TIMEOUT,
             )
-            data = await self.assert_next_sample(topic=self.remote.evt_azTarget,)
+            data = await self.assert_next_sample(
+                topic=self.remote.evt_azTarget,
+            )
             self.assertTrue(np.isnan(data.position))
             self.assertAlmostEqual(desired_velocity, data.velocity)
 
@@ -257,7 +262,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(
-                amcs_status["status"]["status"], MotionState.CRAWLING.name,
+                amcs_status["status"]["status"],
+                MotionState.CRAWLING.name,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -285,9 +291,12 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
             desired_velocity = 0.1
             await self.remote.cmd_crawlEl.set_start(
-                velocity=desired_velocity, timeout=STD_TIMEOUT,
+                velocity=desired_velocity,
+                timeout=STD_TIMEOUT,
             )
-            data = await self.assert_next_sample(topic=self.remote.evt_elTarget,)
+            data = await self.assert_next_sample(
+                topic=self.remote.evt_elTarget,
+            )
             self.assertTrue(np.isnan(data.position))
             self.assertAlmostEqual(desired_velocity, data.velocity)
 
@@ -295,7 +304,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusLWSCS()
             amcs_status = self.csc.lower_level_status[LlcName.LWSCS.value]
             self.assertEqual(
-                amcs_status["status"], MotionState.CRAWLING.name,
+                amcs_status["status"],
+                MotionState.CRAWLING.name,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
@@ -313,7 +323,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             desired_position = np.full(NUM_LOUVERS, -1.0, dtype=float)
             desired_position[louver_id] = target_position
             await self.remote.cmd_setLouvers.set_start(
-                position=desired_position.tolist(), timeout=STD_TIMEOUT,
+                position=desired_position.tolist(),
+                timeout=STD_TIMEOUT,
             )
 
     async def test_do_closeLouvers(self):
@@ -381,7 +392,8 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(
-                amcs_status["status"]["status"], MotionState.PARKED.name,
+                amcs_status["status"]["status"],
+                MotionState.PARKED.name,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -396,12 +408,15 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.set_csc_to_enabled()
             desired_temperature = 10.0
             await self.remote.cmd_setTemperature.set_start(
-                temperature=desired_temperature, timeout=STD_TIMEOUT,
+                temperature=desired_temperature,
+                timeout=STD_TIMEOUT,
             )
 
     async def test_config(self):
         async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1,
+            initial_state=salobj.State.STANDBY,
+            config_dir=None,
+            simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
 
@@ -516,7 +531,9 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
 
     async def test_status(self):
         async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1,
+            initial_state=salobj.State.STANDBY,
+            config_dir=None,
+            simulation_mode=1,
         ):
             # It should be possible to always execute the status command but
             # the connection with the lower level components only gets made in
@@ -527,10 +544,12 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(
-                amcs_status["status"]["status"], MotionState.STOPPED.name,
+                amcs_status["status"]["status"],
+                MotionState.STOPPED.name,
             )
             self.assertEqual(
-                amcs_status["positionActual"], 0,
+                amcs_status["positionActual"],
+                0,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -541,28 +560,34 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusApSCS()
             apscs_status = self.csc.lower_level_status[LlcName.APSCS.value]
             self.assertEqual(
-                apscs_status["status"], MotionState.CLOSED.name,
+                apscs_status["status"],
+                MotionState.CLOSED.name,
             )
             self.assertEqual(
-                apscs_status["positionActual"], 0,
+                apscs_status["positionActual"],
+                0,
             )
 
             await self.csc.statusLCS()
             lcs_status = self.csc.lower_level_status[LlcName.LCS.value]
             self.assertEqual(
-                lcs_status["status"], [MotionState.CLOSED.name] * NUM_LOUVERS,
+                lcs_status["status"],
+                [MotionState.CLOSED.name] * NUM_LOUVERS,
             )
             self.assertEqual(
-                lcs_status["positionActual"], [0.0] * NUM_LOUVERS,
+                lcs_status["positionActual"],
+                [0.0] * NUM_LOUVERS,
             )
 
             await self.csc.statusLWSCS()
             lwscs_status = self.csc.lower_level_status[LlcName.LWSCS.value]
             self.assertEqual(
-                lwscs_status["status"], MotionState.STOPPED.name,
+                lwscs_status["status"],
+                MotionState.STOPPED.name,
             )
             self.assertEqual(
-                lwscs_status["positionActual"], 0,
+                lwscs_status["positionActual"],
+                0,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
@@ -573,24 +598,30 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusMonCS()
             moncs_status = self.csc.lower_level_status[LlcName.MONCS.value]
             self.assertEqual(
-                moncs_status["status"], MotionState.CLOSED.name,
+                moncs_status["status"],
+                MotionState.CLOSED.name,
             )
             self.assertEqual(
-                moncs_status["data"], [0.0] * NUM_MON_SENSORS,
+                moncs_status["data"],
+                [0.0] * NUM_MON_SENSORS,
             )
 
             await self.csc.statusThCS()
             thcs_status = self.csc.lower_level_status[LlcName.THCS.value]
             self.assertEqual(
-                thcs_status["status"], MotionState.CLOSED.name,
+                thcs_status["status"],
+                MotionState.CLOSED.name,
             )
             self.assertEqual(
-                thcs_status["temperature"], [0.0] * NUM_THERMO_SENSORS,
+                thcs_status["temperature"],
+                [0.0] * NUM_THERMO_SENSORS,
             )
 
     async def test_status_error(self):
         async with self.make_csc(
-            initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1,
+            initial_state=salobj.State.STANDBY,
+            config_dir=None,
+            simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
 
@@ -605,13 +636,16 @@ class CscTestCase(salobj.BaseCscTestCase, asynctest.TestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
             self.assertEqual(
-                amcs_status["status"]["status"], MotionState.STOPPED.name,
+                amcs_status["status"]["status"],
+                MotionState.STOPPED.name,
             )
             self.assertEqual(
-                amcs_status["status"]["error"], expected_error,
+                amcs_status["status"]["error"],
+                expected_error,
             )
             self.assertEqual(
-                amcs_status["positionActual"], 0,
+                amcs_status["positionActual"],
+                0,
             )
             await self.assert_next_sample(
                 topic=self.remote.evt_azEnabled,
