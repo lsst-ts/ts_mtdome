@@ -67,7 +67,8 @@ class MockMTDomeController:
     """
 
     def __init__(
-        self, port,
+        self,
+        port,
     ):
         self.port = port
         self._server = None
@@ -152,8 +153,7 @@ class MockMTDomeController:
             await self._server.serve_forever()
 
     async def stop(self):
-        """Stop the mock lower level components and the TCP/IP server.
-        """
+        """Stop the mock lower level components and the TCP/IP server."""
         if self._server is None:
             return
 
@@ -362,8 +362,7 @@ class MockMTDomeController:
         return await self.lwscs.stopEl(self.current_tai)
 
     async def stop_llc(self):
-        """Move all lower level components.
-        """
+        """Move all lower level components."""
         await self.stop_az()
         await self.stop_el()
         await self.stop_shutter()
@@ -422,32 +421,27 @@ class MockMTDomeController:
         await self.lcs.setLouvers(position)
 
     async def close_louvers(self):
-        """Close all louvers.
-        """
+        """Close all louvers."""
         self.log.info("Received command 'closeLouvers'")
         await self.lcs.closeLouvers()
 
     async def stop_louvers(self):
-        """Stop the motion of all louvers.
-        """
+        """Stop the motion of all louvers."""
         self.log.info("Received command 'stopLouvers'")
         await self.lcs.stopLouvers()
 
     async def open_shutter(self):
-        """Open the shutter.
-        """
+        """Open the shutter."""
         self.log.info("Received command 'openShutter'")
         await self.apscs.openShutter()
 
     async def close_shutter(self):
-        """Close the shutter.
-        """
+        """Close the shutter."""
         self.log.info("Received command 'closeShutter'")
         await self.apscs.closeShutter()
 
     async def stop_shutter(self):
-        """Stop the motion of the shutter.
-        """
+        """Stop the motion of the shutter."""
         self.log.info("Received command 'stopShutter'")
         await self.apscs.stopShutter()
 
@@ -546,8 +540,7 @@ class MockMTDomeController:
 
 
 async def main():
-    """Main method that gets executed in stand alone mode.
-    """
+    """Main method that gets executed in stand alone mode."""
     logging.info("main method")
     # An arbitrarily chosen port. Nothing special about it.
     port = 5000
