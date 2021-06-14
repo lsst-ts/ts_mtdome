@@ -83,8 +83,8 @@
         },
         "driveTemperature": {
           "type": "array",
-          "minItems": 5,
-          "maxItems": 5,
+          "minItems": 13,
+          "maxItems": 13,
           "items": [
             {
               "type": "number"
@@ -111,7 +111,7 @@
             }
           ]
         },
-        "resolverRaw": {
+        "barcodeHeadRaw": {
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
@@ -121,7 +121,17 @@
             }
           ]
         },
-        "resolverCalibrated": {
+        "barcodeHeadCalibrated": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": [
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "barcodeHeadWeighted": {
           "type": "array",
           "minItems": 3,
           "maxItems": 3,
@@ -147,8 +157,9 @@
         "driveTemperature",
         "encoderHeadRaw",
         "encoderHeadCalibrated",
-        "resolverRaw",
-        "resolverCalibrated",
+        "barcodeHeadRaw",
+        "barcodeHeadCalibrated",
+        "barcodeHeadWeighted",
         "timestampUTC"
       ],
       "additionalProperties": false

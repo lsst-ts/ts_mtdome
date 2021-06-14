@@ -28,11 +28,12 @@ import numpy as np
 
 from .base_mock_llc import BaseMockStatus
 from ..llc_configuration_limits.amcs_limits import AmcsLimits
-from lsst.ts.idl.enums.MTDome import MotionState
+from ..llc_motion_state import LlcMotionState
 from .mock_motion.azimuth_motion import AzimuthMotion
 from ..on_off import OnOff
 
 _NUM_MOTORS = 5
+_NUM_MOTOR_TEMPERATURES = 13
 _NUM_ENCODERS = 5
 _NUM_RESOLVERS = 3
 
@@ -67,7 +68,7 @@ class AmcsStatus(BaseMockStatus):
         self.duration = 0.0
         # variables holding the status of the mock AZ motion. The error codes
         # will be specified in a future Dome Software meeting.
-        self.status = MotionState.STOPPED
+        self.status = LlcMotionState.STOPPED
         self.error = ["No Error"]
         self.fans_enabled = OnOff.OFF
         self.seal_inflated = OnOff.OFF
@@ -76,11 +77,12 @@ class AmcsStatus(BaseMockStatus):
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
         self.drive_torque_commanded = np.zeros(_NUM_MOTORS, dtype=float)
         self.drive_current_actual = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_temperature = np.full(_NUM_MOTORS, 20.0, dtype=float)
+        self.drive_temperature = np.full(_NUM_MOTOR_TEMPERATURES, 20.0, dtype=float)
         self.encoder_head_raw = np.zeros(_NUM_ENCODERS, dtype=float)
         self.encoder_head_calibrated = np.zeros(_NUM_ENCODERS, dtype=float)
-        self.resolver_raw = np.zeros(_NUM_RESOLVERS, dtype=float)
-        self.resolver_calibrated = np.zeros(_NUM_RESOLVERS, dtype=float)
+        self.barcode_head_raw = np.zeros(_NUM_RESOLVERS, dtype=float)
+        self.barcode_head_calibrated = np.zeros(_NUM_RESOLVERS, dtype=float)
+        self.barcode_head_weighted = np.zeros(_NUM_RESOLVERS, dtype=float)
 
     async def determine_status(self, current_tai):
         """Determine the status of the Lower Level Component and store it in
@@ -115,8 +117,9 @@ class AmcsStatus(BaseMockStatus):
             "driveTemperature": self.drive_temperature.tolist(),
             "encoderHeadRaw": self.encoder_head_raw.tolist(),
             "encoderHeadCalibrated": self.encoder_head_calibrated.tolist(),
-            "resolverRaw": self.resolver_raw.tolist(),
-            "resolverCalibrated": self.resolver_calibrated.tolist(),
+            "barcodeHeadRaw": self.barcode_head_raw.tolist(),
+            "barcodeHeadCalibrated": self.barcode_head_calibrated.tolist(),
+            "barcodeHeadWeighted": self.barcode_head_weighted.tolist(),
             "timestampUTC": current_tai,
         }
 
@@ -147,7 +150,7 @@ class AmcsStatus(BaseMockStatus):
             start_tai=start_tai,
             end_position=position,
             crawl_velocity=velocity,
-            motion_state=MotionState.MOVING,
+            motion_state=LlcMotionState.MOVING,
         )
         return self.duration
 
@@ -174,7 +177,7 @@ class AmcsStatus(BaseMockStatus):
             start_tai=start_tai,
             end_position=self.position_commanded,
             crawl_velocity=velocity,
-            motion_state=MotionState.CRAWLING,
+            motion_state=LlcMotionState.CRAWLING,
         )
         return self.duration
 
@@ -203,9 +206,24 @@ class AmcsStatus(BaseMockStatus):
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
         """
-        self.status = MotionState.PARKING
+        self.status = LlcMotionState.PARKING
         self.position_commanded = PARK_POSITION
         self.duration = self.azimuth_motion.park(start_tai)
+        return self.duration
+
+    async def go_stationary(self, start_tai):
+        """Stop azimuth motion and engage the brakes. Also disengage the
+        locking pins if engaged.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
+        """
+        self.azimuth_motion.go_stationary(start_tai)
+        self.duration = 0.0
         return self.duration
 
     async def inflate(self, action):
@@ -237,5 +255,19 @@ class AmcsStatus(BaseMockStatus):
             here.
         """
         self.fans_enabled = OnOff(action)
+        self.duration = 0.0
+        return self.duration
+
+    async def exit_fault(self, start_tai):
+        """Clear the fault state.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
+        """
+        self.azimuth_motion.exit_fault(start_tai)
         self.duration = 0.0
         return self.duration

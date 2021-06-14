@@ -23,7 +23,7 @@ import math
 
 from abc import ABC, abstractmethod
 
-from lsst.ts.idl.enums.MTDome import MotionState
+from ...llc_motion_state import LlcMotionState
 import lsst.ts.salobj as salobj
 
 
@@ -43,10 +43,11 @@ class BaseLlcMotion(ABC):
         # This is not a constant but can be configured by the MTDome CSC, which
         # is why it is a parameter.
         self._max_speed = max_speed
-        # The commanded MotionState, against which the computed MotionState
-        # will be compared. By default the elevation motion starts in STOPPED
-        # state. The MotionState only changes when a new command is received.
-        self._commanded_motion_state = MotionState.STOPPED
+        # The commanded LlcMotionState, against which the computed
+        # LlcMotionState will be compared. By default the elevation motion
+        # starts in STOPPED state. The LlcMotionState only changes when a new
+        # command is received.
+        self._commanded_motion_state = LlcMotionState.STOPPED
         # This defines the TAI time, unix seconds, at which a move or crawl
         # will start. To model the real dome, this should be the current time.
         # However, for unit tests it can be convenient to use other values.
@@ -84,7 +85,7 @@ class BaseLlcMotion(ABC):
             The duration of the move, or zero in case of a crawl.
         """
         duration = math.fabs(self._get_distance()) / self._max_speed
-        if self._commanded_motion_state == MotionState.CRAWLING:
+        if self._commanded_motion_state == LlcMotionState.CRAWLING:
             # A crawl command is executed instantaneously.
             duration = 0
         return duration
@@ -107,7 +108,7 @@ class BaseLlcMotion(ABC):
             The target position.
         crawl_velocity: `float`
             The crawl_velocity.
-        motion_state: `MotionState`
+        motion_state: `LlcMotionState`
             MOVING or CRAWLING. The value is not checked.
 
         Returns

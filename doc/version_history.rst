@@ -6,6 +6,20 @@
 Version History
 ###############
 
+v1.2.0
+======
+
+Changes:
+
+* Added the exitFault, goStationary and restore commands.
+* Renamed the resolver telemetry items to barcodeHead and added a barcodeHead item.
+
+Requires:
+
+* ts_salobj 6.3
+* ts_idl
+* IDL file for MTDome from ts_xml 9.1
+
 v1.1.0
 ======
 

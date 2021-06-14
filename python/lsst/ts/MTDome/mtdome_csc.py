@@ -32,6 +32,7 @@ from lsst.ts import salobj
 from lsst.ts.MTDome import encoding_tools
 from .mock_controller import MockMTDomeController
 from .response_code import ResponseCode
+from .llc_motion_state import LlcMotionState
 from lsst.ts.idl.enums.MTDome import EnabledState, MotionState
 
 _LOCAL_HOST = "127.0.0.1"
@@ -318,7 +319,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.evt_elTarget.set_put(position=data.position, velocity=0)
 
     async def do_stopAz(self, data):
-        """Stop AZ.
+        """Stop AZ motion and engage the brakes if indicated in the data.
+        Also disengage the locking pins if engaged.
 
         Parameters
         ----------
@@ -326,10 +328,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply(command="stopAz")
+        if data.engageBrakes:
+            await self.write_then_read_reply(command="goStationaryAMCS")
+        else:
+            await self.write_then_read_reply(command="stopAz")
 
     async def do_stopEl(self, data):
-        """Stop El.
+        """Stop EL motion and engage the brakes if indicated in the data.
+        Also disengage the locking pins if engaged.
 
         Parameters
         ----------
@@ -337,10 +343,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply(command="stopEl")
+        if data.engageBrakes:
+            await self.write_then_read_reply(command="goStationaryLWSCS")
+        else:
+            await self.write_then_read_reply(command="stopEl")
 
     async def do_stop(self, data):
-        """Stop.
+        """Stop all motion and engage the brakes if indicated in the data.
+        Also disengage the locking pins if engaged.
 
         Parameters
         ----------
@@ -348,7 +358,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply(command="stop")
+        if data.engageBrakes:
+            await self.write_then_read_reply(command="goStationary")
+        else:
+            await self.write_then_read_reply(command="stop")
 
     async def do_crawlAz(self, data):
         """Crawl AZ.
@@ -401,7 +414,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.write_then_read_reply(command="closeLouvers")
 
     async def do_stopLouvers(self, data):
-        """Stop Louvers.
+        """Stop Louvers motion and engage the brakes if indicated in the data.
+        Also disengage the locking pins if engaged.
 
         Parameters
         ----------
@@ -409,7 +423,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply(command="stopLouvers")
+        if data.engageBrakes:
+            await self.write_then_read_reply(command="goStationaryLCS")
+        else:
+            await self.write_then_read_reply(command="stopLouvers")
 
     async def do_openShutter(self, data):
         """Open Shutter.
@@ -434,7 +451,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.write_then_read_reply(command="closeShutter")
 
     async def do_stopShutter(self, data):
-        """Stop Shutter.
+        """Stop Shutter motion and engage the brakes if indicated in the data.
+        Also disengage the locking pins if engaged.
 
         Parameters
         ----------
@@ -442,10 +460,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply(command="stopShutter")
+        if data.engageBrakes:
+            await self.write_then_read_reply(command="goStationaryApSCS")
+        else:
+            await self.write_then_read_reply(command="stopShutter")
 
     async def do_park(self, data):
-        """Park.
+        """Park, meaning stop all motion and engage the brakes and locking
+        pins.
 
         Parameters
         ----------
@@ -468,6 +490,18 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.write_then_read_reply(
             command="setTemperature", temperature=data.temperature
         )
+
+    async def do_exitFault(self, data):
+        """Indicate that all hardware errors, leading to fault state, have been
+        resolved.
+
+        Parameters
+        ----------
+        data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        await self.write_then_read_reply(command="exitFault")
 
     async def config_llcs(self, system, settings):
         """Config command not to be executed by SAL.
@@ -498,6 +532,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.write_then_read_reply(
             command="config", system=system, settings=settings
         )
+
+    async def restore_llcs(self):
+        await self.write_then_read_reply(command="restore")
 
     async def fans(self, data):
         """Fans command not to be executed by SAL.
@@ -621,7 +658,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     state=EnabledState.FAULT, faultCode=fault_code
                 )
             else:
-                motion_state = MotionState[status["status"]]
+                state = status["status"]
+                if state == LlcMotionState.STATIONARY.name:
+                    motion_state = MotionState.STOPPED_BRAKED
+                else:
+                    motion_state = MotionState[status["status"]]
                 in_position = False
                 if motion_state in [
                     MotionState.STOPPED,
@@ -631,8 +672,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     in_position = True
                 self.evt_azMotion.set_put(state=motion_state, inPosition=in_position)
         elif llc_name == LlcName.LWSCS:
-            status = status[llc_name.value]["status"]
-            motion_state = MotionState[status]
+            state = status[llc_name.value]["status"]
+            if state == LlcMotionState.STATIONARY.name:
+                motion_state = MotionState.STOPPED_BRAKED
+            else:
+                motion_state = MotionState[state]
             in_position = False
             if motion_state in [
                 MotionState.STOPPED,
