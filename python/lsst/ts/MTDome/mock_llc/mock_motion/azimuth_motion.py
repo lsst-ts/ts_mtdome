@@ -25,7 +25,7 @@ import logging
 import math
 
 from .base_llc_motion import BaseLlcMotion
-from lsst.ts.idl.enums.MTDome import MotionState
+from ...llc_motion_state import LlcMotionState
 import lsst.ts.salobj as salobj
 
 
@@ -81,7 +81,7 @@ class AzimuthMotion(BaseLlcMotion):
             The end position [rad] of the move. Ignored if `do_move` is False.
         crawl_velocity: `float`
             The crawl_velocity [rad/s] at which to crawl once the move is done.
-        motion_state: `MotionState`
+        motion_state: `LlcMotionState`
             MOVING or CRAWLING. The value is checked.
 
         Returns
@@ -94,7 +94,7 @@ class AzimuthMotion(BaseLlcMotion):
         ValueError
             If abs(crawl_velocity) > max_speed.
         ValueError
-            if MotionState is not MOVING or CRAWLING.
+            if LlcMotionState is not MOVING or CRAWLING.
 
         """
         if math.fabs(crawl_velocity) > self._max_speed:
@@ -102,7 +102,7 @@ class AzimuthMotion(BaseLlcMotion):
                 f"The target crawl speed {math.fabs(crawl_velocity)} is larger"
                 f" than the max speed {self._max_speed}."
             )
-        if motion_state not in [MotionState.MOVING, MotionState.CRAWLING]:
+        if motion_state not in [LlcMotionState.MOVING, LlcMotionState.CRAWLING]:
             raise ValueError("motion_speed should be MOVING or CRAWLING.")
 
         self._commanded_motion_state = motion_state
@@ -114,7 +114,7 @@ class AzimuthMotion(BaseLlcMotion):
         return duration
 
     def get_position_velocity_and_motion_state(self, tai):
-        """Computes the position and `MotionState` for the given TAI time.
+        """Computes the position and `LlcMotionState` for the given TAI time.
 
         Parameters
         ----------
@@ -130,37 +130,54 @@ class AzimuthMotion(BaseLlcMotion):
             (optional) and crawl velocities into account.
         velocity: `float`
             The velocity [rad/s] at the given TAI time.
-        motion_state: `MotionState`
-            The MotionState at the given TAI time.
+        motion_state: `LlcMotionState`
+            The LlcMotionState at the given TAI time.
         """
         if tai >= self._end_tai:
             if self._commanded_motion_state in [
-                MotionState.PARKING,
-                MotionState.PARKED,
+                LlcMotionState.PARKING,
+                LlcMotionState.PARKED,
             ]:
-                motion_state = MotionState.PARKED
+                motion_state = LlcMotionState.PARKED
                 position = self._end_position
                 velocity = 0
             elif self._commanded_motion_state in [
-                MotionState.STOPPING,
-                MotionState.STOPPED,
+                LlcMotionState.STOPPING,
+                LlcMotionState.STOPPED,
             ]:
-                motion_state = MotionState.STOPPED
+                motion_state = LlcMotionState.STOPPED
+                position = self._end_position
+                velocity = 0
+            elif self._commanded_motion_state in [
+                LlcMotionState.GO_STATIONARY,
+                LlcMotionState.STATIONARY,
+            ]:
+                motion_state = LlcMotionState.STATIONARY
                 position = self._end_position
                 velocity = 0
             else:
                 diff_since_crawl_started = tai - self._end_tai
                 calculation_position = self._end_position
-                if self._commanded_motion_state == MotionState.CRAWLING:
+                if self._commanded_motion_state == LlcMotionState.CRAWLING:
                     calculation_position = self._start_position
                 position = (
                     calculation_position
                     + self._crawl_velocity * diff_since_crawl_started
                 )
-                motion_state = MotionState.CRAWLING
+                motion_state = LlcMotionState.CRAWLING
                 velocity = self._crawl_velocity
                 if self._crawl_velocity == 0:
-                    motion_state = MotionState.STOPPED
+                    if self._commanded_motion_state in [
+                        LlcMotionState.STOPPING,
+                        LlcMotionState.STOPPED,
+                        LlcMotionState.MOVING,
+                    ]:
+                        motion_state = LlcMotionState.STOPPED
+                    elif self._commanded_motion_state in [
+                        LlcMotionState.GO_STATIONARY,
+                        LlcMotionState.STATIONARY,
+                    ]:
+                        motion_state = LlcMotionState.STATIONARY
                     velocity = 0
         elif tai < self._start_tai:
             raise ValueError(
@@ -173,19 +190,22 @@ class AzimuthMotion(BaseLlcMotion):
             velocity = self._max_speed
             if distance < 0:
                 velocity = -self._max_speed
-            if self._commanded_motion_state == MotionState.PARKING:
-                motion_state = MotionState.PARKING
-            elif self._commanded_motion_state == MotionState.STOPPING:
-                motion_state = MotionState.STOPPED
+            if self._commanded_motion_state == LlcMotionState.PARKING:
+                motion_state = LlcMotionState.PARKING
+            elif self._commanded_motion_state == LlcMotionState.STOPPING:
+                motion_state = LlcMotionState.STOPPED
+                velocity = 0
+            elif self._commanded_motion_state == LlcMotionState.GO_STATIONARY:
+                motion_state = LlcMotionState.STATIONARY
                 velocity = 0
             else:
-                motion_state = MotionState.MOVING
+                motion_state = LlcMotionState.MOVING
 
         position = salobj.angle_wrap_nonnegative(math.degrees(position)).rad
         return position, velocity, motion_state
 
     def stop(self, start_tai):
-        """Stops the current motion instantaneously.
+        """Stops the current.
 
         Parameters
         ----------
@@ -201,7 +221,26 @@ class AzimuthMotion(BaseLlcMotion):
         self._start_position = position
         self._end_position = position
         self._crawl_velocity = 0
-        self._commanded_motion_state = MotionState.STOPPING
+        self._commanded_motion_state = LlcMotionState.STOPPING
+
+    def go_stationary(self, start_tai):
+        """Go to stationary state.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
+        """
+        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
+            tai=start_tai
+        )
+        self._start_tai = start_tai
+        self._start_position = position
+        self._end_position = position
+        self._crawl_velocity = 0
+        self._commanded_motion_state = LlcMotionState.GO_STATIONARY
 
     def park(self, start_tai):
         """Parks the dome.
@@ -220,6 +259,25 @@ class AzimuthMotion(BaseLlcMotion):
         self._start_position = position
         self._end_position = 0
         self._crawl_velocity = 0
-        self._commanded_motion_state = MotionState.PARKING
+        self._commanded_motion_state = LlcMotionState.PARKING
         self._end_tai = self._start_tai + self._get_duration()
         return self._end_tai
+
+    def exit_fault(self, start_tai):
+        """Clear the fault state.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
+        """
+        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
+            tai=start_tai
+        )
+        self._start_tai = start_tai
+        self._start_position = position
+        self._end_position = position
+        self._crawl_velocity = 0
+        self._commanded_motion_state = LlcMotionState.GO_STATIONARY
