@@ -25,7 +25,7 @@ import logging
 import numpy as np
 
 from .base_mock_llc import BaseMockStatus
-from lsst.ts.idl.enums.MTDome import MotionState
+from ..llc_motion_state import LlcMotionState
 
 NUM_MON_SENSORS = 16
 
@@ -38,7 +38,7 @@ class MoncsStatus(BaseMockStatus):
     def __init__(self):
         super().__init__()
         self.log = logging.getLogger("MockMoncsStatus")
-        self.status = MotionState.CLOSED
+        self.status = LlcMotionState.CLOSED
         self.data = np.zeros(NUM_MON_SENSORS, dtype=float)
 
     async def determine_status(self, current_tai):
@@ -56,3 +56,7 @@ class MoncsStatus(BaseMockStatus):
             "timestampUTC": current_tai,
         }
         self.log.debug(f"moncs_state = {self.llc_status}")
+
+    async def exit_fault(self):
+        """Clear the fault state."""
+        self.status = LlcMotionState.STATIONARY

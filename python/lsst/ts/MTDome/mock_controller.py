@@ -79,30 +79,37 @@ class MockMTDomeController:
         # * No arguments, if `has_argument` False.
         # * The argument as a string, if `has_argument` is True.
         self.dispatch_dict = {
-            "moveAz": self.move_az,
-            "moveEl": self.move_el,
-            "stopAz": self.stop_az,
-            "stopEl": self.stop_el,
-            "stop": self.stop_llc,
+            "closeLouvers": self.close_louvers,
+            "closeShutter": self.close_shutter,
+            "config": self.config,
             "crawlAz": self.crawl_az,
             "crawlEl": self.crawl_el,
-            "setLouvers": self.set_louvers,
-            "closeLouvers": self.close_louvers,
-            "stopLouvers": self.stop_louvers,
-            "openShutter": self.open_shutter,
-            "closeShutter": self.close_shutter,
-            "stopShutter": self.stop_shutter,
-            "config": self.config,
-            "park": self.park,
-            "setTemperature": self.set_temperature,
+            "exitFault": self.exit_fault,
             "fans": self.fans,
+            "goStationary": self.go_stationary,
+            "goStationaryAz": self.go_stationary_az,
+            "goStationaryEl": self.go_stationary_el,
+            "goStationaryLouvers": self.go_stationary_louvers,
+            "goStationaryShutter": self.go_stationary_shutter,
             "inflate": self.inflate,
+            "moveAz": self.move_az,
+            "moveEl": self.move_el,
+            "openShutter": self.open_shutter,
+            "park": self.park,
+            "restore": self.restore,
+            "setLouvers": self.set_louvers,
+            "setTemperature": self.set_temperature,
             "statusAMCS": self.status_amcs,
             "statusApSCS": self.status_apscs,
             "statusLCS": self.status_lcs,
             "statusLWSCS": self.status_lwscs,
             "statusMonCS": self.status_moncs,
             "statusThCS": self.status_thcs,
+            "stop": self.stop_llc,
+            "stopAz": self.stop_az,
+            "stopEl": self.stop_el,
+            "stopLouvers": self.stop_louvers,
+            "stopShutter": self.stop_shutter,
         }
         # Durations used by this class and by its unit test
         self.long_duration = 20
@@ -362,7 +369,7 @@ class MockMTDomeController:
         return await self.lwscs.stopEl(self.current_tai)
 
     async def stop_llc(self):
-        """Move all lower level components."""
+        """Stop motion on all lower level components."""
         await self.stop_az()
         await self.stop_el()
         await self.stop_shutter()
@@ -492,6 +499,12 @@ class MockMTDomeController:
         else:
             raise KeyError(f"Unknown system {system}.")
 
+    async def restore(self):
+        """Restore the default configuration of the lower level components."""
+        self.log.info("Received command 'restore'")
+        # TODO: Need to find a way to store the default values for all lower
+        #  level components.
+
     async def park(self):
         """Park the dome.
 
@@ -502,6 +515,55 @@ class MockMTDomeController:
         """
         self.log.info("Received command 'park'")
         return await self.amcs.park(self.current_tai)
+
+    async def go_stationary_az(self):
+        """Stop azimuth motion and engage the brakes. Also disengage the
+        locking pins if engaged.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+        """
+        self.log.info("Received command 'go_stationary_az'")
+        return await self.amcs.go_stationary(self.current_tai)
+
+    async def go_stationary_el(self):
+        """Stop elevation motion and engage the brakes. Also disengage the
+        locking pins if engaged.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+        """
+        self.log.info("Received command 'go_stationary_el'")
+        return await self.lwscs.go_stationary(self.current_tai)
+
+    async def go_stationary_shutter(self):
+        """Stop shutter motion and engage the brakes."""
+        self.log.info("Received command 'go_stationary_shutter'")
+        await self.apscs.go_stationary()
+
+    async def go_stationary_louvers(self):
+        """Stop louvers motion and engage the brakes."""
+        self.log.info("Received command 'go_stationary_louvers'")
+        await self.lcs.go_stationary()
+
+    async def go_stationary(self):
+        """Stop all motion and engage the brakes. Also disengage the
+        locking pins if engaged.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+        """
+        self.log.info("Received command 'goStationary'")
+        await self.go_stationary_az()
+        await self.go_stationary_el()
+        await self.go_stationary_shutter()
+        await self.go_stationary_louvers()
 
     async def set_temperature(self, temperature):
         """Set the preferred temperature in the dome.
@@ -515,6 +577,16 @@ class MockMTDomeController:
             f"Received command 'setTemperature' with argument temperature={temperature}"
         )
         await self.thcs.setTemperature(temperature)
+
+    async def exit_fault(self):
+        """Exit from fault state."""
+        self.log.info("Received command 'exit_fault'")
+        await self.amcs.exit_fault(self.current_tai)
+        await self.apscs.exit_fault()
+        await self.lcs.exit_fault()
+        await self.lwscs.exit_fault(self.current_tai)
+        await self.moncs.exit_fault()
+        await self.thcs.exit_fault()
 
     async def inflate(self, action):
         """Inflate or deflate the inflatable seal.

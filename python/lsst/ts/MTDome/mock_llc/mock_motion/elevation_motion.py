@@ -25,7 +25,7 @@ import logging
 import math
 
 from .base_llc_motion import BaseLlcMotion
-from lsst.ts.idl.enums.MTDome import MotionState
+from ...llc_motion_state import LlcMotionState
 import lsst.ts.salobj as salobj
 
 
@@ -72,7 +72,7 @@ class ElevationMotion(BaseLlcMotion):
         self.log = logging.getLogger("MockPointToPointActuator")
 
     def get_position_velocity_and_motion_state(self, tai):
-        """Computes the position and `MotionState` for the given TAI time.
+        """Computes the position and `LlcMotionState` for the given TAI time.
 
         Parameters
         ----------
@@ -88,16 +88,23 @@ class ElevationMotion(BaseLlcMotion):
             (optional) and crawl velocities into account.
         velocity: `float`
             The velocity [rad/s] at the given TAI time.
-        motion_state: `MotionState`
-            The MotionState at the given TAI time.
+        motion_state: `LlcMotionState`
+            The LlcMotionState at the given TAI time.
         """
         if tai >= self._end_tai:
             if self._commanded_motion_state in [
-                MotionState.STOPPING,
-                MotionState.STOPPED,
-                MotionState.MOVING,
+                LlcMotionState.STOPPING,
+                LlcMotionState.STOPPED,
+                LlcMotionState.MOVING,
             ]:
-                motion_state = MotionState.STOPPED
+                motion_state = LlcMotionState.STOPPED
+                position = self._end_position
+                velocity = 0
+            elif self._commanded_motion_state in [
+                LlcMotionState.GO_STATIONARY,
+                LlcMotionState.STATIONARY,
+            ]:
+                motion_state = LlcMotionState.STATIONARY
                 position = self._end_position
                 velocity = 0
             else:
@@ -106,18 +113,28 @@ class ElevationMotion(BaseLlcMotion):
                     self._start_position
                     + self._crawl_velocity * diff_since_crawl_started
                 )
-                motion_state = MotionState.CRAWLING
+                motion_state = LlcMotionState.CRAWLING
                 velocity = self._crawl_velocity
                 if position >= self._max_position:
                     position = self._max_position
-                    motion_state = MotionState.STOPPED
+                    motion_state = LlcMotionState.STOPPED
                     velocity = 0
                 elif position <= self._min_position:
                     position = self._min_position
-                    motion_state = MotionState.STOPPED
+                    motion_state = LlcMotionState.STOPPED
                     velocity = 0
                 if self._crawl_velocity == 0:
-                    motion_state = MotionState.STOPPED
+                    if self._commanded_motion_state in [
+                        LlcMotionState.STOPPING,
+                        LlcMotionState.STOPPED,
+                    ]:
+                        motion_state = LlcMotionState.STOPPED
+                    elif self._commanded_motion_state in [
+                        LlcMotionState.GO_STATIONARY,
+                        LlcMotionState.STATIONARY,
+                    ]:
+                        motion_state = LlcMotionState.STATIONARY
+
                     velocity = 0
         elif tai < self._start_tai:
             raise ValueError(
@@ -130,17 +147,20 @@ class ElevationMotion(BaseLlcMotion):
             velocity = self._max_speed
             if distance < 0:
                 velocity = -self._max_speed
-            if self._commanded_motion_state == MotionState.STOPPING:
-                motion_state = MotionState.STOPPED
+            if self._commanded_motion_state == LlcMotionState.STOPPING:
+                motion_state = LlcMotionState.STOPPED
+                velocity = 0
+            elif self._commanded_motion_state == LlcMotionState.GO_STATIONARY:
+                motion_state = LlcMotionState.STATIONARY
                 velocity = 0
             else:
-                motion_state = MotionState.MOVING
+                motion_state = LlcMotionState.MOVING
 
         position = salobj.angle_wrap_nonnegative(math.degrees(position)).rad
         return position, velocity, motion_state
 
     def stop(self, start_tai):
-        """Stops the current motion instantaneously.
+        """Stops the current motion.
 
         Parameters
         ----------
@@ -156,7 +176,26 @@ class ElevationMotion(BaseLlcMotion):
         self._start_position = position
         self._end_position = position
         self._crawl_velocity = 0
-        self._commanded_motion_state = MotionState.STOPPING
+        self._commanded_motion_state = LlcMotionState.STOPPING
+
+    def go_stationary(self, start_tai):
+        """Go to stationary state.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
+        """
+        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
+            tai=start_tai
+        )
+        self._start_tai = start_tai
+        self._start_position = position
+        self._end_position = position
+        self._crawl_velocity = 0
+        self._commanded_motion_state = LlcMotionState.GO_STATIONARY
 
     def park(self, start_tai):
         """Not used for the elevation motion.
@@ -174,3 +213,22 @@ class ElevationMotion(BaseLlcMotion):
             The Light and Wind Screen cannot be parked.
         """
         raise NotImplementedError("The Light and Wind Screen cannot be parked.")
+
+    def exit_fault(self, start_tai):
+        """Clear the fault state.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
+        """
+        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
+            tai=start_tai
+        )
+        self._start_tai = start_tai
+        self._start_position = position
+        self._end_position = position
+        self._crawl_velocity = 0
+        self._commanded_motion_state = LlcMotionState.GO_STATIONARY

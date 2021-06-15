@@ -26,7 +26,7 @@ import numpy as np
 
 from lsst.ts import salobj
 from .base_mock_llc import BaseMockStatus
-from lsst.ts.idl.enums.MTDome import MotionState
+from ..llc_motion_state import LlcMotionState
 
 _NUM_MOTORS = 4
 
@@ -40,7 +40,7 @@ class ApscsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockApscsStatus")
         # variables holding the status of the mock Aperture Shutter
-        self.status = MotionState.CLOSED
+        self.status = LlcMotionState.CLOSED
         self.position_actual = 0.0
         self.position_commanded = 0.0
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
@@ -79,7 +79,7 @@ class ApscsStatus(BaseMockStatus):
         """Open the shutter."""
         self.log.debug("Received command 'openShutter'")
         self.command_time_tai = salobj.current_tai()
-        self.status = MotionState.OPEN
+        self.status = LlcMotionState.OPEN
         # Both positions are expressed in percentage.
         self.position_actual = 100.0
         self.position_commanded = 100.0
@@ -88,7 +88,7 @@ class ApscsStatus(BaseMockStatus):
         """Close the shutter."""
         self.log.debug("Received command 'closeShutter'")
         self.command_time_tai = salobj.current_tai()
-        self.status = MotionState.CLOSED
+        self.status = LlcMotionState.CLOSED
         # Both positions are expressed in percentage.
         self.position_actual = 0.0
         self.position_commanded = 0.0
@@ -97,4 +97,13 @@ class ApscsStatus(BaseMockStatus):
         """Stop all motion of the shutter."""
         self.log.debug("Received command 'stopShutter'")
         self.command_time_tai = salobj.current_tai()
-        self.status = MotionState.STOPPED
+        self.status = LlcMotionState.STOPPED
+
+    async def go_stationary(self):
+        """Stop shutter motion and engage the brakes."""
+        self.command_time_tai = salobj.current_tai()
+        self.status = LlcMotionState.STATIONARY
+
+    async def exit_fault(self):
+        """Clear the fault state."""
+        self.status = LlcMotionState.STATIONARY

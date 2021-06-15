@@ -18,7 +18,13 @@
         "closeShutter",
         "stopShutter",
         "config",
+        "restore",
         "park",
+        "goStationary",
+        "goStationaryAz",
+        "goStationaryEl",
+        "goStationaryLouvers",
+        "goStationaryShutter",
         "setTemperature",
         "fans",
         "inflate",
@@ -27,7 +33,8 @@
         "statusLCS",
         "statusLWSCS",
         "statusMonCS",
-        "statusThCS"
+        "statusThCS",
+        "exitFault"
       ]
     }
   },
@@ -349,7 +356,109 @@
       "if": {
         "properties": {
           "command": {
+            "const": "restore"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
             "const": "park"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "goStationary"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "goStationaryAz"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "goStationaryEl"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "goStationaryLouvers"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "goStationaryShutter"
           }
         }
       },
@@ -527,6 +636,23 @@
         "properties": {
           "command": {
             "const": "statusThCS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "exitFault"
           }
         }
       },

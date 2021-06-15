@@ -19,16 +19,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-try:
-    from .version import *
-except ModuleNotFoundError:
-    __version__ = "?"
+__all__ = ["LlcMotionState"]
 
-from .config_schema import CONFIG_SCHEMA
-from .mtdome_csc import *
-from .llc_configuration_limits import *
-from .mock_controller import *
-from .mock_llc import *
-from .on_off import OnOff
-from .response_code import ResponseCode
-from .llc_motion_state import LlcMotionState
+import enum
+
+
+class LlcMotionState(enum.IntEnum):
+    """Motion state."""
+
+    FAULT = 0
+    CLOSED = 1
+    CRAWLING = 2
+    MOVING = 3
+    OPEN = 4
+    PARKED = 5
+    PARKING = 6
+    STOPPED = 7
+    STOPPING = 8
+    # Used by the lower level components and need to be translated to
+    # IDL MotionState values.
+    GO_STATIONARY = 9
+    STATIONARY = 10

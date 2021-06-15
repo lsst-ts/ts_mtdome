@@ -28,7 +28,7 @@ import numpy as np
 
 from .base_mock_llc import BaseMockStatus
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
-from lsst.ts.idl.enums.MTDome import MotionState
+from ..llc_motion_state import LlcMotionState
 from .mock_motion.elevation_motion import ElevationMotion
 
 _NUM_MOTORS = 2
@@ -65,7 +65,7 @@ class LwscsStatus(BaseMockStatus):
         )
         self.duration = 0.0
         # variables holding the status of the mock EL motion
-        self.status = MotionState.STOPPED
+        self.status = LlcMotionState.STOPPED
         self.position_commanded = 0
         self.velocity_commanded = 0
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
@@ -133,7 +133,7 @@ class LwscsStatus(BaseMockStatus):
             start_tai=start_tai,
             end_position=position,
             crawl_velocity=0,
-            motion_state=MotionState.MOVING,
+            motion_state=LlcMotionState.MOVING,
         )
         return self.duration
 
@@ -158,7 +158,7 @@ class LwscsStatus(BaseMockStatus):
             start_tai=start_tai,
             end_position=self.position_commanded,
             crawl_velocity=velocity,
-            motion_state=MotionState.CRAWLING,
+            motion_state=LlcMotionState.CRAWLING,
         )
         return self.duration
 
@@ -174,5 +174,35 @@ class LwscsStatus(BaseMockStatus):
 
         """
         self.elevation_motion.stop(start_tai)
+        self.duration = 0.0
+        return self.duration
+
+    async def go_stationary(self, start_tai):
+        """Stop elevation motion and engage the brakes. Also disengage the
+        locking pins if engaged.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
+
+        """
+        self.elevation_motion.go_stationary(start_tai)
+        self.duration = 0.0
+        return self.duration
+
+    async def exit_fault(self, start_tai):
+        """Clear the fault state.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
+        """
+        self.elevation_motion.exit_fault(start_tai)
         self.duration = 0.0
         return self.duration
