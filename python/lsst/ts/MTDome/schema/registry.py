@@ -19,14 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["ResponseCode"]
+__all__ = ["registry"]
 
-import enum
+from typing import Any, Dict
 
-
-class ResponseCode(enum.IntEnum):
-    """`enum` with response codes."""
-
-    OK = 0
-    UNSUPPORTED_COMMAND = 2
-    INCORRECT_PARAMETER = 3
+registry: Dict[str, Any] = {}

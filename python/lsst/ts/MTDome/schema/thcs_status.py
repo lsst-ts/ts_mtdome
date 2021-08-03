@@ -19,15 +19,52 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["LlcName"]
+import json
 
-import enum
+from .registry import registry
 
-
-class LlcName(str, enum.Enum):
-    AMCS = "AMCS"
-    APSCS = "ApSCS"
-    LCS = "LCS"
-    LWSCS = "LWSCS"
-    MONCS = "MonCS"
-    THCS = "ThCS"
+registry["THCS"] = json.loads(
+    """
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "response": {
+      "type": "number"
+    },
+    "ThCS": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "temperature": {
+          "type": "array",
+          "minItems": 13,
+          "maxItems": 13,
+          "items": [
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "timestampUTC": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "status",
+        "temperature",
+        "timestampUTC"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "response",
+    "ThCS"
+  ],
+  "additionalProperties": false
+}
+    """
+)

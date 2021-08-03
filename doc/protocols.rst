@@ -173,45 +173,45 @@ For a full list of the commands and their parameters, see `Lower Level Commands`
 
 .. _Lower Level Commands: ./commands.html
 
-.. literalinclude:: ../schema/command.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/MTDome/schema/command.py
+   :language: python
 
 This is the response schema.
 
-.. literalinclude:: ../schema/response.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/MTDome/schema/response.py
+   :language: python
 
 This is the AMCS status schema.
 
-.. literalinclude:: ../schema/amcs_status.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/MTDome/schema/amcs_status.py
+   :language: python
 
 This is the ApSCS status schema.
 
-.. literalinclude:: ../schema/apscs_status.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/MTDome/schema/apscs_status.py
+   :language: python
 
 
 This is the LCS status schema.
 
-.. literalinclude:: ../schema/lcs_status.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/MTDome/schema/lcs_status.py
+   :language: python
 
 
 This is the LWSCS status schema.
 
-.. literalinclude:: ../schema/lwscs_status.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/MTDome/schema/lwscs_status.py
+   :language: python
 
 
 This is the MonCS status schema.
 
-.. literalinclude:: ../schema/moncs_status.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/MTDome/schema/moncs_status.py
+   :language: python
 
 
 This is the ThCS status schema.
 
-.. literalinclude:: ../schema/thcs_status.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/MTDome/schema/thcs_status.py
+   :language: python
 

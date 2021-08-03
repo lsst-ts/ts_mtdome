@@ -28,8 +28,7 @@ from typing import Any, Callable, Dict, Optional
 from lsst.ts import salobj
 from lsst.ts.MTDome import encoding_tools
 from lsst.ts.MTDome import mock_llc
-from lsst.ts.MTDome.llc_name import LlcName
-from lsst.ts.MTDome.response_code import ResponseCode
+from lsst.ts.MTDome.enums import LlcName, ResponseCode
 
 
 class MockMTDomeController:
@@ -70,7 +69,7 @@ class MockMTDomeController:
     def __init__(
         self,
         port: int,
-    ):
+    ) -> None:
         self.port = port
         self._server: Optional[asyncio.AbstractServer] = None
         self._writer: Optional[asyncio.StreamWriter] = None
@@ -126,7 +125,7 @@ class MockMTDomeController:
         self.moncs: Optional[mock_llc.MoncsStatus] = None
         self.thcs: Optional[mock_llc.ThcsStatus] = None
 
-    async def start(self, keep_running: bool = False):
+    async def start(self, keep_running: bool = False) -> None:
         """Start the TCP/IP server.
 
         Start the command loop and make sure to keep running when instructed to
@@ -163,7 +162,7 @@ class MockMTDomeController:
         if keep_running:
             await self._server.serve_forever()
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the mock lower level components and the TCP/IP server."""
         if self._server is None:
             return
@@ -174,7 +173,7 @@ class MockMTDomeController:
         server.close()
         self.log.info("Done closing")
 
-    async def write(self, **data: Any):
+    async def write(self, **data: Any) -> None:
         """Write the data appended with a newline character.
 
         Parameters
@@ -190,7 +189,7 @@ class MockMTDomeController:
 
     async def cmd_loop(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ):
+    ) -> None:
         """Execute commands and output replies.
 
         Parameters
@@ -248,37 +247,37 @@ class MockMTDomeController:
                     # and agreed upon, I will open another issue to fix this.
                     await self.write(response=response, timeout=duration)
 
-    async def status_amcs(self):
+    async def status_amcs(self) -> None:
         """Request the status from the AMCS lower level component and write it
         in reply.
         """
         await self.request_and_send_status(self.amcs, LlcName.AMCS)
 
-    async def status_apscs(self):
+    async def status_apscs(self) -> None:
         """Request the status from the ApSCS lower level component and write it
         in reply.
         """
         await self.request_and_send_status(self.apscs, LlcName.APSCS)
 
-    async def status_lcs(self):
+    async def status_lcs(self) -> None:
         """Request the status from the LCS lower level component and write it
         in reply.
         """
         await self.request_and_send_status(self.lcs, LlcName.LCS)
 
-    async def status_lwscs(self):
+    async def status_lwscs(self) -> None:
         """Request the status from the LWSCS lower level component and write it
         in reply.
         """
         await self.request_and_send_status(self.lwscs, LlcName.LWSCS)
 
-    async def status_moncs(self):
+    async def status_moncs(self) -> None:
         """Request the status from the MonCS lower level component and write it
         in reply.
         """
         await self.request_and_send_status(self.moncs, LlcName.MONCS)
 
-    async def status_thcs(self):
+    async def status_thcs(self) -> None:
         """Request the status from the ThCS lower level component and write it
         in reply.
         """
@@ -286,7 +285,7 @@ class MockMTDomeController:
 
     async def request_and_send_status(
         self, llc: mock_llc.BaseMockStatus, llc_name: LlcName
-    ):
+    ) -> None:
         """Request the status of the given Lower Level Component and write it
         to the requester.
 
@@ -304,7 +303,7 @@ class MockMTDomeController:
         state = {llc_name: llc.llc_status}
         await self.write(response=ResponseCode.OK, **state)
 
-    async def determine_current_tai(self):
+    async def determine_current_tai(self) -> None:
         """Determine the current TAI time.
 
         This is done in a separate method so a mock method can replace it in
@@ -312,7 +311,7 @@ class MockMTDomeController:
         """
         self.current_tai = salobj.current_tai()
 
-    async def move_az(self, position: float, velocity: float):
+    async def move_az(self, position: float, velocity: float) -> float:
         """Move the dome.
 
         Parameters
@@ -337,7 +336,7 @@ class MockMTDomeController:
         assert self.amcs is not None
         return await self.amcs.moveAz(position, velocity, self.current_tai)
 
-    async def move_el(self, position: float):
+    async def move_el(self, position: float) -> float:
         """Move the light and wind screen.
 
         Parameters
@@ -357,7 +356,7 @@ class MockMTDomeController:
         assert self.lwscs is not None
         return await self.lwscs.moveEl(position, self.current_tai)
 
-    async def stop_az(self):
+    async def stop_az(self) -> float:
         """Stop all dome motion.
 
         Returns
@@ -369,7 +368,7 @@ class MockMTDomeController:
         assert self.amcs is not None
         return await self.amcs.stopAz(self.current_tai)
 
-    async def stop_el(self):
+    async def stop_el(self) -> float:
         """Stop all light and wind screen motion.
 
         Returns
@@ -381,14 +380,14 @@ class MockMTDomeController:
         assert self.lwscs is not None
         return await self.lwscs.stopEl(self.current_tai)
 
-    async def stop_llc(self):
+    async def stop_llc(self) -> None:
         """Stop motion on all lower level components."""
         await self.stop_az()
         await self.stop_el()
         await self.stop_shutter()
         await self.stop_louvers()
 
-    async def crawl_az(self, velocity: float):
+    async def crawl_az(self, velocity: float) -> float:
         """Crawl the dome.
 
         Parameters
@@ -408,7 +407,7 @@ class MockMTDomeController:
         assert self.amcs is not None
         return await self.amcs.crawlAz(velocity, self.current_tai)
 
-    async def crawl_el(self, velocity: float):
+    async def crawl_el(self, velocity: float) -> float:
         """Crawl the light and wind screen.
 
         Parameters
@@ -428,7 +427,7 @@ class MockMTDomeController:
         assert self.lwscs is not None
         return await self.lwscs.crawlEl(velocity, self.current_tai)
 
-    async def set_louvers(self, position: float):
+    async def set_louvers(self, position: float) -> None:
         """Set the positions of the louvers.
 
         Parameters
@@ -443,37 +442,37 @@ class MockMTDomeController:
         assert self.lcs is not None
         await self.lcs.setLouvers(position)
 
-    async def close_louvers(self):
+    async def close_louvers(self) -> None:
         """Close all louvers."""
         self.log.info("Received command 'closeLouvers'")
         assert self.lcs is not None
         await self.lcs.closeLouvers()
 
-    async def stop_louvers(self):
+    async def stop_louvers(self) -> None:
         """Stop the motion of all louvers."""
         self.log.info("Received command 'stopLouvers'")
         assert self.lcs is not None
         await self.lcs.stopLouvers()
 
-    async def open_shutter(self):
+    async def open_shutter(self) -> None:
         """Open the shutter."""
         self.log.info("Received command 'openShutter'")
         assert self.apscs is not None
         await self.apscs.openShutter()
 
-    async def close_shutter(self):
+    async def close_shutter(self) -> None:
         """Close the shutter."""
         self.log.info("Received command 'closeShutter'")
         assert self.apscs is not None
         await self.apscs.closeShutter()
 
-    async def stop_shutter(self):
+    async def stop_shutter(self) -> None:
         """Stop the motion of the shutter."""
         self.log.info("Received command 'stopShutter'")
         assert self.apscs is not None
         await self.apscs.stopShutter()
 
-    async def config(self, system: str, settings: dict):
+    async def config(self, system: str, settings: dict) -> None:
         """Configure the lower level components.
 
         Parameters
@@ -522,13 +521,13 @@ class MockMTDomeController:
         else:
             raise KeyError(f"Unknown system {system}.")
 
-    async def restore(self):
+    async def restore(self) -> None:
         """Restore the default configuration of the lower level components."""
         self.log.info("Received command 'restore'")
         # TODO: Need to find a way to store the default values for all lower
         #  level components.
 
-    async def park(self):
+    async def park(self) -> float:
         """Park the dome.
 
         Returns
@@ -540,7 +539,7 @@ class MockMTDomeController:
         assert self.amcs is not None
         return await self.amcs.park(self.current_tai)
 
-    async def go_stationary_az(self):
+    async def go_stationary_az(self) -> float:
         """Stop azimuth motion and engage the brakes. Also disengage the
         locking pins if engaged.
 
@@ -553,7 +552,7 @@ class MockMTDomeController:
         assert self.amcs is not None
         return await self.amcs.go_stationary(self.current_tai)
 
-    async def go_stationary_el(self):
+    async def go_stationary_el(self) -> float:
         """Stop elevation motion and engage the brakes. Also disengage the
         locking pins if engaged.
 
@@ -566,19 +565,19 @@ class MockMTDomeController:
         assert self.lwscs is not None
         return await self.lwscs.go_stationary(self.current_tai)
 
-    async def go_stationary_shutter(self):
+    async def go_stationary_shutter(self) -> None:
         """Stop shutter motion and engage the brakes."""
         self.log.info("Received command 'go_stationary_shutter'")
         assert self.apscs is not None
         await self.apscs.go_stationary()
 
-    async def go_stationary_louvers(self):
+    async def go_stationary_louvers(self) -> None:
         """Stop louvers motion and engage the brakes."""
         self.log.info("Received command 'go_stationary_louvers'")
         assert self.lcs is not None
         await self.lcs.go_stationary()
 
-    async def go_stationary(self):
+    async def go_stationary(self) -> None:
         """Stop all motion and engage the brakes. Also disengage the
         locking pins if engaged.
 
@@ -593,7 +592,7 @@ class MockMTDomeController:
         await self.go_stationary_shutter()
         await self.go_stationary_louvers()
 
-    async def set_temperature(self, temperature: float):
+    async def set_temperature(self, temperature: float) -> None:
         """Set the preferred temperature in the dome.
 
         Parameters
@@ -607,17 +606,23 @@ class MockMTDomeController:
         assert self.thcs is not None
         await self.thcs.setTemperature(temperature)
 
-    async def exit_fault(self):
+    async def exit_fault(self) -> None:
         """Exit from fault state."""
         self.log.info("Received command 'exit_fault'")
+        assert self.amcs is not None
         await self.amcs.exit_fault(self.current_tai)
+        assert self.apscs is not None
         await self.apscs.exit_fault()
+        assert self.lcs is not None
         await self.lcs.exit_fault()
+        assert self.lwscs is not None
         await self.lwscs.exit_fault(self.current_tai)
+        assert self.moncs is not None
         await self.moncs.exit_fault()
+        assert self.thcs is not None
         await self.thcs.exit_fault()
 
-    async def inflate(self, action: str):
+    async def inflate(self, action: str) -> None:
         """Inflate or deflate the inflatable seal.
 
         Parameters
@@ -629,7 +634,7 @@ class MockMTDomeController:
         assert self.amcs is not None
         await self.amcs.inflate(action)
 
-    async def fans(self, action: str):
+    async def fans(self, action: str) -> None:
         """Enable or disable the fans in the dome.
 
         Parameters
@@ -642,7 +647,7 @@ class MockMTDomeController:
         await self.amcs.fans(action)
 
 
-async def main():
+async def main() -> None:
     """Main method that gets executed in stand alone mode."""
     logging.info("main method")
     # An arbitrarily chosen port. Nothing special about it.

@@ -36,8 +36,13 @@ _MAX_POSITION = math.radians(90)
 
 class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
     async def prepare_elevation_motion(
-        self, start_position, min_position, max_position, max_speed, start_tai
-    ):
+        self,
+        start_position: float,
+        min_position: float,
+        max_position: float,
+        max_speed: float,
+        start_tai: float,
+    ) -> None:
         """Prepare the ElevationMotion for future commands.
 
         Parameters
@@ -53,7 +58,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
         start_tai: `float`
             The current TAI time.
         """
-        self.elevation_motion = MTDome.mock_llc.mock_motion.ElevationMotion(
+        self.elevation_motion = MTDome.mock_llc.ElevationMotion(
             start_position=start_position,
             min_position=min_position,
             max_position=max_position,
@@ -63,12 +68,12 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def verify_elevation_motion_duration(
         self,
-        start_tai,
-        target_position,
-        velocity,
-        expected_duration,
-        motion_state,
-    ):
+        start_tai: float,
+        target_position: float,
+        velocity: float,
+        expected_duration: float,
+        motion_state: MTDome.LlcMotionState,
+    ) -> None:
         """Verify that the ElevationMotion computes the correct duration.
 
         Parameters
@@ -93,8 +98,12 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(expected_duration, duration)
 
     async def verify_elevation_motion(
-        self, tai, expected_position, expected_velocity, expected_motion_state
-    ):
+        self,
+        tai: float,
+        expected_position: float,
+        expected_velocity: float,
+        expected_motion_state: MTDome.LlcMotionState,
+    ) -> None:
         """Verify the position of the ElevationMotion at the given TAI
         time.
 
@@ -118,7 +127,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertAlmostEqual(expected_velocity, velocity)
         self.assertEqual(expected_motion_state, motion_state)
 
-    async def test_move_zero_ten(self):
+    async def test_move_zero_ten(self) -> None:
         """Test the ElevationMotion when moving from position 0 to
         position 10.
         """
@@ -163,7 +172,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.STOPPED,
         )
 
-    async def test_move_ten_zero(self):
+    async def test_move_ten_zero(self) -> None:
         """Test the ElevationMotion when moving from position 10 to
         position 0.
         """
@@ -208,7 +217,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.STOPPED,
         )
 
-    async def test_crawl_pos(self):
+    async def test_crawl_pos(self) -> None:
         """Test the ElevationMotion when crawling in positive direction."""
         start_position = 0.0
         start_tai = _start_tai
@@ -269,7 +278,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.STOPPED,
         )
 
-    async def test_crawl_neg(self):
+    async def test_crawl_neg(self) -> None:
         """Test the ElevationMotion when crawling from position 10 to
         position 0.
         """
@@ -314,7 +323,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.STOPPED,
         )
 
-    async def test_stop(self):
+    async def test_stop(self) -> None:
         """Test the ElevationMotion when moving from position 0 to
         position 10 and then gets stopped.
         """
@@ -354,7 +363,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.STOPPED,
         )
 
-    async def test_stationary(self):
+    async def test_stationary(self) -> None:
         """Test the ElevationMotion when moving from position 0 to
         position 10 and then gets stopped.
         """
@@ -394,7 +403,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.STATIONARY,
         )
 
-    async def test_too_low(self):
+    async def test_too_low(self) -> None:
         """Test the ElevationMotion when trying to move to a too low
         position.
         """
@@ -425,7 +434,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
         except ValueError:
             pass
 
-    async def test_too_high(self):
+    async def test_too_high(self) -> None:
         """Test the ElevationMotion when trying to move to a too high
         position.
         """

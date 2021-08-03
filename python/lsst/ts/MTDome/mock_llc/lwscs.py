@@ -28,7 +28,7 @@ import numpy as np
 
 from .base_mock_llc import BaseMockStatus
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
-from ..llc_motion_state import LlcMotionState
+from ..enums import LlcMotionState
 from .mock_motion.elevation_motion import ElevationMotion
 
 _NUM_MOTORS = 2
@@ -46,7 +46,7 @@ class LwscsStatus(BaseMockStatus):
         However, for unit tests it can be convenient to use other values.
     """
 
-    def __init__(self, start_tai: float):
+    def __init__(self, start_tai: float) -> None:
         super().__init__()
         self.log = logging.getLogger("MockLwscsStatus")
         self.lwscs_limits = LwscsLimits()
@@ -78,7 +78,7 @@ class LwscsStatus(BaseMockStatus):
         self.resolver_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
         self.power_draw = 0.0
 
-    async def determine_status(self, current_tai: float):
+    async def determine_status(self, current_tai: float) -> None:
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
 
@@ -115,7 +115,7 @@ class LwscsStatus(BaseMockStatus):
         }
         self.log.debug(f"lwscs_state = {self.llc_status}")
 
-    async def moveEl(self, position: float, start_tai: float):
+    async def moveEl(self, position: float, start_tai: float) -> float:
         """Move the light and wind screen to the given elevation.
 
         Parameters
@@ -137,7 +137,7 @@ class LwscsStatus(BaseMockStatus):
         )
         return self.duration
 
-    async def crawlEl(self, velocity: float, start_tai: float):
+    async def crawlEl(self, velocity: float, start_tai: float) -> float:
         """Crawl the light and wind screen in the given direction at the given
         velocity.
 
@@ -162,7 +162,7 @@ class LwscsStatus(BaseMockStatus):
         )
         return self.duration
 
-    async def stopEl(self, start_tai: float):
+    async def stopEl(self, start_tai: float) -> float:
         """Stop moving the light and wind screen.
 
         Parameters
@@ -177,7 +177,7 @@ class LwscsStatus(BaseMockStatus):
         self.duration = 0.0
         return self.duration
 
-    async def go_stationary(self, start_tai: float):
+    async def go_stationary(self, start_tai: float) -> float:
         """Stop elevation motion and engage the brakes. Also disengage the
         locking pins if engaged.
 
@@ -193,7 +193,7 @@ class LwscsStatus(BaseMockStatus):
         self.duration = 0.0
         return self.duration
 
-    async def exit_fault(self, start_tai: float):
+    async def exit_fault(self, start_tai: float) -> float:
         """Clear the fault state.
 
         Parameters

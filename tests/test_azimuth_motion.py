@@ -34,7 +34,9 @@ _start_tai = 10001.0
 
 
 class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
-    async def prepare_azimuth_motion(self, start_position, max_speed, start_tai):
+    async def prepare_azimuth_motion(
+        self, start_position: float, max_speed: float, start_tai: float
+    ) -> None:
         """Prepare the AzimuthMotion for future commands.
 
         Parameters
@@ -46,7 +48,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         start_tai: `float`
             The start TAI time.
         """
-        self.azimuth_motion = MTDome.mock_llc.mock_motion.AzimuthMotion(
+        self.azimuth_motion = MTDome.mock_llc.AzimuthMotion(
             start_position=start_position,
             max_speed=max_speed,
             start_tai=start_tai,
@@ -54,12 +56,12 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def verify_azimuth_motion_duration(
         self,
-        start_tai,
-        target_position,
-        crawl_velocity,
-        expected_duration,
-        motion_state,
-    ):
+        start_tai: float,
+        target_position: float,
+        crawl_velocity: float,
+        expected_duration: float,
+        motion_state: MTDome.LlcMotionState,
+    ) -> None:
         """Verify that the AzimuthMotion computes the correct
         duration.
 
@@ -85,8 +87,12 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertAlmostEqual(expected_duration, duration)
 
     async def verify_azimuth_motion(
-        self, tai, expected_position, expected_velocity, expected_motion_state
-    ):
+        self,
+        tai: float,
+        expected_position: float,
+        expected_velocity: float,
+        expected_motion_state: MTDome.LlcMotionState,
+    ) -> None:
         """Verify the position of the AzimuthMotion at the given TAI
         time.
 
@@ -110,7 +116,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertAlmostEqual(expected_velocity, velocity)
         self.assertEqual(expected_motion_state, motion_state)
 
-    async def test_move_zero_ten_pos(self):
+    async def test_move_zero_ten_pos(self) -> None:
         """Test the AzimuthMotion when moving from position 0 to
         position 10 degrees and then crawl in positive direction.
         """
@@ -157,7 +163,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
-    async def test_move_zero_ten_neg(self):
+    async def test_move_zero_ten_neg(self) -> None:
         """Test the AzimuthMotion when moving from position 0 to
         position 10 degrees and then crawl in negative direction.
         """
@@ -204,7 +210,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
-    async def test_move_ten_zero_pos(self):
+    async def test_move_ten_zero_pos(self) -> None:
         """Test the AzimuthMotion when moving from position 10 to
         position 0 degrees and then crawl in positive direction.
         """
@@ -251,7 +257,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
-    async def test_move_ten_zero_neg(self):
+    async def test_move_ten_zero_neg(self) -> None:
         """Test the AzimuthMotion when moving from position 10 to
         position 0 degrees and then crawl in negative direction.
         """
@@ -298,7 +304,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
-    async def test_move_ten_threefifty_pos(self):
+    async def test_move_ten_threefifty_pos(self) -> None:
         """Test the AzimuthMotion when moving from position 10 to
         position 350 degrees then crawl in positive direction.
         """
@@ -353,7 +359,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
-    async def test_move_ten_threefifty_neg(self):
+    async def test_move_ten_threefifty_neg(self) -> None:
         """Test the AzimuthMotion when moving from position 10 to
         position 350 degrees then crawl in negative direction.
         """
@@ -408,7 +414,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
-    async def test_move_threefifty_ten_pos(self):
+    async def test_move_threefifty_ten_pos(self) -> None:
         """Test the AzimuthMotion when moving from position 10 to
         position 350 degrees then crawl in positive direction.
         """
@@ -463,7 +469,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
-    async def test_move_threefifty_ten_neg(self):
+    async def test_move_threefifty_ten_neg(self) -> None:
         """Test the AzimuthMotion when moving from position 10 to
         position 350 degrees then crawl in negative direction.
         """
@@ -518,7 +524,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
-    async def test_crawl_pos(self):
+    async def test_crawl_pos(self) -> None:
         """Test the AzimuthMotion when crawling in a positive
         direction while crossing the 0/360 boundary. It should pass the
         target position and keep on crawling
@@ -578,7 +584,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
-    async def test_crawl_neg(self):
+    async def test_crawl_neg(self) -> None:
         """Test the AzimuthMotion when crawling in a positive
         direction while crossing the 0/360 boundary. It should pass the
         target position and keep on crawling
@@ -638,7 +644,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
-    async def test_stop_from_moving(self):
+    async def test_stop_from_moving(self) -> None:
         """Test the AzimuthMotion when moving from position 0 to
         position 10 and getting stopped while moving.
         """
@@ -674,7 +680,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.STOPPED,
         )
 
-    async def test_stop_from_crawling_after_moving(self):
+    async def test_stop_from_crawling_after_moving(self) -> None:
         """Test the AzimuthMotion when moving from position 0 to
         position 10, start crawling and then getting stopped while crawling.
         """
@@ -716,7 +722,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.STOPPED,
         )
 
-    async def test_stop_from_crawling(self):
+    async def test_stop_from_crawling(self) -> None:
         """Test the AzimuthMotion when crawling and then getting
         stopped.
         """
@@ -752,7 +758,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.STOPPED,
         )
 
-    async def test_park_from_moving(self):
+    async def test_park_from_moving(self) -> None:
         """Test the AzimuthMotion when moving from position 0 to
         position 10 and getting parked while moving.
         """
@@ -794,7 +800,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.PARKED,
         )
 
-    async def test_park_from_crawling_after_moving(self):
+    async def test_park_from_crawling_after_moving(self) -> None:
         """Test the AzimuthMotion when moving from position 0 to
         position 10, start crawling and then getting parked while crawling.
         """
@@ -848,7 +854,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.PARKED,
         )
 
-    async def test_park_from_crawling(self):
+    async def test_park_from_crawling(self) -> None:
         """Test the AzimuthMotion when crawling and then getting
         parked.
         """
@@ -902,7 +908,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.PARKED,
         )
 
-    async def test_stationary_from_moving(self):
+    async def test_stationary_from_moving(self) -> None:
         """Test the AzimuthMotion when moving from position 0 to
         position 10 and getting set to STOPPING_BRAKING while moving.
         """
@@ -938,7 +944,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.STATIONARY,
         )
 
-    async def test_stationary_from_crawling_after_moving(self):
+    async def test_stationary_from_crawling_after_moving(self) -> None:
         """Test the AzimuthMotion when moving from position 0 to
         position 10, start crawling and then getting stopped while crawling.
         """
@@ -980,7 +986,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.STATIONARY,
         )
 
-    async def test_stationary_from_crawling(self):
+    async def test_stationary_from_crawling(self) -> None:
         """Test the AzimuthMotion when crawling and then getting
         stopped.
         """
@@ -1016,7 +1022,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_motion_state=MTDome.LlcMotionState.STATIONARY,
         )
 
-    async def test_too_high(self):
+    async def test_too_high(self) -> None:
         """Test the AzimuthMotion when trying to crawl at a too high
         speed.
         """

@@ -19,23 +19,48 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import typing
+__all__ = ["LlcMotionState", "LlcName", "OnOff", "ResponseCode"]
 
-# For an explanation why these next lines are so complicated, see
-# https://confluence.lsstcorp.org/pages/viewpage.action?spaceKey=LTS&title=Enabling+Mypy+in+Pytest
-if typing.TYPE_CHECKING:
-    __version__ = "?"
-else:
-    try:
-        from .version import *
-    except ImportError:
-        __version__ = "?"
+import enum
 
-from .config_schema import CONFIG_SCHEMA
-from .enums import LlcMotionState, LlcName, OnOff, ResponseCode
-from .mock_controller import *
-from .mtdome_csc import *
 
-from . import llc_configuration_limits
-from . import mock_llc
-from . import schema
+class LlcMotionState(enum.IntEnum):
+    """Motion state."""
+
+    FAULT = 0
+    CLOSED = 1
+    CRAWLING = 2
+    MOVING = 3
+    OPEN = 4
+    PARKED = 5
+    PARKING = 6
+    STOPPED = 7
+    STOPPING = 8
+    # Used by the lower level components and need to be translated to
+    # IDL MotionState values.
+    GO_STATIONARY = 9
+    STATIONARY = 10
+    ERROR = 11
+
+
+class LlcName(str, enum.Enum):
+    AMCS = "AMCS"
+    APSCS = "ApSCS"
+    LCS = "LCS"
+    LWSCS = "LWSCS"
+    MONCS = "MonCS"
+    THCS = "ThCS"
+
+
+class OnOff(enum.Enum):
+
+    ON = True
+    OFF = False
+
+
+class ResponseCode(enum.IntEnum):
+    """`enum` with response codes."""
+
+    OK = 0
+    UNSUPPORTED_COMMAND = 2
+    INCORRECT_PARAMETER = 3

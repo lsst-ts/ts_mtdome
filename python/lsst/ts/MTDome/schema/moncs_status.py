@@ -19,25 +19,52 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["LlcMotionState"]
+import json
 
-import enum
+from .registry import registry
 
-
-class LlcMotionState(enum.IntEnum):
-    """Motion state."""
-
-    FAULT = 0
-    CLOSED = 1
-    CRAWLING = 2
-    MOVING = 3
-    OPEN = 4
-    PARKED = 5
-    PARKING = 6
-    STOPPED = 7
-    STOPPING = 8
-    # Used by the lower level components and need to be translated to
-    # IDL MotionState values.
-    GO_STATIONARY = 9
-    STATIONARY = 10
-    ERROR = 11
+registry["MONCS"] = json.loads(
+    """
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "response": {
+      "type": "number"
+    },
+    "MonCS": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "data": {
+          "type": "array",
+          "minItems": 16,
+          "maxItems": 16,
+          "items": [
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "timestampUTC": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "status",
+        "data",
+        "timestampUTC"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "response",
+    "MonCS"
+  ],
+  "additionalProperties": false
+}
+    """
+)

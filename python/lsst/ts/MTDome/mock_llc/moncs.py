@@ -25,7 +25,7 @@ import logging
 import numpy as np
 
 from .base_mock_llc import BaseMockStatus
-from ..llc_motion_state import LlcMotionState
+from ..enums import LlcMotionState
 
 NUM_MON_SENSORS = 16
 
@@ -35,13 +35,13 @@ class MoncsStatus(BaseMockStatus):
     mode.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.log = logging.getLogger("MockMoncsStatus")
         self.status = LlcMotionState.CLOSED
         self.data = np.zeros(NUM_MON_SENSORS, dtype=float)
 
-    async def determine_status(self, current_tai: float):
+    async def determine_status(self, current_tai: float) -> None:
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
         """
@@ -57,6 +57,6 @@ class MoncsStatus(BaseMockStatus):
         }
         self.log.debug(f"moncs_state = {self.llc_status}")
 
-    async def exit_fault(self):
+    async def exit_fault(self) -> None:
         """Clear the fault state."""
         self.status = LlcMotionState.STATIONARY

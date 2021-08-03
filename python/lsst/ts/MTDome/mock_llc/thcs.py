@@ -26,7 +26,7 @@ import numpy as np
 
 from lsst.ts import salobj
 from .base_mock_llc import BaseMockStatus
-from ..llc_motion_state import LlcMotionState
+from ..enums import LlcMotionState
 
 NUM_THERMO_SENSORS = 13
 
@@ -36,13 +36,13 @@ class ThcsStatus(BaseMockStatus):
     mode.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.log = logging.getLogger("MockThcsStatus")
         self.status = LlcMotionState.CLOSED
         self.temperature = np.zeros(NUM_THERMO_SENSORS, dtype=float)
 
-    async def determine_status(self, current_tai: float):
+    async def determine_status(self, current_tai: float) -> None:
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
         """
@@ -58,7 +58,7 @@ class ThcsStatus(BaseMockStatus):
         }
         self.log.debug(f"thcs_state = {self.llc_status}")
 
-    async def setTemperature(self, temperature: float):
+    async def setTemperature(self, temperature: float) -> None:
         """Set the preferred temperature in the dome. It should mock cooling
         down or warming up but it doesn't.
 
@@ -73,6 +73,6 @@ class ThcsStatus(BaseMockStatus):
         self.status = LlcMotionState.OPEN
         self.temperature[:] = temperature
 
-    async def exit_fault(self):
+    async def exit_fault(self) -> None:
         """Clear the fault state."""
         self.status = LlcMotionState.STATIONARY

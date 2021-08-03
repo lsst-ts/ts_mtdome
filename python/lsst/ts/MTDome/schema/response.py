@@ -19,23 +19,28 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import typing
+import json
 
-# For an explanation why these next lines are so complicated, see
-# https://confluence.lsstcorp.org/pages/viewpage.action?spaceKey=LTS&title=Enabling+Mypy+in+Pytest
-if typing.TYPE_CHECKING:
-    __version__ = "?"
-else:
-    try:
-        from .version import *
-    except ImportError:
-        __version__ = "?"
+from .registry import registry
 
-from .config_schema import CONFIG_SCHEMA
-from .enums import LlcMotionState, LlcName, OnOff, ResponseCode
-from .mock_controller import *
-from .mtdome_csc import *
-
-from . import llc_configuration_limits
-from . import mock_llc
-from . import schema
+registry["RESPONSE"] = json.loads(
+    """
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "response": {
+      "type": "number"
+    },
+    "timeout": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "response",
+    "timeout"
+  ],
+  "additionalProperties": false
+}
+    """
+)

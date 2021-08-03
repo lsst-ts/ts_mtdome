@@ -20,10 +20,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import math
+from typing import Tuple
 
 from abc import ABC, abstractmethod
 
-from ...llc_motion_state import LlcMotionState
+from ...enums import LlcMotionState
 import lsst.ts.salobj as salobj
 
 
@@ -66,7 +67,7 @@ class BaseLlcMotion(ABC):
         # crawl_velocity.
         self._crawl_velocity = 0.0
 
-    def _get_distance(self):
+    def _get_distance(self) -> float:
         """Determines the smallest distance [rad] between the initial and
         target positions assuming motion around a circle.
 
@@ -80,7 +81,7 @@ class BaseLlcMotion(ABC):
         ).rad
         return distance
 
-    def _get_duration(self):
+    def _get_duration(self) -> float:
         """Determines the duration of the move using the distance of the move
         and the maximum speed, or zero in case of a crawl.
 
@@ -101,7 +102,7 @@ class BaseLlcMotion(ABC):
         end_position: float,
         crawl_velocity: float,
         motion_state: LlcMotionState,
-    ):
+    ) -> float:
         """Sets the end_position and crawl_velocity and returns the duration of
         the move.
 
@@ -152,13 +153,15 @@ class BaseLlcMotion(ABC):
         return duration
 
     @abstractmethod
-    def get_position_velocity_and_motion_state(self, tai: float):
+    def get_position_velocity_and_motion_state(
+        self, tai: float
+    ) -> Tuple[float, float, LlcMotionState]:
         pass
 
     @abstractmethod
-    def stop(self, start_tai: float):
+    def stop(self, start_tai: float) -> None:
         pass
 
     @abstractmethod
-    def park(self, start_tai: float):
+    def park(self, start_tai: float) -> float:
         pass

@@ -21,37 +21,17 @@
 
 import logging
 import json
-import pathlib
+from typing import Any, Dict
 
 import jsonschema
 
+from .schema import registry
 
 # Logger
 log = logging.getLogger("EncodingTools")
 
 
-def _load_schema(schema_name):
-    schema_file = (
-        pathlib.Path(__file__).resolve().parents[4].joinpath("schema", schema_name)
-    )
-    with open(schema_file) as f:
-        return json.loads(f.read())
-
-
-# dict to help look up the schema to use for validation
-schemas = {
-    "command": _load_schema("command.jschema"),
-    "timeout": _load_schema("response.jschema"),
-    "AMCS": _load_schema("amcs_status.jschema"),
-    "ApSCS": _load_schema("apscs_status.jschema"),
-    "LCS": _load_schema("lcs_status.jschema"),
-    "LWSCS": _load_schema("lwscs_status.jschema"),
-    "MonCS": _load_schema("moncs_status.jschema"),
-    "ThCS": _load_schema("thcs_status.jschema"),
-}
-
-
-def encode(**params):
+def encode(**params: Any) -> str:
     """Encode the given parameters.
 
     The params are treated as the key, value pairs in a dict. In other words::
@@ -74,7 +54,7 @@ def encode(**params):
     return json.dumps({**params})
 
 
-def decode(st):
+def decode(st: str) -> Dict[str, Any]:
     """Decode the given string.
 
     Parameters
@@ -92,7 +72,7 @@ def decode(st):
     return data
 
 
-def validate(data):
+def validate(data: Dict[str, Any]) -> None:
     """Validates the data against a JSON schema and logs an error in case the
     validation fails.
 
@@ -118,7 +98,7 @@ def validate(data):
     """
 
     try:
-        for k, v in schemas.items():
+        for k, v in registry.items():
             if k in data.keys():
                 jsonschema.validate(data, v)
                 break

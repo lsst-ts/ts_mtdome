@@ -27,7 +27,7 @@ from typing import List
 
 from lsst.ts import salobj
 from .base_mock_llc import BaseMockStatus
-from ..llc_motion_state import LlcMotionState
+from ..enums import LlcMotionState
 
 NUM_LOUVERS = 34
 _NUM_MOTORS = 68
@@ -41,7 +41,7 @@ class LcsStatus(BaseMockStatus):
     closed.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.log = logging.getLogger("MockLcsStatus")
         # variables holding the status of the mock Louvres
@@ -56,7 +56,7 @@ class LcsStatus(BaseMockStatus):
         self.encoder_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
         self.power_draw = 0.0
 
-    async def determine_status(self, current_tai: float):
+    async def determine_status(self, current_tai: float) -> None:
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
         """
@@ -80,7 +80,7 @@ class LcsStatus(BaseMockStatus):
         }
         self.log.debug(f"lcs_state = {self.llc_status}")
 
-    async def setLouvers(self, position: List[float]):
+    async def setLouvers(self, position: List[float]) -> None:
         """Set the position of the louver with the given louver_id.
 
         Parameters
@@ -101,23 +101,23 @@ class LcsStatus(BaseMockStatus):
                 self.position_actual[louver_id] = pos
                 self.position_commanded[louver_id] = pos
 
-    async def closeLouvers(self):
+    async def closeLouvers(self) -> None:
         """Close all louvers."""
         self.command_time_tai = salobj.current_tai()
         self.status[:] = LlcMotionState.CLOSED.name
         self.position_actual[:] = 0.0
         self.position_commanded[:] = 0.0
 
-    async def stopLouvers(self):
+    async def stopLouvers(self) -> None:
         """Stop all motion of all louvers."""
         self.command_time_tai = salobj.current_tai()
         self.status[:] = LlcMotionState.STOPPED.name
 
-    async def go_stationary(self):
+    async def go_stationary(self) -> None:
         """Stop louvers motion and engage the brakes."""
         self.command_time_tai = salobj.current_tai()
         self.status[:] = LlcMotionState.STATIONARY.name
 
-    async def exit_fault(self):
+    async def exit_fault(self) -> None:
         """Clear the fault state."""
         self.status[:] = LlcMotionState.STATIONARY.name
