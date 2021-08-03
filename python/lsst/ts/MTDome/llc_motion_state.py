@@ -40,3 +40,4 @@ class LlcMotionState(enum.IntEnum):
     # IDL MotionState values.
     GO_STATIONARY = 9
     STATIONARY = 10
+    ERROR = 11

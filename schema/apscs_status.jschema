@@ -12,7 +12,14 @@
           "type": "string"
         },
         "positionActual": {
-          "type": "number"
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "type": "number"
+            }
+          ]
         },
         "positionCommanded": {
           "type": "number"

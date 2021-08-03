@@ -28,12 +28,6 @@ from unittest.mock import AsyncMock
 import numpy as np
 
 from lsst.ts import MTDome
-from lsst.ts.MTDome.llc_name import LlcName
-from lsst.ts.MTDome.mock_llc.amcs import PARK_POSITION
-from lsst.ts.MTDome.mock_llc.lcs import NUM_LOUVERS
-from lsst.ts.MTDome.mock_llc.moncs import NUM_MON_SENSORS
-from lsst.ts.MTDome.mock_llc.thcs import NUM_THERMO_SENSORS
-from lsst.ts.MTDome import LlcMotionState
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
@@ -161,7 +155,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         ----------
         time_diff: `float`
             The time difference since the previous status check in seconds.
-        expected_status: `LlcMotionState`
+        expected_status: `MTDome.LlcMotionState`
             The expected status.
         expected_position: `float`
             The expected position in radians.
@@ -172,14 +166,14 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + time_diff
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[MTDome.llc_name.LlcName.AMCS.value]
         self.assertEqual(
             amcs_status["status"]["status"],
             expected_status.name,
         )
-        if expected_status == LlcMotionState.MOVING:
+        if expected_status == MTDome.LlcMotionState.MOVING:
             self.assertAlmostEqual(amcs_status["positionActual"], expected_position, 3)
-        elif expected_status == LlcMotionState.CRAWLING:
+        elif expected_status == MTDome.LlcMotionState.CRAWLING:
             if crawl_velocity > 0:
                 self.assertGreaterEqual(
                     amcs_status["positionActual"], expected_position
@@ -203,11 +197,15 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Make the amcs rotate and check both status and position at the
         # specified times
-        await self.verify_amcs_move(1.0, LlcMotionState.MOVING, math.radians(1.5))
-        await self.verify_amcs_move(1.0, LlcMotionState.MOVING, math.radians(3.0))
+        await self.verify_amcs_move(
+            1.0, MTDome.LlcMotionState.MOVING, math.radians(1.5)
+        )
+        await self.verify_amcs_move(
+            1.0, MTDome.LlcMotionState.MOVING, math.radians(3.0)
+        )
         await self.verify_amcs_move(
             5.0,
-            LlcMotionState.CRAWLING,
+            MTDome.LlcMotionState.CRAWLING,
             math.radians(10.0),
             crawl_velocity=target_velocity,
         )
@@ -226,11 +224,15 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Make the amcs rotate and check both status and position at the
         # specified times
-        await self.verify_amcs_move(1.0, LlcMotionState.MOVING, math.radians(1.5))
-        await self.verify_amcs_move(1.0, LlcMotionState.MOVING, math.radians(3.0))
+        await self.verify_amcs_move(
+            1.0, MTDome.LlcMotionState.MOVING, math.radians(1.5)
+        )
+        await self.verify_amcs_move(
+            1.0, MTDome.LlcMotionState.MOVING, math.radians(3.0)
+        )
         await self.verify_amcs_move(
             5.0,
-            LlcMotionState.CRAWLING,
+            MTDome.LlcMotionState.CRAWLING,
             math.radians(10.0),
             crawl_velocity=target_velocity,
         )
@@ -249,11 +251,15 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Make the amcs rotate and check both status and position at the
         # specified times
-        await self.verify_amcs_move(1.0, LlcMotionState.MOVING, math.radians(1.5))
-        await self.verify_amcs_move(1.0, LlcMotionState.MOVING, math.radians(3.0))
+        await self.verify_amcs_move(
+            1.0, MTDome.LlcMotionState.MOVING, math.radians(1.5)
+        )
+        await self.verify_amcs_move(
+            1.0, MTDome.LlcMotionState.MOVING, math.radians(3.0)
+        )
         await self.verify_amcs_move(
             5.0,
-            LlcMotionState.STOPPED,
+            MTDome.LlcMotionState.STOPPED,
             math.radians(10.0),
             crawl_velocity=target_velocity,
         )
@@ -272,11 +278,15 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Make the amcs rotate and check both status and position at the
         # specified times
-        await self.verify_amcs_move(1.0, LlcMotionState.MOVING, math.radians(18.5))
-        await self.verify_amcs_move(1.0, LlcMotionState.MOVING, math.radians(17.0))
+        await self.verify_amcs_move(
+            1.0, MTDome.LlcMotionState.MOVING, math.radians(18.5)
+        )
+        await self.verify_amcs_move(
+            1.0, MTDome.LlcMotionState.MOVING, math.radians(17.0)
+        )
         await self.verify_amcs_move(
             5.0,
-            LlcMotionState.CRAWLING,
+            MTDome.LlcMotionState.CRAWLING,
             math.radians(10.0),
             crawl_velocity=target_velocity,
         )
@@ -295,11 +305,15 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Make the amcs rotate and check both status and position at the
         # specified times
-        await self.verify_amcs_move(1.0, LlcMotionState.MOVING, math.radians(18.5))
-        await self.verify_amcs_move(1.0, LlcMotionState.MOVING, math.radians(17.0))
+        await self.verify_amcs_move(
+            1.0, MTDome.LlcMotionState.MOVING, math.radians(18.5)
+        )
+        await self.verify_amcs_move(
+            1.0, MTDome.LlcMotionState.MOVING, math.radians(17.0)
+        )
         await self.verify_amcs_move(
             5.0,
-            LlcMotionState.CRAWLING,
+            MTDome.LlcMotionState.CRAWLING,
             math.radians(10.0),
             crawl_velocity=target_velocity,
         )
@@ -317,11 +331,15 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Make the amcs rotate and check both status and position at the
         # specified times
-        await self.verify_amcs_move(1.0, LlcMotionState.MOVING, math.radians(18.5))
-        await self.verify_amcs_move(1.0, LlcMotionState.MOVING, math.radians(17.0))
+        await self.verify_amcs_move(
+            1.0, MTDome.LlcMotionState.MOVING, math.radians(18.5)
+        )
+        await self.verify_amcs_move(
+            1.0, MTDome.LlcMotionState.MOVING, math.radians(17.0)
+        )
         await self.verify_amcs_move(
             5.0,
-            LlcMotionState.STOPPED,
+            MTDome.LlcMotionState.STOPPED,
             math.radians(10.0),
             crawl_velocity=target_velocity,
         )
@@ -350,7 +368,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[MTDome.llc_name.LlcName.AMCS.value]
         self.assertEqual(
             amcs_status["status"]["error"],
             expected_error,
@@ -373,10 +391,10 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[MTDome.llc_name.LlcName.AMCS.value]
         self.assertEqual(
             amcs_status["status"]["status"],
-            LlcMotionState.CRAWLING.name,
+            MTDome.LlcMotionState.CRAWLING.name,
         )
         self.assertGreaterEqual(
             amcs_status["positionActual"],
@@ -397,7 +415,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             target_velocity,
         )
 
-        await self.verify_amcs_move(1.0, LlcMotionState.MOVING, math.radians(1.5))
+        await self.verify_amcs_move(
+            1.0, MTDome.LlcMotionState.MOVING, math.radians(1.5)
+        )
 
         await self.write(command="stopAz", parameters={})
         # Give some time to the mock device to stop moving.
@@ -408,10 +428,10 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[MTDome.llc_name.LlcName.AMCS.value]
         self.assertEqual(
             amcs_status["status"]["status"],
-            LlcMotionState.STOPPED.name,
+            MTDome.LlcMotionState.STOPPED.name,
         )
         self.assertGreaterEqual(
             amcs_status["positionActual"],
@@ -453,7 +473,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         ----------
         time_diff: `float`
             The time difference since the previous status check in seconds.
-        expected_status: `LlcMotionState`
+        expected_status: `MTDome.LlcMotionState`
             The expected status.
         expected_position: `float`
             The expected position in radians.
@@ -462,7 +482,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + time_diff
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value]
+        lwscs_status = self.data[MTDome.llc_name.LlcName.LWSCS.value]
         self.assertEqual(
             lwscs_status["status"],
             expected_status.name,
@@ -480,17 +500,17 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Move EL and check the position.
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=LlcMotionState.MOVING,
+            expected_status=MTDome.LlcMotionState.MOVING,
             expected_position=math.radians(1.75),
         )
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=LlcMotionState.MOVING,
+            expected_status=MTDome.LlcMotionState.MOVING,
             expected_position=math.radians(3.5),
         )
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=LlcMotionState.STOPPED,
+            expected_status=MTDome.LlcMotionState.STOPPED,
             expected_position=math.radians(5.0),
         )
 
@@ -505,17 +525,17 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Move EL and check the position.
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=LlcMotionState.MOVING,
+            expected_status=MTDome.LlcMotionState.MOVING,
             expected_position=math.radians(3.25),
         )
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=LlcMotionState.MOVING,
+            expected_status=MTDome.LlcMotionState.MOVING,
             expected_position=math.radians(1.5),
         )
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=LlcMotionState.STOPPED,
+            expected_status=MTDome.LlcMotionState.STOPPED,
             expected_position=math.radians(0),
         )
 
@@ -544,7 +564,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Move EL and check the position and status.
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=LlcMotionState.MOVING,
+            expected_status=MTDome.LlcMotionState.MOVING,
             expected_position=math.radians(1.75),
         )
 
@@ -556,7 +576,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Move EL and check the position and status.
         await self.verify_lwscs_move(
             time_diff=0.1,
-            expected_status=LlcMotionState.MOVING,
+            expected_status=MTDome.LlcMotionState.MOVING,
             expected_position=math.radians(1.93),
         )
 
@@ -588,7 +608,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         louver_id = 5
         target_position = 100
-        position = np.full(NUM_LOUVERS, -1.0, dtype=float)
+        position = np.full(MTDome.mock_llc.lcs.NUM_LOUVERS, -1.0, dtype=float)
         position[louver_id] = target_position
         await self.write(
             command="setLouvers",
@@ -619,31 +639,31 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.AMCS.value]
+        status = self.data[MTDome.llc_name.LlcName.AMCS.value]
         self.assertEqual(
             status["status"]["status"],
-            LlcMotionState.STOPPED.name,
+            MTDome.LlcMotionState.STOPPED.name,
         )
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.APSCS.value]
+        status = self.data[MTDome.llc_name.LlcName.APSCS.value]
         self.assertEqual(
             status["status"],
-            LlcMotionState.STOPPED.name,
+            MTDome.LlcMotionState.STOPPED.name,
         )
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.LCS.value]
+        status = self.data[MTDome.llc_name.LlcName.LCS.value]
         self.assertEqual(
             status["status"],
-            [LlcMotionState.STOPPED.name] * NUM_LOUVERS,
+            [MTDome.LlcMotionState.STOPPED.name] * MTDome.mock_llc.lcs.NUM_LOUVERS,
         )
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.LWSCS.value]
+        status = self.data[MTDome.llc_name.LlcName.LWSCS.value]
         self.assertEqual(
             status["status"],
-            LlcMotionState.STOPPED.name,
+            MTDome.LlcMotionState.STOPPED.name,
         )
 
     async def test_go_stationary(self):
@@ -659,31 +679,31 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.AMCS.value]
+        status = self.data[MTDome.llc_name.LlcName.AMCS.value]
         self.assertEqual(
             status["status"]["status"],
-            LlcMotionState.STATIONARY.name,
+            MTDome.LlcMotionState.STATIONARY.name,
         )
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.APSCS.value]
+        status = self.data[MTDome.llc_name.LlcName.APSCS.value]
         self.assertEqual(
             status["status"],
-            LlcMotionState.STATIONARY.name,
+            MTDome.LlcMotionState.STATIONARY.name,
         )
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.LCS.value]
+        status = self.data[MTDome.llc_name.LlcName.LCS.value]
         self.assertEqual(
             status["status"],
-            [LlcMotionState.STATIONARY.name] * NUM_LOUVERS,
+            [MTDome.LlcMotionState.STATIONARY.name] * MTDome.mock_llc.lcs.NUM_LOUVERS,
         )
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        status = self.data[LlcName.LWSCS.value]
+        status = self.data[MTDome.llc_name.LlcName.LWSCS.value]
         self.assertEqual(
             status["status"],
-            LlcMotionState.STATIONARY.name,
+            MTDome.LlcMotionState.STATIONARY.name,
         )
 
     async def prepare_lwscs_crawl(self, start_position, target_velocity):
@@ -720,7 +740,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         ----------
         time_diff: `float`
             The time difference since the previous status check in seconds.
-        expected_status: `LlcMotionState`
+        expected_status: `MTDome.LlcMotionState`
             The expected status.
         expected_position: `float`
             The expected position in radians.
@@ -729,7 +749,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + time_diff
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value]
+        lwscs_status = self.data[MTDome.llc_name.LlcName.LWSCS.value]
         self.assertEqual(
             lwscs_status["status"],
             expected_status.name,
@@ -744,12 +764,12 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Let EL crawl a little and check the position
         await self.verify_lwscs_crawl(
             time_diff=1.0,
-            expected_status=LlcMotionState.CRAWLING,
+            expected_status=MTDome.LlcMotionState.CRAWLING,
             expected_position=math.radians(0.1),
         )
         await self.verify_lwscs_crawl(
             time_diff=1.0,
-            expected_status=LlcMotionState.CRAWLING,
+            expected_status=MTDome.LlcMotionState.CRAWLING,
             expected_position=math.radians(0.2),
         )
 
@@ -768,7 +788,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         target positions are lined up.
 
         """
-        position = np.full(NUM_LOUVERS, -1.0, dtype=float)
+        position = np.full(MTDome.mock_llc.lcs.NUM_LOUVERS, -1.0, dtype=float)
         for index, louver_id in enumerate(louver_ids):
             position[louver_id] = target_positions[index]
         await self.write(
@@ -809,15 +829,15 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         # See mock_llc.lcs for what the structure of lcs
         # looks like as well as for the meaning of LlcStatus.
-        lcs_status = self.data[LlcName.LCS.value]
+        lcs_status = self.data[MTDome.llc_name.LlcName.LCS.value]
         for index, status in enumerate(lcs_status["status"]):
             if index in louver_ids:
                 if target_positions[louver_ids.index(index)] > 0:
-                    self.assertEqual(LlcMotionState.OPEN.name, status)
+                    self.assertEqual(MTDome.LlcMotionState.OPEN.name, status)
                 else:
-                    self.assertEqual(LlcMotionState.CLOSED.name, status)
+                    self.assertEqual(MTDome.LlcMotionState.CLOSED.name, status)
             else:
-                self.assertEqual(LlcMotionState.CLOSED.name, status)
+                self.assertEqual(MTDome.LlcMotionState.CLOSED.name, status)
         for index, positionActual in enumerate(lcs_status["positionActual"]):
             if index in louver_ids:
                 self.assertEqual(
@@ -863,24 +883,24 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        lcs_status = self.data[LlcName.LCS.value]
+        lcs_status = self.data[MTDome.llc_name.LlcName.LCS.value]
         self.assertEqual(
             lcs_status["status"],
-            [LlcMotionState.CLOSED.name] * NUM_LOUVERS,
+            [MTDome.LlcMotionState.CLOSED.name] * MTDome.mock_llc.lcs.NUM_LOUVERS,
         )
         self.assertEqual(
             lcs_status["positionActual"],
-            [0.0] * NUM_LOUVERS,
+            [0.0] * MTDome.mock_llc.lcs.NUM_LOUVERS,
         )
         self.assertEqual(
             lcs_status["positionCommanded"],
-            [0.0] * NUM_LOUVERS,
+            [0.0] * MTDome.mock_llc.lcs.NUM_LOUVERS,
         )
 
     async def test_stopLouvers(self):
         louver_id = 5
         target_position = 100
-        position = np.full(NUM_LOUVERS, -1.0, dtype=float)
+        position = np.full(MTDome.mock_llc.lcs.NUM_LOUVERS, -1.0, dtype=float)
         position[louver_id] = target_position
         await self.write(
             command="setLouvers",
@@ -908,22 +928,22 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        lcs_status = self.data[LlcName.LCS.value]
+        lcs_status = self.data[MTDome.llc_name.LlcName.LCS.value]
         self.assertEqual(
             lcs_status["status"],
-            [LlcMotionState.STOPPED.name] * NUM_LOUVERS,
+            [MTDome.LlcMotionState.STOPPED.name] * MTDome.mock_llc.lcs.NUM_LOUVERS,
         )
         self.assertEqual(
             lcs_status["positionActual"],
             [0.0] * louver_id
             + [target_position]
-            + [0.0] * (NUM_LOUVERS - louver_id - 1),
+            + [0.0] * (MTDome.mock_llc.lcs.NUM_LOUVERS - louver_id - 1),
         )
         self.assertEqual(
             lcs_status["positionCommanded"],
             [0.0] * louver_id
             + [target_position]
-            + [0.0] * (NUM_LOUVERS - louver_id - 1),
+            + [0.0] * (MTDome.mock_llc.lcs.NUM_LOUVERS - louver_id - 1),
         )
 
     async def test_openShutter(self):
@@ -942,14 +962,14 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        apscs_status = self.data[LlcName.APSCS.value]
+        apscs_status = self.data[MTDome.llc_name.LlcName.APSCS.value]
         self.assertEqual(
             apscs_status["status"],
-            LlcMotionState.OPEN.name,
+            MTDome.LlcMotionState.OPEN.name,
         )
         self.assertEqual(
             apscs_status["positionActual"],
-            100.0,
+            [100.0, 100.0],
         )
         self.assertEqual(
             apscs_status["positionCommanded"],
@@ -972,14 +992,14 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        apscs_status = self.data[LlcName.APSCS.value]
+        apscs_status = self.data[MTDome.llc_name.LlcName.APSCS.value]
         self.assertEqual(
             apscs_status["status"],
-            LlcMotionState.CLOSED.name,
+            MTDome.LlcMotionState.CLOSED.name,
         )
         self.assertEqual(
             apscs_status["positionActual"],
-            0.0,
+            [0.0, 0.0],
         )
         self.assertEqual(
             apscs_status["positionCommanded"],
@@ -1010,14 +1030,14 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        apscs_status = self.data[LlcName.APSCS.value]
+        apscs_status = self.data[MTDome.llc_name.LlcName.APSCS.value]
         self.assertEqual(
             apscs_status["status"],
-            LlcMotionState.STOPPED.name,
+            MTDome.LlcMotionState.STOPPED.name,
         )
         self.assertEqual(
             apscs_status["positionActual"],
-            100.0,
+            [100.0, 100.0],
         )
         self.assertEqual(
             apscs_status["positionCommanded"],
@@ -1031,7 +1051,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         amcs_vmax = math.radians(0.375)
 
         parameters = {
-            "system": LlcName.AMCS.value,
+            "system": MTDome.llc_name.LlcName.AMCS.value,
             "settings": [
                 {"target": "jmax", "setting": [amcs_jmax]},
                 {"target": "amax", "setting": [amcs_amax]},
@@ -1053,7 +1073,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         lwscs_vmax = math.radians(0.5)
 
         parameters = {
-            "system": LlcName.LWSCS.value,
+            "system": MTDome.llc_name.LlcName.LWSCS.value,
             "settings": [
                 {"target": "jmax", "setting": [lwscs_jmax]},
                 {"target": "amax", "setting": [lwscs_amax]},
@@ -1098,18 +1118,18 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[MTDome.llc_name.LlcName.AMCS.value]
         self.assertEqual(
             amcs_status["status"]["status"],
-            LlcMotionState.PARKED.name,
+            MTDome.LlcMotionState.PARKED.name,
         )
         self.assertEqual(
             amcs_status["positionActual"],
-            PARK_POSITION,
+            MTDome.mock_llc.amcs.PARK_POSITION,
         )
         self.assertEqual(
             amcs_status["positionCommanded"],
-            PARK_POSITION,
+            MTDome.mock_llc.amcs.PARK_POSITION,
         )
 
     async def test_setTemperature(self):
@@ -1131,21 +1151,21 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="statusThCS", parameters={})
         self.data = await self.read()
-        thcs_status = self.data[LlcName.THCS.value]
+        thcs_status = self.data[MTDome.llc_name.LlcName.THCS.value]
         self.assertEqual(
             thcs_status["status"],
-            LlcMotionState.OPEN.name,
+            MTDome.LlcMotionState.OPEN.name,
         )
         self.assertEqual(
             thcs_status["temperature"],
-            [temperature] * NUM_THERMO_SENSORS,
+            [temperature] * MTDome.mock_llc.thcs.NUM_THERMO_SENSORS,
         )
 
     async def test_inflate(self):
         # Make sure that the inflate status is set to OFF
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[MTDome.llc_name.LlcName.AMCS.value]
         self.assertEqual(
             amcs_status["status"]["inflate"],
             MTDome.OnOff.OFF.value,
@@ -1160,7 +1180,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Also check that the inflate status is set in the AMCS status.
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[MTDome.llc_name.LlcName.AMCS.value]
         self.assertEqual(
             amcs_status["status"]["inflate"],
             MTDome.OnOff.ON.value,
@@ -1170,7 +1190,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Make sure that the fans status is set to OFF
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[MTDome.llc_name.LlcName.AMCS.value]
         self.assertEqual(
             amcs_status["status"]["fans"],
             MTDome.OnOff.OFF.value,
@@ -1183,7 +1203,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Also check that the fans status is set in the AMCS status.
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[MTDome.llc_name.LlcName.AMCS.value]
         self.assertEqual(
             amcs_status["status"]["fans"],
             MTDome.OnOff.ON.value,
@@ -1192,10 +1212,10 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_status(self):
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
-        amcs_status = self.data[LlcName.AMCS.value]
+        amcs_status = self.data[MTDome.llc_name.LlcName.AMCS.value]
         self.assertEqual(
             amcs_status["status"]["status"],
-            LlcMotionState.STOPPED.name,
+            MTDome.LlcMotionState.STOPPED.name,
         )
         self.assertEqual(
             amcs_status["positionActual"],
@@ -1204,34 +1224,34 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
-        apscs_status = self.data[LlcName.APSCS.value]
+        apscs_status = self.data[MTDome.llc_name.LlcName.APSCS.value]
         self.assertEqual(
             apscs_status["status"],
-            LlcMotionState.CLOSED.name,
+            MTDome.LlcMotionState.CLOSED.name,
         )
         self.assertEqual(
             apscs_status["positionActual"],
-            0,
+            [0.0, 0.0],
         )
 
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
-        lcs_status = self.data[LlcName.LCS.value]
+        lcs_status = self.data[MTDome.llc_name.LlcName.LCS.value]
         self.assertEqual(
             lcs_status["status"],
-            [LlcMotionState.CLOSED.name] * NUM_LOUVERS,
+            [MTDome.LlcMotionState.CLOSED.name] * MTDome.mock_llc.lcs.NUM_LOUVERS,
         )
         self.assertEqual(
             lcs_status["positionActual"],
-            [0.0] * NUM_LOUVERS,
+            [0.0] * MTDome.mock_llc.lcs.NUM_LOUVERS,
         )
 
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
-        lwscs_status = self.data[LlcName.LWSCS.value]
+        lwscs_status = self.data[MTDome.llc_name.LlcName.LWSCS.value]
         self.assertEqual(
             lwscs_status["status"],
-            LlcMotionState.STOPPED.name,
+            MTDome.LlcMotionState.STOPPED.name,
         )
         self.assertEqual(
             lwscs_status["positionActual"],
@@ -1240,24 +1260,24 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="statusMonCS", parameters={})
         self.data = await self.read()
-        moncs_status = self.data[LlcName.MONCS.value]
+        moncs_status = self.data[MTDome.llc_name.LlcName.MONCS.value]
         self.assertEqual(
             moncs_status["status"],
-            LlcMotionState.CLOSED.name,
+            MTDome.LlcMotionState.CLOSED.name,
         )
         self.assertEqual(
             moncs_status["data"],
-            [0.0] * NUM_MON_SENSORS,
+            [0.0] * MTDome.mock_llc.moncs.NUM_MON_SENSORS,
         )
 
         await self.write(command="statusThCS", parameters={})
         self.data = await self.read()
-        thcs_status = self.data[LlcName.THCS.value]
+        thcs_status = self.data[MTDome.llc_name.LlcName.THCS.value]
         self.assertEqual(
             thcs_status["status"],
-            LlcMotionState.CLOSED.name,
+            MTDome.LlcMotionState.CLOSED.name,
         )
         self.assertEqual(
             thcs_status["temperature"],
-            [0.0] * NUM_THERMO_SENSORS,
+            [0.0] * MTDome.mock_llc.thcs.NUM_THERMO_SENSORS,
         )

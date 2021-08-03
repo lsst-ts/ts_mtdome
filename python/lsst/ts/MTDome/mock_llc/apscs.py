@@ -28,6 +28,7 @@ from lsst.ts import salobj
 from .base_mock_llc import BaseMockStatus
 from ..llc_motion_state import LlcMotionState
 
+_NUM_SHUTTERS = 2
 _NUM_MOTORS = 4
 
 
@@ -41,7 +42,7 @@ class ApscsStatus(BaseMockStatus):
         self.log = logging.getLogger("MockApscsStatus")
         # variables holding the status of the mock Aperture Shutter
         self.status = LlcMotionState.CLOSED
-        self.position_actual = 0.0
+        self.position_actual = np.zeros(_NUM_SHUTTERS, dtype=float)
         self.position_commanded = 0.0
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
         self.drive_torque_commanded = np.zeros(_NUM_MOTORS, dtype=float)
@@ -62,7 +63,7 @@ class ApscsStatus(BaseMockStatus):
         )
         self.llc_status = {
             "status": self.status.name,
-            "positionActual": self.position_actual,
+            "positionActual": self.position_actual.tolist(),
             "positionCommanded": self.position_commanded,
             "driveTorqueActual": self.drive_torque_actual.tolist(),
             "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
@@ -81,7 +82,7 @@ class ApscsStatus(BaseMockStatus):
         self.command_time_tai = salobj.current_tai()
         self.status = LlcMotionState.OPEN
         # Both positions are expressed in percentage.
-        self.position_actual = 100.0
+        self.position_actual = np.full(_NUM_SHUTTERS, 100.0, dtype=float)
         self.position_commanded = 100.0
 
     async def closeShutter(self):
@@ -90,7 +91,7 @@ class ApscsStatus(BaseMockStatus):
         self.command_time_tai = salobj.current_tai()
         self.status = LlcMotionState.CLOSED
         # Both positions are expressed in percentage.
-        self.position_actual = 0.0
+        self.position_actual = np.zeros(_NUM_SHUTTERS, dtype=float)
         self.position_commanded = 0.0
 
     async def stopShutter(self):

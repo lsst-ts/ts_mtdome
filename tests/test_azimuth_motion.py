@@ -23,8 +23,7 @@ import logging
 import math
 import unittest
 
-from lsst.ts.MTDome.mock_llc.mock_motion import AzimuthMotion
-from lsst.ts.MTDome import LlcMotionState
+from lsst.ts import MTDome
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
@@ -47,7 +46,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         start_tai: `float`
             The start TAI time.
         """
-        self.azimuth_motion = AzimuthMotion(
+        self.azimuth_motion = MTDome.mock_llc.mock_motion.AzimuthMotion(
             start_position=start_position,
             max_speed=max_speed,
             start_tai=start_tai,
@@ -74,8 +73,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             The crawl velocity after the motion.
         expected_duration: `float`
             The expected duration.
-        motion_state: `LlcMotionState`
-            The commanded LlcMotionState.
+        motion_state: `MTDome.LlcMotionState`
+            The commanded MTDome.LlcMotionState.
         """
         duration = self.azimuth_motion.set_target_position_and_velocity(
             start_tai=start_tai,
@@ -131,31 +130,31 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.0,
             expected_position=math.radians(8.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.5,
             expected_position=math.radians(10.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 4.0,
             expected_position=math.radians(10.15),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
     async def test_move_zero_ten_neg(self):
@@ -178,31 +177,31 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.0,
             expected_position=math.radians(8.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.5,
             expected_position=math.radians(10.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 4.0,
             expected_position=math.radians(9.85),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
     async def test_move_ten_zero_pos(self):
@@ -225,31 +224,31 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(6.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.0,
             expected_position=math.radians(2.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.5,
             expected_position=math.radians(0.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 4.0,
             expected_position=math.radians(0.15),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
     async def test_move_ten_zero_neg(self):
@@ -272,31 +271,31 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(6.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.0,
             expected_position=math.radians(2.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.5,
             expected_position=math.radians(0.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 4.0,
             expected_position=math.radians(359.85),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
     async def test_move_ten_threefifty_pos(self):
@@ -321,37 +320,37 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(6.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.0,
             expected_position=math.radians(2.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 3.0,
             expected_position=math.radians(358.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 5.0,
             expected_position=math.radians(350.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 6.0,
             expected_position=math.radians(350.1),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
     async def test_move_ten_threefifty_neg(self):
@@ -376,37 +375,37 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(6.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.0,
             expected_position=math.radians(2.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 3.0,
             expected_position=math.radians(358.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 5.0,
             expected_position=math.radians(350.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 6.0,
             expected_position=math.radians(349.9),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
     async def test_move_threefifty_ten_pos(self):
@@ -431,37 +430,37 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(354.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.0,
             expected_position=math.radians(358.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 3.0,
             expected_position=math.radians(2.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 5.0,
             expected_position=math.radians(10.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 6.0,
             expected_position=math.radians(10.1),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
     async def test_move_threefifty_ten_neg(self):
@@ -486,37 +485,37 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(354.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.0,
             expected_position=math.radians(358.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 3.0,
             expected_position=math.radians(2.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 5.0,
             expected_position=math.radians(10.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 6.0,
             expected_position=math.radians(9.9),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
     async def test_crawl_pos(self):
@@ -540,43 +539,43 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.CRAWLING,
+            motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(351.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.0,
             expected_position=math.radians(352.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 10.0,
             expected_position=math.radians(0.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 11.0,
             expected_position=math.radians(1.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 20.0,
             expected_position=math.radians(10.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 21.0,
             expected_position=math.radians(11.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
     async def test_crawl_neg(self):
@@ -600,43 +599,43 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.CRAWLING,
+            motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(9.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 2.0,
             expected_position=math.radians(8.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 10.0,
             expected_position=math.radians(0.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 11.0,
             expected_position=math.radians(359.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 20.0,
             expected_position=math.radians(350.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 21.0,
             expected_position=math.radians(349.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
 
     async def test_stop_from_moving(self):
@@ -659,20 +658,20 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         self.azimuth_motion.stop(start_tai=_start_tai + 2.0)
         await self.verify_azimuth_motion(
             tai=_start_tai + 3.0,
             expected_position=math.radians(8.0),
             expected_velocity=0,
-            expected_motion_state=LlcMotionState.STOPPED,
+            expected_motion_state=MTDome.LlcMotionState.STOPPED,
         )
 
     async def test_stop_from_crawling_after_moving(self):
@@ -695,26 +694,26 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 3.0,
             expected_position=math.radians(10.05),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         self.azimuth_motion.stop(start_tai=_start_tai + 4.0)
         await self.verify_azimuth_motion(
             tai=_start_tai + 5.0,
             expected_position=math.radians(10.15),
             expected_velocity=0,
-            expected_motion_state=LlcMotionState.STOPPED,
+            expected_motion_state=MTDome.LlcMotionState.STOPPED,
         )
 
     async def test_stop_from_crawling(self):
@@ -737,20 +736,20 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.CRAWLING,
+            motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(11.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         self.azimuth_motion.stop(start_tai=_start_tai + 4.0)
         await self.verify_azimuth_motion(
             tai=_start_tai + 5.0,
             expected_position=math.radians(14.0),
             expected_velocity=0,
-            expected_motion_state=LlcMotionState.STOPPED,
+            expected_motion_state=MTDome.LlcMotionState.STOPPED,
         )
 
     async def test_park_from_moving(self):
@@ -773,26 +772,26 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         self.azimuth_motion.park(start_tai=_start_tai + 2.0)
         await self.verify_azimuth_motion(
             tai=_start_tai + 3.0,
             expected_position=math.radians(4.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.PARKING,
+            expected_motion_state=MTDome.LlcMotionState.PARKING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 4.0,
             expected_position=math.radians(0.0),
             expected_velocity=0,
-            expected_motion_state=LlcMotionState.PARKED,
+            expected_motion_state=MTDome.LlcMotionState.PARKED,
         )
 
     async def test_park_from_crawling_after_moving(self):
@@ -815,38 +814,38 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 3.0,
             expected_position=math.radians(10.05),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         self.azimuth_motion.park(start_tai=_start_tai + 4.0)
         await self.verify_azimuth_motion(
             tai=_start_tai + 5.0,
             expected_position=math.radians(6.15),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.PARKING,
+            expected_motion_state=MTDome.LlcMotionState.PARKING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 6.0,
             expected_position=math.radians(2.15),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.PARKING,
+            expected_motion_state=MTDome.LlcMotionState.PARKING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 7.0,
             expected_position=math.radians(0.0),
             expected_velocity=0,
-            expected_motion_state=LlcMotionState.PARKED,
+            expected_motion_state=MTDome.LlcMotionState.PARKED,
         )
 
     async def test_park_from_crawling(self):
@@ -869,38 +868,38 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.CRAWLING,
+            motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(11.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         self.azimuth_motion.park(start_tai=_start_tai + 4.0)
         await self.verify_azimuth_motion(
             tai=_start_tai + 5.0,
             expected_position=math.radians(10.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.PARKING,
+            expected_motion_state=MTDome.LlcMotionState.PARKING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 6.0,
             expected_position=math.radians(6.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.PARKING,
+            expected_motion_state=MTDome.LlcMotionState.PARKING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 7.0,
             expected_position=math.radians(2.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=LlcMotionState.PARKING,
+            expected_motion_state=MTDome.LlcMotionState.PARKING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 8.0,
             expected_position=math.radians(0.0),
             expected_velocity=0,
-            expected_motion_state=LlcMotionState.PARKED,
+            expected_motion_state=MTDome.LlcMotionState.PARKED,
         )
 
     async def test_stationary_from_moving(self):
@@ -923,20 +922,20 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         self.azimuth_motion.go_stationary(start_tai=_start_tai + 2.0)
         await self.verify_azimuth_motion(
             tai=_start_tai + 3.0,
             expected_position=math.radians(8.0),
             expected_velocity=0,
-            expected_motion_state=LlcMotionState.STATIONARY,
+            expected_motion_state=MTDome.LlcMotionState.STATIONARY,
         )
 
     async def test_stationary_from_crawling_after_moving(self):
@@ -959,26 +958,26 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
-            expected_motion_state=LlcMotionState.MOVING,
+            expected_motion_state=MTDome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 3.0,
             expected_position=math.radians(10.05),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         self.azimuth_motion.go_stationary(start_tai=_start_tai + 4.0)
         await self.verify_azimuth_motion(
             tai=_start_tai + 5.0,
             expected_position=math.radians(10.15),
             expected_velocity=0,
-            expected_motion_state=LlcMotionState.STATIONARY,
+            expected_motion_state=MTDome.LlcMotionState.STATIONARY,
         )
 
     async def test_stationary_from_crawling(self):
@@ -1001,20 +1000,20 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             crawl_velocity=crawl_velocity,
             expected_duration=expected_duration,
-            motion_state=LlcMotionState.CRAWLING,
+            motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(11.0),
             expected_velocity=crawl_velocity,
-            expected_motion_state=LlcMotionState.CRAWLING,
+            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
         )
         self.azimuth_motion.go_stationary(start_tai=_start_tai + 4.0)
         await self.verify_azimuth_motion(
             tai=_start_tai + 5.0,
             expected_position=math.radians(14.0),
             expected_velocity=0,
-            expected_motion_state=LlcMotionState.STATIONARY,
+            expected_motion_state=MTDome.LlcMotionState.STATIONARY,
         )
 
     async def test_too_high(self):
@@ -1038,7 +1037,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
                 target_position=target_position,
                 crawl_velocity=crawl_velocity,
                 expected_duration=expected_duration,
-                motion_state=LlcMotionState.MOVING,
+                motion_state=MTDome.LlcMotionState.MOVING,
             )
             self.fail("Expected a ValueError.")
         except ValueError:

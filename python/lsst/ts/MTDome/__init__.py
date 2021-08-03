@@ -25,10 +25,11 @@ except ModuleNotFoundError:
     __version__ = "?"
 
 from .config_schema import CONFIG_SCHEMA
-from .mtdome_csc import *
-from .llc_configuration_limits import *
+from .llc_motion_state import LlcMotionState
 from .mock_controller import *
-from .mock_llc import *
+from .mtdome_csc import *
 from .on_off import OnOff
 from .response_code import ResponseCode
-from .llc_motion_state import LlcMotionState
+
+from . import llc_configuration_limits
+from . import mock_llc
