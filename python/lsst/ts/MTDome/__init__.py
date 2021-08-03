@@ -19,10 +19,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-try:
-    from .version import *
-except ModuleNotFoundError:
+import typing
+
+# For an explanation why these next lines are so complicated, see
+# https://confluence.lsstcorp.org/pages/viewpage.action?spaceKey=LTS&title=Enabling+Mypy+in+Pytest
+if typing.TYPE_CHECKING:
     __version__ = "?"
+else:
+    try:
+        from .version import *
+    except ImportError:
+        __version__ = "?"
 
 from .config_schema import CONFIG_SCHEMA
 from .llc_motion_state import LlcMotionState

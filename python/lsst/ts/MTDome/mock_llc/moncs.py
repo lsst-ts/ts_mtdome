@@ -41,7 +41,7 @@ class MoncsStatus(BaseMockStatus):
         self.status = LlcMotionState.CLOSED
         self.data = np.zeros(NUM_MON_SENSORS, dtype=float)
 
-    async def determine_status(self, current_tai):
+    async def determine_status(self, current_tai: float):
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
         """

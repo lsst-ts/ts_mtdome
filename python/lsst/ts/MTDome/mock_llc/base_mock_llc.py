@@ -36,7 +36,7 @@ class BaseMockStatus(ABC):
         self.command_time_tai = 0
 
     @abstractmethod
-    async def determine_status(self, current_tai):
+    async def determine_status(self, current_tai: float):
         """Abstract method that determines the status of the Lower Level
         Component to be implemented by all concrete sub-classes.
 

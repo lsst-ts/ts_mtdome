@@ -32,5 +32,5 @@ class AbstractLimits(ABC):
     """
 
     @abstractmethod
-    def validate(self, configuration_parameters):
+    def validate(self, configuration_parameters: dict):
         pass

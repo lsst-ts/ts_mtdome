@@ -42,7 +42,7 @@ class ThcsStatus(BaseMockStatus):
         self.status = LlcMotionState.CLOSED
         self.temperature = np.zeros(NUM_THERMO_SENSORS, dtype=float)
 
-    async def determine_status(self, current_tai):
+    async def determine_status(self, current_tai: float):
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
         """
@@ -58,7 +58,7 @@ class ThcsStatus(BaseMockStatus):
         }
         self.log.debug(f"thcs_state = {self.llc_status}")
 
-    async def setTemperature(self, temperature):
+    async def setTemperature(self, temperature: float):
         """Set the preferred temperature in the dome. It should mock cooling
         down or warming up but it doesn't.
 

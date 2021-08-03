@@ -52,7 +52,7 @@ class AmcsStatus(BaseMockStatus):
         However, for unit tests it can be convenient to use other values.
     """
 
-    def __init__(self, start_tai):
+    def __init__(self, start_tai: float):
         super().__init__()
         self.log = logging.getLogger("MockAzcsStatus")
         self.amcs_limits = AmcsLimits()
@@ -84,7 +84,7 @@ class AmcsStatus(BaseMockStatus):
         self.barcode_head_calibrated = np.zeros(_NUM_RESOLVERS, dtype=float)
         self.barcode_head_weighted = np.zeros(_NUM_RESOLVERS, dtype=float)
 
-    async def determine_status(self, current_tai):
+    async def determine_status(self, current_tai: float):
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
 
@@ -125,7 +125,7 @@ class AmcsStatus(BaseMockStatus):
 
         self.log.debug(f"amcs_state = {self.llc_status}")
 
-    async def moveAz(self, position, velocity, start_tai):
+    async def moveAz(self, position: float, velocity: float, start_tai: float):
         """Move the dome at maximum velocity to the specified azimuth. Azimuth
         is measured from 0 at north via 90 at east and 180 at south to 270 west
         and 360 = 0. The value of azimuth is not checked for the range between
@@ -154,7 +154,7 @@ class AmcsStatus(BaseMockStatus):
         )
         return self.duration
 
-    async def crawlAz(self, velocity, start_tai):
+    async def crawlAz(self, velocity: float, start_tai: float):
         """Crawl the dome in the given direction at the given velocity.
 
         Parameters
@@ -181,7 +181,7 @@ class AmcsStatus(BaseMockStatus):
         )
         return self.duration
 
-    async def stopAz(self, start_tai):
+    async def stopAz(self, start_tai: float):
         """Stop all motion of the dome.
 
         Parameters
@@ -195,7 +195,7 @@ class AmcsStatus(BaseMockStatus):
         self.duration = 0.0
         return self.duration
 
-    async def park(self, start_tai):
+    async def park(self, start_tai: float):
         """Park the dome by moving it to azimuth 0.
 
 
@@ -211,7 +211,7 @@ class AmcsStatus(BaseMockStatus):
         self.duration = self.azimuth_motion.park(start_tai)
         return self.duration
 
-    async def go_stationary(self, start_tai):
+    async def go_stationary(self, start_tai: float):
         """Stop azimuth motion and engage the brakes. Also disengage the
         locking pins if engaged.
 
@@ -226,7 +226,7 @@ class AmcsStatus(BaseMockStatus):
         self.duration = 0.0
         return self.duration
 
-    async def inflate(self, action):
+    async def inflate(self, action: str):
         """Inflate or deflate the inflatable seal.
 
         This is a placeholder for now until it becomes clear what this command
@@ -242,7 +242,7 @@ class AmcsStatus(BaseMockStatus):
         self.duration = 0.0
         return self.duration
 
-    async def fans(self, action):
+    async def fans(self, action: str):
         """Enable or disable the fans in the dome.
 
         This is a placeholder for now until it becomes clear what this command
@@ -258,7 +258,7 @@ class AmcsStatus(BaseMockStatus):
         self.duration = 0.0
         return self.duration
 
-    async def exit_fault(self, start_tai):
+    async def exit_fault(self, start_tai: float):
         """Clear the fault state.
 
         Parameters

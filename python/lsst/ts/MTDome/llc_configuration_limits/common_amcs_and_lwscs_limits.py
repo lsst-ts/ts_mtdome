@@ -33,11 +33,15 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
     """
 
     @abstractmethod
-    def validate(self, configuration_parameters):
+    def validate(self, configuration_parameters: dict):
         pass
 
     # noinspection PyMethodMayBeStatic
-    def validate_common_parameters(self, configuration_parameters, common_limits):
+    def validate_common_parameters(
+        self,
+        configuration_parameters: dict,
+        common_limits: dict,
+    ):
         """Validate the data are against the configuration limits of the lower
         level component.
 

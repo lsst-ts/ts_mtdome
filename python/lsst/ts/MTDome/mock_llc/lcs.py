@@ -23,6 +23,7 @@ __all__ = ["LcsStatus", "NUM_LOUVERS"]
 
 import logging
 import numpy as np
+from typing import List
 
 from lsst.ts import salobj
 from .base_mock_llc import BaseMockStatus
@@ -55,7 +56,7 @@ class LcsStatus(BaseMockStatus):
         self.encoder_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
         self.power_draw = 0.0
 
-    async def determine_status(self, current_tai):
+    async def determine_status(self, current_tai: float):
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
         """
@@ -79,7 +80,7 @@ class LcsStatus(BaseMockStatus):
         }
         self.log.debug(f"lcs_state = {self.llc_status}")
 
-    async def setLouvers(self, position):
+    async def setLouvers(self, position: List[float]):
         """Set the position of the louver with the given louver_id.
 
         Parameters
@@ -90,6 +91,7 @@ class LcsStatus(BaseMockStatus):
             limits are not checked.
         """
         self.command_time_tai = salobj.current_tai()
+        pos: float = 0
         for louver_id, pos in enumerate(position):
             if pos >= 0:
                 if pos > 0:

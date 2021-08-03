@@ -23,6 +23,7 @@ __all__ = ["MockMTDomeController"]
 
 import asyncio
 import logging
+from typing import Any, Callable, Dict, Optional
 
 from lsst.ts import salobj
 from lsst.ts.MTDome import encoding_tools
@@ -68,17 +69,17 @@ class MockMTDomeController:
 
     def __init__(
         self,
-        port,
+        port: int,
     ):
         self.port = port
-        self._server = None
-        self._writer = None
+        self._server: Optional[asyncio.AbstractServer] = None
+        self._writer: Optional[asyncio.StreamWriter] = None
         self.log = logging.getLogger("MockMTDomeController")
         # Dict of command: (has_argument, function).
         # The function is called with:
         # * No arguments, if `has_argument` False.
         # * The argument as a string, if `has_argument` is True.
-        self.dispatch_dict = {
+        self.dispatch_dict: Dict[str, Callable] = {
             "closeLouvers": self.close_louvers,
             "closeShutter": self.close_shutter,
             "config": self.config,
@@ -118,14 +119,14 @@ class MockMTDomeController:
         self.current_tai = 0
 
         # Variables for the lower level components.
-        self.amcs = None
-        self.apscs = None
-        self.lcs = None
-        self.lwscs = None
-        self.moncs = None
-        self.thcs = None
+        self.amcs: Optional[mock_llc.AmcsStatus] = None
+        self.apscs: Optional[mock_llc.ApscsStatus] = None
+        self.lcs: Optional[mock_llc.LcsStatus] = None
+        self.lwscs: Optional[mock_llc.LwscsStatus] = None
+        self.moncs: Optional[mock_llc.MoncsStatus] = None
+        self.thcs: Optional[mock_llc.ThcsStatus] = None
 
-    async def start(self, keep_running=False):
+    async def start(self, keep_running: bool = False):
         """Start the TCP/IP server.
 
         Start the command loop and make sure to keep running when instructed to
@@ -144,7 +145,10 @@ class MockMTDomeController:
         # Request the assigned port from the server so the code starting the
         # mock controller can use it to connect.
         if self.port == 0:
-            self.port = self._server.sockets[0].getsockname()[1]
+            assert self._server.sockets is not None
+            num_sockets = len(self._server.sockets)
+            if self.port == 0 and num_sockets >= 1:
+                self.port = self._server.sockets[0].getsockname()[1]
 
         await self.determine_current_tai()
 
@@ -170,7 +174,7 @@ class MockMTDomeController:
         server.close()
         self.log.info("Done closing")
 
-    async def write(self, **data):
+    async def write(self, **data: Any):
         """Write the data appended with a newline character.
 
         Parameters
@@ -179,18 +183,21 @@ class MockMTDomeController:
             The data to write.
         """
         st = encoding_tools.encode(**data)
+        assert self._writer is not None
         self._writer.write(st.encode() + b"\r\n")
         self.log.debug(st)
         await self._writer.drain()
 
-    async def cmd_loop(self, reader, writer):
+    async def cmd_loop(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ):
         """Execute commands and output replies.
 
         Parameters
         ----------
-        reader: stream reader
+        reader: `asyncio.StreamReader
             The stream reader to read from.
-        writer: stream writer
+        writer: `asyncio.StreamWriter
             The stream writer to write to.
         """
         self.log.info("The cmd_loop begins")
@@ -199,8 +206,8 @@ class MockMTDomeController:
             self.log.debug("Waiting for next command.")
 
             try:
-                line = await reader.readuntil(b"\r\n")
-                line = line.decode().strip()
+                byte_line = await reader.readuntil(b"\r\n")
+                line = byte_line.decode().strip()
                 self.log.debug(f"Read command line: {line!r}")
             except asyncio.IncompleteReadError:
                 return
@@ -277,7 +284,9 @@ class MockMTDomeController:
         """
         await self.request_and_send_status(self.thcs, LlcName.THCS)
 
-    async def request_and_send_status(self, llc, llc_name):
+    async def request_and_send_status(
+        self, llc: mock_llc.BaseMockStatus, llc_name: LlcName
+    ):
         """Request the status of the given Lower Level Component and write it
         to the requester.
 
@@ -292,7 +301,7 @@ class MockMTDomeController:
         await self.determine_current_tai()
         self.log.debug(f"Requesting status for LLC {llc_name}")
         await llc.determine_status(self.current_tai)
-        state = {llc_name.value: llc.llc_status}
+        state = {llc_name: llc.llc_status}
         await self.write(response=ResponseCode.OK, **state)
 
     async def determine_current_tai(self):
@@ -303,7 +312,7 @@ class MockMTDomeController:
         """
         self.current_tai = salobj.current_tai()
 
-    async def move_az(self, position, velocity):
+    async def move_az(self, position: float, velocity: float):
         """Move the dome.
 
         Parameters
@@ -325,9 +334,10 @@ class MockMTDomeController:
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
+        assert self.amcs is not None
         return await self.amcs.moveAz(position, velocity, self.current_tai)
 
-    async def move_el(self, position):
+    async def move_el(self, position: float):
         """Move the light and wind screen.
 
         Parameters
@@ -344,6 +354,7 @@ class MockMTDomeController:
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
+        assert self.lwscs is not None
         return await self.lwscs.moveEl(position, self.current_tai)
 
     async def stop_az(self):
@@ -355,6 +366,7 @@ class MockMTDomeController:
             The estimated duration of the execution of the command.
         """
         self.log.info("Received command 'stopAz'")
+        assert self.amcs is not None
         return await self.amcs.stopAz(self.current_tai)
 
     async def stop_el(self):
@@ -366,6 +378,7 @@ class MockMTDomeController:
             The estimated duration of the execution of the command.
         """
         self.log.info("Received command 'stopEl'")
+        assert self.lwscs is not None
         return await self.lwscs.stopEl(self.current_tai)
 
     async def stop_llc(self):
@@ -375,7 +388,7 @@ class MockMTDomeController:
         await self.stop_shutter()
         await self.stop_louvers()
 
-    async def crawl_az(self, velocity):
+    async def crawl_az(self, velocity: float):
         """Crawl the dome.
 
         Parameters
@@ -392,9 +405,10 @@ class MockMTDomeController:
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
+        assert self.amcs is not None
         return await self.amcs.crawlAz(velocity, self.current_tai)
 
-    async def crawl_el(self, velocity):
+    async def crawl_el(self, velocity: float):
         """Crawl the light and wind screen.
 
         Parameters
@@ -411,9 +425,10 @@ class MockMTDomeController:
 
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
+        assert self.lwscs is not None
         return await self.lwscs.crawlEl(velocity, self.current_tai)
 
-    async def set_louvers(self, position):
+    async def set_louvers(self, position: float):
         """Set the positions of the louvers.
 
         Parameters
@@ -425,34 +440,40 @@ class MockMTDomeController:
         self.log.info(
             f"Received command 'setLouvers' with argument position={position}"
         )
+        assert self.lcs is not None
         await self.lcs.setLouvers(position)
 
     async def close_louvers(self):
         """Close all louvers."""
         self.log.info("Received command 'closeLouvers'")
+        assert self.lcs is not None
         await self.lcs.closeLouvers()
 
     async def stop_louvers(self):
         """Stop the motion of all louvers."""
         self.log.info("Received command 'stopLouvers'")
+        assert self.lcs is not None
         await self.lcs.stopLouvers()
 
     async def open_shutter(self):
         """Open the shutter."""
         self.log.info("Received command 'openShutter'")
+        assert self.apscs is not None
         await self.apscs.openShutter()
 
     async def close_shutter(self):
         """Close the shutter."""
         self.log.info("Received command 'closeShutter'")
+        assert self.apscs is not None
         await self.apscs.closeShutter()
 
     async def stop_shutter(self):
         """Stop the motion of the shutter."""
         self.log.info("Received command 'stopShutter'")
+        assert self.apscs is not None
         await self.apscs.stopShutter()
 
-    async def config(self, system, settings):
+    async def config(self, system: str, settings: dict):
         """Configure the lower level components.
 
         Parameters
@@ -480,19 +501,21 @@ class MockMTDomeController:
         self.log.info(
             f"Received command 'config' with arguments system={system} and settings={settings}"
         )
-        if system == LlcName.AMCS.value:
+        if system == LlcName.AMCS:
             for field in settings:
                 if field["target"] in ("jmax", "amax", "vmax"):
                     # DM-25758: All param values are passed on as arrays so in
                     # these cases we need to extract the only value in the
                     # array.
+                    assert self.amcs is not None
                     setattr(self.amcs.amcs_limits, field["target"], field["setting"][0])
-        elif system == LlcName.LWSCS.value:
+        elif system == LlcName.LWSCS:
             for field in settings:
                 if field["target"] in ("jmax", "amax", "vmax"):
                     # DM-25758: All param values are passed on as arrays so in
                     # these cases we need to extract the only value in the
                     # array.
+                    assert self.lwscs is not None
                     setattr(
                         self.lwscs.lwscs_limits, field["target"], field["setting"][0]
                     )
@@ -514,6 +537,7 @@ class MockMTDomeController:
             The estimated duration of the execution of the command.
         """
         self.log.info("Received command 'park'")
+        assert self.amcs is not None
         return await self.amcs.park(self.current_tai)
 
     async def go_stationary_az(self):
@@ -526,6 +550,7 @@ class MockMTDomeController:
             The estimated duration of the execution of the command.
         """
         self.log.info("Received command 'go_stationary_az'")
+        assert self.amcs is not None
         return await self.amcs.go_stationary(self.current_tai)
 
     async def go_stationary_el(self):
@@ -538,16 +563,19 @@ class MockMTDomeController:
             The estimated duration of the execution of the command.
         """
         self.log.info("Received command 'go_stationary_el'")
+        assert self.lwscs is not None
         return await self.lwscs.go_stationary(self.current_tai)
 
     async def go_stationary_shutter(self):
         """Stop shutter motion and engage the brakes."""
         self.log.info("Received command 'go_stationary_shutter'")
+        assert self.apscs is not None
         await self.apscs.go_stationary()
 
     async def go_stationary_louvers(self):
         """Stop louvers motion and engage the brakes."""
         self.log.info("Received command 'go_stationary_louvers'")
+        assert self.lcs is not None
         await self.lcs.go_stationary()
 
     async def go_stationary(self):
@@ -565,7 +593,7 @@ class MockMTDomeController:
         await self.go_stationary_shutter()
         await self.go_stationary_louvers()
 
-    async def set_temperature(self, temperature):
+    async def set_temperature(self, temperature: float):
         """Set the preferred temperature in the dome.
 
         Parameters
@@ -576,6 +604,7 @@ class MockMTDomeController:
         self.log.info(
             f"Received command 'setTemperature' with argument temperature={temperature}"
         )
+        assert self.thcs is not None
         await self.thcs.setTemperature(temperature)
 
     async def exit_fault(self):
@@ -588,7 +617,7 @@ class MockMTDomeController:
         await self.moncs.exit_fault()
         await self.thcs.exit_fault()
 
-    async def inflate(self, action):
+    async def inflate(self, action: str):
         """Inflate or deflate the inflatable seal.
 
         Parameters
@@ -597,9 +626,10 @@ class MockMTDomeController:
             ON means inflate and OFF deflate the inflatable seal.
         """
         self.log.info(f"Received command 'inflate' with argument action={action}")
+        assert self.amcs is not None
         await self.amcs.inflate(action)
 
-    async def fans(self, action):
+    async def fans(self, action: str):
         """Enable or disable the fans in the dome.
 
         Parameters
@@ -608,6 +638,7 @@ class MockMTDomeController:
             ON means fans on and OFF fans off.
         """
         self.log.info(f"Received command 'fans' with argument action={action}")
+        assert self.amcs is not None
         await self.amcs.fans(action)
 
 

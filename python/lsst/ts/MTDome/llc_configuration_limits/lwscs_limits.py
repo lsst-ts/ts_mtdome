@@ -46,7 +46,7 @@ class LwscsLimits(CommonAmcsAndLwscsLimits):
         self.amax = math.radians(0.875)  # Maximum acceleration in rad/s^2
         self.vmax = math.radians(1.75)  # Maximum velocity in rad/s
 
-    def validate(self, configuration_parameters):
+    def validate(self, configuration_parameters: dict):
         """Validate the data are against the configuration limits of the lower
         level component.
 
@@ -64,16 +64,10 @@ class LwscsLimits(CommonAmcsAndLwscsLimits):
             The converted configuration parameters.
         """
 
-        # DM-25758: All config values are passed on as arrays so in these cases
-        # we need to extract the only value in the array.
-        config_params_without_arrays = (
-            self.extract_scalar_values_from_common_parameters(configuration_parameters)
-        )
-
         # This dict will hold the converted values which we will return at the
         # end of thius function if all validations are passed.
         converted_configuration_parameters = self.validate_common_parameters(
-            config_params_without_arrays,
+            configuration_parameters,
             {"jmax": self.jmax, "amax": self.amax, "vmax": self.vmax},
         )
 

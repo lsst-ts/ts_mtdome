@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from .base_mock_llc import BaseMockStatus
 from .amcs import AmcsStatus
 from .apscs import ApscsStatus
 from .lcs import LcsStatus
