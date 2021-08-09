@@ -22,6 +22,7 @@
 __all__ = ["AmcsLimits"]
 
 import math
+from typing import Any, Dict, List
 
 from .common_amcs_and_lwscs_limits import CommonAmcsAndLwscsLimits
 
@@ -41,12 +42,12 @@ class AmcsLimits(CommonAmcsAndLwscsLimits):
         Maximum velocity, in deg/s
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.jmax = math.radians(3.0)  # Maximum jerk in rad/s^3
         self.amax = math.radians(0.75)  # Maximum acceleration in rad/s^2
         self.vmax = math.radians(1.5)  # Maximum velocity in rad/s
 
-    def validate(self, configuration_parameters):
+    def validate(self, configuration_parameters: dict) -> List[Dict[str, Any]]:
         """Validate the data are against the configuration limits of the lower
         level component.
 

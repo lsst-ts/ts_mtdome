@@ -19,17 +19,28 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Sphinx configuration file for an LSST stack package.
+import json
 
-This configuration only affects single-package Sphinx documentation builds.
-"""
+from .registry import registry
 
-from documenteer.conf.pipelinespkg import *  # noqa
-import lsst.ts.MTDome  # noqa
-
-project = "ts_MTDome"
-html_theme_options["logotext"] = project  # type: ignore # noqa
-html_title = project
-html_short_title = project
-
-intersphinx_mapping["ts_xml"] = ("https://ts-xml.lsst.io", None)  # type: ignore # noqa
+registry["RESPONSE"] = json.loads(
+    """
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "response": {
+      "type": "number"
+    },
+    "timeout": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "response",
+    "timeout"
+  ],
+  "additionalProperties": false
+}
+    """
+)

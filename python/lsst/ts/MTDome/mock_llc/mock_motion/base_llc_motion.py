@@ -20,22 +20,28 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import math
+from typing import Tuple
 
 from abc import ABC, abstractmethod
 
-from ...llc_motion_state import LlcMotionState
+from ...enums import LlcMotionState
 import lsst.ts.salobj as salobj
 
 
 class BaseLlcMotion(ABC):
     def __init__(
-        self, start_position, min_position, max_position, max_speed, start_tai
+        self,
+        start_position: float,
+        min_position: float,
+        max_position: float,
+        max_speed: float,
+        start_tai: float,
     ):
         # This defines the start position of a move or a crawl.
         self._start_position = start_position
         # This defines the end position of the move, after which all motion
         # will stop. Ignored in case of a crawl command.
-        self._end_position = 0
+        self._end_position = 0.0
         # This defines the minimum allowed position.
         self._min_position = min_position
         # This defines the maximum allowed position.
@@ -56,12 +62,12 @@ class BaseLlcMotion(ABC):
         # after which all motion is stopped. Ignored in case of a crawl
         # command. To model the real dome, this should be the current time.
         # However, for unit tests it can be convenient to use other values.
-        self._end_tai = 0
+        self._end_tai = 0.0
         # When a move or crawl command is received, it specifies the crawl
         # crawl_velocity.
-        self._crawl_velocity = 0
+        self._crawl_velocity = 0.0
 
-    def _get_distance(self):
+    def _get_distance(self) -> float:
         """Determines the smallest distance [rad] between the initial and
         target positions assuming motion around a circle.
 
@@ -75,7 +81,7 @@ class BaseLlcMotion(ABC):
         ).rad
         return distance
 
-    def _get_duration(self):
+    def _get_duration(self) -> float:
         """Determines the duration of the move using the distance of the move
         and the maximum speed, or zero in case of a crawl.
 
@@ -91,8 +97,12 @@ class BaseLlcMotion(ABC):
         return duration
 
     def set_target_position_and_velocity(
-        self, start_tai, end_position, crawl_velocity, motion_state
-    ):
+        self,
+        start_tai: float,
+        end_position: float,
+        crawl_velocity: float,
+        motion_state: LlcMotionState,
+    ) -> float:
         """Sets the end_position and crawl_velocity and returns the duration of
         the move.
 
@@ -143,13 +153,15 @@ class BaseLlcMotion(ABC):
         return duration
 
     @abstractmethod
-    def get_position_velocity_and_motion_state(self, tai):
+    def get_position_velocity_and_motion_state(
+        self, tai: float
+    ) -> Tuple[float, float, LlcMotionState]:
         pass
 
     @abstractmethod
-    def stop(self, start_tai):
+    def stop(self, start_tai: float) -> None:
         pass
 
     @abstractmethod
-    def park(self, start_tai):
+    def park(self, start_tai: float) -> float:
         pass

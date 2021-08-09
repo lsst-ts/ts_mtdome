@@ -20,17 +20,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+from typing import Any
 import unittest
 
 import numpy as np
 
-from lsst.ts import MTDome
-from lsst.ts.MTDome.llc_motion_state import LlcMotionState
-from lsst.ts.MTDome.llc_name import LlcName
-from lsst.ts.MTDome.mock_llc.lcs import NUM_LOUVERS
-from lsst.ts.MTDome.mock_llc.moncs import NUM_MON_SENSORS
-from lsst.ts.MTDome.mock_llc.thcs import NUM_THERMO_SENSORS
-from lsst.ts import salobj
+from lsst.ts import MTDome, salobj
 from lsst.ts.idl.enums.MTDome import EnabledState, MotionState
 
 STD_TIMEOUT = 2  # standard command timeout (sec)
@@ -41,7 +36,13 @@ logging.basicConfig(
 
 
 class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
-    def basic_make_csc(self, initial_state, config_dir, simulation_mode, **kwargs):
+    def basic_make_csc(
+        self,
+        initial_state: salobj.State,
+        config_dir: str,
+        simulation_mode: int,
+        **kwargs: Any,
+    ) -> None:
         return MTDome.MTDomeCsc(
             initial_state=initial_state,
             config_dir=config_dir,
@@ -49,7 +50,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             mock_port=0,
         )
 
-    async def test_standard_state_transitions(self):
+    async def test_standard_state_transitions(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -79,7 +80,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 ),
             )
 
-    async def test_version(self):
+    async def test_version(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -89,7 +90,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 subsystemVersions="",
             )
 
-    async def set_csc_to_enabled(self):
+    async def set_csc_to_enabled(self) -> None:
         await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
         await self.assert_next_sample(
             topic=self.remote.evt_azEnabled, state=EnabledState.ENABLED
@@ -103,7 +104,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             topic=self.remote.evt_lockingPinsEngaged, engaged=0
         )
 
-    async def test_do_moveAz(self):
+    async def test_do_moveAz(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -138,7 +139,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Now also check the azMotion event.
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
+            amcs_status = self.csc.lower_level_status[MTDome.LlcName.AMCS.value]
             self.assertEqual(
                 amcs_status["status"]["status"],
                 MotionState.MOVING.name,
@@ -149,7 +150,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=False,
             )
 
-    async def test_do_moveEl(self):
+    async def test_do_moveEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -177,7 +178,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Now also check the elMotion event.
             await self.csc.statusLWSCS()
-            amcs_status = self.csc.lower_level_status[LlcName.LWSCS.value]
+            amcs_status = self.csc.lower_level_status[MTDome.LlcName.LWSCS.value]
             self.assertEqual(
                 amcs_status["status"],
                 MotionState.MOVING.name,
@@ -188,7 +189,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=False,
             )
 
-    async def test_do_stopAz(self):
+    async def test_do_stopAz(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -201,7 +202,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
-    async def test_do_stopEl(self):
+    async def test_do_stopEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -214,7 +215,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
-    async def test_do_stop(self):
+    async def test_do_stop(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -233,7 +234,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
-    async def test_do_crawlAz(self):
+    async def test_do_crawlAz(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -267,7 +268,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Now also check the azMotion event.
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
+            amcs_status = self.csc.lower_level_status[MTDome.LlcName.AMCS.value]
             self.assertEqual(
                 amcs_status["status"]["status"],
                 MotionState.CRAWLING.name,
@@ -278,7 +279,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
-    async def test_do_crawlEl(self):
+    async def test_do_crawlEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -309,7 +310,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Now also check the elMotion event.
             await self.csc.statusLWSCS()
-            amcs_status = self.csc.lower_level_status[LlcName.LWSCS.value]
+            amcs_status = self.csc.lower_level_status[MTDome.LlcName.LWSCS.value]
             self.assertEqual(
                 amcs_status["status"],
                 MotionState.CRAWLING.name,
@@ -320,56 +321,56 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
-    async def test_do_setLouvers(self):
+    async def test_do_setLouvers(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
             await self.set_csc_to_enabled()
             louver_id = 5
             target_position = 100
-            desired_position = np.full(NUM_LOUVERS, -1.0, dtype=float)
+            desired_position = np.full(MTDome.mock_llc.NUM_LOUVERS, -1.0, dtype=float)
             desired_position[louver_id] = target_position
             await self.remote.cmd_setLouvers.set_start(
                 position=desired_position.tolist(),
                 timeout=STD_TIMEOUT,
             )
 
-    async def test_do_closeLouvers(self):
+    async def test_do_closeLouvers(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_closeLouvers.set_start()
 
-    async def test_do_stopLouvers(self):
+    async def test_do_stopLouvers(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stopLouvers.set_start(engageBrakes=False)
 
-    async def test_do_openShutter(self):
+    async def test_do_openShutter(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_openShutter.set_start()
 
-    async def test_do_closeShutter(self):
+    async def test_do_closeShutter(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_closeShutter.set_start()
 
-    async def test_do_stopShutter(self):
+    async def test_do_stopShutter(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stopShutter.set_start(engageBrakes=False)
 
-    async def test_do_park(self):
+    async def test_do_park(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -397,7 +398,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Now also check the azMotion event.
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
+            amcs_status = self.csc.lower_level_status[MTDome.LlcName.AMCS.value]
             self.assertEqual(
                 amcs_status["status"]["status"],
                 MotionState.PARKED.name,
@@ -408,7 +409,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
-    async def test_do_stop_and_brake(self):
+    async def test_do_stop_and_brake(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -433,13 +434,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Now also check the azMotion event.
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
+            amcs_status = self.csc.lower_level_status[MTDome.LlcName.AMCS.value]
             self.assertEqual(
                 amcs_status["status"]["status"],
-                LlcMotionState.STATIONARY.name,
+                MTDome.LlcMotionState.STATIONARY.name,
             )
 
-    async def test_do_setTemperature(self):
+    async def test_do_setTemperature(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -450,7 +451,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 timeout=STD_TIMEOUT,
             )
 
-    async def test_config(self):
+    async def test_config(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=None,
@@ -459,7 +460,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             # All values are below the limits.
-            system = LlcName.AMCS.value
+            system = MTDome.LlcName.AMCS.value
             settings = [
                 {"target": "jmax", "setting": [1.0]},
                 {"target": "amax", "setting": [0.5]},
@@ -468,7 +469,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.config_llcs(system, settings)
 
             # The value of AMCS amax is too high.
-            system = LlcName.AMCS.value
+            system = MTDome.LlcName.AMCS.value
             settings = [
                 {"target": "jmax", "setting": [1.0]},
                 {"target": "amax", "setting": [1.0]},
@@ -481,7 +482,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 pass
 
             # The value of AMCS amax is too low.
-            system = LlcName.AMCS.value
+            system = MTDome.LlcName.AMCS.value
             settings = [
                 {"target": "jmax", "setting": [1.0]},
                 {"target": "amax", "setting": [-0.5]},
@@ -494,7 +495,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 pass
 
             # The param AMCS smax doesn't exist.
-            system = LlcName.AMCS.value
+            system = MTDome.LlcName.AMCS.value
             settings = [
                 {"target": "jmax", "setting": [1.0]},
                 {"target": "amax", "setting": [0.5]},
@@ -508,7 +509,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 pass
 
             # No parameter can be missing.
-            system = LlcName.AMCS.value
+            system = MTDome.LlcName.AMCS.value
             settings = [
                 {"target": "jmax", "setting": [1.0]},
                 {"target": "amax", "setting": [0.5]},
@@ -519,7 +520,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             except KeyError:
                 pass
 
-    async def test_fans(self):
+    async def test_fans(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -539,11 +540,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
 
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
+            amcs_status = self.csc.lower_level_status[MTDome.LlcName.AMCS.value]
             self.assertEqual(amcs_status["status"]["status"], MotionState.STOPPED.name)
             self.assertEqual(amcs_status["status"]["fans"], MTDome.OnOff.ON.value)
 
-    async def test_inflate(self):
+    async def test_inflate(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY, config_dir=None, simulation_mode=1
         ):
@@ -563,11 +564,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
 
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
+            amcs_status = self.csc.lower_level_status[MTDome.LlcName.AMCS.value]
             self.assertEqual(amcs_status["status"]["status"], MotionState.STOPPED.name)
             self.assertEqual(amcs_status["status"]["inflate"], MTDome.OnOff.ON.value)
 
-    async def test_status(self):
+    async def test_status(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=None,
@@ -580,7 +581,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
+            amcs_status = self.csc.lower_level_status[MTDome.LlcName.AMCS.value]
             self.assertEqual(
                 amcs_status["status"]["status"],
                 MotionState.STOPPED.name,
@@ -596,29 +597,29 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             await self.csc.statusApSCS()
-            apscs_status = self.csc.lower_level_status[LlcName.APSCS.value]
+            apscs_status = self.csc.lower_level_status[MTDome.LlcName.APSCS.value]
             self.assertEqual(
                 apscs_status["status"],
                 MotionState.CLOSED.name,
             )
             self.assertEqual(
                 apscs_status["positionActual"],
-                0,
+                [0.0, 0.0],
             )
 
             await self.csc.statusLCS()
-            lcs_status = self.csc.lower_level_status[LlcName.LCS.value]
+            lcs_status = self.csc.lower_level_status[MTDome.LlcName.LCS.value]
             self.assertEqual(
                 lcs_status["status"],
-                [MotionState.CLOSED.name] * NUM_LOUVERS,
+                [MotionState.CLOSED.name] * MTDome.mock_llc.NUM_LOUVERS,
             )
             self.assertEqual(
                 lcs_status["positionActual"],
-                [0.0] * NUM_LOUVERS,
+                [0.0] * MTDome.mock_llc.NUM_LOUVERS,
             )
 
             await self.csc.statusLWSCS()
-            lwscs_status = self.csc.lower_level_status[LlcName.LWSCS.value]
+            lwscs_status = self.csc.lower_level_status[MTDome.LlcName.LWSCS.value]
             self.assertEqual(
                 lwscs_status["status"],
                 MotionState.STOPPED.name,
@@ -634,28 +635,28 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             await self.csc.statusMonCS()
-            moncs_status = self.csc.lower_level_status[LlcName.MONCS.value]
+            moncs_status = self.csc.lower_level_status[MTDome.LlcName.MONCS.value]
             self.assertEqual(
                 moncs_status["status"],
                 MotionState.CLOSED.name,
             )
             self.assertEqual(
                 moncs_status["data"],
-                [0.0] * NUM_MON_SENSORS,
+                [0.0] * MTDome.mock_llc.NUM_MON_SENSORS,
             )
 
             await self.csc.statusThCS()
-            thcs_status = self.csc.lower_level_status[LlcName.THCS.value]
+            thcs_status = self.csc.lower_level_status[MTDome.LlcName.THCS.value]
             self.assertEqual(
                 thcs_status["status"],
                 MotionState.CLOSED.name,
             )
             self.assertEqual(
                 thcs_status["temperature"],
-                [0.0] * NUM_THERMO_SENSORS,
+                [0.0] * MTDome.mock_llc.thcs.NUM_THERMO_SENSORS,
             )
 
-    async def test_status_error(self):
+    async def test_status_error(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=None,
@@ -672,7 +673,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             expected_fault_code = ", ".join(expected_error)
             self.csc.mock_ctrl.amcs.error = expected_error
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
+            amcs_status = self.csc.lower_level_status[MTDome.LlcName.AMCS.value]
             self.assertEqual(
                 amcs_status["status"]["status"],
                 MotionState.STOPPED.name,
@@ -691,7 +692,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 faultCode=expected_fault_code,
             )
 
-    async def test_exitFault(self):
+    async def test_exitFault(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=None,
@@ -712,39 +713,39 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.write_then_read_reply(command="exitFault")
 
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[LlcName.AMCS.value]
+            amcs_status = self.csc.lower_level_status[MTDome.LlcName.AMCS.value]
             self.assertEqual(
                 amcs_status["status"]["status"],
-                LlcMotionState.STATIONARY.name,
+                MTDome.LlcMotionState.STATIONARY.name,
             )
 
             await self.csc.statusApSCS()
-            apscs_status = self.csc.lower_level_status[LlcName.APSCS.value]
+            apscs_status = self.csc.lower_level_status[MTDome.LlcName.APSCS.value]
             self.assertEqual(
                 apscs_status["status"],
-                LlcMotionState.STATIONARY.name,
+                MTDome.LlcMotionState.STATIONARY.name,
             )
             self.assertEqual(
                 apscs_status["positionActual"],
-                0,
+                [0.0, 0.0],
             )
 
             await self.csc.statusLCS()
-            lcs_status = self.csc.lower_level_status[LlcName.LCS.value]
+            lcs_status = self.csc.lower_level_status[MTDome.LlcName.LCS.value]
             self.assertEqual(
                 lcs_status["status"],
-                [LlcMotionState.STATIONARY.name] * NUM_LOUVERS,
+                [MTDome.LlcMotionState.STATIONARY.name] * MTDome.mock_llc.NUM_LOUVERS,
             )
             self.assertEqual(
                 lcs_status["positionActual"],
-                [0.0] * NUM_LOUVERS,
+                [0.0] * MTDome.mock_llc.NUM_LOUVERS,
             )
 
             await self.csc.statusLWSCS()
-            lwscs_status = self.csc.lower_level_status[LlcName.LWSCS.value]
+            lwscs_status = self.csc.lower_level_status[MTDome.LlcName.LWSCS.value]
             self.assertEqual(
                 lwscs_status["status"],
-                LlcMotionState.STATIONARY.name,
+                MTDome.LlcMotionState.STATIONARY.name,
             )
             self.assertEqual(
                 lwscs_status["positionActual"],
@@ -752,26 +753,26 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             await self.csc.statusMonCS()
-            moncs_status = self.csc.lower_level_status[LlcName.MONCS.value]
+            moncs_status = self.csc.lower_level_status[MTDome.LlcName.MONCS.value]
             self.assertEqual(
                 moncs_status["status"],
-                LlcMotionState.STATIONARY.name,
+                MTDome.LlcMotionState.STATIONARY.name,
             )
             self.assertEqual(
                 moncs_status["data"],
-                [0.0] * NUM_MON_SENSORS,
+                [0.0] * MTDome.mock_llc.NUM_MON_SENSORS,
             )
 
             await self.csc.statusThCS()
-            thcs_status = self.csc.lower_level_status[LlcName.THCS.value]
+            thcs_status = self.csc.lower_level_status[MTDome.LlcName.THCS.value]
             self.assertEqual(
                 thcs_status["status"],
-                LlcMotionState.STATIONARY.name,
+                MTDome.LlcMotionState.STATIONARY.name,
             )
             self.assertEqual(
                 thcs_status["temperature"],
-                [0.0] * NUM_THERMO_SENSORS,
+                [0.0] * MTDome.mock_llc.NUM_THERMO_SENSORS,
             )
 
-    async def test_bin_script(self):
+    async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome.py")

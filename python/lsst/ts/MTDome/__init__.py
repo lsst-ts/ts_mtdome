@@ -19,16 +19,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-try:
-    from .version import *
-except ModuleNotFoundError:
+import typing
+
+# For an explanation why these next lines are so complicated, see
+# https://confluence.lsstcorp.org/pages/viewpage.action?spaceKey=LTS&title=Enabling+Mypy+in+Pytest
+if typing.TYPE_CHECKING:
     __version__ = "?"
+else:
+    try:
+        from .version import *
+    except ImportError:
+        __version__ = "?"
 
 from .config_schema import CONFIG_SCHEMA
-from .mtdome_csc import *
-from .llc_configuration_limits import *
+from .enums import LlcMotionState, LlcName, OnOff, ResponseCode
 from .mock_controller import *
-from .mock_llc import *
-from .on_off import OnOff
-from .response_code import ResponseCode
-from .llc_motion_state import LlcMotionState
+from .mtdome_csc import *
+
+from . import llc_configuration_limits
+from . import mock_llc
+from . import schema

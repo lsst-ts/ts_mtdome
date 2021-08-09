@@ -22,6 +22,7 @@
 __all__ = ["BaseMockStatus"]
 
 from abc import ABC, abstractmethod
+from typing import Any, Dict
 
 
 class BaseMockStatus(ABC):
@@ -29,14 +30,14 @@ class BaseMockStatus(ABC):
     controller when in simulator mode.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # dict to hold the status of the Lower Level Component.
-        self.llc_status = {}
+        self.llc_status: Dict[str, Any] = {}
         # time of the last executed command, in TAI Unix seconds
         self.command_time_tai = 0
 
     @abstractmethod
-    async def determine_status(self, current_tai):
+    async def determine_status(self, current_tai: float) -> None:
         """Abstract method that determines the status of the Lower Level
         Component to be implemented by all concrete sub-classes.
 

@@ -26,8 +26,9 @@ import numpy as np
 
 from lsst.ts import salobj
 from .base_mock_llc import BaseMockStatus
-from ..llc_motion_state import LlcMotionState
+from ..enums import LlcMotionState
 
+_NUM_SHUTTERS = 2
 _NUM_MOTORS = 4
 
 
@@ -36,12 +37,12 @@ class ApscsStatus(BaseMockStatus):
     simulation mode.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.log = logging.getLogger("MockApscsStatus")
         # variables holding the status of the mock Aperture Shutter
         self.status = LlcMotionState.CLOSED
-        self.position_actual = 0.0
+        self.position_actual = np.zeros(_NUM_SHUTTERS, dtype=float)
         self.position_commanded = 0.0
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
         self.drive_torque_commanded = np.zeros(_NUM_MOTORS, dtype=float)
@@ -51,7 +52,7 @@ class ApscsStatus(BaseMockStatus):
         self.resolver_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
         self.power_draw = 0.0
 
-    async def determine_status(self, current_tai):
+    async def determine_status(self, current_tai: float) -> None:
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
         """
@@ -62,7 +63,7 @@ class ApscsStatus(BaseMockStatus):
         )
         self.llc_status = {
             "status": self.status.name,
-            "positionActual": self.position_actual,
+            "positionActual": self.position_actual.tolist(),
             "positionCommanded": self.position_commanded,
             "driveTorqueActual": self.drive_torque_actual.tolist(),
             "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
@@ -75,35 +76,35 @@ class ApscsStatus(BaseMockStatus):
         }
         self.log.debug(f"apcs_state = {self.llc_status}")
 
-    async def openShutter(self):
+    async def openShutter(self) -> None:
         """Open the shutter."""
         self.log.debug("Received command 'openShutter'")
         self.command_time_tai = salobj.current_tai()
         self.status = LlcMotionState.OPEN
         # Both positions are expressed in percentage.
-        self.position_actual = 100.0
+        self.position_actual = np.full(_NUM_SHUTTERS, 100.0, dtype=float)
         self.position_commanded = 100.0
 
-    async def closeShutter(self):
+    async def closeShutter(self) -> None:
         """Close the shutter."""
         self.log.debug("Received command 'closeShutter'")
         self.command_time_tai = salobj.current_tai()
         self.status = LlcMotionState.CLOSED
         # Both positions are expressed in percentage.
-        self.position_actual = 0.0
+        self.position_actual = np.zeros(_NUM_SHUTTERS, dtype=float)
         self.position_commanded = 0.0
 
-    async def stopShutter(self):
+    async def stopShutter(self) -> None:
         """Stop all motion of the shutter."""
         self.log.debug("Received command 'stopShutter'")
         self.command_time_tai = salobj.current_tai()
         self.status = LlcMotionState.STOPPED
 
-    async def go_stationary(self):
+    async def go_stationary(self) -> None:
         """Stop shutter motion and engage the brakes."""
         self.command_time_tai = salobj.current_tai()
         self.status = LlcMotionState.STATIONARY
 
-    async def exit_fault(self):
+    async def exit_fault(self) -> None:
         """Clear the fault state."""
         self.status = LlcMotionState.STATIONARY

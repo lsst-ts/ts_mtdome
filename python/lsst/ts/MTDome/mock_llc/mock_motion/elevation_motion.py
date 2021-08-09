@@ -23,9 +23,10 @@ __all__ = ["ElevationMotion"]
 
 import logging
 import math
+from typing import Tuple
 
 from .base_llc_motion import BaseLlcMotion
-from ...llc_motion_state import LlcMotionState
+from ...enums import LlcMotionState
 import lsst.ts.salobj as salobj
 
 
@@ -60,7 +61,12 @@ class ElevationMotion(BaseLlcMotion):
     """
 
     def __init__(
-        self, start_position, min_position, max_position, max_speed, start_tai
+        self,
+        start_position: float,
+        min_position: float,
+        max_position: float,
+        max_speed: float,
+        start_tai: float,
     ):
         super().__init__(
             start_position=start_position,
@@ -71,7 +77,9 @@ class ElevationMotion(BaseLlcMotion):
         )
         self.log = logging.getLogger("MockPointToPointActuator")
 
-    def get_position_velocity_and_motion_state(self, tai):
+    def get_position_velocity_and_motion_state(
+        self, tai: float
+    ) -> Tuple[float, float, LlcMotionState]:
         """Computes the position and `LlcMotionState` for the given TAI time.
 
         Parameters
@@ -99,14 +107,14 @@ class ElevationMotion(BaseLlcMotion):
             ]:
                 motion_state = LlcMotionState.STOPPED
                 position = self._end_position
-                velocity = 0
+                velocity = 0.0
             elif self._commanded_motion_state in [
                 LlcMotionState.GO_STATIONARY,
                 LlcMotionState.STATIONARY,
             ]:
                 motion_state = LlcMotionState.STATIONARY
                 position = self._end_position
-                velocity = 0
+                velocity = 0.0
             else:
                 diff_since_crawl_started = tai - self._end_tai
                 position = (
@@ -118,12 +126,12 @@ class ElevationMotion(BaseLlcMotion):
                 if position >= self._max_position:
                     position = self._max_position
                     motion_state = LlcMotionState.STOPPED
-                    velocity = 0
+                    velocity = 0.0
                 elif position <= self._min_position:
                     position = self._min_position
                     motion_state = LlcMotionState.STOPPED
-                    velocity = 0
-                if self._crawl_velocity == 0:
+                    velocity = 0.0
+                if self._crawl_velocity == 0.0:
                     if self._commanded_motion_state in [
                         LlcMotionState.STOPPING,
                         LlcMotionState.STOPPED,
@@ -135,7 +143,7 @@ class ElevationMotion(BaseLlcMotion):
                     ]:
                         motion_state = LlcMotionState.STATIONARY
 
-                    velocity = 0
+                    velocity = 0.0
         elif tai < self._start_tai:
             raise ValueError(
                 f"Encountered TAI {tai} which is smaller than start TAI {self._start_tai}"
@@ -145,21 +153,21 @@ class ElevationMotion(BaseLlcMotion):
             distance = self._get_distance()
             position = self._start_position + distance * frac_time
             velocity = self._max_speed
-            if distance < 0:
+            if distance < 0.0:
                 velocity = -self._max_speed
             if self._commanded_motion_state == LlcMotionState.STOPPING:
                 motion_state = LlcMotionState.STOPPED
-                velocity = 0
+                velocity = 0.0
             elif self._commanded_motion_state == LlcMotionState.GO_STATIONARY:
                 motion_state = LlcMotionState.STATIONARY
-                velocity = 0
+                velocity = 0.0
             else:
                 motion_state = LlcMotionState.MOVING
 
         position = salobj.angle_wrap_nonnegative(math.degrees(position)).rad
         return position, velocity, motion_state
 
-    def stop(self, start_tai):
+    def stop(self, start_tai: float) -> None:
         """Stops the current motion.
 
         Parameters
@@ -178,7 +186,7 @@ class ElevationMotion(BaseLlcMotion):
         self._crawl_velocity = 0
         self._commanded_motion_state = LlcMotionState.STOPPING
 
-    def go_stationary(self, start_tai):
+    def go_stationary(self, start_tai: float) -> None:
         """Go to stationary state.
 
         Parameters
@@ -194,10 +202,10 @@ class ElevationMotion(BaseLlcMotion):
         self._start_tai = start_tai
         self._start_position = position
         self._end_position = position
-        self._crawl_velocity = 0
+        self._crawl_velocity = 0.0
         self._commanded_motion_state = LlcMotionState.GO_STATIONARY
 
-    def park(self, start_tai):
+    def park(self, start_tai: float) -> float:
         """Not used for the elevation motion.
 
         Parameters
@@ -214,7 +222,7 @@ class ElevationMotion(BaseLlcMotion):
         """
         raise NotImplementedError("The Light and Wind Screen cannot be parked.")
 
-    def exit_fault(self, start_tai):
+    def exit_fault(self, start_tai: float) -> None:
         """Clear the fault state.
 
         Parameters
@@ -230,5 +238,5 @@ class ElevationMotion(BaseLlcMotion):
         self._start_tai = start_tai
         self._start_position = position
         self._end_position = position
-        self._crawl_velocity = 0
+        self._crawl_velocity = 0.0
         self._commanded_motion_state = LlcMotionState.GO_STATIONARY

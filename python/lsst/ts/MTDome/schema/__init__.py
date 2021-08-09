@@ -19,15 +19,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["LlcName"]
+from .amcs_status import *
+from .apscs_status import *
+from .command import *
+from .lcs_status import *
+from .lwscs_status import *
+from .moncs_status import *
+from .response import *
+from .thcs_status import *
 
-import enum
-
-
-class LlcName(enum.Enum):
-    AMCS = "AMCS"
-    APSCS = "ApSCS"
-    LCS = "LCS"
-    LWSCS = "LWSCS"
-    MONCS = "MonCS"
-    THCS = "ThCS"
+from .registry import *

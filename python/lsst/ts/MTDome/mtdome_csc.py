@@ -23,16 +23,16 @@ __all__ = ["MTDomeCsc"]
 
 import asyncio
 import math
+from types import SimpleNamespace
+from typing import Any, Callable, Dict, List, Optional
 
 from .config_schema import CONFIG_SCHEMA
 from . import __version__
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
-from .llc_name import LlcName
+from .enums import LlcMotionState, LlcName, ResponseCode
 from lsst.ts import salobj
 from lsst.ts.MTDome import encoding_tools
 from .mock_controller import MockMTDomeController
-from .response_code import ResponseCode
-from .llc_motion_state import LlcMotionState
 from lsst.ts.idl.enums.MTDome import EnabledState, MotionState
 
 _LOCAL_HOST = "127.0.0.1"
@@ -87,16 +87,18 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
     def __init__(
         self,
-        config_dir=None,
-        initial_state=salobj.State.STANDBY,
-        simulation_mode=0,
-        mock_port=None,
-    ):
-        self.reader = None
-        self.writer = None
-        self.config = None
+        config_dir: Optional[str] = None,
+        initial_state: salobj.State = salobj.State.STANDBY,
+        simulation_mode: int = 0,
+        mock_port: Optional[int] = None,
+    ) -> None:
+        self.reader: Optional[asyncio.StreamReader] = None
+        self.writer: Optional[asyncio.StreamWriter] = None
+        self.config: Optional[SimpleNamespace] = None
 
-        self.mock_ctrl = None  # mock controller, or None if not constructed
+        self.mock_ctrl: Optional[
+            MockMTDomeController
+        ] = None  # mock controller, or None if not constructed
         self.mock_port = mock_port  # mock port, or None if not used
 
         super().__init__(
@@ -109,8 +111,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
 
         # Keep the lower level statuses in memory for unit tests.
-        self.lower_level_status = {}
-        self.status_tasks = []
+        self.lower_level_status: Dict[str, Any] = {}
+        self.status_tasks: List[asyncio.Future] = []
 
         # Keep a lock so only one remote command can be executed at a time.
         self.communication_lock = asyncio.Lock()
@@ -119,7 +121,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.lwscs_limits = LwscsLimits()
         self.log.info("DomeCsc constructed")
 
-    async def connect(self):
+    async def connect(self) -> None:
         """Connect to the dome controller's TCP/IP port.
 
         Start the mock controller, if simulating.
@@ -134,6 +136,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if self.simulation_mode == 1:
             await self.start_mock_ctrl()
             host = _LOCAL_HOST
+            assert self.mock_ctrl is not None
             port = self.mock_ctrl.port
         else:
             host = self.config.host
@@ -161,12 +164,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         self.log.info("connected")
 
-    async def cancel_status_tasks(self):
+    async def cancel_status_tasks(self) -> None:
         """Cancel all status tasks."""
         while self.status_tasks:
             self.status_tasks.pop().cancel()
 
-    async def start_status_tasks(self):
+    async def start_status_tasks(self) -> None:
         """Start all status tasks."""
         await self.cancel_status_tasks()
         for method, interval in (
@@ -181,7 +184,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 asyncio.create_task(self.one_status_loop(method, interval))
             )
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Disconnect from the TCP/IP controller, if connected, and stop the
         mock controller, if running.
         """
@@ -202,7 +205,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             finally:
                 writer.close()
 
-    async def start_mock_ctrl(self):
+    async def start_mock_ctrl(self) -> None:
         """Start the mock controller.
 
         The simulation mode must be 1.
@@ -213,6 +216,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             if self.mock_port is not None:
                 port = self.mock_port
             else:
+                assert self.config is not None
                 port = self.config.port
             self.mock_ctrl = MockMTDomeController(port)
             await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
@@ -223,7 +227,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             self.fault(code=3, report=f"{err_msg}: {e}")
             raise
 
-    async def stop_mock_ctrl(self):
+    async def stop_mock_ctrl(self) -> None:
         """Stop the mock controller, if running."""
         self.log.info("stop_mock_ctrl")
         mock_ctrl = self.mock_ctrl
@@ -231,7 +235,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if mock_ctrl:
             await mock_ctrl.stop()
 
-    async def handle_summary_state(self):
+    async def handle_summary_state(self) -> None:
         """Override of the handle_summary_state function to connect or
         disconnect to the lower level components (or the mock_controller) when
         needed.
@@ -243,7 +247,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.disconnect()
 
-    async def write_then_read_reply(self, command, **params):
+    async def write_then_read_reply(
+        self, command: str, **params: Any
+    ) -> Dict[str, Any]:
         """Write the cmd string and then read the reply to the command.
 
         Parameters
@@ -264,12 +270,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         st = encoding_tools.encode(**command_dict)
         async with self.communication_lock:
             self.log.debug(f"Sending command {st}")
+            assert self.writer is not None
             self.writer.write(st.encode() + b"\r\n")
             await self.writer.drain()
+            assert self.reader is not None
             read_bytes = await asyncio.wait_for(
                 self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
             )
-            data = encoding_tools.decode(read_bytes.decode())
+            data: Dict[str, Any] = encoding_tools.decode(read_bytes.decode())
             self.log.debug(f"Received reply {data}")
 
             response = data["response"]
@@ -284,7 +292,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
             return data
 
-    async def do_moveAz(self, data):
+    async def do_moveAz(self, data: SimpleNamespace) -> None:
         """Move AZ.
 
         Parameters
@@ -303,7 +311,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         self.evt_azTarget.set_put(position=data.position, velocity=data.velocity)
 
-    async def do_moveEl(self, data):
+    async def do_moveEl(self, data: SimpleNamespace) -> None:
         """Move El.
 
         Parameters
@@ -318,7 +326,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         self.evt_elTarget.set_put(position=data.position, velocity=0)
 
-    async def do_stopAz(self, data):
+    async def do_stopAz(self, data: SimpleNamespace) -> None:
         """Stop AZ motion and engage the brakes if indicated in the data.
         Also disengage the locking pins if engaged.
 
@@ -333,7 +341,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.write_then_read_reply(command="stopAz")
 
-    async def do_stopEl(self, data):
+    async def do_stopEl(self, data: SimpleNamespace) -> None:
         """Stop EL motion and engage the brakes if indicated in the data.
         Also disengage the locking pins if engaged.
 
@@ -348,7 +356,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.write_then_read_reply(command="stopEl")
 
-    async def do_stop(self, data):
+    async def do_stop(self, data: SimpleNamespace) -> None:
         """Stop all motion and engage the brakes if indicated in the data.
         Also disengage the locking pins if engaged.
 
@@ -363,7 +371,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.write_then_read_reply(command="stop")
 
-    async def do_crawlAz(self, data):
+    async def do_crawlAz(self, data: SimpleNamespace) -> None:
         """Crawl AZ.
 
         Parameters
@@ -377,7 +385,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         self.evt_azTarget.set_put(position=float("nan"), velocity=data.velocity)
 
-    async def do_crawlEl(self, data):
+    async def do_crawlEl(self, data: SimpleNamespace) -> None:
         """Crawl El.
 
         Parameters
@@ -391,7 +399,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         self.evt_elTarget.set_put(position=float("nan"), velocity=data.velocity)
 
-    async def do_setLouvers(self, data):
+    async def do_setLouvers(self, data: SimpleNamespace) -> None:
         """Set Louver.
 
         Parameters
@@ -402,7 +410,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         await self.write_then_read_reply(command="setLouvers", position=data.position)
 
-    async def do_closeLouvers(self, data):
+    async def do_closeLouvers(self, data: SimpleNamespace) -> None:
         """Close Louvers.
 
         Parameters
@@ -413,7 +421,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         await self.write_then_read_reply(command="closeLouvers")
 
-    async def do_stopLouvers(self, data):
+    async def do_stopLouvers(self, data: SimpleNamespace) -> None:
         """Stop Louvers motion and engage the brakes if indicated in the data.
         Also disengage the locking pins if engaged.
 
@@ -428,7 +436,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.write_then_read_reply(command="stopLouvers")
 
-    async def do_openShutter(self, data):
+    async def do_openShutter(self, data: SimpleNamespace) -> None:
         """Open Shutter.
 
         Parameters
@@ -439,7 +447,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         await self.write_then_read_reply(command="openShutter")
 
-    async def do_closeShutter(self, data):
+    async def do_closeShutter(self, data: SimpleNamespace) -> None:
         """Close Shutter.
 
         Parameters
@@ -450,7 +458,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         await self.write_then_read_reply(command="closeShutter")
 
-    async def do_stopShutter(self, data):
+    async def do_stopShutter(self, data: SimpleNamespace) -> None:
         """Stop Shutter motion and engage the brakes if indicated in the data.
         Also disengage the locking pins if engaged.
 
@@ -465,7 +473,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.write_then_read_reply(command="stopShutter")
 
-    async def do_park(self, data):
+    async def do_park(self, data: SimpleNamespace) -> None:
         """Park, meaning stop all motion and engage the brakes and locking
         pins.
 
@@ -478,7 +486,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.write_then_read_reply(command="park")
         self.evt_azTarget.set_put(position=0, velocity=0)
 
-    async def do_setTemperature(self, data):
+    async def do_setTemperature(self, data: SimpleNamespace) -> None:
         """Set Temperature.
 
         Parameters
@@ -491,7 +499,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command="setTemperature", temperature=data.temperature
         )
 
-    async def do_exitFault(self, data):
+    async def do_exitFault(self, data: SimpleNamespace) -> None:
         """Indicate that all hardware errors, leading to fault state, have been
         resolved.
 
@@ -503,7 +511,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         await self.write_then_read_reply(command="exitFault")
 
-    async def config_llcs(self, system, settings):
+    async def config_llcs(self, system: str, settings: Dict[str, float]) -> None:
         """Config command not to be executed by SAL.
 
         This command will be used to send the values of one or more parameters
@@ -523,9 +531,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         """
         self.log.info(f"Settings before validation {settings}")
-        if system == LlcName.AMCS.value:
+        if system == LlcName.AMCS:
             self.amcs_limits.validate(settings)
-        elif system == LlcName.LWSCS.value:
+        elif system == LlcName.LWSCS:
             self.lwscs_limits.validate(settings)
         self.log.info(f"Settings after validation {settings}")
 
@@ -533,10 +541,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command="config", system=system, settings=settings
         )
 
-    async def restore_llcs(self):
+    async def restore_llcs(self) -> None:
         await self.write_then_read_reply(command="restore")
 
-    async def fans(self, data):
+    async def fans(self, data: Dict[str, Any]) -> None:
         """Fans command not to be executed by SAL.
 
         This command will be used to switch on or off the fans in the dome.
@@ -550,7 +558,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.write_then_read_reply(command="fans", action=data["action"])
 
-    async def inflate(self, data):
+    async def inflate(self, data: Dict[str, Any]) -> None:
         """Inflate command not to be executed by SAL.
 
         This command will be used to inflate or deflate the inflatable seal.
@@ -564,7 +572,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.write_then_read_reply(command="inflate", action=data["action"])
 
-    async def statusAMCS(self):
+    async def statusAMCS(self) -> None:
         """AMCS status command not to be executed by SAL.
 
         This command will be used to request the full status of the AMCS lower
@@ -572,7 +580,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.request_and_send_llc_status(LlcName.AMCS, self.tel_azimuth)
 
-    async def statusApSCS(self):
+    async def statusApSCS(self) -> None:
         """ApSCS status command not to be executed by SAL.
 
         This command will be used to request the full status of the ApSCS lower
@@ -580,7 +588,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.request_and_send_llc_status(LlcName.APSCS, self.tel_apertureShutter)
 
-    async def statusLCS(self):
+    async def statusLCS(self) -> None:
         """LCS status command not to be executed by SAL.
 
         This command will be used to request the full status of the LCS lower
@@ -588,7 +596,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.request_and_send_llc_status(LlcName.LCS, self.tel_louvers)
 
-    async def statusLWSCS(self):
+    async def statusLWSCS(self) -> None:
         """LWSCS status command not to be executed by SAL.
 
         This command will be used to request the full status of the LWSCS lower
@@ -596,7 +604,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.request_and_send_llc_status(LlcName.LWSCS, self.tel_lightWindScreen)
 
-    async def statusMonCS(self):
+    async def statusMonCS(self) -> None:
         """MonCS status command not to be executed by SAL.
 
         This command will be used to request the full status of the MonCS lower
@@ -604,7 +612,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.request_and_send_llc_status(LlcName.MONCS, self.tel_interlocks)
 
-    async def statusThCS(self):
+    async def statusThCS(self) -> None:
         """ThCS status command not to be executed by SAL.
 
         This command will be used to request the full status of the ThCS lower
@@ -612,7 +620,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.request_and_send_llc_status(LlcName.THCS, self.tel_thermal)
 
-    async def request_and_send_llc_status(self, llc_name, topic):
+    async def request_and_send_llc_status(
+        self, llc_name: LlcName, topic: SimpleNamespace
+    ) -> None:
         """Generic method for retrieving the status of a lower level component
         and publish that on the corresponding telemetry topic.
 
@@ -624,13 +634,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The SAL topic to publish the telemetry to.
 
         """
-        command = f"status{llc_name.value}"
-        status = await self.write_then_read_reply(command=command)
+        command = f"status{llc_name}"
+        status: Dict[str, Any] = await self.write_then_read_reply(command=command)
         # Store the status for unit tests.
-        self.lower_level_status[llc_name.value] = status[llc_name.value]
+        self.lower_level_status[llc_name] = status[llc_name]
 
-        telemetry_in_degrees = {}
-        telemetry_in_radians = status[llc_name.value]
+        telemetry_in_degrees: Dict[str, Any] = {}
+        telemetry_in_radians: Dict[str, Any] = status[llc_name]
         for key in telemetry_in_radians.keys():
             if key in _KEYS_IN_RADIANS and llc_name in [LlcName.AMCS, LlcName.LWSCS]:
                 telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
@@ -643,13 +653,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 # angle
                 telemetry_in_degrees[key] = telemetry_in_radians[key]
         # Remove some keys because they are not reported in the telemetry.
-        telemetry = self.remove_keys_from_dict(telemetry_in_degrees)
+        telemetry: Dict[str, Any] = self.remove_keys_from_dict(telemetry_in_degrees)
         # Send the telemetry.
         self.send_telemetry(telemetry, topic)
 
         # DM-26374: Check for errors and send the events.
         if llc_name == LlcName.AMCS:
-            status = status[llc_name.value]["status"]
+            status = status[llc_name]["status"]
             # The error codes will be specified in a future Dome Software
             # meeting.
             if status["error"] != ["No Error"]:
@@ -672,7 +682,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     in_position = True
                 self.evt_azMotion.set_put(state=motion_state, inPosition=in_position)
         elif llc_name == LlcName.LWSCS:
-            state = status[llc_name.value]["status"]
+            state = status[llc_name]["status"]
             if state == LlcMotionState.STATIONARY.name:
                 motion_state = MotionState.STOPPED_BRAKED
             else:
@@ -685,8 +695,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 in_position = True
             self.evt_elMotion.set_put(state=motion_state, inPosition=in_position)
 
-    # noinspection PyMethodMayBeStatic
-    def remove_keys_from_dict(self, dict_with_too_many_keys):
+    def remove_keys_from_dict(
+        self, dict_with_too_many_keys: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Return a copy of a dict with specified items removed.
 
@@ -708,8 +719,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         }
         return dict_with_keys_removed
 
-    # noinspection PyMethodMayBeStatic
-    def send_telemetry(self, telemetry, topic):
+    def send_telemetry(self, telemetry: Dict[str, Any], topic: SimpleNamespace) -> None:
         """Prepares the telemetry for sending using the provided status and
         sends it.
 
@@ -723,17 +733,17 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # Remove some keys because they are not reported in the telemetry.
         topic.set_put(**telemetry)
 
-    async def close_tasks(self):
+    async def close_tasks(self) -> None:
         """Disconnect from the TCP/IP controller, if connected, and stop
         the mock controller, if running.
         """
         await super().close_tasks()
         await self.disconnect()
 
-    async def configure(self, config):
+    async def configure(self, config: SimpleNamespace) -> None:
         self.config = config
 
-    async def one_status_loop(self, method, interval):
+    async def one_status_loop(self, method: Callable, interval: float) -> None:
         """Run one status method forever at the specified interval.
 
         Parameters
@@ -752,11 +762,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             self.log.exception(f"one_status_loop({method}) failed")
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         if None in (self.reader, self.writer):
             return False
         return True
 
     @staticmethod
-    def get_config_pkg():
+    def get_config_pkg() -> str:
         return "ts_config_mttcs"

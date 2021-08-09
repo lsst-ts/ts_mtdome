@@ -19,12 +19,52 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["OnOff"]
+import json
 
-import enum
+from .registry import registry
 
-
-class OnOff(enum.Enum):
-
-    ON = True
-    OFF = False
+registry["MONCS"] = json.loads(
+    """
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "response": {
+      "type": "number"
+    },
+    "MonCS": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "data": {
+          "type": "array",
+          "minItems": 16,
+          "maxItems": 16,
+          "items": [
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "timestampUTC": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "status",
+        "data",
+        "timestampUTC"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "response",
+    "MonCS"
+  ],
+  "additionalProperties": false
+}
+    """
+)

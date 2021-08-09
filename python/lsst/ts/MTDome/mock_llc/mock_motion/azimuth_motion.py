@@ -23,9 +23,10 @@ __all__ = ["AzimuthMotion"]
 
 import logging
 import math
+from typing import Tuple
 
 from .base_llc_motion import BaseLlcMotion
-from ...llc_motion_state import LlcMotionState
+from ...enums import LlcMotionState
 import lsst.ts.salobj as salobj
 
 
@@ -52,19 +53,25 @@ class AzimuthMotion(BaseLlcMotion):
     the azimuth motion/crawl can be stopped and the dome can be parked.
     """
 
-    def __init__(self, start_position, max_speed, start_tai):
+    def __init__(
+        self, start_position: float, max_speed: float, start_tai: float
+    ) -> None:
         super().__init__(
             start_position=start_position,
-            min_position=0,
-            max_position=2 * math.pi,
+            min_position=0.0,
+            max_position=2.0 * math.pi,
             max_speed=max_speed,
             start_tai=start_tai,
         )
         self.log = logging.getLogger("MockCircularCrawlingActuator")
 
     def set_target_position_and_velocity(
-        self, start_tai, end_position, crawl_velocity, motion_state
-    ):
+        self,
+        start_tai: float,
+        end_position: float,
+        crawl_velocity: float,
+        motion_state: LlcMotionState,
+    ) -> float:
         """Sets the end_position and crawl velocity and returns the duration
         of the move.
 
@@ -113,7 +120,9 @@ class AzimuthMotion(BaseLlcMotion):
         self._end_tai = self._start_tai + duration
         return duration
 
-    def get_position_velocity_and_motion_state(self, tai):
+    def get_position_velocity_and_motion_state(
+        self, tai: float
+    ) -> Tuple[float, float, LlcMotionState]:
         """Computes the position and `LlcMotionState` for the given TAI time.
 
         Parameters
@@ -140,21 +149,21 @@ class AzimuthMotion(BaseLlcMotion):
             ]:
                 motion_state = LlcMotionState.PARKED
                 position = self._end_position
-                velocity = 0
+                velocity = 0.0
             elif self._commanded_motion_state in [
                 LlcMotionState.STOPPING,
                 LlcMotionState.STOPPED,
             ]:
                 motion_state = LlcMotionState.STOPPED
                 position = self._end_position
-                velocity = 0
+                velocity = 0.0
             elif self._commanded_motion_state in [
                 LlcMotionState.GO_STATIONARY,
                 LlcMotionState.STATIONARY,
             ]:
                 motion_state = LlcMotionState.STATIONARY
                 position = self._end_position
-                velocity = 0
+                velocity = 0.0
             else:
                 diff_since_crawl_started = tai - self._end_tai
                 calculation_position = self._end_position
@@ -166,7 +175,7 @@ class AzimuthMotion(BaseLlcMotion):
                 )
                 motion_state = LlcMotionState.CRAWLING
                 velocity = self._crawl_velocity
-                if self._crawl_velocity == 0:
+                if self._crawl_velocity == 0.0:
                     if self._commanded_motion_state in [
                         LlcMotionState.STOPPING,
                         LlcMotionState.STOPPED,
@@ -178,7 +187,7 @@ class AzimuthMotion(BaseLlcMotion):
                         LlcMotionState.STATIONARY,
                     ]:
                         motion_state = LlcMotionState.STATIONARY
-                    velocity = 0
+                    velocity = 0.0
         elif tai < self._start_tai:
             raise ValueError(
                 f"Encountered TAI {tai} which is smaller than start TAI {self._start_tai}"
@@ -188,23 +197,23 @@ class AzimuthMotion(BaseLlcMotion):
             distance = self._get_distance()
             position = self._start_position + distance * frac_time
             velocity = self._max_speed
-            if distance < 0:
+            if distance < 0.0:
                 velocity = -self._max_speed
             if self._commanded_motion_state == LlcMotionState.PARKING:
                 motion_state = LlcMotionState.PARKING
             elif self._commanded_motion_state == LlcMotionState.STOPPING:
                 motion_state = LlcMotionState.STOPPED
-                velocity = 0
+                velocity = 0.0
             elif self._commanded_motion_state == LlcMotionState.GO_STATIONARY:
                 motion_state = LlcMotionState.STATIONARY
-                velocity = 0
+                velocity = 0.0
             else:
                 motion_state = LlcMotionState.MOVING
 
         position = salobj.angle_wrap_nonnegative(math.degrees(position)).rad
         return position, velocity, motion_state
 
-    def stop(self, start_tai):
+    def stop(self, start_tai: float) -> None:
         """Stops the current.
 
         Parameters
@@ -220,10 +229,10 @@ class AzimuthMotion(BaseLlcMotion):
         self._start_tai = start_tai
         self._start_position = position
         self._end_position = position
-        self._crawl_velocity = 0
+        self._crawl_velocity = 0.0
         self._commanded_motion_state = LlcMotionState.STOPPING
 
-    def go_stationary(self, start_tai):
+    def go_stationary(self, start_tai: float) -> None:
         """Go to stationary state.
 
         Parameters
@@ -239,10 +248,10 @@ class AzimuthMotion(BaseLlcMotion):
         self._start_tai = start_tai
         self._start_position = position
         self._end_position = position
-        self._crawl_velocity = 0
+        self._crawl_velocity = 0.0
         self._commanded_motion_state = LlcMotionState.GO_STATIONARY
 
-    def park(self, start_tai):
+    def park(self, start_tai: float) -> float:
         """Parks the dome.
 
         Parameters
@@ -257,13 +266,13 @@ class AzimuthMotion(BaseLlcMotion):
         )
         self._start_tai = start_tai
         self._start_position = position
-        self._end_position = 0
-        self._crawl_velocity = 0
+        self._end_position = 0.0
+        self._crawl_velocity = 0.0
         self._commanded_motion_state = LlcMotionState.PARKING
         self._end_tai = self._start_tai + self._get_duration()
         return self._end_tai
 
-    def exit_fault(self, start_tai):
+    def exit_fault(self, start_tai: float) -> None:
         """Clear the fault state.
 
         Parameters
@@ -279,5 +288,5 @@ class AzimuthMotion(BaseLlcMotion):
         self._start_tai = start_tai
         self._start_position = position
         self._end_position = position
-        self._crawl_velocity = 0
+        self._crawl_velocity = 0.0
         self._commanded_motion_state = LlcMotionState.GO_STATIONARY
