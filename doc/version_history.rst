@@ -6,6 +6,21 @@
 Version History
 ###############
 
+v1.3.0
+======
+
+Changes:
+
+* Changed the ApSCS positionActual from one to two values.
+* Added type annotations.
+* Rewrote the way the JSON schemas are loaded.
+
+Requires:
+
+* ts_salobj 6.3
+* ts_idl
+* IDL file for MTDome from ts_xml 9.2
+
 v1.2.0
 ======
 
