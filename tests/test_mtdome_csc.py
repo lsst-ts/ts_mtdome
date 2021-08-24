@@ -666,12 +666,14 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Introduce an error. This will be improved once error codes have
             # been specified in a future Dome Software meeting.
-            expected_error = [
-                "Drive 1 temperature too high",
-                "Drive 2 temperature too high",
+            expected_errors = [
+                {"code": 100, "description": "Drive 1 temperature too high"},
+                {"code": 100, "description": "Drive 2 temperature too high"},
             ]
-            expected_fault_code = ", ".join(expected_error)
-            self.csc.mock_ctrl.amcs.error = expected_error
+            expected_fault_code = ", ".join(
+                [f"{error['code']}={error['description']}" for error in expected_errors]
+            )
+            self.csc.mock_ctrl.amcs.error = expected_errors
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[MTDome.LlcName.AMCS.value]
             self.assertEqual(
@@ -680,7 +682,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             self.assertEqual(
                 amcs_status["status"]["error"],
-                expected_error,
+                expected_errors,
             )
             self.assertEqual(
                 amcs_status["positionActual"],

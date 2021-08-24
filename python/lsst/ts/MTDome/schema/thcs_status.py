@@ -26,7 +26,7 @@ from .registry import registry
 
 __all__: typing.List[str] = []
 
-registry["THCS"] = json.loads(
+registry["ThCS"] = json.loads(
     """
 {
   "$schema": "http://json-schema.org/draft-07/schema#",

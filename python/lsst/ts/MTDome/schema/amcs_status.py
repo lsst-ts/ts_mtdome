@@ -47,9 +47,22 @@ registry["AMCS"] = json.loads(
               "maxItems": 5,
               "items": [
                 {
-                  "type": "string"
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "number"
+                    },
+                    "description": {
+                      "type": "string"
+                    }
+                  }
                 }
-              ]
+              ],
+              "required": [
+                "code",
+                "description"
+              ],
+              "additionalProperties": false
             },
             "status": {
               "type": "string"

@@ -68,7 +68,7 @@ class AmcsStatus(BaseMockStatus):
         # variables holding the status of the mock AZ motion. The error codes
         # will be specified in a future Dome Software meeting.
         self.status = LlcMotionState.STOPPED
-        self.error = ["No Error"]
+        self.error = [{"code": 0, "description": "No Errors"}]
         self.fans_enabled = OnOff.OFF
         self.seal_inflated = OnOff.OFF
         self.position_commanded = PARK_POSITION
