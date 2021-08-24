@@ -26,7 +26,7 @@ from .registry import registry
 
 __all__: typing.List[str] = []
 
-registry["RESPONSE"] = json.loads(
+registry["timeout"] = json.loads(
     """
 {
   "$schema": "http://json-schema.org/draft-07/schema#",

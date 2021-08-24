@@ -367,8 +367,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Introduce an error. This will be improved once error codes have been
         # specified in a future Dome Software meeting.
         expected_error = [
-            "Drive 1 temperature too high",
-            "Drive 2 temperature too high",
+            {"code": 100, "description": "Drive 1 temperature too high"},
+            {"code": 100, "description": "Drive 2 temperature too high"},
         ]
         assert self.mock_ctrl is not None
         self.mock_ctrl.amcs.error = expected_error

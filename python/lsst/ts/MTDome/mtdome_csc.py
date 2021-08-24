@@ -660,10 +660,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # DM-26374: Check for errors and send the events.
         if llc_name == LlcName.AMCS:
             status = status[llc_name]["status"]
-            # The error codes will be specified in a future Dome Software
-            # meeting.
-            if status["error"] != ["No Error"]:
-                fault_code = ", ".join(status["error"])
+            errors = status["error"]
+            codes = [error["code"] for error in errors]
+            if len(errors) != 1 or codes[0] != 0:
+                fault_code = ", ".join(
+                    [f"{error['code']}={error['description']}" for error in errors]
+                )
                 self.evt_azEnabled.set_put(
                     state=EnabledState.FAULT, faultCode=fault_code
                 )

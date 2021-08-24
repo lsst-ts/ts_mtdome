@@ -80,34 +80,6 @@ Status commands, similarly, look like this
       "parameters": {}
     }
 
-and a reply to the statusAMCS command should look like this
-
-.. code-block:: json
-
-   {
-     "response": 0,
-     "AMCS": {
-       "status": {
-         "Error": ["No Errors"],
-         "status": "Stopped",
-         "Fans": "On",
-         "Inflate": "On"
-       },
-       "positionActual": 0,
-       "positionCommanded": 0,
-       "velocityActual": 0,
-       "velocityCommmanded": 0,
-       "driveTorqueActual": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "driveTorqueCommanded": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "driveCurrentActual": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "driveTemperature": [20.0, 20.0, 20.0, 20.0, 20.0],
-       "encoderHeadRaw": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "encoderHeadCalibrated": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "resolverRaw": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "resolverCalibrated": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "timestamp": 0
-     }
-   }
 
 Configuration Protocol
 ----------------------
