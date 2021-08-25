@@ -1,6 +1,6 @@
-.. py:currentmodule:: lsst.ts.MTDome
+.. py:currentmodule:: lsst.ts.mtdome
 
-.. _lsst.ts.MTDome.version_history:
+.. _lsst.ts.mtdome.version_history:
 
 ###############
 Version History
@@ -15,6 +15,8 @@ Changes:
 * Added type annotations.
 * Rewrote the way the JSON schemas are loaded.
 * Updated the error part of the AMCS status reply.
+* Renamed the project to ts_mtdome.
+* Renamed the top level Python module to lsst.ts.mtdome.
 
 Requires:
 

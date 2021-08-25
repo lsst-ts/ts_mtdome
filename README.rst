@@ -1,8 +1,8 @@
 #########
-ts_MTDome
+ts_mtdome
 #########
 
-``ts_MTDome`` is a Commandable SAL Component (CSC) to control the dome for the Simonyi Survey Telescope at the Vera C. Rubin Observatory.
+``ts_mtdome`` is a Commandable SAL Component (CSC) to control the dome for the Simonyi Survey Telescope at the Vera C. Rubin Observatory.
 
 `Documentation <https://ts-mtdome.lsst.io>`_
 

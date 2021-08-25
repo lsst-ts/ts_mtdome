@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# This file is part of ts_MTDome.
+# This file is part of ts_mtdome.
 #
 # Developed for the Vera Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
@@ -21,10 +21,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+
 import asyncio
 import logging
 
-from lsst.ts import MTDome
+from lsst.ts import mtdome
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s",
@@ -32,4 +33,4 @@ logging.basicConfig(
 )
 
 
-asyncio.run(MTDome.MTDomeCsc.amain(index=None))
+asyncio.run(mtdome.MTDomeCsc.amain(index=None))

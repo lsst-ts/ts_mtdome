@@ -1,16 +1,16 @@
-.. py:currentmodule:: lsst.ts.MTDome
+.. py:currentmodule:: lsst.ts.mtdome
 
-.. _lsst.ts.MTDome:
+.. _lsst.ts.mtdome:
 
 ##############
-lsst.ts.MTDome
+lsst.ts.mtdome
 ##############
 
 Controller for the Simonyi Survey Telescope dome at Vera C. Rubin Observatory.
 
-.. _lsst.ts.MTDome-using:
+.. _lsst.ts.mtdome-using:
 
-Using lsst.ts.MTDome
+Using lsst.ts.mtdome
 ====================
 
 .. toctree::
@@ -49,20 +49,20 @@ Run the ``MTDome`` controller  using ``bin/run_mtdome.py``.
 
 .. _building single package docs: https://developer.lsst.io/stack/building-single-package-docs.html
 
-.. _lsst.ts.MTDome-contributing:
+.. _lsst.ts.mtdome-contributing:
 
 Contributing
 ============
 
-``lsst.ts.MTDome`` is developed at https://github.com/lsst-ts/ts_MTDome.
-You can find Jira issues for this module using `labels=ts_MTDome <https://jira.lsstcorp.org/issues/?jql=project%3DDM%20AND%20labels%3Dts_MTDome>`_.
+``lsst.ts.mtdome`` is developed at https://github.com/lsst-ts/ts_mtdome.
+You can find Jira issues for this module using `labels=ts_mtdome <https://jira.lsstcorp.org/issues/?jql=project%3DDM%20AND%20labels%3Dts_mtdome>`_.
 
-.. _lsst.ts.MTDome-pyapi:
+.. _lsst.ts.mtdome-pyapi:
 
 Python API reference
 ====================
 
-.. automodapi:: lsst.ts.MTDome
+.. automodapi:: lsst.ts.mtdome
     :no-main-docstr:
 
 Version History

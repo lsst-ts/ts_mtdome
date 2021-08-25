@@ -1,4 +1,4 @@
-# This file is part of ts_MTDome.
+# This file is part of ts_mtdome.
 #
 # Developed for the Vera Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
@@ -23,7 +23,7 @@ import logging
 import math
 import unittest
 
-from lsst.ts import MTDome
+from lsst.ts import mtdome
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
@@ -58,7 +58,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
         start_tai: `float`
             The current TAI time.
         """
-        self.elevation_motion = MTDome.mock_llc.ElevationMotion(
+        self.elevation_motion = mtdome.mock_llc.ElevationMotion(
             start_position=start_position,
             min_position=min_position,
             max_position=max_position,
@@ -72,7 +72,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
         target_position: float,
         velocity: float,
         expected_duration: float,
-        motion_state: MTDome.LlcMotionState,
+        motion_state: mtdome.LlcMotionState,
     ) -> None:
         """Verify that the ElevationMotion computes the correct duration.
 
@@ -87,7 +87,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
         expected_duration: `float`
             The expected duration.
         motion_state: `MotionState`
-            The commanded MTDome.LlcMotionState.
+            The commanded mtdome.LlcMotionState.
         """
         duration = self.elevation_motion.set_target_position_and_velocity(
             start_tai=start_tai,
@@ -102,7 +102,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
         tai: float,
         expected_position: float,
         expected_velocity: float,
-        expected_motion_state: MTDome.LlcMotionState,
+        expected_motion_state: mtdome.LlcMotionState,
     ) -> None:
         """Verify the position of the ElevationMotion at the given TAI
         time.
@@ -151,25 +151,25 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
-            motion_state=MTDome.LlcMotionState.MOVING,
+            motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(3.5),
             expected_velocity=velocity,
-            expected_motion_state=MTDome.LlcMotionState.MOVING,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 2.5,
             expected_position=math.radians(8.75),
             expected_velocity=velocity,
-            expected_motion_state=MTDome.LlcMotionState.MOVING,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 3.0,
             expected_position=math.radians(10.0),
             expected_velocity=0,
-            expected_motion_state=MTDome.LlcMotionState.STOPPED,
+            expected_motion_state=mtdome.LlcMotionState.STOPPED,
         )
 
     async def test_move_ten_zero(self) -> None:
@@ -196,25 +196,25 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
-            motion_state=MTDome.LlcMotionState.MOVING,
+            motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(6.5),
             expected_velocity=velocity,
-            expected_motion_state=MTDome.LlcMotionState.MOVING,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 2.5,
             expected_position=math.radians(1.25),
             expected_velocity=velocity,
-            expected_motion_state=MTDome.LlcMotionState.MOVING,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 3.0,
             expected_position=0.0,
             expected_velocity=0,
-            expected_motion_state=MTDome.LlcMotionState.STOPPED,
+            expected_motion_state=mtdome.LlcMotionState.STOPPED,
         )
 
     async def test_crawl_pos(self) -> None:
@@ -239,43 +239,43 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
-            motion_state=MTDome.LlcMotionState.CRAWLING,
+            motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(1.0),
             expected_velocity=velocity,
-            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
+            expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 2.5,
             expected_position=math.radians(2.5),
             expected_velocity=velocity,
-            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
+            expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 10.1,
             expected_position=math.radians(10.1),
             expected_velocity=velocity,
-            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
+            expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 89.0,
             expected_position=math.radians(89.0),
             expected_velocity=velocity,
-            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
+            expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 90.0,
             expected_position=math.radians(90.0),
             expected_velocity=0,
-            expected_motion_state=MTDome.LlcMotionState.STOPPED,
+            expected_motion_state=mtdome.LlcMotionState.STOPPED,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 91.0,
             expected_position=math.radians(90.0),
             expected_velocity=0,
-            expected_motion_state=MTDome.LlcMotionState.STOPPED,
+            expected_motion_state=mtdome.LlcMotionState.STOPPED,
         )
 
     async def test_crawl_neg(self) -> None:
@@ -302,25 +302,25 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
-            motion_state=MTDome.LlcMotionState.CRAWLING,
+            motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(9.0),
             expected_velocity=velocity,
-            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
+            expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 2.5,
             expected_position=math.radians(7.5),
             expected_velocity=velocity,
-            expected_motion_state=MTDome.LlcMotionState.CRAWLING,
+            expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 10.1,
             expected_position=math.radians(0.0),
             expected_velocity=0,
-            expected_motion_state=MTDome.LlcMotionState.STOPPED,
+            expected_motion_state=mtdome.LlcMotionState.STOPPED,
         )
 
     async def test_stop(self) -> None:
@@ -347,20 +347,20 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
-            motion_state=MTDome.LlcMotionState.MOVING,
+            motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(3.5),
             expected_velocity=velocity,
-            expected_motion_state=MTDome.LlcMotionState.MOVING,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         self.elevation_motion.stop(start_tai=_start_tai + 2.0)
         await self.verify_elevation_motion(
             tai=_start_tai + 3.0,
             expected_position=math.radians(7.0),
             expected_velocity=0,
-            expected_motion_state=MTDome.LlcMotionState.STOPPED,
+            expected_motion_state=mtdome.LlcMotionState.STOPPED,
         )
 
     async def test_stationary(self) -> None:
@@ -387,20 +387,20 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
             target_position=target_position,
             velocity=velocity,
             expected_duration=expected_duration,
-            motion_state=MTDome.LlcMotionState.MOVING,
+            motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_elevation_motion(
             tai=_start_tai + 1.0,
             expected_position=math.radians(3.5),
             expected_velocity=velocity,
-            expected_motion_state=MTDome.LlcMotionState.MOVING,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         self.elevation_motion.go_stationary(start_tai=_start_tai + 2.0)
         await self.verify_elevation_motion(
             tai=_start_tai + 3.0,
             expected_position=math.radians(7.0),
             expected_velocity=0,
-            expected_motion_state=MTDome.LlcMotionState.STATIONARY,
+            expected_motion_state=mtdome.LlcMotionState.STATIONARY,
         )
 
     async def test_too_low(self) -> None:
@@ -428,7 +428,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
                 target_position=target_position,
                 velocity=velocity,
                 expected_duration=expected_duration,
-                motion_state=MTDome.LlcMotionState.MOVING,
+                motion_state=mtdome.LlcMotionState.MOVING,
             )
             self.fail("Expected a ValueError.")
         except ValueError:
@@ -459,7 +459,7 @@ class ElevationMotionTestCase(unittest.IsolatedAsyncioTestCase):
                 target_position=target_position,
                 velocity=velocity,
                 expected_duration=expected_duration,
-                motion_state=MTDome.LlcMotionState.MOVING,
+                motion_state=mtdome.LlcMotionState.MOVING,
             )
             self.fail("Expected a ValueError.")
         except ValueError:

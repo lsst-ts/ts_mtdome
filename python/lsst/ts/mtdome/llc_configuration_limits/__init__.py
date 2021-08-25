@@ -19,17 +19,5 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Sphinx configuration file for an LSST stack package.
-
-This configuration only affects single-package Sphinx documentation builds.
-"""
-
-from documenteer.conf.pipelinespkg import *  # noqa
-import lsst.ts.mtdome  # noqa
-
-project = "ts_mtdome"
-html_theme_options["logotext"] = project  # type: ignore # noqa
-html_title = project
-html_short_title = project
-
-intersphinx_mapping["ts_xml"] = ("https://ts-xml.lsst.io", None)  # type: ignore # noqa
+from .amcs_limits import AmcsLimits
+from .lwscs_limits import LwscsLimits

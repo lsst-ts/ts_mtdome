@@ -19,17 +19,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Sphinx configuration file for an LSST stack package.
+__all__ = ["AbstractLimits"]
 
-This configuration only affects single-package Sphinx documentation builds.
-"""
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List
 
-from documenteer.conf.pipelinespkg import *  # noqa
-import lsst.ts.mtdome  # noqa
 
-project = "ts_mtdome"
-html_theme_options["logotext"] = project  # type: ignore # noqa
-html_title = project
-html_short_title = project
+class AbstractLimits(ABC):
+    """An abstract base class for holding the configuration limits for the
+    lower level components.
 
-intersphinx_mapping["ts_xml"] = ("https://ts-xml.lsst.io", None)  # type: ignore # noqa
+    It holds common methods.
+    """
+
+    @abstractmethod
+    def validate(self, configuration_parameters: dict) -> List[Dict[str, Any]]:
+        pass
