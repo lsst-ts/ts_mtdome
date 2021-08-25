@@ -19,17 +19,48 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Sphinx configuration file for an LSST stack package.
+__all__ = ["LlcMotionState", "LlcName", "OnOff", "ResponseCode"]
 
-This configuration only affects single-package Sphinx documentation builds.
-"""
+import enum
 
-from documenteer.conf.pipelinespkg import *  # noqa
-import lsst.ts.mtdome  # noqa
 
-project = "ts_mtdome"
-html_theme_options["logotext"] = project  # type: ignore # noqa
-html_title = project
-html_short_title = project
+class LlcMotionState(enum.IntEnum):
+    """Motion state."""
 
-intersphinx_mapping["ts_xml"] = ("https://ts-xml.lsst.io", None)  # type: ignore # noqa
+    FAULT = 0
+    CLOSED = 1
+    CRAWLING = 2
+    MOVING = 3
+    OPEN = 4
+    PARKED = 5
+    PARKING = 6
+    STOPPED = 7
+    STOPPING = 8
+    # Used by the lower level components and need to be translated to
+    # IDL MotionState values.
+    GO_STATIONARY = 9
+    STATIONARY = 10
+    ERROR = 11
+
+
+class LlcName(str, enum.Enum):
+    AMCS = "AMCS"
+    APSCS = "ApSCS"
+    LCS = "LCS"
+    LWSCS = "LWSCS"
+    MONCS = "MonCS"
+    THCS = "ThCS"
+
+
+class OnOff(enum.Enum):
+
+    ON = True
+    OFF = False
+
+
+class ResponseCode(enum.IntEnum):
+    """`enum` with response codes."""
+
+    OK = 0
+    UNSUPPORTED_COMMAND = 2
+    INCORRECT_PARAMETER = 3

@@ -1,6 +1,6 @@
-.. py:currentmodule:: lsst.ts.MTDome
+.. py:currentmodule:: lsst.ts.mtdome
 
-.. _lsst.ts.MTDome-configuration_parameters:
+.. _lsst.ts.mtdome-configuration_parameters:
 
 #####################################
  Lower Level Configuration Parameters

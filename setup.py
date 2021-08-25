@@ -1,4 +1,4 @@
-# This file is part of ts_MTDome.
+# This file is part of ts_mtdome.
 #
 # Developed for the Vera Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
@@ -38,10 +38,10 @@ __version__ = "{version}"
 """
 
 setuptools.setup(
-    name="ts_MTDome",
+    name="ts_mtdome",
     description="LSST main telescope dome controller",
     use_scm_version={
-        "write_to": "python/lsst/ts/MTDome/version.py",
+        "write_to": "python/lsst/ts/mtdome/version.py",
         "write_to_template": scm_version_template,
     },
     setup_requires=["setuptools_scm", "pytest-runner"],
@@ -55,6 +55,6 @@ setuptools.setup(
     license="GPL",
     project_urls={
         "Bug Tracker": "https://jira.lsstcorp.org/secure/Dashboard.jspa",
-        "Source Code": "https://github.com/lsst-ts/ts_MTDome",
+        "Source Code": "https://github.com/lsst-ts/ts_mtdome",
     },
 )

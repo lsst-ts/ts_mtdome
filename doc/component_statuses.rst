@@ -1,6 +1,6 @@
-.. py:currentmodule:: lsst.ts.MTDome
+.. py:currentmodule:: lsst.ts.mtdome
 
-.. _lsst.ts.MTDome-component_statuses:
+.. _lsst.ts.mtdome-component_statuses:
 
 ###############################
  Lower Level Component Statuses

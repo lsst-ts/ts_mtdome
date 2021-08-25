@@ -1,6 +1,6 @@
-.. py:currentmodule:: lsst.ts.MTDome
+.. py:currentmodule:: lsst.ts.mtdome
 
-.. _lsst.ts.MTDome-protocols:
+.. _lsst.ts.mtdome-protocols:
 
 #######################
 Communication Protocols
@@ -145,45 +145,45 @@ For a full list of the commands and their parameters, see `Lower Level Commands`
 
 .. _Lower Level Commands: ./commands.html
 
-.. literalinclude:: ../python/lsst/ts/MTDome/schema/command.py
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/command.py
    :language: python
 
 This is the response schema.
 
-.. literalinclude:: ../python/lsst/ts/MTDome/schema/response.py
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/response.py
    :language: python
 
 This is the AMCS status schema.
 
-.. literalinclude:: ../python/lsst/ts/MTDome/schema/amcs_status.py
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/amcs_status.py
    :language: python
 
 This is the ApSCS status schema.
 
-.. literalinclude:: ../python/lsst/ts/MTDome/schema/apscs_status.py
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/apscs_status.py
    :language: python
 
 
 This is the LCS status schema.
 
-.. literalinclude:: ../python/lsst/ts/MTDome/schema/lcs_status.py
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/lcs_status.py
    :language: python
 
 
 This is the LWSCS status schema.
 
-.. literalinclude:: ../python/lsst/ts/MTDome/schema/lwscs_status.py
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/lwscs_status.py
    :language: python
 
 
 This is the MonCS status schema.
 
-.. literalinclude:: ../python/lsst/ts/MTDome/schema/moncs_status.py
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/moncs_status.py
    :language: python
 
 
 This is the ThCS status schema.
 
-.. literalinclude:: ../python/lsst/ts/MTDome/schema/thcs_status.py
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/thcs_status.py
    :language: python
 
