@@ -504,7 +504,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         lwscs_status = self.data[mtdome.LlcName.LWSCS.value]
         self.assertEqual(
-            lwscs_status["status"],
+            lwscs_status["status"]["status"],
             expected_status.name,
         )
         self.assertAlmostEqual(lwscs_status["positionActual"], expected_position, 3)
@@ -670,21 +670,21 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         status = self.data[mtdome.LlcName.APSCS.value]
         self.assertEqual(
-            status["status"],
+            status["status"]["status"],
             mtdome.LlcMotionState.STOPPED.name,
         )
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
         status = self.data[mtdome.LlcName.LCS.value]
         self.assertEqual(
-            status["status"],
+            status["status"]["status"],
             [mtdome.LlcMotionState.STOPPED.name] * mtdome.mock_llc.NUM_LOUVERS,
         )
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
         status = self.data[mtdome.LlcName.LWSCS.value]
         self.assertEqual(
-            status["status"],
+            status["status"]["status"],
             mtdome.LlcMotionState.STOPPED.name,
         )
 
@@ -711,21 +711,21 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         status = self.data[mtdome.LlcName.APSCS.value]
         self.assertEqual(
-            status["status"],
+            status["status"]["status"],
             mtdome.LlcMotionState.STATIONARY.name,
         )
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
         status = self.data[mtdome.LlcName.LCS.value]
         self.assertEqual(
-            status["status"],
+            status["status"]["status"],
             [mtdome.LlcMotionState.STATIONARY.name] * mtdome.mock_llc.NUM_LOUVERS,
         )
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
         status = self.data[mtdome.LlcName.LWSCS.value]
         self.assertEqual(
-            status["status"],
+            status["status"]["status"],
             mtdome.LlcMotionState.STATIONARY.name,
         )
 
@@ -783,7 +783,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         lwscs_status = self.data[mtdome.LlcName.LWSCS.value]
         self.assertEqual(
-            lwscs_status["status"],
+            lwscs_status["status"]["status"],
             expected_status.name,
         )
         self.assertAlmostEqual(lwscs_status["positionActual"], expected_position, 3)
@@ -867,7 +867,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # See mock_llc.lcs for what the structure of lcs
         # looks like as well as for the meaning of LlcStatus.
         lcs_status = self.data[mtdome.LlcName.LCS.value]
-        for index, status in enumerate(lcs_status["status"]):
+        for index, status in enumerate(lcs_status["status"]["status"]):
             if index in louver_ids:
                 if target_positions[louver_ids.index(index)] > 0:
                     self.assertEqual(mtdome.LlcMotionState.OPEN.name, status)
@@ -923,7 +923,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         lcs_status = self.data[mtdome.LlcName.LCS.value]
         self.assertEqual(
-            lcs_status["status"],
+            lcs_status["status"]["status"],
             [mtdome.LlcMotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS,
         )
         self.assertEqual(
@@ -969,7 +969,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         lcs_status = self.data[mtdome.LlcName.LCS.value]
         self.assertEqual(
-            lcs_status["status"],
+            lcs_status["status"]["status"],
             [mtdome.LlcMotionState.STOPPED.name] * mtdome.mock_llc.NUM_LOUVERS,
         )
         self.assertEqual(
@@ -1004,7 +1004,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         apscs_status = self.data[mtdome.LlcName.APSCS.value]
         self.assertEqual(
-            apscs_status["status"],
+            apscs_status["status"]["status"],
             mtdome.LlcMotionState.OPEN.name,
         )
         self.assertEqual(
@@ -1035,7 +1035,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         apscs_status = self.data[mtdome.LlcName.APSCS.value]
         self.assertEqual(
-            apscs_status["status"],
+            apscs_status["status"]["status"],
             mtdome.LlcMotionState.CLOSED.name,
         )
         self.assertEqual(
@@ -1074,7 +1074,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         apscs_status = self.data[mtdome.LlcName.APSCS.value]
         self.assertEqual(
-            apscs_status["status"],
+            apscs_status["status"]["status"],
             mtdome.LlcMotionState.STOPPED.name,
         )
         self.assertEqual(
@@ -1198,7 +1198,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         thcs_status = self.data[mtdome.LlcName.THCS.value]
         self.assertEqual(
-            thcs_status["status"],
+            thcs_status["status"]["status"],
             mtdome.LlcMotionState.OPEN.name,
         )
         self.assertEqual(
@@ -1273,7 +1273,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         apscs_status = self.data[mtdome.LlcName.APSCS.value]
         self.assertEqual(
-            apscs_status["status"],
+            apscs_status["status"]["status"],
             mtdome.LlcMotionState.CLOSED.name,
         )
         self.assertEqual(
@@ -1285,7 +1285,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         lcs_status = self.data[mtdome.LlcName.LCS.value]
         self.assertEqual(
-            lcs_status["status"],
+            lcs_status["status"]["status"],
             [mtdome.LlcMotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS,
         )
         self.assertEqual(
@@ -1297,7 +1297,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         lwscs_status = self.data[mtdome.LlcName.LWSCS.value]
         self.assertEqual(
-            lwscs_status["status"],
+            lwscs_status["status"]["status"],
             mtdome.LlcMotionState.STOPPED.name,
         )
         self.assertEqual(
@@ -1321,7 +1321,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         thcs_status = self.data[mtdome.LlcName.THCS.value]
         self.assertEqual(
-            thcs_status["status"],
+            thcs_status["status"]["status"],
             mtdome.LlcMotionState.CLOSED.name,
         )
         self.assertEqual(

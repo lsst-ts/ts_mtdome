@@ -66,6 +66,7 @@ class LwscsStatus(BaseMockStatus):
         self.duration = 0.0
         # variables holding the status of the mock EL motion
         self.status = LlcMotionState.STOPPED
+        self.error = [{"code": 0, "description": "No Errors"}]
         self.position_commanded = 0.0
         self.velocity_commanded = 0.0
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
@@ -97,7 +98,7 @@ class LwscsStatus(BaseMockStatus):
             tai=current_tai
         )
         self.llc_status = {
-            "status": motion_state.name,
+            "status": {"error": self.error, "status": motion_state.name},
             "positionActual": position,
             "positionCommanded": self.position_commanded,
             "velocityActual": velocity,

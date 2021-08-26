@@ -14,7 +14,7 @@ Changes:
 * Changed the ApSCS positionActual from one to two values.
 * Added type annotations.
 * Rewrote the way the JSON schemas are loaded.
-* Updated the error part of the AMCS status reply.
+* Updated the error part of the AMCS, ApSCS, LCS, LWSCS and ThCS status replies.
 * Renamed the project to ts_mtdome.
 * Renamed the top level Python module to lsst.ts.mtdome.
 

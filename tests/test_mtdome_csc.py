@@ -180,7 +180,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusLWSCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
             self.assertEqual(
-                amcs_status["status"],
+                amcs_status["status"]["status"],
                 MotionState.MOVING.name,
             )
             await self.assert_next_sample(
@@ -312,7 +312,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusLWSCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
             self.assertEqual(
-                amcs_status["status"],
+                amcs_status["status"]["status"],
                 MotionState.CRAWLING.name,
             )
             await self.assert_next_sample(
@@ -599,7 +599,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusApSCS()
             apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
             self.assertEqual(
-                apscs_status["status"],
+                apscs_status["status"]["status"],
                 MotionState.CLOSED.name,
             )
             self.assertEqual(
@@ -610,7 +610,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusLCS()
             lcs_status = self.csc.lower_level_status[mtdome.LlcName.LCS.value]
             self.assertEqual(
-                lcs_status["status"],
+                lcs_status["status"]["status"],
                 [MotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS,
             )
             self.assertEqual(
@@ -621,7 +621,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusLWSCS()
             lwscs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
             self.assertEqual(
-                lwscs_status["status"],
+                lwscs_status["status"]["status"],
                 MotionState.STOPPED.name,
             )
             self.assertEqual(
@@ -648,7 +648,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusThCS()
             thcs_status = self.csc.lower_level_status[mtdome.LlcName.THCS.value]
             self.assertEqual(
-                thcs_status["status"],
+                thcs_status["status"]["status"],
                 MotionState.CLOSED.name,
             )
             self.assertEqual(
@@ -724,7 +724,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusApSCS()
             apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
             self.assertEqual(
-                apscs_status["status"],
+                apscs_status["status"]["status"],
                 mtdome.LlcMotionState.STATIONARY.name,
             )
             self.assertEqual(
@@ -735,7 +735,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusLCS()
             lcs_status = self.csc.lower_level_status[mtdome.LlcName.LCS.value]
             self.assertEqual(
-                lcs_status["status"],
+                lcs_status["status"]["status"],
                 [mtdome.LlcMotionState.STATIONARY.name] * mtdome.mock_llc.NUM_LOUVERS,
             )
             self.assertEqual(
@@ -746,7 +746,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusLWSCS()
             lwscs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
             self.assertEqual(
-                lwscs_status["status"],
+                lwscs_status["status"]["status"],
                 mtdome.LlcMotionState.STATIONARY.name,
             )
             self.assertEqual(
@@ -768,7 +768,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusThCS()
             thcs_status = self.csc.lower_level_status[mtdome.LlcName.THCS.value]
             self.assertEqual(
-                thcs_status["status"],
+                thcs_status["status"]["status"],
                 mtdome.LlcMotionState.STATIONARY.name,
             )
             self.assertEqual(

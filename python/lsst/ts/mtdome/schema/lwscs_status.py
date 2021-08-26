@@ -39,7 +39,39 @@ registry["LWSCS"] = json.loads(
       "type": "object",
       "properties": {
         "status": {
-          "type": "string"
+          "type": "object",
+          "properties": {
+            "error": {
+              "type": "array",
+              "minItems": 1,
+              "items": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "number"
+                    },
+                    "description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ],
+              "required": [
+                "code",
+                "description"
+              ],
+              "additionalProperties": false
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "error",
+            "status"
+          ],
+          "additionalProperties": false
         },
         "positionActual": {
           "type": "number"

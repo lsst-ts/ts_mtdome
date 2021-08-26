@@ -277,10 +277,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
             )
             data: Dict[str, Any] = encoding_tools.decode(read_bytes.decode())
-            self.log.debug(f"Received reply {data}")
-
             response = data["response"]
-            if response > ResponseCode.OK:
+
+            if response == ResponseCode.OK:
+                if "status" not in command:
+                    self.log.info(f"Received reply {data}")
+                else:
+                    self.log.debug(f"Received reply {data}")
+            else:
                 self.log.error(f"Received ERROR {data}.")
                 if response == ResponseCode.INCORRECT_PARAMETER:
                     raise ValueError(
@@ -654,12 +658,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # Remove some keys because they are not reported in the telemetry.
         telemetry: Dict[str, Any] = self.remove_keys_from_dict(telemetry_in_degrees)
         # Send the telemetry.
-        self.send_telemetry(telemetry, topic)
+        topic.set_put(**telemetry)
 
         # DM-26374: Check for errors and send the events.
         if llc_name == LlcName.AMCS:
-            status = status[llc_name]["status"]
-            errors = status["error"]
+            llc_status = status[llc_name]["status"]
+            errors = llc_status["error"]
             codes = [error["code"] for error in errors]
             if len(errors) != 1 or codes[0] != 0:
                 fault_code = ", ".join(
@@ -669,11 +673,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     state=EnabledState.FAULT, faultCode=fault_code
                 )
             else:
-                state = status["status"]
-                if state == LlcMotionState.STATIONARY.name:
+                if llc_status["status"] == LlcMotionState.STATIONARY.name:
                     motion_state = MotionState.STOPPED_BRAKED
                 else:
-                    motion_state = MotionState[status["status"]]
+                    motion_state = MotionState[llc_status["status"]]
                 in_position = False
                 if motion_state in [
                     MotionState.STOPPED,
@@ -683,11 +686,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     in_position = True
                 self.evt_azMotion.set_put(state=motion_state, inPosition=in_position)
         elif llc_name == LlcName.LWSCS:
-            state = status[llc_name]["status"]
-            if state == LlcMotionState.STATIONARY.name:
+            llc_status = status[llc_name]["status"]
+            if llc_status["status"] == LlcMotionState.STATIONARY.name:
                 motion_state = MotionState.STOPPED_BRAKED
             else:
-                motion_state = MotionState[state]
+                motion_state = MotionState[llc_status["status"]]
             in_position = False
             if motion_state in [
                 MotionState.STOPPED,
@@ -695,6 +698,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             ]:
                 in_position = True
             self.evt_elMotion.set_put(state=motion_state, inPosition=in_position)
+        elif llc_name in [LlcName.APSCS, LlcName.LCS, LlcName.THCS]:
+            # LCS and MONCS do not set this status yet.
+            llc_status = status[llc_name]["status"]
+            if llc_status["status"] == LlcMotionState.STATIONARY.name:
+                motion_state = MotionState.STOPPED_BRAKED
 
     def remove_keys_from_dict(
         self, dict_with_too_many_keys: Dict[str, Any]
@@ -719,20 +727,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             if x not in _KEYS_TO_REMOVE
         }
         return dict_with_keys_removed
-
-    def send_telemetry(self, telemetry: Dict[str, Any], topic: SimpleNamespace) -> None:
-        """Prepares the telemetry for sending using the provided status and
-        sends it.
-
-        Parameters
-        ----------
-        telemetry: `dict`
-            The lower level telemetry to extract the telemetry from.
-        topic: SAL topic
-            The SAL topic to publish the telemetry to.
-        """
-        # Remove some keys because they are not reported in the telemetry.
-        topic.set_put(**telemetry)
 
     async def close_tasks(self) -> None:
         """Disconnect from the TCP/IP controller, if connected, and stop
