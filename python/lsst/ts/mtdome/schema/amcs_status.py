@@ -44,7 +44,6 @@ registry["AMCS"] = json.loads(
             "error": {
               "type": "array",
               "minItems": 1,
-              "maxItems": 5,
               "items": [
                 {
                   "type": "object",

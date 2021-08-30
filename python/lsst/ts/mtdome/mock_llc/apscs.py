@@ -42,6 +42,7 @@ class ApscsStatus(BaseMockStatus):
         self.log = logging.getLogger("MockApscsStatus")
         # variables holding the status of the mock Aperture Shutter
         self.status = LlcMotionState.CLOSED
+        self.error = [{"code": 0, "description": "No Errors"}]
         self.position_actual = np.zeros(_NUM_SHUTTERS, dtype=float)
         self.position_commanded = 0.0
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
@@ -62,7 +63,7 @@ class ApscsStatus(BaseMockStatus):
             f"time_diff = {time_diff}"
         )
         self.llc_status = {
-            "status": self.status.name,
+            "status": {"error": self.error, "status": self.status.name},
             "positionActual": self.position_actual.tolist(),
             "positionCommanded": self.position_commanded,
             "driveTorqueActual": self.drive_torque_actual.tolist(),

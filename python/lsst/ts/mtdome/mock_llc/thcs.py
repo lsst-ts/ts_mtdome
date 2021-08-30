@@ -40,6 +40,7 @@ class ThcsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockThcsStatus")
         self.status = LlcMotionState.CLOSED
+        self.error = [{"code": 0, "description": "No Errors"}]
         self.temperature = np.zeros(NUM_THERMO_SENSORS, dtype=float)
 
     async def determine_status(self, current_tai: float) -> None:
@@ -52,7 +53,7 @@ class ThcsStatus(BaseMockStatus):
             f"time_diff = {time_diff}"
         )
         self.llc_status = {
-            "status": self.status.name,
+            "status": {"error": self.error, "status": self.status.name},
             "temperature": self.temperature.tolist(),
             "timestampUTC": current_tai,
         }
