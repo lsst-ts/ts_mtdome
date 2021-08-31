@@ -84,7 +84,7 @@ pipeline {
             steps {
                 script {
                     sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd repo && pip install --ignore-installed -e . && eups declare -r . -t saluser && setup ts_MTDome -t saluser && pytest --junitxml=\${XML_REPORT}\"
+                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd repo && pip install --ignore-installed -e . && eups declare -r . -t saluser && setup ts_mtdome -t saluser && pytest --junitxml=\${XML_REPORT}\"
                     """
                 }
             }
@@ -105,14 +105,14 @@ pipeline {
             sh "docker exec -u saluser \${container_name} sh -c \"" +
                 "source ~/.setup.sh && " +
                 "cd /home/saluser/repo/ && " +
-                "setup ts_MTDome -t saluser && " +
+                "setup ts_mtdome -t saluser && " +
                 "package-docs build\""
 
             script {
                 def RESULT = sh returnStatus: true, script: "docker exec -u saluser \${container_name} sh -c \"" +
                     "source ~/.setup.sh && " +
                     "cd /home/saluser/repo/ && " +
-                    "setup ts_MTDome -t saluser && " +
+                    "setup ts_mtdome -t saluser && " +
                     "ltd upload --product ts-mtdome --git-ref \${GIT_BRANCH} --dir doc/_build/html\""
 
                 if ( RESULT != 0 ) {

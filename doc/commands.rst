@@ -1,6 +1,6 @@
-.. py:currentmodule:: lsst.ts.MTDome
+.. py:currentmodule:: lsst.ts.mtdome
 
-.. _lsst.ts.MTDome-commands:
+.. _lsst.ts.mtdome-commands:
 
 ####################
 Lower Level Commands

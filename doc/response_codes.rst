@@ -1,6 +1,6 @@
-.. py:currentmodule:: lsst.ts.MTDome
+.. py:currentmodule:: lsst.ts.mtdome
 
-.. _lsst.ts.MTDome-response_codes:
+.. _lsst.ts.mtdome-response_codes:
 
 ########################
  Software Response Codes

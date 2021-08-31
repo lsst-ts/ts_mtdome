@@ -1,10 +1,28 @@
-.. py:currentmodule:: lsst.ts.MTDome
+.. py:currentmodule:: lsst.ts.mtdome
 
-.. _lsst.ts.MTDome.version_history:
+.. _lsst.ts.mtdome.version_history:
 
 ###############
 Version History
 ###############
+
+v1.3.0
+======
+
+Changes:
+
+* Changed the ApSCS positionActual from one to two values.
+* Added type annotations.
+* Rewrote the way the JSON schemas are loaded.
+* Updated the error part of the AMCS, ApSCS, LCS, LWSCS and ThCS status replies.
+* Renamed the project to ts_mtdome.
+* Renamed the top level Python module to lsst.ts.mtdome.
+
+Requires:
+
+* ts_salobj 6.3
+* ts_idl
+* IDL file for MTDome from ts_xml 9.2
 
 v1.2.0
 ======

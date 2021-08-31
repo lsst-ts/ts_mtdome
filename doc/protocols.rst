@@ -1,6 +1,6 @@
-.. py:currentmodule:: lsst.ts.MTDome
+.. py:currentmodule:: lsst.ts.mtdome
 
-.. _lsst.ts.MTDome-protocols:
+.. _lsst.ts.mtdome-protocols:
 
 #######################
 Communication Protocols
@@ -80,34 +80,6 @@ Status commands, similarly, look like this
       "parameters": {}
     }
 
-and a reply to the statusAMCS command should look like this
-
-.. code-block:: json
-
-   {
-     "response": 0,
-     "AMCS": {
-       "status": {
-         "Error": ["No Errors"],
-         "status": "Stopped",
-         "Fans": "On",
-         "Inflate": "On"
-       },
-       "positionActual": 0,
-       "positionCommanded": 0,
-       "velocityActual": 0,
-       "velocityCommmanded": 0,
-       "driveTorqueActual": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "driveTorqueCommanded": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "driveCurrentActual": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "driveTemperature": [20.0, 20.0, 20.0, 20.0, 20.0],
-       "encoderHeadRaw": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "encoderHeadCalibrated": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "resolverRaw": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "resolverCalibrated": [0.0, 0.0, 0.0, 0.0, 0.0],
-       "timestamp": 0
-     }
-   }
 
 Configuration Protocol
 ----------------------
@@ -173,45 +145,45 @@ For a full list of the commands and their parameters, see `Lower Level Commands`
 
 .. _Lower Level Commands: ./commands.html
 
-.. literalinclude:: ../schema/command.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/command.py
+   :language: python
 
 This is the response schema.
 
-.. literalinclude:: ../schema/response.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/response.py
+   :language: python
 
 This is the AMCS status schema.
 
-.. literalinclude:: ../schema/amcs_status.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/amcs_status.py
+   :language: python
 
 This is the ApSCS status schema.
 
-.. literalinclude:: ../schema/apscs_status.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/apscs_status.py
+   :language: python
 
 
 This is the LCS status schema.
 
-.. literalinclude:: ../schema/lcs_status.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/lcs_status.py
+   :language: python
 
 
 This is the LWSCS status schema.
 
-.. literalinclude:: ../schema/lwscs_status.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/lwscs_status.py
+   :language: python
 
 
 This is the MonCS status schema.
 
-.. literalinclude:: ../schema/moncs_status.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/moncs_status.py
+   :language: python
 
 
 This is the ThCS status schema.
 
-.. literalinclude:: ../schema/thcs_status.jschema
-   :language: json
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/thcs_status.py
+   :language: python
 
