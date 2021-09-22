@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v1.4.0
+======
+
+Changes:
+
+* Modified the unit tests because of changes in IDL.
+
+Requires:
+
+* ts_salobj 6.3
+* ts_idl
+* IDL file for MTDome from ts_xml 10.0
+
 v1.3.0
 ======
 
@@ -22,7 +35,7 @@ Requires:
 
 * ts_salobj 6.3
 * ts_idl
-* IDL file for MTDome from ts_xml 9.2
+* IDL file for MTDome from ts_xml 10.0
 
 v1.2.0
 ======
