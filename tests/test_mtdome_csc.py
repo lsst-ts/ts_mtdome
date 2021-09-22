@@ -703,14 +703,14 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             # Prepare the lower level components
-            self.csc.mock_ctrl.amcs.status = MotionState.FAULT
-            self.csc.mock_ctrl.apscs.status = MotionState.FAULT
-            self.csc.mock_ctrl.lcs.status[:] = MotionState.FAULT.name
-            self.csc.mock_ctrl.lwscs.status = MotionState.FAULT
-            self.csc.mock_ctrl.moncs.status = MotionState.FAULT
-            self.csc.mock_ctrl.thcs.status = MotionState.FAULT
-            self.csc.mock_ctrl.amcs._commanded_motion_state = MotionState.FAULT
-            self.csc.mock_ctrl.lwscs._commanded_motion_state = MotionState.FAULT
+            self.csc.mock_ctrl.amcs.status = MotionState.ERROR
+            self.csc.mock_ctrl.apscs.status = MotionState.ERROR
+            self.csc.mock_ctrl.lcs.status[:] = MotionState.ERROR.name
+            self.csc.mock_ctrl.lwscs.status = MotionState.ERROR
+            self.csc.mock_ctrl.moncs.status = MotionState.ERROR
+            self.csc.mock_ctrl.thcs.status = MotionState.ERROR
+            self.csc.mock_ctrl.amcs._commanded_motion_state = MotionState.ERROR
+            self.csc.mock_ctrl.lwscs._commanded_motion_state = MotionState.ERROR
 
             await self.csc.write_then_read_reply(command="exitFault")
 

@@ -35,7 +35,7 @@ CONFIG_SCHEMA = yaml.safe_load(
         description: IP address of the TCP/IP interface
         type: string
         format: hostname
-        default: "host.docker.internal"
+        default: "127.0.0.1"
       port:
         description: Port number of the TCP/IP interface
         type: integer
