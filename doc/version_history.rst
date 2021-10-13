@@ -12,11 +12,13 @@ v1.4.0
 Changes:
 
 * Modified the unit tests because of changes in IDL.
+* Replaced the use of ts_salobj functions with ts_utils functions.
 
 Requires:
 
 * ts_salobj 6.3
 * ts_idl
+* ts_utils 1.0
 * IDL file for MTDome from ts_xml 10.0
 
 v1.3.0

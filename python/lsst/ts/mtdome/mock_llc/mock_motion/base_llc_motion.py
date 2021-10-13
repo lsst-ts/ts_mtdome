@@ -25,7 +25,7 @@ from typing import Tuple
 from abc import ABC, abstractmethod
 
 from ...enums import LlcMotionState
-import lsst.ts.salobj as salobj
+from lsst.ts import utils
 
 
 class BaseLlcMotion(ABC):
@@ -76,7 +76,7 @@ class BaseLlcMotion(ABC):
         distance: `float`
             The smallest distance between the initial and target positions.
         """
-        distance = salobj.angle_diff(
+        distance = utils.angle_diff(
             math.degrees(self._end_position), math.degrees(self._start_position)
         ).rad
         return distance

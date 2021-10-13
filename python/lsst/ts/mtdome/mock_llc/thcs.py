@@ -24,7 +24,7 @@ __all__ = ["ThcsStatus", "NUM_THERMO_SENSORS"]
 import logging
 import numpy as np
 
-from lsst.ts import salobj
+from lsst.ts import utils
 from .base_mock_llc import BaseMockStatus
 from ..enums import LlcMotionState
 
@@ -70,7 +70,7 @@ class ThcsStatus(BaseMockStatus):
             be a realistic temperature in the range of about -30 C to +40 C but
             the provided temperature is not checked against this range.
         """
-        self.command_time_tai = salobj.current_tai()
+        self.command_time_tai = utils.current_tai()
         self.status = LlcMotionState.OPEN
         self.temperature[:] = temperature
 

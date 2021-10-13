@@ -25,7 +25,7 @@ import logging
 import numpy as np
 from typing import List
 
-from lsst.ts import salobj
+from lsst.ts import utils
 from .base_mock_llc import BaseMockStatus
 from ..enums import LlcMotionState
 
@@ -91,7 +91,7 @@ class LcsStatus(BaseMockStatus):
             means closed, 180 means wide open, -1 means do not move. These
             limits are not checked.
         """
-        self.command_time_tai = salobj.current_tai()
+        self.command_time_tai = utils.current_tai()
         pos: float = 0
         for louver_id, pos in enumerate(position):
             if pos >= 0:
@@ -104,19 +104,19 @@ class LcsStatus(BaseMockStatus):
 
     async def closeLouvers(self) -> None:
         """Close all louvers."""
-        self.command_time_tai = salobj.current_tai()
+        self.command_time_tai = utils.current_tai()
         self.status[:] = LlcMotionState.CLOSED.name
         self.position_actual[:] = 0.0
         self.position_commanded[:] = 0.0
 
     async def stopLouvers(self) -> None:
         """Stop all motion of all louvers."""
-        self.command_time_tai = salobj.current_tai()
+        self.command_time_tai = utils.current_tai()
         self.status[:] = LlcMotionState.STOPPED.name
 
     async def go_stationary(self) -> None:
         """Stop louvers motion and engage the brakes."""
-        self.command_time_tai = salobj.current_tai()
+        self.command_time_tai = utils.current_tai()
         self.status[:] = LlcMotionState.STATIONARY.name
 
     async def exit_fault(self) -> None:
