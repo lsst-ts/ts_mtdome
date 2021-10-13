@@ -24,7 +24,7 @@ __all__ = ["ApscsStatus"]
 import logging
 import numpy as np
 
-from lsst.ts import salobj
+from lsst.ts import utils
 from .base_mock_llc import BaseMockStatus
 from ..enums import LlcMotionState
 
@@ -80,7 +80,7 @@ class ApscsStatus(BaseMockStatus):
     async def openShutter(self) -> None:
         """Open the shutter."""
         self.log.debug("Received command 'openShutter'")
-        self.command_time_tai = salobj.current_tai()
+        self.command_time_tai = utils.current_tai()
         self.status = LlcMotionState.OPEN
         # Both positions are expressed in percentage.
         self.position_actual = np.full(_NUM_SHUTTERS, 100.0, dtype=float)
@@ -89,7 +89,7 @@ class ApscsStatus(BaseMockStatus):
     async def closeShutter(self) -> None:
         """Close the shutter."""
         self.log.debug("Received command 'closeShutter'")
-        self.command_time_tai = salobj.current_tai()
+        self.command_time_tai = utils.current_tai()
         self.status = LlcMotionState.CLOSED
         # Both positions are expressed in percentage.
         self.position_actual = np.zeros(_NUM_SHUTTERS, dtype=float)
@@ -98,12 +98,12 @@ class ApscsStatus(BaseMockStatus):
     async def stopShutter(self) -> None:
         """Stop all motion of the shutter."""
         self.log.debug("Received command 'stopShutter'")
-        self.command_time_tai = salobj.current_tai()
+        self.command_time_tai = utils.current_tai()
         self.status = LlcMotionState.STOPPED
 
     async def go_stationary(self) -> None:
         """Stop shutter motion and engage the brakes."""
-        self.command_time_tai = salobj.current_tai()
+        self.command_time_tai = utils.current_tai()
         self.status = LlcMotionState.STATIONARY
 
     async def exit_fault(self) -> None:

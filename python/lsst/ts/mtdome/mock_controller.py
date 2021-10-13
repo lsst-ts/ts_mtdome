@@ -25,7 +25,7 @@ import asyncio
 import logging
 from typing import Any, Callable, Dict, Optional
 
-from lsst.ts import salobj
+from lsst.ts import utils
 from lsst.ts.mtdome import encoding_tools
 from lsst.ts.mtdome import mock_llc
 from lsst.ts.mtdome.enums import LlcName, ResponseCode
@@ -309,7 +309,7 @@ class MockMTDomeController:
         This is done in a separate method so a mock method can replace it in
         unit tests.
         """
-        self.current_tai = salobj.current_tai()
+        self.current_tai = utils.current_tai()
 
     async def move_az(self, position: float, velocity: float) -> float:
         """Move the dome.

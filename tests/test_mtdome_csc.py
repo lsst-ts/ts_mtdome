@@ -25,7 +25,7 @@ import unittest
 
 import numpy as np
 
-from lsst.ts import mtdome, salobj
+from lsst.ts import mtdome, salobj, utils
 from lsst.ts.idl.enums.MTDome import EnabledState, MotionState
 
 STD_TIMEOUT = 2  # standard command timeout (sec)
@@ -111,7 +111,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = salobj.current_tai()
+            self.csc.mock_ctrl.current_tai = utils.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
@@ -157,7 +157,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = salobj.current_tai()
+            self.csc.mock_ctrl.current_tai = utils.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
             self.csc.mock_ctrl.lwscs.command_time_tai = self.csc.mock_ctrl.current_tai
@@ -241,7 +241,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = salobj.current_tai()
+            self.csc.mock_ctrl.current_tai = utils.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
@@ -286,7 +286,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = salobj.current_tai()
+            self.csc.mock_ctrl.current_tai = utils.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
             self.csc.mock_ctrl.lwscs.command_time_tai = self.csc.mock_ctrl.current_tai
@@ -377,7 +377,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = salobj.current_tai()
+            self.csc.mock_ctrl.current_tai = utils.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
@@ -416,7 +416,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = salobj.current_tai()
+            self.csc.mock_ctrl.current_tai = utils.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
@@ -527,7 +527,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = salobj.current_tai()
+            self.csc.mock_ctrl.current_tai = utils.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
@@ -551,7 +551,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = salobj.current_tai()
+            self.csc.mock_ctrl.current_tai = utils.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai

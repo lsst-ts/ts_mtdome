@@ -27,7 +27,7 @@ from typing import Tuple
 
 from .base_llc_motion import BaseLlcMotion
 from ...enums import LlcMotionState
-import lsst.ts.salobj as salobj
+from lsst.ts import utils
 
 
 class ElevationMotion(BaseLlcMotion):
@@ -164,7 +164,7 @@ class ElevationMotion(BaseLlcMotion):
             else:
                 motion_state = LlcMotionState.MOVING
 
-        position = salobj.angle_wrap_nonnegative(math.degrees(position)).rad
+        position = utils.angle_wrap_nonnegative(math.degrees(position)).rad
         return position, velocity, motion_state
 
     def stop(self, start_tai: float) -> None:
