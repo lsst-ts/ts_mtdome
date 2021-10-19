@@ -13,6 +13,7 @@ Changes:
 
 * Modified the unit tests because of changes in IDL.
 * Replaced the use of ts_salobj functions with ts_utils functions.
+* Added auto-enable capability.
 
 Requires:
 
