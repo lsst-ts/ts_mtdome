@@ -68,6 +68,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         * 0: regular operation.
         * 1: simulation: use a mock low level HVAC controller.
+    settings_to_apply : `str`, optional
+        Settings to apply if ``initial_state`` is `State.DISABLED`
+        or `State.ENABLED`.
     mock_port : `int`
         The port that the mock controller will listen on
 
@@ -81,6 +84,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     * 1: simulation mode: start a mock TCP/IP Dome controller and talk to it
     """
 
+    enable_cmdline_state = True
     valid_simulation_modes = (0, 1)
     version = __version__
 
@@ -89,6 +93,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         config_dir: Optional[str] = None,
         initial_state: salobj.State = salobj.State.STANDBY,
         simulation_mode: int = 0,
+        settings_to_apply: str = "",
         mock_port: Optional[int] = None,
     ) -> None:
         self.reader: Optional[asyncio.StreamReader] = None
@@ -107,6 +112,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             config_dir=config_dir,
             initial_state=initial_state,
             simulation_mode=simulation_mode,
+            settings_to_apply=settings_to_apply,
         )
 
         # Keep the lower level statuses in memory for unit tests.
