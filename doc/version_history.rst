@@ -17,6 +17,7 @@ Changes:
 * Renamed "error" to "messages" in the status telemetry.
 * Added "operationalMode" to the status telemetry.
 * Added commands to change the operational mode of a lower level component.
+* Modernized the unit tests.
 
 Requires:
 

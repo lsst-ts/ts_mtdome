@@ -23,6 +23,8 @@ import logging
 import math
 import unittest
 
+import pytest
+
 from lsst.ts import mtdome
 
 logging.basicConfig(
@@ -84,7 +86,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             crawl_velocity=crawl_velocity,
             motion_state=motion_state,
         )
-        self.assertAlmostEqual(expected_duration, duration)
+        assert expected_duration == pytest.approx(duration)
 
     async def verify_azimuth_motion(
         self,
@@ -112,9 +114,9 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             velocity,
             motion_state,
         ) = self.azimuth_motion.get_position_velocity_and_motion_state(tai)
-        self.assertAlmostEqual(expected_position, position)
-        self.assertAlmostEqual(expected_velocity, velocity)
-        self.assertEqual(expected_motion_state, motion_state)
+        assert expected_position == pytest.approx(position)
+        assert expected_velocity == pytest.approx(velocity)
+        assert expected_motion_state == motion_state
 
     async def test_move_zero_ten_pos(self) -> None:
         """Test the AzimuthMotion when moving from position 0 to

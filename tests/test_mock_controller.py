@@ -27,6 +27,7 @@ import unittest
 from unittest.mock import AsyncMock
 
 import numpy as np
+import pytest
 
 from lsst.ts import mtdome
 from lsst.ts.idl.enums.MTDome import OperationalMode
@@ -104,8 +105,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": 0.1, "velocity": 0.1, "acceleration": 0.1},
         )
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 3)
-        self.assertEqual(self.data["timeout"], -1)
+        assert self.data["response"] == 3
+        assert self.data["timeout"] == -1
 
     async def prepare_amcs_move(
         self,
@@ -140,8 +141,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": target_position, "velocity": target_velocity},
         )
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs.duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.amcs.duration
 
     async def verify_amcs_move(
         self,
@@ -175,21 +176,16 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        self.assertEqual(
-            amcs_status["status"]["status"],
-            expected_status.name,
-        )
+        assert amcs_status["status"]["status"] == expected_status.name
         if expected_status == mtdome.LlcMotionState.MOVING:
-            self.assertAlmostEqual(amcs_status["positionActual"], expected_position, 3)
+            assert amcs_status["positionActual"] == pytest.approx(expected_position, 3)
         elif expected_status == mtdome.LlcMotionState.CRAWLING:
             if crawl_velocity > 0:
-                self.assertGreaterEqual(
-                    amcs_status["positionActual"], expected_position
-                )
+                assert amcs_status["positionActual"] >= expected_position
             elif crawl_velocity < 0:
-                self.assertLessEqual(amcs_status["positionActual"], expected_position)
+                assert amcs_status["positionActual"] <= expected_position
             else:
-                self.assertAlmostEqual(amcs_status["positionActual"], expected_position)
+                assert amcs_status["positionActual"] == pytest.approx(expected_position)
 
     async def test_moveAz_zero_pos_pos(self) -> None:
         # Test moving the AMCS to a position in positive direction starting
@@ -378,10 +374,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        self.assertEqual(
-            amcs_status["status"]["messages"],
-            expected_messages,
-        )
+        assert amcs_status["status"]["messages"] == expected_messages
 
     async def test_crawlAz(self) -> None:
         # Set the TAI time in the mock controller for easier control
@@ -393,8 +386,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         target_velocity = math.radians(0.1)
         await self.write(command="crawlAz", parameters={"velocity": target_velocity})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs.duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.amcs.duration
 
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
@@ -402,18 +395,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        self.assertEqual(
-            amcs_status["status"]["status"],
-            mtdome.LlcMotionState.CRAWLING.name,
-        )
-        self.assertGreaterEqual(
-            amcs_status["positionActual"],
-            math.radians(0.05),
-        )
-        self.assertLessEqual(
-            amcs_status["positionActual"],
-            math.radians(0.15),
-        )
+        assert amcs_status["status"]["status"] == mtdome.LlcMotionState.CRAWLING.name
+        assert amcs_status["positionActual"] >= math.radians(0.05)
+        assert amcs_status["positionActual"] <= math.radians(0.15)
 
     async def test_stopAz(self) -> None:
         start_position = math.radians(0)
@@ -434,24 +418,15 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         assert self.mock_ctrl is not None
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs.duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.amcs.duration
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        self.assertEqual(
-            amcs_status["status"]["status"],
-            mtdome.LlcMotionState.STOPPED.name,
-        )
-        self.assertGreaterEqual(
-            amcs_status["positionActual"],
-            math.radians(1.7),
-        )
-        self.assertLessEqual(
-            amcs_status["positionActual"],
-            math.radians(1.9),
-        )
+        assert amcs_status["status"]["status"] == mtdome.LlcMotionState.STOPPED.name
+        assert amcs_status["positionActual"] >= math.radians(1.7)
+        assert amcs_status["positionActual"] <= math.radians(1.9)
 
     async def prepare_lwscs_move(
         self, start_position: float, target_position: float
@@ -476,8 +451,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.mock_ctrl.lwscs.elevation_motion._start_position = start_position
         await self.write(command="moveEl", parameters={"position": target_position})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.lwscs.duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.lwscs.duration
 
     async def verify_lwscs_move(
         self,
@@ -503,11 +478,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
         lwscs_status = self.data[mtdome.LlcName.LWSCS.value]
-        self.assertEqual(
-            lwscs_status["status"]["status"],
-            expected_status.name,
-        )
-        self.assertAlmostEqual(lwscs_status["positionActual"], expected_position, 3)
+        assert lwscs_status["status"]["status"] == expected_status.name
+        assert lwscs_status["positionActual"] == pytest.approx(expected_position, 3)
 
     async def test_moveEl_zero_five(self) -> None:
         # Test moving the LWSCS from 0 to 5 degrees. This should succeed.
@@ -588,17 +560,17 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             expected_position=math.radians(1.75),
         )
 
-        # await self.write(command="stopEl", parameters={})
-        # self.data = await self.read()
-        # self.assertEqual(self.data["response"], 0)
-        # self.assertEqual(self.data["timeout"], self.mock_ctrl.short_duration)
+        await self.write(command="stopEl", parameters={})
+        self.data = await self.read()
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == 0.0
 
-        # Move EL and check the position and status.
-        await self.verify_lwscs_move(
-            time_diff=0.1,
-            expected_status=mtdome.LlcMotionState.MOVING,
-            expected_position=math.radians(1.93),
-        )
+        await self.write(command="statusLWSCS", parameters={})
+        self.data = await self.read()
+        lwscs_status = self.data[mtdome.LlcName.LWSCS.value]
+        assert lwscs_status["status"]["status"] == mtdome.LlcMotionState.STOPPED.name
+        assert lwscs_status["positionActual"] >= math.radians(1.7)
+        assert lwscs_status["positionActual"] <= math.radians(1.9)
 
     async def prepare_all_llc(self) -> None:
         # Set the TAI time in the mock controller for easier control
@@ -618,14 +590,14 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": target_position, "velocity": target_velocity},
         )
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs.duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.amcs.duration
 
         target_position = math.radians(5)
         await self.write(command="moveEl", parameters={"position": target_position})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.lwscs.duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.lwscs.duration
 
         louver_id = 5
         target_position = 100
@@ -636,13 +608,13 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": position.tolist()},
         )
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
 
         await self.write(command="openShutter", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
 
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
@@ -673,8 +645,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"velocity": target_velocity},
         )
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.lwscs.duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.lwscs.duration
 
     async def verify_lwscs_crawl(
         self,
@@ -700,11 +672,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
         lwscs_status = self.data[mtdome.LlcName.LWSCS.value]
-        self.assertEqual(
-            lwscs_status["status"]["status"],
-            expected_status.name,
-        )
-        self.assertAlmostEqual(lwscs_status["positionActual"], expected_position, 3)
+        assert lwscs_status["status"]["status"] == expected_status.name
+        assert lwscs_status["positionActual"] == pytest.approx(expected_position, 3)
 
     async def test_crawlEl(self) -> None:
         await self.prepare_lwscs_crawl(
@@ -748,9 +717,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": position.tolist()},
         )
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -788,25 +757,21 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         for index, status in enumerate(lcs_status["status"]["status"]):
             if index in louver_ids:
                 if target_positions[louver_ids.index(index)] > 0:
-                    self.assertEqual(mtdome.LlcMotionState.OPEN.name, status)
+                    assert mtdome.LlcMotionState.OPEN.name == status
                 else:
-                    self.assertEqual(mtdome.LlcMotionState.CLOSED.name, status)
+                    assert mtdome.LlcMotionState.CLOSED.name == status
             else:
-                self.assertEqual(mtdome.LlcMotionState.CLOSED.name, status)
+                assert mtdome.LlcMotionState.CLOSED.name == status
         for index, positionActual in enumerate(lcs_status["positionActual"]):
             if index in louver_ids:
-                self.assertEqual(
-                    target_positions[louver_ids.index(index)], positionActual
-                )
+                assert target_positions[louver_ids.index(index)] == positionActual
             else:
-                self.assertEqual(0, positionActual)
+                assert 0 == positionActual
         for index, positionCommanded in enumerate(lcs_status["positionCommanded"]):
             if index in louver_ids:
-                self.assertEqual(
-                    target_positions[louver_ids.index(index)], positionCommanded
-                )
+                assert target_positions[louver_ids.index(index)] == positionCommanded
             else:
-                self.assertEqual(0, positionCommanded)
+                assert 0 == positionCommanded
 
     async def test_setLouvers(self) -> None:
         # Open some of the louvers and verify that their status and positions
@@ -825,9 +790,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_closeLouvers(self) -> None:
         await self.write(command="closeLouvers", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -840,18 +805,12 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
         lcs_status = self.data[mtdome.LlcName.LCS.value]
-        self.assertEqual(
-            lcs_status["status"]["status"],
-            [mtdome.LlcMotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS,
+        assert (
+            lcs_status["status"]["status"]
+            == [mtdome.LlcMotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS
         )
-        self.assertEqual(
-            lcs_status["positionActual"],
-            [0.0] * mtdome.mock_llc.NUM_LOUVERS,
-        )
-        self.assertEqual(
-            lcs_status["positionCommanded"],
-            [0.0] * mtdome.mock_llc.NUM_LOUVERS,
-        )
+        assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
+        assert lcs_status["positionCommanded"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
 
     async def test_stopLouvers(self) -> None:
         louver_id = 5
@@ -863,9 +822,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": position.tolist()},
         )
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -877,8 +836,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="stopLouvers", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
 
         # Give some time to the mock device to stop.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
@@ -886,29 +845,23 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
         lcs_status = self.data[mtdome.LlcName.LCS.value]
-        self.assertEqual(
-            lcs_status["status"]["status"],
-            [mtdome.LlcMotionState.STOPPED.name] * mtdome.mock_llc.NUM_LOUVERS,
+        assert (
+            lcs_status["status"]["status"]
+            == [mtdome.LlcMotionState.STOPPED.name] * mtdome.mock_llc.NUM_LOUVERS
         )
-        self.assertEqual(
-            lcs_status["positionActual"],
-            [0.0] * louver_id
-            + [target_position]
-            + [0.0] * (mtdome.mock_llc.NUM_LOUVERS - louver_id - 1),
-        )
-        self.assertEqual(
-            lcs_status["positionCommanded"],
-            [0.0] * louver_id
-            + [target_position]
-            + [0.0] * (mtdome.mock_llc.NUM_LOUVERS - louver_id - 1),
-        )
+        assert lcs_status["positionActual"] == [0.0] * louver_id + [target_position] + [
+            0.0
+        ] * (mtdome.mock_llc.NUM_LOUVERS - louver_id - 1)
+        assert lcs_status["positionCommanded"] == [0.0] * louver_id + [
+            target_position
+        ] + [0.0] * (mtdome.mock_llc.NUM_LOUVERS - louver_id - 1)
 
     async def test_openShutter(self) -> None:
         await self.write(command="openShutter", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -921,25 +874,16 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
         apscs_status = self.data[mtdome.LlcName.APSCS.value]
-        self.assertEqual(
-            apscs_status["status"]["status"],
-            mtdome.LlcMotionState.OPEN.name,
-        )
-        self.assertEqual(
-            apscs_status["positionActual"],
-            [100.0, 100.0],
-        )
-        self.assertEqual(
-            apscs_status["positionCommanded"],
-            100.0,
-        )
+        assert apscs_status["status"]["status"] == mtdome.LlcMotionState.OPEN.name
+        assert apscs_status["positionActual"] == [100.0, 100.0]
+        assert apscs_status["positionCommanded"] == 100.0
 
     async def test_closeShutter(self) -> None:
         await self.write(command="closeShutter", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -952,25 +896,16 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
         apscs_status = self.data[mtdome.LlcName.APSCS.value]
-        self.assertEqual(
-            apscs_status["status"]["status"],
-            mtdome.LlcMotionState.CLOSED.name,
-        )
-        self.assertEqual(
-            apscs_status["positionActual"],
-            [0.0, 0.0],
-        )
-        self.assertEqual(
-            apscs_status["positionCommanded"],
-            0.0,
-        )
+        assert apscs_status["status"]["status"] == mtdome.LlcMotionState.CLOSED.name
+        assert apscs_status["positionActual"] == [0.0, 0.0]
+        assert apscs_status["positionCommanded"] == 0.0
 
     async def test_stopShutter(self) -> None:
         await self.write(command="openShutter", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -982,8 +917,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="stopShutter", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
 
         # Give some time to the mock device to stop.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
@@ -991,113 +926,104 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
         apscs_status = self.data[mtdome.LlcName.APSCS.value]
-        self.assertEqual(
-            apscs_status["status"]["status"],
-            mtdome.LlcMotionState.STOPPED.name,
-        )
-        self.assertEqual(
-            apscs_status["positionActual"],
-            [100.0, 100.0],
-        )
-        self.assertEqual(
-            apscs_status["positionCommanded"],
-            100.0,
-        )
+        assert apscs_status["status"]["status"] == mtdome.LlcMotionState.STOPPED.name
+        assert apscs_status["positionActual"] == [100.0, 100.0]
+        assert apscs_status["positionCommanded"] == 100.0
 
     async def test_set_normal_az(self) -> None:
         self.mock_ctrl.amcs.operational_mode = OperationalMode.DEGRADED
         await self.write(command="setNormalAz", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
         assert self.mock_ctrl.amcs.operational_mode == OperationalMode.NORMAL
         await self.write(command="setNormalAz", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl.amcs.operational_mode == OperationalMode.NORMAL
 
     async def test_set_degraded_az(self) -> None:
         assert self.mock_ctrl.amcs.operational_mode == OperationalMode.NORMAL
         await self.write(command="setDegradedAz", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
         assert self.mock_ctrl.amcs.operational_mode == OperationalMode.DEGRADED
         await self.write(command="setDegradedAz", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl.amcs.operational_mode == OperationalMode.DEGRADED
 
     async def test_set_normal_el(self) -> None:
         self.mock_ctrl.lwscs.operational_mode = OperationalMode.DEGRADED
         await self.write(command="setNormalEl", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
         assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.NORMAL
         await self.write(command="setNormalEl", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.NORMAL
 
     async def test_set_degraded_el(self) -> None:
         assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.NORMAL
         await self.write(command="setDegradedEl", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
         assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.DEGRADED
         await self.write(command="setDegradedEl", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.DEGRADED
 
     async def test_set_normal_louvers(self) -> None:
         self.mock_ctrl.lcs.operational_mode = OperationalMode.DEGRADED
         await self.write(command="setNormalLouvers", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
         assert self.mock_ctrl.lcs.operational_mode == OperationalMode.NORMAL
         await self.write(command="setNormalLouvers", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl.lcs.operational_mode == OperationalMode.NORMAL
 
     async def test_set_degraded_louvers(self) -> None:
         assert self.mock_ctrl.lcs.operational_mode == OperationalMode.NORMAL
         await self.write(command="setDegradedLouvers", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
         assert self.mock_ctrl.lcs.operational_mode == OperationalMode.DEGRADED
         await self.write(command="setDegradedLouvers", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl.lcs.operational_mode == OperationalMode.DEGRADED
 
     async def test_set_normal_shutter(self) -> None:
         self.mock_ctrl.apscs.operational_mode = OperationalMode.DEGRADED
         await self.write(command="setNormalShutter", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
         assert self.mock_ctrl.apscs.operational_mode == OperationalMode.NORMAL
         await self.write(command="setNormalShutter", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl.apscs.operational_mode == OperationalMode.NORMAL
 
     async def test_set_degraded_shutter(self) -> None:
         assert self.mock_ctrl.apscs.operational_mode == OperationalMode.NORMAL
         await self.write(command="setDegradedShutter", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
         assert self.mock_ctrl.apscs.operational_mode == OperationalMode.DEGRADED
         await self.write(command="setDegradedShutter", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl.apscs.operational_mode == OperationalMode.DEGRADED
 
     async def test_config(self) -> None:
@@ -1116,13 +1042,13 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         }
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
 
-        self.assertEqual(self.mock_ctrl.amcs.amcs_limits.jmax, amcs_jmax)
-        self.assertEqual(self.mock_ctrl.amcs.amcs_limits.amax, amcs_amax)
-        self.assertEqual(self.mock_ctrl.amcs.amcs_limits.vmax, amcs_vmax)
+        assert self.mock_ctrl.amcs.amcs_limits.jmax == amcs_jmax
+        assert self.mock_ctrl.amcs.amcs_limits.amax == amcs_amax
+        assert self.mock_ctrl.amcs.amcs_limits.vmax == amcs_vmax
 
         # All LWSCS values within the limits.
         lwscs_jmax = math.radians(2.5)
@@ -1139,12 +1065,12 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         }
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
 
-        self.assertEqual(self.mock_ctrl.lwscs.lwscs_limits.jmax, lwscs_jmax)
-        self.assertEqual(self.mock_ctrl.lwscs.lwscs_limits.amax, lwscs_amax)
-        self.assertEqual(self.mock_ctrl.lwscs.lwscs_limits.vmax, lwscs_vmax)
+        assert self.mock_ctrl.lwscs.lwscs_limits.jmax == lwscs_jmax
+        assert self.mock_ctrl.lwscs.lwscs_limits.amax == lwscs_amax
+        assert self.mock_ctrl.lwscs.lwscs_limits.vmax == lwscs_vmax
 
     async def test_park(self) -> None:
         # Set the TAI time in the mock controller for easier control
@@ -1160,16 +1086,16 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": target_position, "velocity": target_velocity},
         )
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs.duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.amcs.duration
 
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
         await self.write(command="park", parameters={})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.amcs.duration)
+        assert self.data["response"] == 0
+        assert self.data["timeout"] == self.mock_ctrl.amcs.duration
 
         # Give some time to the mock device to park.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 5.0
@@ -1177,18 +1103,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        self.assertEqual(
-            amcs_status["status"]["status"],
-            mtdome.LlcMotionState.PARKED.name,
-        )
-        self.assertEqual(
-            amcs_status["positionActual"],
-            mtdome.mock_llc.PARK_POSITION,
-        )
-        self.assertEqual(
-            amcs_status["positionCommanded"],
-            mtdome.mock_llc.PARK_POSITION,
-        )
+        assert amcs_status["status"]["status"] == mtdome.LlcMotionState.PARKED.name
+        assert amcs_status["positionActual"] == mtdome.mock_llc.PARK_POSITION
+        assert amcs_status["positionCommanded"] == mtdome.mock_llc.PARK_POSITION
 
     async def test_setTemperature(self) -> None:
         temperature = 10.0
@@ -1196,9 +1113,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             command="setTemperature", parameters={"temperature": temperature}
         )
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -1211,13 +1128,10 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusThCS", parameters={})
         self.data = await self.read()
         thcs_status = self.data[mtdome.LlcName.THCS.value]
-        self.assertEqual(
-            thcs_status["status"]["status"],
-            mtdome.LlcMotionState.OPEN.name,
-        )
-        self.assertEqual(
-            thcs_status["temperature"],
-            [temperature] * mtdome.mock_llc.thcs.NUM_THERMO_SENSORS,
+        assert thcs_status["status"]["status"] == mtdome.LlcMotionState.OPEN.name
+        assert (
+            thcs_status["temperature"]
+            == [temperature] * mtdome.mock_llc.thcs.NUM_THERMO_SENSORS
         )
 
     async def test_inflate(self) -> None:
@@ -1225,120 +1139,75 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        self.assertEqual(
-            amcs_status["status"]["inflate"],
-            mtdome.OnOff.OFF.value,
-        )
+        assert amcs_status["status"]["inflate"] == mtdome.OnOff.OFF.value
         await self.write(
             command="inflate", parameters={"action": mtdome.OnOff.ON.value}
         )
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
-        self.assertEqual(self.mock_ctrl.amcs.seal_inflated, mtdome.OnOff.ON)
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.mock_ctrl.amcs.seal_inflated == mtdome.OnOff.ON
         # Also check that the inflate status is set in the AMCS status.
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        self.assertEqual(
-            amcs_status["status"]["inflate"],
-            mtdome.OnOff.ON.value,
-        )
+        assert amcs_status["status"]["inflate"] == mtdome.OnOff.ON.value
 
     async def test_fans(self) -> None:
         # Make sure that the fans status is set to OFF
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        self.assertEqual(
-            amcs_status["status"]["fans"],
-            mtdome.OnOff.OFF.value,
-        )
+        assert amcs_status["status"]["fans"] == mtdome.OnOff.OFF.value
         await self.write(command="fans", parameters={"action": mtdome.OnOff.ON.value})
         self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
+        assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
-        self.assertEqual(self.mock_ctrl.amcs.fans_enabled, mtdome.OnOff.ON)
+        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.mock_ctrl.amcs.fans_enabled == mtdome.OnOff.ON
         # Also check that the fans status is set in the AMCS status.
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        self.assertEqual(
-            amcs_status["status"]["fans"],
-            mtdome.OnOff.ON.value,
-        )
+        assert amcs_status["status"]["fans"] == mtdome.OnOff.ON.value
 
     async def test_status(self) -> None:
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        self.assertEqual(
-            amcs_status["status"]["status"],
-            mtdome.LlcMotionState.STOPPED.name,
-        )
-        self.assertEqual(
-            amcs_status["positionActual"],
-            0,
-        )
+        assert amcs_status["status"]["status"] == mtdome.LlcMotionState.STOPPED.name
+        assert amcs_status["positionActual"] == 0
 
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
         apscs_status = self.data[mtdome.LlcName.APSCS.value]
-        self.assertEqual(
-            apscs_status["status"]["status"],
-            mtdome.LlcMotionState.CLOSED.name,
-        )
-        self.assertEqual(
-            apscs_status["positionActual"],
-            [0.0, 0.0],
-        )
+        assert apscs_status["status"]["status"] == mtdome.LlcMotionState.CLOSED.name
+        assert apscs_status["positionActual"] == [0.0, 0.0]
 
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()
         lcs_status = self.data[mtdome.LlcName.LCS.value]
-        self.assertEqual(
-            lcs_status["status"]["status"],
-            [mtdome.LlcMotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS,
+        assert (
+            lcs_status["status"]["status"]
+            == [mtdome.LlcMotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS
         )
-        self.assertEqual(
-            lcs_status["positionActual"],
-            [0.0] * mtdome.mock_llc.NUM_LOUVERS,
-        )
+        assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
 
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
         lwscs_status = self.data[mtdome.LlcName.LWSCS.value]
-        self.assertEqual(
-            lwscs_status["status"]["status"],
-            mtdome.LlcMotionState.STOPPED.name,
-        )
-        self.assertEqual(
-            lwscs_status["positionActual"],
-            0,
-        )
+        assert lwscs_status["status"]["status"] == mtdome.LlcMotionState.STOPPED.name
+        assert lwscs_status["positionActual"] == 0
 
         await self.write(command="statusMonCS", parameters={})
         self.data = await self.read()
         moncs_status = self.data[mtdome.LlcName.MONCS.value]
-        self.assertEqual(
-            moncs_status["status"],
-            mtdome.LlcMotionState.CLOSED.name,
-        )
-        self.assertEqual(
-            moncs_status["data"],
-            [0.0] * mtdome.mock_llc.NUM_MON_SENSORS,
-        )
+        assert moncs_status["status"] == mtdome.LlcMotionState.CLOSED.name
+        assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
 
         await self.write(command="statusThCS", parameters={})
         self.data = await self.read()
         thcs_status = self.data[mtdome.LlcName.THCS.value]
-        self.assertEqual(
-            thcs_status["status"]["status"],
-            mtdome.LlcMotionState.CLOSED.name,
-        )
-        self.assertEqual(
-            thcs_status["temperature"],
-            [0.0] * mtdome.mock_llc.NUM_THERMO_SENSORS,
-        )
+        assert thcs_status["status"]["status"] == mtdome.LlcMotionState.CLOSED.name
+        assert thcs_status["temperature"] == [0.0] * mtdome.mock_llc.NUM_THERMO_SENSORS
