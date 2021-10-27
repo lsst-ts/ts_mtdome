@@ -29,6 +29,7 @@ from unittest.mock import AsyncMock
 import numpy as np
 
 from lsst.ts import mtdome
+from lsst.ts.idl.enums.MTDome import OperationalMode
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
@@ -42,7 +43,6 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.ctrl = None
         self.writer = None
         port = 0
-        self.mock_ctrl = None
         self.data: Optional[dict] = None
 
         self.mock_ctrl = mtdome.MockMTDomeController(port=port)
@@ -364,14 +364,14 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             target_velocity,
         )
 
-        # Introduce an error. This will be improved once error codes have been
+        # Introduce errors. This will be improved once error codes have been
         # specified in a future Dome Software meeting.
-        expected_error = [
+        expected_messages = [
             {"code": 100, "description": "Drive 1 temperature too high"},
             {"code": 100, "description": "Drive 2 temperature too high"},
         ]
         assert self.mock_ctrl is not None
-        self.mock_ctrl.amcs.error = expected_error
+        self.mock_ctrl.amcs.messages = expected_messages
 
         # Give some time to the mock device to move and theck the error status.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
@@ -379,8 +379,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
         self.assertEqual(
-            amcs_status["status"]["error"],
-            expected_error,
+            amcs_status["status"]["messages"],
+            expected_messages,
         )
 
     async def test_crawlAz(self) -> None:
@@ -646,88 +646,6 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
-
-    async def test_stop(self) -> None:
-        await self.prepare_all_llc()
-
-        await self.write(command="stop", parameters={})
-        self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        assert self.mock_ctrl is not None
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
-
-        # Give some time to the mock devices to stop moving.
-        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
-
-        await self.write(command="statusAMCS", parameters={})
-        self.data = await self.read()
-        status = self.data[mtdome.LlcName.AMCS.value]
-        self.assertEqual(
-            status["status"]["status"],
-            mtdome.LlcMotionState.STOPPED.name,
-        )
-        await self.write(command="statusApSCS", parameters={})
-        self.data = await self.read()
-        status = self.data[mtdome.LlcName.APSCS.value]
-        self.assertEqual(
-            status["status"]["status"],
-            mtdome.LlcMotionState.STOPPED.name,
-        )
-        await self.write(command="statusLCS", parameters={})
-        self.data = await self.read()
-        status = self.data[mtdome.LlcName.LCS.value]
-        self.assertEqual(
-            status["status"]["status"],
-            [mtdome.LlcMotionState.STOPPED.name] * mtdome.mock_llc.NUM_LOUVERS,
-        )
-        await self.write(command="statusLWSCS", parameters={})
-        self.data = await self.read()
-        status = self.data[mtdome.LlcName.LWSCS.value]
-        self.assertEqual(
-            status["status"]["status"],
-            mtdome.LlcMotionState.STOPPED.name,
-        )
-
-    async def test_go_stationary(self) -> None:
-        await self.prepare_all_llc()
-
-        await self.write(command="goStationary", parameters={})
-        self.data = await self.read()
-        self.assertEqual(self.data["response"], 0)
-        assert self.mock_ctrl is not None
-        self.assertEqual(self.data["timeout"], self.mock_ctrl.long_duration)
-
-        # Give some time to the mock devices to stop moving.
-        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
-
-        await self.write(command="statusAMCS", parameters={})
-        self.data = await self.read()
-        status = self.data[mtdome.LlcName.AMCS.value]
-        self.assertEqual(
-            status["status"]["status"],
-            mtdome.LlcMotionState.STATIONARY.name,
-        )
-        await self.write(command="statusApSCS", parameters={})
-        self.data = await self.read()
-        status = self.data[mtdome.LlcName.APSCS.value]
-        self.assertEqual(
-            status["status"]["status"],
-            mtdome.LlcMotionState.STATIONARY.name,
-        )
-        await self.write(command="statusLCS", parameters={})
-        self.data = await self.read()
-        status = self.data[mtdome.LlcName.LCS.value]
-        self.assertEqual(
-            status["status"]["status"],
-            [mtdome.LlcMotionState.STATIONARY.name] * mtdome.mock_llc.NUM_LOUVERS,
-        )
-        await self.write(command="statusLWSCS", parameters={})
-        self.data = await self.read()
-        status = self.data[mtdome.LlcName.LWSCS.value]
-        self.assertEqual(
-            status["status"]["status"],
-            mtdome.LlcMotionState.STATIONARY.name,
-        )
 
     async def prepare_lwscs_crawl(
         self, start_position: float, target_velocity: float
@@ -1085,6 +1003,102 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             apscs_status["positionCommanded"],
             100.0,
         )
+
+    async def test_set_normal_az(self) -> None:
+        self.mock_ctrl.amcs.operational_mode = OperationalMode.DEGRADED
+        await self.write(command="setNormalAz", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl is not None
+        assert self.mock_ctrl.amcs.operational_mode == OperationalMode.NORMAL
+        await self.write(command="setNormalAz", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl.amcs.operational_mode == OperationalMode.NORMAL
+
+    async def test_set_degraded_az(self) -> None:
+        assert self.mock_ctrl.amcs.operational_mode == OperationalMode.NORMAL
+        await self.write(command="setDegradedAz", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl is not None
+        assert self.mock_ctrl.amcs.operational_mode == OperationalMode.DEGRADED
+        await self.write(command="setDegradedAz", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl.amcs.operational_mode == OperationalMode.DEGRADED
+
+    async def test_set_normal_el(self) -> None:
+        self.mock_ctrl.lwscs.operational_mode = OperationalMode.DEGRADED
+        await self.write(command="setNormalEl", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl is not None
+        assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.NORMAL
+        await self.write(command="setNormalEl", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.NORMAL
+
+    async def test_set_degraded_el(self) -> None:
+        assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.NORMAL
+        await self.write(command="setDegradedEl", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl is not None
+        assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.DEGRADED
+        await self.write(command="setDegradedEl", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.DEGRADED
+
+    async def test_set_normal_louvers(self) -> None:
+        self.mock_ctrl.lcs.operational_mode = OperationalMode.DEGRADED
+        await self.write(command="setNormalLouvers", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl is not None
+        assert self.mock_ctrl.lcs.operational_mode == OperationalMode.NORMAL
+        await self.write(command="setNormalLouvers", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl.lcs.operational_mode == OperationalMode.NORMAL
+
+    async def test_set_degraded_louvers(self) -> None:
+        assert self.mock_ctrl.lcs.operational_mode == OperationalMode.NORMAL
+        await self.write(command="setDegradedLouvers", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl is not None
+        assert self.mock_ctrl.lcs.operational_mode == OperationalMode.DEGRADED
+        await self.write(command="setDegradedLouvers", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl.lcs.operational_mode == OperationalMode.DEGRADED
+
+    async def test_set_normal_shutter(self) -> None:
+        self.mock_ctrl.apscs.operational_mode = OperationalMode.DEGRADED
+        await self.write(command="setNormalShutter", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl is not None
+        assert self.mock_ctrl.apscs.operational_mode == OperationalMode.NORMAL
+        await self.write(command="setNormalShutter", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl.apscs.operational_mode == OperationalMode.NORMAL
+
+    async def test_set_degraded_shutter(self) -> None:
+        assert self.mock_ctrl.apscs.operational_mode == OperationalMode.NORMAL
+        await self.write(command="setDegradedShutter", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl is not None
+        assert self.mock_ctrl.apscs.operational_mode == OperationalMode.DEGRADED
+        await self.write(command="setDegradedShutter", parameters={})
+        self.data = await self.read()
+        self.assertEqual(self.data["response"], 0)
+        assert self.mock_ctrl.apscs.operational_mode == OperationalMode.DEGRADED
 
     async def test_config(self) -> None:
         # All AMCS values within the limits.

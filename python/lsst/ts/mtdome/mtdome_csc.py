@@ -23,6 +23,7 @@ __all__ = ["MTDomeCsc"]
 
 import asyncio
 import math
+import typing
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional
 
@@ -32,7 +33,12 @@ from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .enums import LlcMotionState, LlcName, ResponseCode
 from lsst.ts import salobj
 from .mock_controller import MockMTDomeController
-from lsst.ts.idl.enums.MTDome import EnabledState, MotionState
+from lsst.ts.idl.enums.MTDome import (
+    EnabledState,
+    MotionState,
+    OperationalMode,
+    SubSystemId,
+)
 
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout in s to be used by this module
@@ -124,6 +130,36 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         self.amcs_limits = AmcsLimits()
         self.lwscs_limits = LwscsLimits()
+
+        # Keep track of which stop function to call for which SubSystemId
+        self.stop_dict: typing.Dict[SubSystemId, typing.Callable] = {
+            SubSystemId.AMCS: self.stopAz,
+            SubSystemId.LWSCS: self.stopEl,
+            SubSystemId.APSCS: self.stopShutter,
+            SubSystemId.LCS: self.stopLouvers,
+        }
+
+        # Keep track of which command to send to set the operational mode on a
+        # lower level component.
+        self.set_operational_mode_dict = {
+            SubSystemId.AMCS: {
+                OperationalMode.NORMAL.name: "setNormalAz",
+                OperationalMode.DEGRADED.name: "setDegradedAz",
+            },
+            SubSystemId.LWSCS: {
+                OperationalMode.NORMAL.name: "setNormalEl",
+                OperationalMode.DEGRADED.name: "setDegradedEl",
+            },
+            SubSystemId.APSCS: {
+                OperationalMode.NORMAL.name: "setNormalShutter",
+                OperationalMode.DEGRADED.name: "setDegradedShutter",
+            },
+            SubSystemId.LCS: {
+                OperationalMode.NORMAL.name: "setNormalLouvers",
+                OperationalMode.DEGRADED.name: "setDegradedLouvers",
+            },
+        }
+
         self.log.info("DomeCsc constructed")
 
     async def connect(self) -> None:
@@ -335,35 +371,65 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         self.evt_elTarget.set_put(position=data.position, velocity=0)
 
-    async def do_stopAz(self, data: SimpleNamespace) -> None:
-        """Stop AZ motion and engage the brakes if indicated in the data.
-        Also disengage the locking pins if engaged.
+    async def stopAz(self, engage_brakes: bool) -> None:
+        """Stop AZ motion and engage the brakes if indicated. Also
+        disengage the locking pins if engaged.
 
         Parameters
         ----------
-        data : A SALOBJ data object
-            Contains the data as defined in the SAL XML file.
+        engage_brakes : bool
+            Engage the brakes (true) or not (false).
         """
         self.assert_enabled()
-        if data.engageBrakes:
-            await self.write_then_read_reply(command="goStationaryAMCS")
+        if engage_brakes:
+            await self.write_then_read_reply(command="goStationaryAz")
         else:
             await self.write_then_read_reply(command="stopAz")
 
-    async def do_stopEl(self, data: SimpleNamespace) -> None:
-        """Stop EL motion and engage the brakes if indicated in the data.
+    async def stopEl(self, engage_brakes: bool) -> None:
+        """Stop EL motion and engage the brakes if indicated. Also
+        disengage the locking pins if engaged.
+
+        Parameters
+        ----------
+        engage_brakes : bool
+            Engage the brakes (true) or not (false).
+        """
+        self.assert_enabled()
+        if engage_brakes:
+            await self.write_then_read_reply(command="goStationaryEl")
+        else:
+            await self.write_then_read_reply(command="stopEl")
+
+    async def stopLouvers(self, engage_brakes: bool) -> None:
+        """Stop Louvers motion and engage the brakes if indicated.
         Also disengage the locking pins if engaged.
 
         Parameters
         ----------
-        data : A SALOBJ data object
-            Contains the data as defined in the SAL XML file.
+        engage_brakes : bool
+            Engage the brakes (true) or not (false).
         """
         self.assert_enabled()
-        if data.engageBrakes:
-            await self.write_then_read_reply(command="goStationaryLWSCS")
+        if engage_brakes:
+            await self.write_then_read_reply(command="goStationaryLouvers")
         else:
-            await self.write_then_read_reply(command="stopEl")
+            await self.write_then_read_reply(command="stopLouvers")
+
+    async def stopShutter(self, engage_brakes: bool) -> None:
+        """Stop Shutter motion and engage the brakes if indicated.
+        Also disengage the locking pins if engaged.
+
+        Parameters
+        ----------
+        engage_brakes : bool
+            Engage the brakes (true) or not (false).
+        """
+        self.assert_enabled()
+        if engage_brakes:
+            await self.write_then_read_reply(command="goStationaryShutter")
+        else:
+            await self.write_then_read_reply(command="stopShutter")
 
     async def do_stop(self, data: SimpleNamespace) -> None:
         """Stop all motion and engage the brakes if indicated in the data.
@@ -375,10 +441,17 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        if data.engageBrakes:
-            await self.write_then_read_reply(command="goStationary")
-        else:
-            await self.write_then_read_reply(command="stop")
+        engage_brakes = data.engageBrakes
+        subsystem_ids = data.subSystemIds
+        for subsystem_id in SubSystemId:
+            if subsystem_id & subsystem_ids and subsystem_id in self.stop_dict:
+                func = self.stop_dict[subsystem_id]
+                await func(engage_brakes)
+            else:
+                self.log.warning(
+                    f"Subsystem {SubSystemId(subsystem_id).name} doesn't have a "
+                    "stop function. Ignoring."
+                )
 
     async def do_crawlAz(self, data: SimpleNamespace) -> None:
         """Crawl AZ.
@@ -430,21 +503,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         await self.write_then_read_reply(command="closeLouvers")
 
-    async def do_stopLouvers(self, data: SimpleNamespace) -> None:
-        """Stop Louvers motion and engage the brakes if indicated in the data.
-        Also disengage the locking pins if engaged.
-
-        Parameters
-        ----------
-        data : A SALOBJ data object
-            Contains the data as defined in the SAL XML file.
-        """
-        self.assert_enabled()
-        if data.engageBrakes:
-            await self.write_then_read_reply(command="goStationaryLCS")
-        else:
-            await self.write_then_read_reply(command="stopLouvers")
-
     async def do_openShutter(self, data: SimpleNamespace) -> None:
         """Open Shutter.
 
@@ -466,21 +524,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         await self.write_then_read_reply(command="closeShutter")
-
-    async def do_stopShutter(self, data: SimpleNamespace) -> None:
-        """Stop Shutter motion and engage the brakes if indicated in the data.
-        Also disengage the locking pins if engaged.
-
-        Parameters
-        ----------
-        data : A SALOBJ data object
-            Contains the data as defined in the SAL XML file.
-        """
-        self.assert_enabled()
-        if data.engageBrakes:
-            await self.write_then_read_reply(command="goStationaryApSCS")
-        else:
-            await self.write_then_read_reply(command="stopShutter")
 
     async def do_park(self, data: SimpleNamespace) -> None:
         """Park, meaning stop all motion and engage the brakes and locking
@@ -519,6 +562,32 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         await self.write_then_read_reply(command="exitFault")
+
+    async def do_setOperationalMode(self, data: SimpleNamespace) -> None:
+        """Indicate that one or more subsystems need to operate in degraded
+        (true) or normal (false) state.
+
+        Parameters
+        ----------
+        data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        operational_mode: OperationalMode = data.operationalMode
+        subsystem_ids: int = data.subSystemIds
+        for subsystem_id in SubSystemId:
+            if (
+                subsystem_id & subsystem_ids
+                and subsystem_id in self.set_operational_mode_dict
+                and operational_mode in self.set_operational_mode_dict[subsystem_id]
+            ):
+                command = self.set_operational_mode_dict[subsystem_id][operational_mode]
+                await self.write_then_read_reply(command=command)
+            else:
+                self.log.warning(
+                    f"Subsystem {SubSystemId(subsystem_id).name} doesn't "
+                    f"support OperationalMode {operational_mode}"
+                )
 
     async def config_llcs(self, system: str, settings: Dict[str, float]) -> None:
         """Config command not to be executed by SAL.
@@ -669,11 +738,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # DM-26374: Check for errors and send the events.
         if llc_name == LlcName.AMCS:
             llc_status = status[llc_name]["status"]
-            errors = llc_status["error"]
-            codes = [error["code"] for error in errors]
-            if len(errors) != 1 or codes[0] != 0:
+            messages = llc_status["messages"]
+            codes = [message["code"] for message in messages]
+            if len(messages) != 1 or codes[0] != 0:
                 fault_code = ", ".join(
-                    [f"{error['code']}={error['description']}" for error in errors]
+                    [
+                        f"{message['code']}={message['description']}"
+                        for message in messages
+                    ]
                 )
                 self.evt_azEnabled.set_put(
                     state=EnabledState.FAULT, faultCode=fault_code

@@ -30,6 +30,7 @@ from .base_mock_llc import BaseMockStatus
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
 from ..enums import LlcMotionState
 from .mock_motion.elevation_motion import ElevationMotion
+from lsst.ts.idl.enums.MTDome import OperationalMode
 
 _NUM_MOTORS = 2
 
@@ -50,12 +51,14 @@ class LwscsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockLwscsStatus")
         self.lwscs_limits = LwscsLimits()
-        # default values which may be overriden by calling moveEl, crawlEl or
+
+        # Default values which may be overriden by calling moveEl, crawlEl or
         # config
         self.jmax = self.lwscs_limits.jmax
         self.amax = self.lwscs_limits.amax
         self.vmax = self.lwscs_limits.vmax
-        # variables helping with the state of the mock EL motion
+
+        # Variables helping with the state of the mock EL motion
         self.elevation_motion = ElevationMotion(
             start_position=0.0,
             min_position=0.0,
@@ -64,9 +67,11 @@ class LwscsStatus(BaseMockStatus):
             start_tai=start_tai,
         )
         self.duration = 0.0
-        # variables holding the status of the mock EL motion
+
+        # Variables holding the status of the mock EL motion
         self.status = LlcMotionState.STOPPED
-        self.error = [{"code": 0, "description": "No Errors"}]
+        self.operational_mode = OperationalMode.NORMAL
+        self.messages = [{"code": 0, "description": "No Errors"}]
         self.position_commanded = 0.0
         self.velocity_commanded = 0.0
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
@@ -98,7 +103,11 @@ class LwscsStatus(BaseMockStatus):
             tai=current_tai
         )
         self.llc_status = {
-            "status": {"error": self.error, "status": motion_state.name},
+            "status": {
+                "messages": self.messages,
+                "status": motion_state.name,
+                "operationalMode": self.operational_mode.name,
+            },
             "positionActual": position,
             "positionCommanded": self.position_commanded,
             "velocityActual": velocity,
@@ -193,6 +202,24 @@ class LwscsStatus(BaseMockStatus):
         self.elevation_motion.go_stationary(start_tai)
         self.duration = 0.0
         return self.duration
+
+    async def set_normal(self) -> None:
+        """Set elevation motion state to normal (as opposed to
+        degraded).
+        """
+        if self.operational_mode == OperationalMode.DEGRADED:
+            self.operational_mode = OperationalMode.NORMAL
+        else:
+            self.log.warning("Operational state already is NORMAL. Ignoring.")
+
+    async def set_degraded(self) -> None:
+        """Set elevation motion state to degraded (as opposed to
+        normal).
+        """
+        if self.operational_mode == OperationalMode.NORMAL:
+            self.operational_mode = OperationalMode.DEGRADED
+        else:
+            self.log.warning("Operational state already is DEGRADED. Ignoring.")
 
     async def exit_fault(self, start_tai: float) -> float:
         """Clear the fault state.

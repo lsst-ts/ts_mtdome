@@ -30,6 +30,7 @@ from .base_mock_llc import BaseMockStatus
 from ..llc_configuration_limits.amcs_limits import AmcsLimits
 from ..enums import LlcMotionState, OnOff
 from .mock_motion.azimuth_motion import AzimuthMotion
+from lsst.ts.idl.enums.MTDome import OperationalMode
 
 _NUM_MOTORS = 5
 _NUM_MOTOR_TEMPERATURES = 13
@@ -55,20 +56,24 @@ class AmcsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockAzcsStatus")
         self.amcs_limits = AmcsLimits()
-        # default values which may be overriden by calling moveAz, crawlAz or
+
+        # Default values which may be overriden by calling moveAz, crawlAz or
         # config
         self.jmax = self.amcs_limits.jmax
         self.amax = self.amcs_limits.amax
         self.vmax = self.amcs_limits.vmax
-        # variables helping with the state of the mock AZ motion
+
+        # Variables helping with the state of the mock AZ motion
         self.azimuth_motion = AzimuthMotion(
             start_position=PARK_POSITION, max_speed=self.vmax, start_tai=start_tai
         )
         self.duration = 0.0
-        # variables holding the status of the mock AZ motion. The error codes
+
+        # Variables holding the status of the mock AZ motion. The error codes
         # will be specified in a future Dome Software meeting.
         self.status = LlcMotionState.STOPPED
-        self.error = [{"code": 0, "description": "No Errors"}]
+        self.operational_mode = OperationalMode.NORMAL
+        self.messages = [{"code": 0, "description": "No Errors"}]
         self.fans_enabled = OnOff.OFF
         self.seal_inflated = OnOff.OFF
         self.position_commanded = PARK_POSITION
@@ -101,10 +106,11 @@ class AmcsStatus(BaseMockStatus):
         ) = self.azimuth_motion.get_position_velocity_and_motion_state(tai=current_tai)
         self.llc_status = {
             "status": {
-                "error": self.error,
+                "messages": self.messages,
                 "status": motion_state.name,
                 "fans": self.fans_enabled.value,
                 "inflate": self.seal_inflated.value,
+                "operationalMode": self.operational_mode.name,
             },
             "positionActual": position,
             "positionCommanded": self.position_commanded,
@@ -224,6 +230,24 @@ class AmcsStatus(BaseMockStatus):
         self.azimuth_motion.go_stationary(start_tai)
         self.duration = 0.0
         return self.duration
+
+    async def set_normal(self) -> None:
+        """Set azimuth motion state to normal (as opposed to
+        degraded).
+        """
+        if self.operational_mode == OperationalMode.DEGRADED:
+            self.operational_mode = OperationalMode.NORMAL
+        else:
+            self.log.warning("Operational state already is NORMAL. Ignoring.")
+
+    async def set_degraded(self) -> None:
+        """Set azimuth motion state to degraded (as opposed to
+        normal).
+        """
+        if self.operational_mode == OperationalMode.NORMAL:
+            self.operational_mode = OperationalMode.DEGRADED
+        else:
+            self.log.warning("Operational state already is DEGRADED. Ignoring.")
 
     async def inflate(self, action: str) -> float:
         """Inflate or deflate the inflatable seal.

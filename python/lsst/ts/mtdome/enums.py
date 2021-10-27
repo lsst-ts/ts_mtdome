@@ -25,7 +25,7 @@ import enum
 
 
 class LlcMotionState(enum.IntEnum):
-    """Motion state."""
+    """Motion states."""
 
     FAULT = 0
     CLOSED = 1
@@ -44,6 +44,8 @@ class LlcMotionState(enum.IntEnum):
 
 
 class LlcName(str, enum.Enum):
+    """LLC names."""
+
     AMCS = "AMCS"
     APSCS = "ApSCS"
     LCS = "LCS"
@@ -53,13 +55,14 @@ class LlcName(str, enum.Enum):
 
 
 class OnOff(enum.Enum):
+    """ON or OFF."""
 
     ON = True
     OFF = False
 
 
 class ResponseCode(enum.IntEnum):
-    """`enum` with response codes."""
+    """Response codes."""
 
     OK = 0
     UNSUPPORTED_COMMAND = 2

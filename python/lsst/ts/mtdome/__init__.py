@@ -32,7 +32,7 @@ else:
         __version__ = "?"
 
 from .config_schema import CONFIG_SCHEMA
-from .enums import LlcMotionState, LlcName, OnOff, ResponseCode
+from .enums import *
 from .mock_controller import *
 from .mtdome_csc import *
 

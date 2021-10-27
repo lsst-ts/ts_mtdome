@@ -41,7 +41,7 @@ registry["LCS"] = json.loads(
         "status": {
           "type": "object",
           "properties": {
-            "error": {
+            "messages": {
               "type": "array",
               "minItems": 1,
               "items": [
@@ -72,11 +72,15 @@ registry["LCS"] = json.loads(
                   "type": "string"
                 }
               ]
+            },
+            "operationalMode": {
+              "type": "string"
             }
           },
           "required": [
-            "error",
-            "status"
+            "messages",
+            "status",
+            "operationalMode"
           ],
           "additionalProperties": false
         },

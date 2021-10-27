@@ -26,7 +26,12 @@ import unittest
 import numpy as np
 
 from lsst.ts import mtdome, salobj, utils
-from lsst.ts.idl.enums.MTDome import EnabledState, MotionState
+from lsst.ts.idl.enums.MTDome import (
+    EnabledState,
+    MotionState,
+    OperationalMode,
+    SubSystemId,
+)
 
 STD_TIMEOUT = 2  # standard command timeout (sec)
 
@@ -82,6 +87,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     "goStationaryShutter",
                     "setTemperature",
                     "exitFault",
+                    "setOperationalMode",
                 ),
             )
 
@@ -211,7 +217,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             settings_to_apply="",
         ):
             await self.set_csc_to_enabled()
-            await self.remote.cmd_stopAz.set_start(engageBrakes=False)
+            await self.remote.cmd_stop.set_start(
+                engageBrakes=False, subSystemIds=SubSystemId.AMCS
+            )
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -227,7 +235,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             settings_to_apply="",
         ):
             await self.set_csc_to_enabled()
-            await self.remote.cmd_stopEl.set_start(engageBrakes=False)
+            await self.remote.cmd_stop.set_start(
+                engageBrakes=False, subSystemIds=SubSystemId.LWSCS
+            )
 
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
@@ -243,7 +253,18 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             settings_to_apply="",
         ):
             await self.set_csc_to_enabled()
-            await self.remote.cmd_stop.set_start(engageBrakes=False)
+            subsystem_ids = (
+                SubSystemId.AMCS
+                | SubSystemId.LWSCS
+                | SubSystemId.APSCS
+                | SubSystemId.LCS
+                | SubSystemId.THCS
+                | SubSystemId.MONCS
+            )
+            await self.remote.cmd_stop.set_start(
+                engageBrakes=False,
+                subSystemIds=subsystem_ids,
+            )
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -385,7 +406,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             settings_to_apply="",
         ):
             await self.set_csc_to_enabled()
-            await self.remote.cmd_stopLouvers.set_start(engageBrakes=False)
+            await self.remote.cmd_stop.set_start(
+                engageBrakes=False, subSystemIds=SubSystemId.LCS
+            )
 
     async def test_do_openShutter(self) -> None:
         async with self.make_csc(
@@ -415,7 +438,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             settings_to_apply="",
         ):
             await self.set_csc_to_enabled()
-            await self.remote.cmd_stopShutter.set_start(engageBrakes=False)
+            await self.remote.cmd_stop.set_start(
+                engageBrakes=False, subSystemIds=SubSystemId.APSCS
+            )
 
     async def test_do_park(self) -> None:
         async with self.make_csc(
@@ -479,8 +504,18 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 state=MotionState.STOPPED,
                 inPosition=True,
             )
-
-            await self.remote.cmd_stop.set_start(engageBrakes=True)
+            subsystem_ids = (
+                SubSystemId.AMCS
+                | SubSystemId.LWSCS
+                | SubSystemId.APSCS
+                | SubSystemId.LCS
+                | SubSystemId.THCS
+                | SubSystemId.MONCS
+            )
+            await self.remote.cmd_stop.set_start(
+                engageBrakes=True,
+                subSystemIds=subsystem_ids,
+            )
 
             # Give some time to the mock device to move.
             self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
@@ -729,16 +764,19 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             await self.set_csc_to_enabled()
 
-            # Introduce an error. This will be improved once error codes have
-            # been specified in a future Dome Software meeting.
-            expected_errors = [
+            # Introduce error messages. This will be improved once error codes
+            # have been specified in a future Dome Software meeting.
+            expected_messages = [
                 {"code": 100, "description": "Drive 1 temperature too high"},
                 {"code": 100, "description": "Drive 2 temperature too high"},
             ]
             expected_fault_code = ", ".join(
-                [f"{error['code']}={error['description']}" for error in expected_errors]
+                [
+                    f"{message['code']}={message['description']}"
+                    for message in expected_messages
+                ]
             )
-            self.csc.mock_ctrl.amcs.error = expected_errors
+            self.csc.mock_ctrl.amcs.messages = expected_messages
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             self.assertEqual(
@@ -746,8 +784,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 MotionState.STOPPED.name,
             )
             self.assertEqual(
-                amcs_status["status"]["error"],
-                expected_errors,
+                amcs_status["status"]["messages"],
+                expected_messages,
             )
             self.assertEqual(
                 amcs_status["positionActual"],
@@ -840,6 +878,103 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.assertEqual(
                 thcs_status["temperature"],
                 [0.0] * mtdome.mock_llc.NUM_THERMO_SENSORS,
+            )
+
+    async def validate_operational_mode(
+        self, operational_mode: OperationalMode, subsystem_ids: int
+    ) -> None:
+        # Dictionary to look up which status telemetry function to call for
+        # which subsystem.
+        status_dict = {
+            SubSystemId.AMCS: self.csc.statusAMCS,
+            SubSystemId.APSCS: self.csc.statusApSCS,
+            SubSystemId.LCS: self.csc.statusLCS,
+            SubSystemId.LWSCS: self.csc.statusLWSCS,
+            SubSystemId.MONCS: self.csc.statusMonCS,
+            SubSystemId.THCS: self.csc.statusThCS,
+        }
+
+        # Dictionary to look up which LlcName is associated with which
+        # subsystem.
+        lower_level_name_disct = {
+            SubSystemId.AMCS: mtdome.LlcName.AMCS.value,
+            SubSystemId.APSCS: mtdome.LlcName.APSCS.value,
+            SubSystemId.LCS: mtdome.LlcName.LCS.value,
+            SubSystemId.LWSCS: mtdome.LlcName.LWSCS.value,
+            SubSystemId.MONCS: mtdome.LlcName.MONCS.value,
+            SubSystemId.THCS: mtdome.LlcName.THCS.value,
+        }
+        for subsystem_id in SubSystemId:
+            if subsystem_id & subsystem_ids:
+                func = status_dict[subsystem_id]
+                name = lower_level_name_disct[subsystem_id]
+                await func()
+                status = self.csc.lower_level_status[name]
+                self.assertEqual(
+                    status["status"]["operationalMode"], operational_mode.name
+                )
+
+    async def test_do_setOperationalMode(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=None,
+            simulation_mode=1,
+            settings_to_apply="",
+        ):
+            await self.set_csc_to_enabled()
+
+            # Test with one lower level component first.
+            operational_mode = OperationalMode.DEGRADED
+            subsystem_ids = SubSystemId.AMCS
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=subsystem_ids,
+            )
+
+            # Test with the same lower level component and an additional one.
+            operational_mode = OperationalMode.DEGRADED
+            subsystem_ids = SubSystemId.AMCS | SubSystemId.MONCS
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=subsystem_ids,
+            )
+
+            # Set both to normal
+            operational_mode = OperationalMode.NORMAL
+            subsystem_ids = SubSystemId.AMCS | SubSystemId.MONCS
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=subsystem_ids,
+            )
+
+            # Set all to degraded
+            operational_mode = OperationalMode.DEGRADED
+            subsystem_ids = (
+                SubSystemId.AMCS
+                | SubSystemId.APSCS
+                | SubSystemId.LCS
+                | SubSystemId.LWSCS
+                | SubSystemId.MONCS
+                | SubSystemId.THCS
+            )
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=subsystem_ids,
+            )
+
+            # Set all back to normal
+            operational_mode = OperationalMode.NORMAL
+            subsystem_ids = (
+                SubSystemId.AMCS
+                | SubSystemId.APSCS
+                | SubSystemId.LCS
+                | SubSystemId.LWSCS
+                | SubSystemId.MONCS
+                | SubSystemId.THCS
+            )
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=subsystem_ids,
             )
 
     async def test_bin_script(self) -> None:

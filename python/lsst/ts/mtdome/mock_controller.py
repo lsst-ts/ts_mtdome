@@ -86,7 +86,6 @@ class MockMTDomeController:
             "crawlEl": self.crawl_el,
             "exitFault": self.exit_fault,
             "fans": self.fans,
-            "goStationary": self.go_stationary,
             "goStationaryAz": self.go_stationary_az,
             "goStationaryEl": self.go_stationary_el,
             "goStationaryLouvers": self.go_stationary_louvers,
@@ -97,7 +96,15 @@ class MockMTDomeController:
             "openShutter": self.open_shutter,
             "park": self.park,
             "restore": self.restore,
+            "setDegradedAz": self.set_degraded_az,
+            "setDegradedEl": self.set_degraded_el,
+            "setDegradedLouvers": self.set_degraded_louvers,
+            "setDegradedShutter": self.set_degraded_shutter,
             "setLouvers": self.set_louvers,
+            "setNormalAz": self.set_normal_az,
+            "setNormalEl": self.set_normal_el,
+            "setNormalLouvers": self.set_normal_louvers,
+            "setNormalShutter": self.set_normal_shutter,
             "setTemperature": self.set_temperature,
             "statusAMCS": self.status_amcs,
             "statusApSCS": self.status_apscs,
@@ -105,7 +112,6 @@ class MockMTDomeController:
             "statusLWSCS": self.status_lwscs,
             "statusMonCS": self.status_moncs,
             "statusThCS": self.status_thcs,
-            "stop": self.stop_llc,
             "stopAz": self.stop_az,
             "stopEl": self.stop_el,
             "stopLouvers": self.stop_louvers,
@@ -380,13 +386,6 @@ class MockMTDomeController:
         assert self.lwscs is not None
         return await self.lwscs.stopEl(self.current_tai)
 
-    async def stop_llc(self) -> None:
-        """Stop motion on all lower level components."""
-        await self.stop_az()
-        await self.stop_el()
-        await self.stop_shutter()
-        await self.stop_louvers()
-
     async def crawl_az(self, velocity: float) -> float:
         """Crawl the dome.
 
@@ -577,20 +576,69 @@ class MockMTDomeController:
         assert self.lcs is not None
         await self.lcs.go_stationary()
 
-    async def go_stationary(self) -> None:
-        """Stop all motion and engage the brakes. Also disengage the
-        locking pins if engaged.
-
-        Returns
-        -------
-        `float`
-            The estimated duration of the execution of the command.
+    async def set_normal_az(self) -> None:
+        """Set azimuth motion state to normal (as opposed to
+        degraded).
         """
-        self.log.info("Received command 'goStationary'")
-        await self.go_stationary_az()
-        await self.go_stationary_el()
-        await self.go_stationary_shutter()
-        await self.go_stationary_louvers()
+        self.log.info("Received command 'set_normal_az'")
+        assert self.amcs is not None
+        await self.amcs.set_normal()
+
+    async def set_normal_el(self) -> None:
+        """Set elevation motion state to normal (as opposed to
+        degraded).
+        """
+        self.log.info("Received command 'set_normal_el'")
+        assert self.lwscs is not None
+        await self.lwscs.set_normal()
+
+    async def set_normal_shutter(self) -> None:
+        """Set shutter motion state to normal (as opposed to
+        degraded).
+        """
+        self.log.info("Received command 'set_normal_shutter'")
+        assert self.apscs is not None
+        await self.apscs.set_normal()
+
+    async def set_normal_louvers(self) -> None:
+        """Set louvers motion state to normal (as opposed to
+        degraded).
+        """
+        self.log.info("Received command 'set_normal_louvers'")
+        assert self.lcs is not None
+        await self.lcs.set_normal()
+
+    async def set_degraded_az(self) -> None:
+        """Set azimuth motion state to degraded (as opposed to
+        normal).
+        """
+        self.log.info("Received command 'set_degraded_az'")
+        assert self.amcs is not None
+        await self.amcs.set_degraded()
+
+    async def set_degraded_el(self) -> None:
+        """Set elevation motion state to degraded (as opposed to
+        normal).
+        """
+        self.log.info("Received command 'set_degraded_el'")
+        assert self.lwscs is not None
+        await self.lwscs.set_degraded()
+
+    async def set_degraded_shutter(self) -> None:
+        """Set shutter motion state to degraded (as opposed to
+        normal).
+        """
+        self.log.info("Received command 'set_degraded_shutter'")
+        assert self.apscs is not None
+        await self.apscs.set_degraded()
+
+    async def set_degraded_louvers(self) -> None:
+        """Set louvers motion state to degraded (as opposed to
+        normal).
+        """
+        self.log.info("Received command 'set_degraded_louvers'")
+        assert self.lcs is not None
+        await self.lcs.set_degraded()
 
     async def set_temperature(self, temperature: float) -> None:
         """Set the preferred temperature in the dome.

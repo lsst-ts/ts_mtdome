@@ -27,6 +27,7 @@ import numpy as np
 from lsst.ts import utils
 from .base_mock_llc import BaseMockStatus
 from ..enums import LlcMotionState
+from lsst.ts.idl.enums.MTDome import OperationalMode
 
 _NUM_SHUTTERS = 2
 _NUM_MOTORS = 4
@@ -40,9 +41,11 @@ class ApscsStatus(BaseMockStatus):
     def __init__(self) -> None:
         super().__init__()
         self.log = logging.getLogger("MockApscsStatus")
-        # variables holding the status of the mock Aperture Shutter
+
+        # Variables holding the status of the mock Aperture Shutter
         self.status = LlcMotionState.CLOSED
-        self.error = [{"code": 0, "description": "No Errors"}]
+        self.operational_mode = OperationalMode.NORMAL
+        self.messages = [{"code": 0, "description": "No Errors"}]
         self.position_actual = np.zeros(_NUM_SHUTTERS, dtype=float)
         self.position_commanded = 0.0
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
@@ -63,7 +66,11 @@ class ApscsStatus(BaseMockStatus):
             f"time_diff = {time_diff}"
         )
         self.llc_status = {
-            "status": {"error": self.error, "status": self.status.name},
+            "status": {
+                "messages": self.messages,
+                "status": self.status.name,
+                "operationalMode": self.operational_mode.name,
+            },
             "positionActual": self.position_actual.tolist(),
             "positionCommanded": self.position_commanded,
             "driveTorqueActual": self.drive_torque_actual.tolist(),
@@ -105,6 +112,24 @@ class ApscsStatus(BaseMockStatus):
         """Stop shutter motion and engage the brakes."""
         self.command_time_tai = utils.current_tai()
         self.status = LlcMotionState.STATIONARY
+
+    async def set_normal(self) -> None:
+        """Set shutter motion state to normal (as opposed to
+        degraded).
+        """
+        if self.operational_mode == OperationalMode.DEGRADED:
+            self.operational_mode = OperationalMode.NORMAL
+        else:
+            self.log.warning("Operational state already is NORMAL. Ignoring.")
+
+    async def set_degraded(self) -> None:
+        """Set shutter motion state to degraded (as opposed to
+        normal).
+        """
+        if self.operational_mode == OperationalMode.NORMAL:
+            self.operational_mode = OperationalMode.DEGRADED
+        else:
+            self.log.warning("Operational state already is DEGRADED. Ignoring.")
 
     async def exit_fault(self) -> None:
         """Clear the fault state."""
