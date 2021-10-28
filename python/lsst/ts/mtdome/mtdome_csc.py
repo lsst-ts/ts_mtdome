@@ -25,12 +25,11 @@ import asyncio
 import math
 import typing
 from types import SimpleNamespace
-from typing import Any, Callable, Dict, List, Optional
 
 from .config_schema import CONFIG_SCHEMA
 from . import __version__, encoding_tools
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
-from .enums import LlcMotionState, LlcName, ResponseCode
+from .enums import LlcMotionState, LlcName, ResponseCode, LlcNameDict
 from lsst.ts import salobj
 from .mock_controller import MockMTDomeController
 from lsst.ts.idl.enums.MTDome import (
@@ -43,7 +42,7 @@ from lsst.ts.idl.enums.MTDome import (
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout in s to be used by this module
 # DM-26653: Added "positionError" since this key is still under discussion.
-_KEYS_TO_REMOVE = {"status", "positionError"}
+_KEYS_TO_REMOVE = {"status", "operationalMode"}
 _KEYS_IN_RADIANS = {
     "positionActual",
     "positionCommanded",
@@ -96,17 +95,17 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
     def __init__(
         self,
-        config_dir: Optional[str] = None,
+        config_dir: typing.Optional[str] = None,
         initial_state: salobj.State = salobj.State.STANDBY,
         simulation_mode: int = 0,
         settings_to_apply: str = "",
-        mock_port: Optional[int] = None,
+        mock_port: typing.Optional[int] = None,
     ) -> None:
-        self.reader: Optional[asyncio.StreamReader] = None
-        self.writer: Optional[asyncio.StreamWriter] = None
-        self.config: Optional[SimpleNamespace] = None
+        self.reader: typing.Optional[asyncio.StreamReader] = None
+        self.writer: typing.Optional[asyncio.StreamWriter] = None
+        self.config: typing.Optional[SimpleNamespace] = None
 
-        self.mock_ctrl: Optional[
+        self.mock_ctrl: typing.Optional[
             MockMTDomeController
         ] = None  # mock controller, or None if not constructed
         self.mock_port = mock_port  # mock port, or None if not used
@@ -122,8 +121,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
 
         # Keep the lower level statuses in memory for unit tests.
-        self.lower_level_status: Dict[str, Any] = {}
-        self.status_tasks: List[asyncio.Future] = []
+        self.lower_level_status: typing.Dict[str, typing.Any] = {}
+        self.status_tasks: typing.List[asyncio.Future] = []
 
         # Keep a lock so only one remote command can be executed at a time.
         self.communication_lock = asyncio.Lock()
@@ -132,16 +131,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.lwscs_limits = LwscsLimits()
 
         # Keep track of which stop function to call for which SubSystemId
-        self.stop_dict: typing.Dict[SubSystemId, typing.Callable] = {
-            SubSystemId.AMCS: self.stopAz,
-            SubSystemId.LWSCS: self.stopEl,
-            SubSystemId.APSCS: self.stopShutter,
-            SubSystemId.LCS: self.stopLouvers,
+        self.stop_function_dict = {
+            SubSystemId.AMCS: self.stop_az,
+            SubSystemId.LWSCS: self.stop_el,
+            SubSystemId.APSCS: self.stop_shutter,
+            SubSystemId.LCS: self.stop_louvers,
         }
 
         # Keep track of which command to send to set the operational mode on a
         # lower level component.
-        self.set_operational_mode_dict = {
+        self.set_operational_mode_command_dict = {
             SubSystemId.AMCS: {
                 OperationalMode.NORMAL.name: "setNormalAz",
                 OperationalMode.DEGRADED.name: "setDegradedAz",
@@ -157,6 +156,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             SubSystemId.LCS: {
                 OperationalMode.NORMAL.name: "setNormalLouvers",
                 OperationalMode.DEGRADED.name: "setDegradedLouvers",
+            },
+            SubSystemId.MONCS: {
+                OperationalMode.NORMAL.name: "setNormalMonitoring",
+                OperationalMode.DEGRADED.name: "setDegradedMonitoring",
+            },
+            SubSystemId.THCS: {
+                OperationalMode.NORMAL.name: "setNormalThermal",
+                OperationalMode.DEGRADED.name: "setDegradedThermal",
             },
         }
 
@@ -289,8 +296,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.disconnect()
 
     async def write_then_read_reply(
-        self, command: str, **params: Any
-    ) -> Dict[str, Any]:
+        self, command: str, **params: typing.Any
+    ) -> typing.Dict[str, typing.Any]:
         """Write the cmd string and then read the reply to the command.
 
         Parameters
@@ -318,7 +325,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             read_bytes = await asyncio.wait_for(
                 self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
             )
-            data: Dict[str, Any] = encoding_tools.decode(read_bytes.decode())
+            data: typing.Dict[str, typing.Any] = encoding_tools.decode(
+                read_bytes.decode()
+            )
             response = data["response"]
 
             if response == ResponseCode.OK:
@@ -371,7 +380,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         self.evt_elTarget.set_put(position=data.position, velocity=0)
 
-    async def stopAz(self, engage_brakes: bool) -> None:
+    async def stop_az(self, engage_brakes: bool) -> None:
         """Stop AZ motion and engage the brakes if indicated. Also
         disengage the locking pins if engaged.
 
@@ -386,7 +395,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.write_then_read_reply(command="stopAz")
 
-    async def stopEl(self, engage_brakes: bool) -> None:
+    async def stop_el(self, engage_brakes: bool) -> None:
         """Stop EL motion and engage the brakes if indicated. Also
         disengage the locking pins if engaged.
 
@@ -401,7 +410,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.write_then_read_reply(command="stopEl")
 
-    async def stopLouvers(self, engage_brakes: bool) -> None:
+    async def stop_louvers(self, engage_brakes: bool) -> None:
         """Stop Louvers motion and engage the brakes if indicated.
         Also disengage the locking pins if engaged.
 
@@ -416,7 +425,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.write_then_read_reply(command="stopLouvers")
 
-    async def stopShutter(self, engage_brakes: bool) -> None:
+    async def stop_shutter(self, engage_brakes: bool) -> None:
         """Stop Shutter motion and engage the brakes if indicated.
         Also disengage the locking pins if engaged.
 
@@ -441,17 +450,18 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        engage_brakes = data.engageBrakes
-        subsystem_ids = data.subSystemIds
-        for subsystem_id in SubSystemId:
-            if subsystem_id & subsystem_ids and subsystem_id in self.stop_dict:
-                func = self.stop_dict[subsystem_id]
-                await func(engage_brakes)
-            else:
-                self.log.warning(
-                    f"Subsystem {SubSystemId(subsystem_id).name} doesn't have a "
-                    "stop function. Ignoring."
-                )
+        for sub_system_id in SubSystemId:
+            # Do not nest these two if statements, otherwise a warning will be
+            # logged for each SubsystemId that is not in data.subSystemIds.
+            if sub_system_id & data.subSystemIds:
+                if sub_system_id in self.stop_function_dict:
+                    func = self.stop_function_dict[sub_system_id]
+                    await func(data.engageBrakes)
+                else:
+                    self.log.warning(
+                        f"Subsystem {SubSystemId(sub_system_id).name} doesn't have a "
+                        "stop function. Ignoring."
+                    )
 
     async def do_crawlAz(self, data: SimpleNamespace) -> None:
         """Crawl AZ.
@@ -564,7 +574,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.write_then_read_reply(command="exitFault")
 
     async def do_setOperationalMode(self, data: SimpleNamespace) -> None:
-        """Indicate that one or more subsystems need to operate in degraded
+        """Indicate that one or more sub_systems need to operate in degraded
         (true) or normal (false) state.
 
         Parameters
@@ -573,23 +583,25 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        operational_mode: OperationalMode = data.operationalMode
-        subsystem_ids: int = data.subSystemIds
-        for subsystem_id in SubSystemId:
+        operational_mode = OperationalMode(data.operationalMode)
+        sub_system_ids: int = data.subSystemIds
+        for sub_system_id in SubSystemId:
             if (
-                subsystem_id & subsystem_ids
-                and subsystem_id in self.set_operational_mode_dict
-                and operational_mode in self.set_operational_mode_dict[subsystem_id]
+                sub_system_id & sub_system_ids
+                and sub_system_id in self.set_operational_mode_command_dict
+                and operational_mode.name
+                in self.set_operational_mode_command_dict[sub_system_id]
             ):
-                command = self.set_operational_mode_dict[subsystem_id][operational_mode]
+                command = self.set_operational_mode_command_dict[sub_system_id][
+                    operational_mode.name
+                ]
                 await self.write_then_read_reply(command=command)
-            else:
-                self.log.warning(
-                    f"Subsystem {SubSystemId(subsystem_id).name} doesn't "
-                    f"support OperationalMode {operational_mode}"
+                self.evt_operationalMode.set_put(
+                    operationalMode=operational_mode,
+                    subSystemId=sub_system_id,
                 )
 
-    async def config_llcs(self, system: str, settings: Dict[str, float]) -> None:
+    async def config_llcs(self, system: str, settings: typing.Dict[str, float]) -> None:
         """Config command not to be executed by SAL.
 
         This command will be used to send the values of one or more parameters
@@ -622,7 +634,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def restore_llcs(self) -> None:
         await self.write_then_read_reply(command="restore")
 
-    async def fans(self, data: Dict[str, Any]) -> None:
+    async def fans(self, data: typing.Dict[str, typing.Any]) -> None:
         """Fans command not to be executed by SAL.
 
         This command will be used to switch on or off the fans in the dome.
@@ -636,7 +648,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.write_then_read_reply(command="fans", action=data["action"])
 
-    async def inflate(self, data: Dict[str, Any]) -> None:
+    async def inflate(self, data: typing.Dict[str, typing.Any]) -> None:
         """Inflate command not to be executed by SAL.
 
         This command will be used to inflate or deflate the inflatable seal.
@@ -713,12 +725,27 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         """
         command = f"status{llc_name}"
-        status: Dict[str, Any] = await self.write_then_read_reply(command=command)
-        # Store the status for unit tests.
+        status: typing.Dict[str, typing.Any] = await self.write_then_read_reply(
+            command=command
+        )
+
+        # DM-30807: Send OperationalMode event at start up.
+        current_operational_mode = status[llc_name]["status"]["operationalMode"]
+        if llc_name not in self.lower_level_status:
+            operatinal_mode = OperationalMode[current_operational_mode]
+            sub_system_id = [
+                sid for sid, name in LlcNameDict.items() if name == llc_name
+            ][0]
+            self.evt_operationalMode.set_put(
+                operationalMode=operatinal_mode,
+                subSystemId=sub_system_id,
+            )
+
+        # Store the status for reference.
         self.lower_level_status[llc_name] = status[llc_name]
 
-        telemetry_in_degrees: Dict[str, Any] = {}
-        telemetry_in_radians: Dict[str, Any] = status[llc_name]
+        telemetry_in_degrees: typing.Dict[str, typing.Any] = {}
+        telemetry_in_radians: typing.Dict[str, typing.Any] = status[llc_name]
         for key in telemetry_in_radians.keys():
             if key in _KEYS_IN_RADIANS and llc_name in [LlcName.AMCS, LlcName.LWSCS]:
                 telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
@@ -731,7 +758,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 # angle
                 telemetry_in_degrees[key] = telemetry_in_radians[key]
         # Remove some keys because they are not reported in the telemetry.
-        telemetry: Dict[str, Any] = self.remove_keys_from_dict(telemetry_in_degrees)
+        telemetry: typing.Dict[str, typing.Any] = self.remove_keys_from_dict(
+            telemetry_in_degrees
+        )
         # Send the telemetry.
         topic.set_put(**telemetry)
 
@@ -783,8 +812,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 motion_state = MotionState.STOPPED_BRAKED
 
     def remove_keys_from_dict(
-        self, dict_with_too_many_keys: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, dict_with_too_many_keys: typing.Dict[str, typing.Any]
+    ) -> typing.Dict[str, typing.Any]:
         """
         Return a copy of a dict with specified items removed.
 
@@ -816,7 +845,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def configure(self, config: SimpleNamespace) -> None:
         self.config = config
 
-    async def one_status_loop(self, method: Callable, interval: float) -> None:
+    async def one_status_loop(self, method: typing.Callable, interval: float) -> None:
         """Run one status method forever at the specified interval.
 
         Parameters

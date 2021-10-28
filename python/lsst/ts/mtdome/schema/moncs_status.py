@@ -39,7 +39,43 @@ registry["MonCS"] = json.loads(
       "type": "object",
       "properties": {
         "status": {
-          "type": "string"
+          "type": "object",
+          "properties": {
+            "messages": {
+              "type": "array",
+              "minItems": 1,
+              "items": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "number"
+                    },
+                    "description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ],
+              "required": [
+                "code",
+                "description"
+              ],
+              "additionalProperties": false
+            },
+            "status": {
+              "type": "string"
+            },
+            "operationalMode": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "messages",
+            "status",
+            "operationalMode"
+          ],
+          "additionalProperties": false
         },
         "data": {
           "type": "array",

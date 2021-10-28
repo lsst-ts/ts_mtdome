@@ -930,101 +930,53 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         assert apscs_status["positionActual"] == [100.0, 100.0]
         assert apscs_status["positionCommanded"] == 100.0
 
-    async def test_set_normal_az(self) -> None:
-        self.mock_ctrl.amcs.operational_mode = OperationalMode.DEGRADED
-        await self.write(command="setNormalAz", parameters={})
-        self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.mock_ctrl is not None
-        assert self.mock_ctrl.amcs.operational_mode == OperationalMode.NORMAL
-        await self.write(command="setNormalAz", parameters={})
-        self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.mock_ctrl.amcs.operational_mode == OperationalMode.NORMAL
+    async def validate_operational_mode(
+        self, llc: mtdome.mock_llc.BaseMockStatus, command_part: str
+    ) -> None:
+        # Any lower level component should be in normal mode when started.
+        assert llc.operational_mode == OperationalMode.NORMAL
 
-    async def test_set_degraded_az(self) -> None:
-        assert self.mock_ctrl.amcs.operational_mode == OperationalMode.NORMAL
-        await self.write(command="setDegradedAz", parameters={})
+        # Set the lower level component to DEGRADED and then send a command to
+        # set it to normal again.
+        llc.operational_mode = OperationalMode.DEGRADED
+        await self.write(command=f"setNormal{command_part}", parameters={})
         self.data = await self.read()
         assert self.data["response"] == 0
-        assert self.mock_ctrl is not None
-        assert self.mock_ctrl.amcs.operational_mode == OperationalMode.DEGRADED
-        await self.write(command="setDegradedAz", parameters={})
-        self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.mock_ctrl.amcs.operational_mode == OperationalMode.DEGRADED
+        assert llc.operational_mode == OperationalMode.NORMAL
 
-    async def test_set_normal_el(self) -> None:
-        self.mock_ctrl.lwscs.operational_mode = OperationalMode.DEGRADED
-        await self.write(command="setNormalEl", parameters={})
+        # Send a command to set the lower level component to normal while
+        # already in normal. This should not raise an exception.
+        await self.write(command=f"setNormal{command_part}", parameters={})
         self.data = await self.read()
         assert self.data["response"] == 0
-        assert self.mock_ctrl is not None
-        assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.NORMAL
-        await self.write(command="setNormalEl", parameters={})
-        self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.NORMAL
+        assert llc.operational_mode == OperationalMode.NORMAL
 
-    async def test_set_degraded_el(self) -> None:
-        assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.NORMAL
-        await self.write(command="setDegradedEl", parameters={})
+        # Send a command to set the lower level component to degraded.
+        await self.write(command=f"setDegraded{command_part}", parameters={})
         self.data = await self.read()
         assert self.data["response"] == 0
-        assert self.mock_ctrl is not None
-        assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.DEGRADED
-        await self.write(command="setDegradedEl", parameters={})
-        self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.mock_ctrl.lwscs.operational_mode == OperationalMode.DEGRADED
+        assert llc.operational_mode == OperationalMode.DEGRADED
 
-    async def test_set_normal_louvers(self) -> None:
-        self.mock_ctrl.lcs.operational_mode = OperationalMode.DEGRADED
-        await self.write(command="setNormalLouvers", parameters={})
+        # Send a command to set the lower level component to degraded while
+        # already in degraded. This should not raise an exception.
+        await self.write(command=f"setDegraded{command_part}", parameters={})
         self.data = await self.read()
         assert self.data["response"] == 0
-        assert self.mock_ctrl is not None
-        assert self.mock_ctrl.lcs.operational_mode == OperationalMode.NORMAL
-        await self.write(command="setNormalLouvers", parameters={})
-        self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.mock_ctrl.lcs.operational_mode == OperationalMode.NORMAL
+        assert llc.operational_mode == OperationalMode.DEGRADED
 
-    async def test_set_degraded_louvers(self) -> None:
-        assert self.mock_ctrl.lcs.operational_mode == OperationalMode.NORMAL
-        await self.write(command="setDegradedLouvers", parameters={})
+        # Send a command to set the lower level component to normal again.
+        await self.write(command=f"setNormal{command_part}", parameters={})
         self.data = await self.read()
         assert self.data["response"] == 0
-        assert self.mock_ctrl is not None
-        assert self.mock_ctrl.lcs.operational_mode == OperationalMode.DEGRADED
-        await self.write(command="setDegradedLouvers", parameters={})
-        self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.mock_ctrl.lcs.operational_mode == OperationalMode.DEGRADED
+        assert llc.operational_mode == OperationalMode.NORMAL
 
-    async def test_set_normal_shutter(self) -> None:
-        self.mock_ctrl.apscs.operational_mode = OperationalMode.DEGRADED
-        await self.write(command="setNormalShutter", parameters={})
-        self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.mock_ctrl is not None
-        assert self.mock_ctrl.apscs.operational_mode == OperationalMode.NORMAL
-        await self.write(command="setNormalShutter", parameters={})
-        self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.mock_ctrl.apscs.operational_mode == OperationalMode.NORMAL
-
-    async def test_set_degraded_shutter(self) -> None:
-        assert self.mock_ctrl.apscs.operational_mode == OperationalMode.NORMAL
-        await self.write(command="setDegradedShutter", parameters={})
-        self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.mock_ctrl is not None
-        assert self.mock_ctrl.apscs.operational_mode == OperationalMode.DEGRADED
-        await self.write(command="setDegradedShutter", parameters={})
-        self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.mock_ctrl.apscs.operational_mode == OperationalMode.DEGRADED
+    async def test_operational_mode(self) -> None:
+        await self.validate_operational_mode(self.mock_ctrl.amcs, "Az")
+        await self.validate_operational_mode(self.mock_ctrl.apscs, "Shutter")
+        await self.validate_operational_mode(self.mock_ctrl.lcs, "Louvers")
+        await self.validate_operational_mode(self.mock_ctrl.lwscs, "El")
+        await self.validate_operational_mode(self.mock_ctrl.moncs, "Monitoring")
+        await self.validate_operational_mode(self.mock_ctrl.thcs, "Thermal")
 
     async def test_config(self) -> None:
         # All AMCS values within the limits.
@@ -1043,7 +995,6 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
         assert self.data["response"] == 0
-        assert self.mock_ctrl is not None
         assert self.data["timeout"] == self.mock_ctrl.long_duration
 
         assert self.mock_ctrl.amcs.amcs_limits.jmax == amcs_jmax
@@ -1074,7 +1025,6 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def test_park(self) -> None:
         # Set the TAI time in the mock controller for easier control
-        assert self.mock_ctrl is not None
         self.mock_ctrl.current_tai = _CURRENT_TAI
         # Set the mock device statuses TAI time to the mock controller time for
         # easier control
@@ -1203,7 +1153,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusMonCS", parameters={})
         self.data = await self.read()
         moncs_status = self.data[mtdome.LlcName.MONCS.value]
-        assert moncs_status["status"] == mtdome.LlcMotionState.CLOSED.name
+        assert moncs_status["status"]["status"] == mtdome.LlcMotionState.CLOSED.name
         assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
 
         await self.write(command="statusThCS", parameters={})

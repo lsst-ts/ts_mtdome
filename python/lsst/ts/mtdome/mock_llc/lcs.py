@@ -28,7 +28,6 @@ from typing import List
 from lsst.ts import utils
 from .base_mock_llc import BaseMockStatus
 from ..enums import LlcMotionState
-from lsst.ts.idl.enums.MTDome import OperationalMode
 
 NUM_LOUVERS = 34
 _NUM_MOTORS = 68
@@ -48,7 +47,6 @@ class LcsStatus(BaseMockStatus):
 
         # Variables holding the status of the mock Louvres
         self.status = np.full(NUM_LOUVERS, LlcMotionState.CLOSED.name, dtype=object)
-        self.operational_mode = OperationalMode.NORMAL
         self.messages = [{"code": 0, "description": "No Errors"}]
         self.position_actual = np.zeros(NUM_LOUVERS, dtype=float)
         self.position_commanded = np.zeros(NUM_LOUVERS, dtype=float)
@@ -125,24 +123,6 @@ class LcsStatus(BaseMockStatus):
         """Stop louvers motion and engage the brakes."""
         self.command_time_tai = utils.current_tai()
         self.status[:] = LlcMotionState.STATIONARY.name
-
-    async def set_normal(self) -> None:
-        """Set louvers motion state to normal (as opposed to
-        degraded).
-        """
-        if self.operational_mode == OperationalMode.DEGRADED:
-            self.operational_mode = OperationalMode.NORMAL
-        else:
-            self.log.warning("Operational state already is NORMAL. Ignoring.")
-
-    async def set_degraded(self) -> None:
-        """Set louvers motion state to degraded (as opposed to
-        normal).
-        """
-        if self.operational_mode == OperationalMode.NORMAL:
-            self.operational_mode = OperationalMode.DEGRADED
-        else:
-            self.log.warning("Operational state already is DEGRADED. Ignoring.")
 
     async def exit_fault(self) -> None:
         """Clear the fault state."""

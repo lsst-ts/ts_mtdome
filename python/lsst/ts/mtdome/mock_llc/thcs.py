@@ -27,7 +27,6 @@ import numpy as np
 from lsst.ts import utils
 from .base_mock_llc import BaseMockStatus
 from ..enums import LlcMotionState
-from lsst.ts.idl.enums.MTDome import OperationalMode
 
 NUM_THERMO_SENSORS = 13
 
@@ -42,7 +41,6 @@ class ThcsStatus(BaseMockStatus):
         self.log = logging.getLogger("MockThcsStatus")
         self.status = LlcMotionState.CLOSED
         self.messages = [{"code": 0, "description": "No Errors"}]
-        self.operational_mode = OperationalMode.NORMAL
         self.temperature = np.zeros(NUM_THERMO_SENSORS, dtype=float)
 
     async def determine_status(self, current_tai: float) -> None:

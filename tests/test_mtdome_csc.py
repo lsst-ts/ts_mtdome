@@ -34,7 +34,7 @@ from lsst.ts.idl.enums.MTDome import (
     SubSystemId,
 )
 
-STD_TIMEOUT = 2  # standard command timeout (sec)
+STD_TIMEOUT = 10  # standard command timeout (sec)
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
@@ -248,7 +248,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             settings_to_apply="",
         ):
             await self.set_csc_to_enabled()
-            subsystem_ids = (
+            sub_system_ids = (
                 SubSystemId.AMCS
                 | SubSystemId.LWSCS
                 | SubSystemId.APSCS
@@ -258,7 +258,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             await self.remote.cmd_stop.set_start(
                 engageBrakes=False,
-                subSystemIds=subsystem_ids,
+                subSystemIds=sub_system_ids,
             )
 
             await self.assert_next_sample(
@@ -490,7 +490,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 state=MotionState.STOPPED,
                 inPosition=True,
             )
-            subsystem_ids = (
+            sub_system_ids = (
                 SubSystemId.AMCS
                 | SubSystemId.LWSCS
                 | SubSystemId.APSCS
@@ -500,7 +500,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             await self.remote.cmd_stop.set_start(
                 engageBrakes=True,
-                subSystemIds=subsystem_ids,
+                subSystemIds=sub_system_ids,
             )
 
             # Give some time to the mock device to move.
@@ -699,7 +699,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.csc.statusMonCS()
             moncs_status = self.csc.lower_level_status[mtdome.LlcName.MONCS.value]
-            assert moncs_status["status"] == MotionState.CLOSED.name
+            assert moncs_status["status"]["status"] == MotionState.CLOSED.name
             assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
 
             await self.csc.statusThCS()
@@ -796,7 +796,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.csc.statusMonCS()
             moncs_status = self.csc.lower_level_status[mtdome.LlcName.MONCS.value]
-            assert moncs_status["status"] == mtdome.LlcMotionState.STATIONARY.name
+            assert (
+                moncs_status["status"]["status"]
+                == mtdome.LlcMotionState.STATIONARY.name
+            )
             assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
 
             await self.csc.statusThCS()
@@ -809,10 +812,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
     async def validate_operational_mode(
-        self, operational_mode: OperationalMode, subsystem_ids: int
+        self, operational_mode: OperationalMode, sub_system_ids: int
     ) -> None:
         # Dictionary to look up which status telemetry function to call for
-        # which subsystem.
+        # which sub_system.
         status_dict = {
             SubSystemId.AMCS: self.csc.statusAMCS,
             SubSystemId.APSCS: self.csc.statusApSCS,
@@ -822,23 +825,31 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             SubSystemId.THCS: self.csc.statusThCS,
         }
 
-        # Dictionary to look up which LlcName is associated with which
-        # subsystem.
-        lower_level_name_disct = {
-            SubSystemId.AMCS: mtdome.LlcName.AMCS.value,
-            SubSystemId.APSCS: mtdome.LlcName.APSCS.value,
-            SubSystemId.LCS: mtdome.LlcName.LCS.value,
-            SubSystemId.LWSCS: mtdome.LlcName.LWSCS.value,
-            SubSystemId.MONCS: mtdome.LlcName.MONCS.value,
-            SubSystemId.THCS: mtdome.LlcName.THCS.value,
-        }
-        for subsystem_id in SubSystemId:
-            if subsystem_id & subsystem_ids:
-                func = status_dict[subsystem_id]
-                name = lower_level_name_disct[subsystem_id]
+        await self.remote.cmd_setOperationalMode.set_start(
+            operationalMode=operational_mode,
+            subSystemIds=sub_system_ids,
+        )
+
+        events_to_check = []
+        for sub_system_id in SubSystemId:
+            if sub_system_id & sub_system_ids:
+                func = status_dict[sub_system_id]
+                name = mtdome.LlcNameDict[sub_system_id]
                 await func()
                 status = self.csc.lower_level_status[name]
                 assert status["status"]["operationalMode"] == operational_mode.name
+                events_to_check.append(sub_system_id)
+
+        events_recevied = []
+        for i in range(len(events_to_check)):
+            data = await self.assert_next_sample(
+                topic=self.remote.evt_operationalMode,
+                operationalMode=operational_mode,
+                timeout=STD_TIMEOUT,
+            )
+            events_recevied.append(data.subSystemId)
+
+        assert events_to_check == events_recevied
 
     async def test_do_setOperationalMode(self) -> None:
         async with self.make_csc(
@@ -849,33 +860,55 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             await self.set_csc_to_enabled()
 
-            # Test with one lower level component first.
+            # When the lower level components are enabled, events are sent to
+            # indicate their OperationalMode.
+            for i in range(len(list(SubSystemId))):
+                await self.assert_next_sample(
+                    topic=self.remote.evt_operationalMode,
+                    operationalMode=OperationalMode.NORMAL,
+                    timeout=STD_TIMEOUT,
+                )
+
+            # Test with one lower level component.
             operational_mode = OperationalMode.DEGRADED
-            subsystem_ids = SubSystemId.AMCS
-            await self.remote.cmd_setOperationalMode.set_start(
-                operationalMode=operational_mode,
-                subSystemIds=subsystem_ids,
+            sub_system_ids = SubSystemId.AMCS
+            await self.validate_operational_mode(
+                operational_mode=operational_mode, sub_system_ids=sub_system_ids
             )
 
-            # Test with the same lower level component and an additional one.
+            # Set another lower level component to degraded.
             operational_mode = OperationalMode.DEGRADED
-            subsystem_ids = SubSystemId.AMCS | SubSystemId.MONCS
-            await self.remote.cmd_setOperationalMode.set_start(
-                operationalMode=operational_mode,
-                subSystemIds=subsystem_ids,
+            sub_system_ids = SubSystemId.MONCS
+            await self.validate_operational_mode(
+                operational_mode=operational_mode, sub_system_ids=sub_system_ids
             )
 
-            # Set both to normal
+            # Set the same, first, lower level component to degraded again.
+            # This should not raise an exsception.
+            operational_mode = OperationalMode.DEGRADED
+            sub_system_ids = SubSystemId.AMCS
+            await self.validate_operational_mode(
+                operational_mode=operational_mode, sub_system_ids=sub_system_ids
+            )
+
+            # Set two lower level components to normal.
             operational_mode = OperationalMode.NORMAL
-            subsystem_ids = SubSystemId.AMCS | SubSystemId.MONCS
-            await self.remote.cmd_setOperationalMode.set_start(
-                operationalMode=operational_mode,
-                subSystemIds=subsystem_ids,
+            sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
+            await self.validate_operational_mode(
+                operational_mode=operational_mode, sub_system_ids=sub_system_ids
+            )
+
+            # Set two lower level components to normal again. This should not
+            # raise an exception.
+            operational_mode = OperationalMode.NORMAL
+            sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
+            await self.validate_operational_mode(
+                operational_mode=operational_mode, sub_system_ids=sub_system_ids
             )
 
             # Set all to degraded
             operational_mode = OperationalMode.DEGRADED
-            subsystem_ids = (
+            sub_system_ids = (
                 SubSystemId.AMCS
                 | SubSystemId.APSCS
                 | SubSystemId.LCS
@@ -883,14 +916,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 | SubSystemId.MONCS
                 | SubSystemId.THCS
             )
-            await self.remote.cmd_setOperationalMode.set_start(
-                operationalMode=operational_mode,
-                subSystemIds=subsystem_ids,
+            await self.validate_operational_mode(
+                operational_mode=operational_mode, sub_system_ids=sub_system_ids
             )
 
             # Set all back to normal
             operational_mode = OperationalMode.NORMAL
-            subsystem_ids = (
+            sub_system_ids = (
                 SubSystemId.AMCS
                 | SubSystemId.APSCS
                 | SubSystemId.LCS
@@ -898,9 +930,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 | SubSystemId.MONCS
                 | SubSystemId.THCS
             )
-            await self.remote.cmd_setOperationalMode.set_start(
-                operationalMode=operational_mode,
-                subSystemIds=subsystem_ids,
+            await self.validate_operational_mode(
+                operational_mode=operational_mode, sub_system_ids=sub_system_ids
             )
 
     async def test_bin_script(self) -> None:
