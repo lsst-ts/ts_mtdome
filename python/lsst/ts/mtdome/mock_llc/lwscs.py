@@ -50,12 +50,14 @@ class LwscsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockLwscsStatus")
         self.lwscs_limits = LwscsLimits()
-        # default values which may be overriden by calling moveEl, crawlEl or
+
+        # Default values which may be overriden by calling moveEl, crawlEl or
         # config
         self.jmax = self.lwscs_limits.jmax
         self.amax = self.lwscs_limits.amax
         self.vmax = self.lwscs_limits.vmax
-        # variables helping with the state of the mock EL motion
+
+        # Variables helping with the state of the mock EL motion
         self.elevation_motion = ElevationMotion(
             start_position=0.0,
             min_position=0.0,
@@ -64,9 +66,10 @@ class LwscsStatus(BaseMockStatus):
             start_tai=start_tai,
         )
         self.duration = 0.0
-        # variables holding the status of the mock EL motion
+
+        # Variables holding the status of the mock EL motion
         self.status = LlcMotionState.STOPPED
-        self.error = [{"code": 0, "description": "No Errors"}]
+        self.messages = [{"code": 0, "description": "No Errors"}]
         self.position_commanded = 0.0
         self.velocity_commanded = 0.0
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
@@ -98,7 +101,11 @@ class LwscsStatus(BaseMockStatus):
             tai=current_tai
         )
         self.llc_status = {
-            "status": {"error": self.error, "status": motion_state.name},
+            "status": {
+                "messages": self.messages,
+                "status": motion_state.name,
+                "operationalMode": self.operational_mode.name,
+            },
             "positionActual": position,
             "positionCommanded": self.position_commanded,
             "velocityActual": velocity,

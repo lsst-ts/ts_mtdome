@@ -14,6 +14,10 @@ Changes:
 * Modified the unit tests because of changes in IDL.
 * Replaced the use of ts_salobj functions with ts_utils functions.
 * Added auto-enable capability.
+* Renamed "error" to "messages" in the status telemetry.
+* Added "operationalMode" to the status telemetry.
+* Added commands and events to change the operational mode of a lower level component.
+* Modernized the unit tests.
 
 Requires:
 

@@ -55,20 +55,23 @@ class AmcsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockAzcsStatus")
         self.amcs_limits = AmcsLimits()
-        # default values which may be overriden by calling moveAz, crawlAz or
+
+        # Default values which may be overriden by calling moveAz, crawlAz or
         # config
         self.jmax = self.amcs_limits.jmax
         self.amax = self.amcs_limits.amax
         self.vmax = self.amcs_limits.vmax
-        # variables helping with the state of the mock AZ motion
+
+        # Variables helping with the state of the mock AZ motion
         self.azimuth_motion = AzimuthMotion(
             start_position=PARK_POSITION, max_speed=self.vmax, start_tai=start_tai
         )
         self.duration = 0.0
-        # variables holding the status of the mock AZ motion. The error codes
+
+        # Variables holding the status of the mock AZ motion. The error codes
         # will be specified in a future Dome Software meeting.
         self.status = LlcMotionState.STOPPED
-        self.error = [{"code": 0, "description": "No Errors"}]
+        self.messages = [{"code": 0, "description": "No Errors"}]
         self.fans_enabled = OnOff.OFF
         self.seal_inflated = OnOff.OFF
         self.position_commanded = PARK_POSITION
@@ -101,10 +104,11 @@ class AmcsStatus(BaseMockStatus):
         ) = self.azimuth_motion.get_position_velocity_and_motion_state(tai=current_tai)
         self.llc_status = {
             "status": {
-                "error": self.error,
+                "messages": self.messages,
                 "status": motion_state.name,
                 "fans": self.fans_enabled.value,
                 "inflate": self.seal_inflated.value,
+                "operationalMode": self.operational_mode.name,
             },
             "positionActual": position,
             "positionCommanded": self.position_commanded,

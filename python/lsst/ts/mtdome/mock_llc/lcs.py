@@ -44,9 +44,10 @@ class LcsStatus(BaseMockStatus):
     def __init__(self) -> None:
         super().__init__()
         self.log = logging.getLogger("MockLcsStatus")
-        # variables holding the status of the mock Louvres
+
+        # Variables holding the status of the mock Louvres
         self.status = np.full(NUM_LOUVERS, LlcMotionState.CLOSED.name, dtype=object)
-        self.error = [{"code": 0, "description": "No Errors"}]
+        self.messages = [{"code": 0, "description": "No Errors"}]
         self.position_actual = np.zeros(NUM_LOUVERS, dtype=float)
         self.position_commanded = np.zeros(NUM_LOUVERS, dtype=float)
         self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
@@ -67,7 +68,11 @@ class LcsStatus(BaseMockStatus):
             f"time_diff = {time_diff}"
         )
         self.llc_status = {
-            "status": {"error": self.error, "status": self.status.tolist()},
+            "status": {
+                "messages": self.messages,
+                "status": self.status.tolist(),
+                "operationalMode": self.operational_mode.name,
+            },
             "positionActual": self.position_actual.tolist(),
             "positionCommanded": self.position_commanded.tolist(),
             "driveTorqueActual": self.drive_torque_actual.tolist(),

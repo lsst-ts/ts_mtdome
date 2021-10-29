@@ -19,13 +19,21 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["LlcMotionState", "LlcName", "OnOff", "ResponseCode"]
+__all__ = [
+    "LlcMotionState",
+    "LlcName",
+    "OnOff",
+    "ResponseCode",
+    "LlcNameDict",
+]
 
 import enum
 
+from lsst.ts.idl.enums.MTDome import SubSystemId
+
 
 class LlcMotionState(enum.IntEnum):
-    """Motion state."""
+    """Motion states."""
 
     FAULT = 0
     CLOSED = 1
@@ -44,6 +52,8 @@ class LlcMotionState(enum.IntEnum):
 
 
 class LlcName(str, enum.Enum):
+    """LLC names."""
+
     AMCS = "AMCS"
     APSCS = "ApSCS"
     LCS = "LCS"
@@ -53,14 +63,19 @@ class LlcName(str, enum.Enum):
 
 
 class OnOff(enum.Enum):
+    """ON or OFF."""
 
     ON = True
     OFF = False
 
 
 class ResponseCode(enum.IntEnum):
-    """`enum` with response codes."""
+    """Response codes."""
 
     OK = 0
     UNSUPPORTED_COMMAND = 2
     INCORRECT_PARAMETER = 3
+
+
+# Dictionary to look up which LlcName is associated with which sub-system.
+LlcNameDict = {getattr(SubSystemId, enum.name): enum.value for enum in LlcName}

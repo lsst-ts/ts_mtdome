@@ -86,7 +86,6 @@ class MockMTDomeController:
             "crawlEl": self.crawl_el,
             "exitFault": self.exit_fault,
             "fans": self.fans,
-            "goStationary": self.go_stationary,
             "goStationaryAz": self.go_stationary_az,
             "goStationaryEl": self.go_stationary_el,
             "goStationaryLouvers": self.go_stationary_louvers,
@@ -97,7 +96,19 @@ class MockMTDomeController:
             "openShutter": self.open_shutter,
             "park": self.park,
             "restore": self.restore,
+            "setDegradedAz": self.set_degraded_az,
+            "setDegradedEl": self.set_degraded_el,
+            "setDegradedLouvers": self.set_degraded_louvers,
+            "setDegradedShutter": self.set_degraded_shutter,
+            "setDegradedMonitoring": self.set_degraded_monitoring,
+            "setDegradedThermal": self.set_degraded_thermal,
             "setLouvers": self.set_louvers,
+            "setNormalAz": self.set_normal_az,
+            "setNormalEl": self.set_normal_el,
+            "setNormalLouvers": self.set_normal_louvers,
+            "setNormalShutter": self.set_normal_shutter,
+            "setNormalMonitoring": self.set_normal_monitoring,
+            "setNormalThermal": self.set_normal_thermal,
             "setTemperature": self.set_temperature,
             "statusAMCS": self.status_amcs,
             "statusApSCS": self.status_apscs,
@@ -105,7 +116,6 @@ class MockMTDomeController:
             "statusLWSCS": self.status_lwscs,
             "statusMonCS": self.status_moncs,
             "statusThCS": self.status_thcs,
-            "stop": self.stop_llc,
             "stopAz": self.stop_az,
             "stopEl": self.stop_el,
             "stopLouvers": self.stop_louvers,
@@ -327,10 +337,6 @@ class MockMTDomeController:
         `float`
             The estimated duration of the execution of the command.
         """
-        self.log.info(
-            f"Received command 'moveAz' with arguments position={position} and velocity={velocity}"
-        )
-
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
         assert self.amcs is not None
@@ -349,8 +355,6 @@ class MockMTDomeController:
         duration: `float`
             The estimated duration of the execution of the command.
         """
-        self.log.info(f"Received command 'moveEl' with argument position={position}")
-
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
         assert self.lwscs is not None
@@ -364,7 +368,6 @@ class MockMTDomeController:
         `float`
             The estimated duration of the execution of the command.
         """
-        self.log.info("Received command 'stopAz'")
         assert self.amcs is not None
         return await self.amcs.stopAz(self.current_tai)
 
@@ -376,16 +379,8 @@ class MockMTDomeController:
         `float`
             The estimated duration of the execution of the command.
         """
-        self.log.info("Received command 'stopEl'")
         assert self.lwscs is not None
         return await self.lwscs.stopEl(self.current_tai)
-
-    async def stop_llc(self) -> None:
-        """Stop motion on all lower level components."""
-        await self.stop_az()
-        await self.stop_el()
-        await self.stop_shutter()
-        await self.stop_louvers()
 
     async def crawl_az(self, velocity: float) -> float:
         """Crawl the dome.
@@ -400,8 +395,6 @@ class MockMTDomeController:
         `float`
             The estimated duration of the execution of the command.
         """
-        self.log.debug(f"Received command 'crawlAz' with argument velocity={velocity}")
-
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
         assert self.amcs is not None
@@ -420,8 +413,6 @@ class MockMTDomeController:
         `float`
             The estimated duration of the execution of the command.
         """
-        self.log.info(f"Received command 'crawlEl' with argument velocity={velocity}")
-
         # No conversion from radians to degrees needed since both the commands
         # and the mock az controller use radians.
         assert self.lwscs is not None
@@ -436,39 +427,31 @@ class MockMTDomeController:
             An array of positions, in percentage with 0 meaning closed and 100
             fully open, for each louver. A position of -1 means "do not move".
         """
-        self.log.info(
-            f"Received command 'setLouvers' with argument position={position}"
-        )
         assert self.lcs is not None
         await self.lcs.setLouvers(position)
 
     async def close_louvers(self) -> None:
         """Close all louvers."""
-        self.log.info("Received command 'closeLouvers'")
         assert self.lcs is not None
         await self.lcs.closeLouvers()
 
     async def stop_louvers(self) -> None:
         """Stop the motion of all louvers."""
-        self.log.info("Received command 'stopLouvers'")
         assert self.lcs is not None
         await self.lcs.stopLouvers()
 
     async def open_shutter(self) -> None:
         """Open the shutter."""
-        self.log.info("Received command 'openShutter'")
         assert self.apscs is not None
         await self.apscs.openShutter()
 
     async def close_shutter(self) -> None:
         """Close the shutter."""
-        self.log.info("Received command 'closeShutter'")
         assert self.apscs is not None
         await self.apscs.closeShutter()
 
     async def stop_shutter(self) -> None:
         """Stop the motion of the shutter."""
-        self.log.info("Received command 'stopShutter'")
         assert self.apscs is not None
         await self.apscs.stopShutter()
 
@@ -497,9 +480,6 @@ class MockMTDomeController:
             It is assumed that all configuration parameters are present and
             that their values represent the value to set even unchanged.
         """
-        self.log.info(
-            f"Received command 'config' with arguments system={system} and settings={settings}"
-        )
         if system == LlcName.AMCS:
             for field in settings:
                 if field["target"] in ("jmax", "amax", "vmax"):
@@ -523,7 +503,7 @@ class MockMTDomeController:
 
     async def restore(self) -> None:
         """Restore the default configuration of the lower level components."""
-        self.log.info("Received command 'restore'")
+        self.log.debug("Received command 'restore'")
         # TODO: Need to find a way to store the default values for all lower
         #  level components.
 
@@ -535,7 +515,6 @@ class MockMTDomeController:
         `float`
             The estimated duration of the execution of the command.
         """
-        self.log.info("Received command 'park'")
         assert self.amcs is not None
         return await self.amcs.park(self.current_tai)
 
@@ -548,7 +527,6 @@ class MockMTDomeController:
         `float`
             The estimated duration of the execution of the command.
         """
-        self.log.info("Received command 'go_stationary_az'")
         assert self.amcs is not None
         return await self.amcs.go_stationary(self.current_tai)
 
@@ -561,36 +539,82 @@ class MockMTDomeController:
         `float`
             The estimated duration of the execution of the command.
         """
-        self.log.info("Received command 'go_stationary_el'")
         assert self.lwscs is not None
         return await self.lwscs.go_stationary(self.current_tai)
 
     async def go_stationary_shutter(self) -> None:
         """Stop shutter motion and engage the brakes."""
-        self.log.info("Received command 'go_stationary_shutter'")
         assert self.apscs is not None
         await self.apscs.go_stationary()
 
     async def go_stationary_louvers(self) -> None:
         """Stop louvers motion and engage the brakes."""
-        self.log.info("Received command 'go_stationary_louvers'")
         assert self.lcs is not None
         await self.lcs.go_stationary()
 
-    async def go_stationary(self) -> None:
-        """Stop all motion and engage the brakes. Also disengage the
-        locking pins if engaged.
+    async def set_normal_az(self) -> None:
+        """Set az operational mode to normal (as opposed to degraded)."""
+        assert self.amcs is not None
+        await self.amcs.set_normal()
 
-        Returns
-        -------
-        `float`
-            The estimated duration of the execution of the command.
+    async def set_normal_el(self) -> None:
+        """Set el operational mode to normal (as opposed to degraded)."""
+        assert self.lwscs is not None
+        await self.lwscs.set_normal()
+
+    async def set_normal_shutter(self) -> None:
+        """Set shutter operational mode to normal (as opposed to degraded)."""
+        assert self.apscs is not None
+        await self.apscs.set_normal()
+
+    async def set_normal_louvers(self) -> None:
+        """Set louvers operational mode to normal (as opposed to degraded)."""
+        assert self.lcs is not None
+        await self.lcs.set_normal()
+
+    async def set_normal_monitoring(self) -> None:
+        """Set monitoring operational mode to normal (as opposed to
+        degraded).
         """
-        self.log.info("Received command 'goStationary'")
-        await self.go_stationary_az()
-        await self.go_stationary_el()
-        await self.go_stationary_shutter()
-        await self.go_stationary_louvers()
+        assert self.moncs is not None
+        await self.moncs.set_normal()
+
+    async def set_normal_thermal(self) -> None:
+        """Set thermal operational mode to normal (as opposed to degraded)."""
+        assert self.thcs is not None
+        await self.thcs.set_normal()
+
+    async def set_degraded_az(self) -> None:
+        """Set az operational mode to degraded (as opposed to normal)."""
+        assert self.amcs is not None
+        await self.amcs.set_degraded()
+
+    async def set_degraded_el(self) -> None:
+        """Set el operational mode to degraded (as opposed to normal)."""
+        assert self.lwscs is not None
+        await self.lwscs.set_degraded()
+
+    async def set_degraded_shutter(self) -> None:
+        """Set shutter operational mode to degraded (as opposed to normal)."""
+        assert self.apscs is not None
+        await self.apscs.set_degraded()
+
+    async def set_degraded_louvers(self) -> None:
+        """Set louvers operational mode to degraded (as opposed to normal)."""
+        assert self.lcs is not None
+        await self.lcs.set_degraded()
+
+    async def set_degraded_monitoring(self) -> None:
+        """Set monitoring operational mode to degraded (as opposed to
+        normal).
+        """
+        assert self.moncs is not None
+        await self.moncs.set_degraded()
+
+    async def set_degraded_thermal(self) -> None:
+        """Set thermal operational mode to degraded (as opposed to normal)."""
+        assert self.thcs is not None
+        await self.thcs.set_degraded()
 
     async def set_temperature(self, temperature: float) -> None:
         """Set the preferred temperature in the dome.
@@ -600,15 +624,11 @@ class MockMTDomeController:
         temperature: `float`
             The temperature, in degrees Celsius, to set.
         """
-        self.log.info(
-            f"Received command 'setTemperature' with argument temperature={temperature}"
-        )
         assert self.thcs is not None
         await self.thcs.setTemperature(temperature)
 
     async def exit_fault(self) -> None:
         """Exit from fault state."""
-        self.log.info("Received command 'exit_fault'")
         assert self.amcs is not None
         await self.amcs.exit_fault(self.current_tai)
         assert self.apscs is not None
@@ -630,7 +650,6 @@ class MockMTDomeController:
         action: `str`
             ON means inflate and OFF deflate the inflatable seal.
         """
-        self.log.info(f"Received command 'inflate' with argument action={action}")
         assert self.amcs is not None
         await self.amcs.inflate(action)
 
@@ -642,7 +661,6 @@ class MockMTDomeController:
         action: `str`
             ON means fans on and OFF fans off.
         """
-        self.log.info(f"Received command 'fans' with argument action={action}")
         assert self.amcs is not None
         await self.amcs.fans(action)
 
