@@ -39,6 +39,7 @@ class MoncsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockMoncsStatus")
         self.status = LlcMotionState.CLOSED
+        self.messages = [{"code": 0, "description": "No Errors"}]
         self.data = np.zeros(NUM_MON_SENSORS, dtype=float)
 
     async def determine_status(self, current_tai: float) -> None:
@@ -51,7 +52,11 @@ class MoncsStatus(BaseMockStatus):
             f"time_diff = {time_diff}"
         )
         self.llc_status = {
-            "status": self.status.name,
+            "status": {
+                "messages": self.messages,
+                "status": self.status.name,
+                "operationalMode": self.operational_mode.name,
+            },
             "data": self.data.tolist(),
             "timestampUTC": current_tai,
         }

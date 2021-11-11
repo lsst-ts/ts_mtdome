@@ -55,6 +55,18 @@ registry["command"] = json.loads(
         "goStationaryEl",
         "goStationaryLouvers",
         "goStationaryShutter",
+        "setNormalAz",
+        "setNormalEl",
+        "setNormalLouvers",
+        "setNormalShutter",
+        "setNormalMonitoring",
+        "setNormalThermal",
+        "setDegradedAz",
+        "setDegradedEl",
+        "setDegradedLouvers",
+        "setDegradedShutter",
+        "setDegradedMonitoring",
+        "setDegradedThermal",
         "setTemperature",
         "fans",
         "inflate",
@@ -505,6 +517,142 @@ registry["command"] = json.loads(
       "if": {
         "properties": {
           "command": {
+            "const": "setNormalAz"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "setNormalEl"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "setNormalLouvers"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "setNormalShutter"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "setDegradedAz"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "setDegradedEl"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "setDegradedLouvers"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "setDegradedShutter"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
             "const": "setTemperature"
           }
         }
@@ -696,6 +844,5 @@ registry["command"] = json.loads(
       }
     }
   ]
-}
-    """
+}    """
 )

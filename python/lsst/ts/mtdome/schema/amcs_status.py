@@ -41,7 +41,7 @@ registry["AMCS"] = json.loads(
         "status": {
           "type": "object",
           "properties": {
-            "error": {
+            "messages": {
               "type": "array",
               "minItems": 1,
               "items": [
@@ -71,13 +71,17 @@ registry["AMCS"] = json.loads(
             },
             "inflate": {
               "type": "boolean"
+            },
+            "operationalMode": {
+              "type": "string"
             }
           },
           "required": [
-            "error",
+            "messages",
             "status",
             "fans",
-            "inflate"
+            "inflate",
+            "operationalMode"
           ],
           "additionalProperties": false
         },

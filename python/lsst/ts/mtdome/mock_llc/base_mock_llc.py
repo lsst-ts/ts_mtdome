@@ -22,7 +22,10 @@
 __all__ = ["BaseMockStatus"]
 
 from abc import ABC, abstractmethod
+import logging
 from typing import Any, Dict
+
+from lsst.ts.idl.enums.MTDome import OperationalMode
 
 
 class BaseMockStatus(ABC):
@@ -33,8 +36,12 @@ class BaseMockStatus(ABC):
     def __init__(self) -> None:
         # dict to hold the status of the Lower Level Component.
         self.llc_status: Dict[str, Any] = {}
-        # time of the last executed command, in TAI Unix seconds
+        # the operational mode of the Lower Level Component.
+        self.operational_mode = OperationalMode.NORMAL
+        # time of the last executed command, in TAI Unix seconds.
         self.command_time_tai = 0
+        # logger
+        self.log = logging.getLogger("BaseMockStatus")
 
     @abstractmethod
     async def determine_status(self, current_tai: float) -> None:
@@ -47,3 +54,11 @@ class BaseMockStatus(ABC):
             The current Unix TAI time, in seconds
         """
         pass
+
+    async def set_normal(self) -> None:
+        """Set operational state to normal (as opposed to degraded)."""
+        self.operational_mode = OperationalMode.NORMAL
+
+    async def set_degraded(self) -> None:
+        """Set operational state to degraded (as opposed to normal)."""
+        self.operational_mode = OperationalMode.DEGRADED

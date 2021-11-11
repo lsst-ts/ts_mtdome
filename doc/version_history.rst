@@ -6,6 +6,26 @@
 Version History
 ###############
 
+v1.4.0
+======
+
+Changes:
+
+* Modified the unit tests because of changes in IDL.
+* Replaced the use of ts_salobj functions with ts_utils functions.
+* Added auto-enable capability.
+* Renamed "error" to "messages" in the status telemetry.
+* Added "operationalMode" to the status telemetry.
+* Added commands and events to change the operational mode of a lower level component.
+* Modernized the unit tests.
+
+Requires:
+
+* ts_salobj 6.3
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 10.0
+
 v1.3.0
 ======
 
@@ -22,7 +42,7 @@ Requires:
 
 * ts_salobj 6.3
 * ts_idl
-* IDL file for MTDome from ts_xml 9.2
+* IDL file for MTDome from ts_xml 10.0
 
 v1.2.0
 ======
