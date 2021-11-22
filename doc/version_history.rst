@@ -6,6 +6,21 @@
 Version History
 ###############
 
+v1.5.0
+======
+
+Changes:
+
+* Added "appliedConfiguration" to the status replies of AMCS and LWSCS.
+
+
+Requires:
+
+* ts_salobj 6.3
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 10.2
+
 v1.4.0
 ======
 

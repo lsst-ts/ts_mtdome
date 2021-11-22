@@ -172,6 +172,20 @@ registry["LWSCS"] = json.loads(
         "powerDraw": {
           "type": "number"
         },
+        "appliedConfiguration": {
+          "type": "object",
+          "properties": {
+            "jmax": {
+              "type":"number"
+            },
+            "amax": {
+              "type":"number"
+            },
+            "vmax": {
+              "type":"number"
+            }
+          }
+        },
         "timestampUTC": {
           "type": "number"
         }
@@ -191,6 +205,7 @@ registry["LWSCS"] = json.loads(
         "resolverRaw",
         "resolverCalibrated",
         "powerDraw",
+        "appliedConfiguration",
         "timestampUTC"
       ],
       "additionalProperties": false

@@ -119,6 +119,11 @@ class LwscsStatus(BaseMockStatus):
             "resolverRaw": self.resolver_raw.tolist(),
             "resolverCalibrated": self.resolver_calibrated.tolist(),
             "powerDraw": self.power_draw,
+            "appliedConfiguration": {
+                "jmax": self.jmax,
+                "amax": self.amax,
+                "vmax": self.vmax,
+            },
             "timestampUTC": current_tai,
         }
         self.log.debug(f"lwscs_state = {self.llc_status}")

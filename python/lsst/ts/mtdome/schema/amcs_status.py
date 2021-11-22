@@ -187,6 +187,20 @@ registry["AMCS"] = json.loads(
             }
           ]
         },
+        "appliedConfiguration": {
+          "type": "object",
+          "properties": {
+            "jmax": {
+              "type":"number"
+            },
+            "amax": {
+              "type":"number"
+            },
+            "vmax": {
+              "type":"number"
+            }
+          }
+        },
         "timestampUTC": {
           "type": "number"
         }
@@ -206,6 +220,7 @@ registry["AMCS"] = json.loads(
         "barcodeHeadRaw",
         "barcodeHeadCalibrated",
         "barcodeHeadWeighted",
+        "appliedConfiguration",
         "timestampUTC"
       ],
       "additionalProperties": false

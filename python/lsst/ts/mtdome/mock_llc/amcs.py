@@ -123,6 +123,11 @@ class AmcsStatus(BaseMockStatus):
             "barcodeHeadRaw": self.barcode_head_raw.tolist(),
             "barcodeHeadCalibrated": self.barcode_head_calibrated.tolist(),
             "barcodeHeadWeighted": self.barcode_head_weighted.tolist(),
+            "appliedConfiguration": {
+                "jmax": self.jmax,
+                "amax": self.amax,
+                "vmax": self.vmax,
+            },
             "timestampUTC": current_tai,
         }
 
