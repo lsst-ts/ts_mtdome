@@ -23,14 +23,7 @@
 #
 
 import asyncio
-import logging
 
 from lsst.ts import mtdome
-
-logging.basicConfig(
-    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s",
-    level=logging.INFO,
-)
-
 
 asyncio.run(mtdome.MTDomeCsc.amain(index=None))

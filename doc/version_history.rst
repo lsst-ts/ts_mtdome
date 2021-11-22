@@ -12,7 +12,7 @@ v1.5.0
 Changes:
 
 * Added "appliedConfiguration" to the status replies of AMCS and LWSCS.
-
+* Added additional LLC states that are translated into MOVING, STOPPING or PARKING.
 
 Requires:
 

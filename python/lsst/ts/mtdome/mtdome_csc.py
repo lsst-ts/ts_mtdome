@@ -41,7 +41,6 @@ from lsst.ts.idl.enums.MTDome import (
 
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout in s to be used by this module
-# DM-26653: Added "positionError" since this key is still under discussion.
 _KEYS_TO_REMOVE = {
     "status",
     "operationalMode",  # Remove when next XML release is done
@@ -52,6 +51,38 @@ _KEYS_IN_RADIANS = {
     "positionCommanded",
     "velocityActual",
     "velocityCommanded",
+}
+
+# The next three dicts are used to translate intermediary states into states
+# that are defined in IDL and XML.
+# TODO DM-32671: Remove these dicts.
+_STATES_TO_TRANSLATE_TO_MOVING = {
+    LlcMotionState.DEFLATING.name,
+    LlcMotionState.DEFLATED.name,
+    LlcMotionState.STARTING_MOTOR_COOLING.name,
+    LlcMotionState.MOTOR_COOLING_ON.name,
+    LlcMotionState.ENABLING_MOTOR_POWER.name,
+    LlcMotionState.MOTOR_POWER_ON.name,
+    LlcMotionState.GO_NORMAL.name,
+    LlcMotionState.GO_DEGRADED.name,
+    LlcMotionState.DISENGAGING_BRAKES.name,
+    LlcMotionState.BRAKES_DISENGAGDED.name,
+}
+_STATES_TO_TRANSLATE_TO_STOPPING = {
+    LlcMotionState.INFLATING.name,
+    LlcMotionState.INFLATED.name,
+    LlcMotionState.ENGAGING_BRAKES.name,
+    LlcMotionState.BRAKES_ENGAGDED.name,
+    LlcMotionState.DISABLING_MOTOR_POWER.name,
+    LlcMotionState.MOTOR_POWER_OFF.name,
+    LlcMotionState.STOPPING_MOTOR_COOLING.name,
+    LlcMotionState.MOTOR_COOLING_OFF.name,
+}
+_STATES_TO_TRANSLATE_TO_PARKING = {
+    LlcMotionState.LP_ENGAGING.name,
+    LlcMotionState.LP_ENGAGED.name,
+    LlcMotionState.LP_DISENGAGING.name,
+    LlcMotionState.LP_DISENGAGED.name,
 }
 
 _AMCS_STATUS_PERIOD = 0.2
@@ -786,6 +817,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             else:
                 if llc_status["status"] == LlcMotionState.STATIONARY.name:
                     motion_state = MotionState.STOPPED_BRAKED
+                elif llc_status["status"] in _STATES_TO_TRANSLATE_TO_MOVING:
+                    # TODO: Translate to MOVING until DM-32671 is done.
+                    motion_state = MotionState.MOVING
+                elif llc_status["status"] in _STATES_TO_TRANSLATE_TO_STOPPING:
+                    # TODO: Translate to STOPPING until DM-32671 is done.
+                    motion_state = MotionState.STOPPING
+                elif llc_status["status"] in _STATES_TO_TRANSLATE_TO_PARKING:
+                    # TODO: Translate to PARKING until DM-32671 is done.
+                    motion_state = MotionState.PARKING
                 else:
                     motion_state = MotionState[llc_status["status"]]
                 in_position = False
