@@ -13,6 +13,7 @@ Changes:
 
 * Added "appliedConfiguration" to the status replies of AMCS and LWSCS.
 * Added additional LLC states that are translated into MOVING, STOPPING or PARKING.
+* Updated the documentation to contain the full list of LLC commands and statuses.
 
 Requires:
 

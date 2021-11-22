@@ -75,7 +75,7 @@ class ElevationMotion(BaseLlcMotion):
             max_speed=max_speed,
             start_tai=start_tai,
         )
-        self.log = logging.getLogger("MockPointToPointActuator")
+        self.log = logging.getLogger("ElevationMotion")
 
     def get_position_velocity_and_motion_state(
         self, tai: float

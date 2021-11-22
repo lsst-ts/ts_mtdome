@@ -31,5 +31,7 @@ project = "ts_mtdome"
 html_theme_options["logotext"] = project  # type: ignore # noqa
 html_title = project
 html_short_title = project
+html_static_path = ["_static"]
+html_css_files = ["mystyle.css"]
 
 intersphinx_mapping["ts_xml"] = ("https://ts-xml.lsst.io", None)  # type: ignore # noqa

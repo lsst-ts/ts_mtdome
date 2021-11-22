@@ -63,7 +63,7 @@ class AzimuthMotion(BaseLlcMotion):
             max_speed=max_speed,
             start_tai=start_tai,
         )
-        self.log = logging.getLogger("MockCircularCrawlingActuator")
+        self.log = logging.getLogger("AzimuthMotion")
 
     def set_target_position_and_velocity(
         self,
