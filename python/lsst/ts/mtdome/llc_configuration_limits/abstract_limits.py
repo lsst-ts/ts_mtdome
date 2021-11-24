@@ -22,7 +22,7 @@
 __all__ = ["AbstractLimits"]
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+import typing
 
 
 class AbstractLimits(ABC):
@@ -33,5 +33,7 @@ class AbstractLimits(ABC):
     """
 
     @abstractmethod
-    def validate(self, configuration_parameters: dict) -> List[Dict[str, Any]]:
+    def validate(
+        self, configuration_parameters: dict
+    ) -> typing.List[typing.Dict[str, typing.Any]]:
         pass

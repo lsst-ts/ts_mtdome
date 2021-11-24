@@ -23,10 +23,10 @@ __all__ = ["ElevationMotion"]
 
 import logging
 import math
-from typing import Tuple
+import typing
 
 from .base_llc_motion import BaseLlcMotion
-from ...enums import LlcMotionState
+from ...enums import IntermediateState, LlcMotionState
 from lsst.ts import utils
 
 
@@ -79,7 +79,7 @@ class ElevationMotion(BaseLlcMotion):
 
     def get_position_velocity_and_motion_state(
         self, tai: float
-    ) -> Tuple[float, float, LlcMotionState]:
+    ) -> typing.Tuple[float, float, LlcMotionState]:
         """Computes the position and `LlcMotionState` for the given TAI time.
 
         Parameters
@@ -109,7 +109,7 @@ class ElevationMotion(BaseLlcMotion):
                 position = self._end_position
                 velocity = 0.0
             elif self._commanded_motion_state in [
-                LlcMotionState.GO_STATIONARY,
+                IntermediateState.GO_STATIONARY,
                 LlcMotionState.STATIONARY,
             ]:
                 motion_state = LlcMotionState.STATIONARY
@@ -138,7 +138,7 @@ class ElevationMotion(BaseLlcMotion):
                     ]:
                         motion_state = LlcMotionState.STOPPED
                     elif self._commanded_motion_state in [
-                        LlcMotionState.GO_STATIONARY,
+                        IntermediateState.GO_STATIONARY,
                         LlcMotionState.STATIONARY,
                     ]:
                         motion_state = LlcMotionState.STATIONARY
@@ -158,7 +158,7 @@ class ElevationMotion(BaseLlcMotion):
             if self._commanded_motion_state == LlcMotionState.STOPPING:
                 motion_state = LlcMotionState.STOPPED
                 velocity = 0.0
-            elif self._commanded_motion_state == LlcMotionState.GO_STATIONARY:
+            elif self._commanded_motion_state == IntermediateState.GO_STATIONARY:
                 motion_state = LlcMotionState.STATIONARY
                 velocity = 0.0
             else:
@@ -203,7 +203,7 @@ class ElevationMotion(BaseLlcMotion):
         self._start_position = position
         self._end_position = position
         self._crawl_velocity = 0.0
-        self._commanded_motion_state = LlcMotionState.GO_STATIONARY
+        self._commanded_motion_state = IntermediateState.GO_STATIONARY
 
     def park(self, start_tai: float) -> float:
         """Not used for the elevation motion.
@@ -239,4 +239,4 @@ class ElevationMotion(BaseLlcMotion):
         self._start_position = position
         self._end_position = position
         self._crawl_velocity = 0.0
-        self._commanded_motion_state = LlcMotionState.GO_STATIONARY
+        self._commanded_motion_state = IntermediateState.GO_STATIONARY

@@ -29,7 +29,7 @@ from types import SimpleNamespace
 from .config_schema import CONFIG_SCHEMA
 from . import __version__, encoding_tools
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
-from .enums import LlcMotionState, LlcName, ResponseCode, LlcNameDict
+from .enums import IntermediateState, LlcMotionState, LlcName, ResponseCode, LlcNameDict
 from lsst.ts import salobj
 from .mock_controller import MockMTDomeController
 from lsst.ts.idl.enums.MTDome import (
@@ -57,32 +57,32 @@ _KEYS_IN_RADIANS = {
 # that are defined in IDL and XML.
 # TODO DM-32671: Remove these dicts.
 _STATES_TO_TRANSLATE_TO_MOVING = {
-    LlcMotionState.DEFLATING.name,
-    LlcMotionState.DEFLATED.name,
-    LlcMotionState.STARTING_MOTOR_COOLING.name,
-    LlcMotionState.MOTOR_COOLING_ON.name,
-    LlcMotionState.ENABLING_MOTOR_POWER.name,
-    LlcMotionState.MOTOR_POWER_ON.name,
-    LlcMotionState.GO_NORMAL.name,
-    LlcMotionState.GO_DEGRADED.name,
-    LlcMotionState.DISENGAGING_BRAKES.name,
-    LlcMotionState.BRAKES_DISENGAGDED.name,
+    IntermediateState.DEFLATING.name,
+    IntermediateState.DEFLATED.name,
+    IntermediateState.STARTING_MOTOR_COOLING.name,
+    IntermediateState.MOTOR_COOLING_ON.name,
+    IntermediateState.ENABLING_MOTOR_POWER.name,
+    IntermediateState.MOTOR_POWER_ON.name,
+    IntermediateState.GO_NORMAL.name,
+    IntermediateState.GO_DEGRADED.name,
+    IntermediateState.DISENGAGING_BRAKES.name,
+    IntermediateState.BRAKES_DISENGAGED.name,
 }
 _STATES_TO_TRANSLATE_TO_STOPPING = {
-    LlcMotionState.INFLATING.name,
-    LlcMotionState.INFLATED.name,
-    LlcMotionState.ENGAGING_BRAKES.name,
-    LlcMotionState.BRAKES_ENGAGDED.name,
-    LlcMotionState.DISABLING_MOTOR_POWER.name,
-    LlcMotionState.MOTOR_POWER_OFF.name,
-    LlcMotionState.STOPPING_MOTOR_COOLING.name,
-    LlcMotionState.MOTOR_COOLING_OFF.name,
+    IntermediateState.INFLATING.name,
+    IntermediateState.INFLATED.name,
+    IntermediateState.ENGAGING_BRAKES.name,
+    IntermediateState.BRAKES_ENGAGED.name,
+    IntermediateState.DISABLING_MOTOR_POWER.name,
+    IntermediateState.MOTOR_POWER_OFF.name,
+    IntermediateState.STOPPING_MOTOR_COOLING.name,
+    IntermediateState.MOTOR_COOLING_OFF.name,
 }
 _STATES_TO_TRANSLATE_TO_PARKING = {
-    LlcMotionState.LP_ENGAGING.name,
-    LlcMotionState.LP_ENGAGED.name,
-    LlcMotionState.LP_DISENGAGING.name,
-    LlcMotionState.LP_DISENGAGED.name,
+    IntermediateState.LP_ENGAGING.name,
+    IntermediateState.LP_ENGAGED.name,
+    IntermediateState.LP_DISENGAGING.name,
+    IntermediateState.LP_DISENGAGED.name,
 }
 
 _AMCS_STATUS_PERIOD = 0.2

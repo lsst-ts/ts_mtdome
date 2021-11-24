@@ -20,6 +20,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = [
+    "IntermediateState",
     "LlcMotionState",
     "LlcName",
     "OnOff",
@@ -32,45 +33,45 @@ import enum
 from lsst.ts.idl.enums.MTDome import SubSystemId
 
 
+class IntermediateState(enum.IntEnum):
+    BRAKES_DISENGAGED = enum.auto()
+    BRAKES_ENGAGED = enum.auto()
+    DEFLATED = enum.auto()
+    DEFLATING = enum.auto()
+    DISABLING_MOTOR_POWER = enum.auto()
+    DISENGAGING_BRAKES = enum.auto()
+    ENABLING_MOTOR_POWER = enum.auto()
+    ENGAGING_BRAKES = enum.auto()
+    GO_DEGRADED = enum.auto()
+    GO_NORMAL = enum.auto()
+    GO_STATIONARY = enum.auto()
+    INFLATED = enum.auto()
+    INFLATING = enum.auto()
+    LP_DISENGAGED = enum.auto()
+    LP_DISENGAGING = enum.auto()
+    LP_ENGAGED = enum.auto()
+    LP_ENGAGING = enum.auto()
+    MOTOR_COOLING_OFF = enum.auto()
+    MOTOR_COOLING_ON = enum.auto()
+    MOTOR_POWER_OFF = enum.auto()
+    MOTOR_POWER_ON = enum.auto()
+    STARTING_MOTOR_COOLING = enum.auto()
+    STOPPING_MOTOR_COOLING = enum.auto()
+
+
 class LlcMotionState(enum.IntEnum):
     """Motion states."""
 
-    FAULT = 0
-    CLOSED = 1
-    CRAWLING = 2
-    MOVING = 3
-    OPEN = 4
-    PARKED = 5
-    PARKING = 6
-    STOPPED = 7
-    STOPPING = 8
-    # Used by the lower level components and need to be translated to
-    # IDL MotionState values.
-    GO_STATIONARY = 9
-    STATIONARY = 10
-    ERROR = 11
-    INFLATING = 12
-    INFLATED = 13
-    DEFLATING = 14
-    DEFLATED = 15
-    STARTING_MOTOR_COOLING = 16
-    MOTOR_COOLING_ON = 17
-    ENABLING_MOTOR_POWER = 18
-    MOTOR_POWER_ON = 19
-    GO_NORMAL = 20
-    GO_DEGRADED = 21
-    DISENGAGING_BRAKES = 22
-    BRAKES_DISENGAGDED = 23
-    ENGAGING_BRAKES = 24
-    BRAKES_ENGAGDED = 25
-    DISABLING_MOTOR_POWER = 26
-    MOTOR_POWER_OFF = 27
-    STOPPING_MOTOR_COOLING = 28
-    MOTOR_COOLING_OFF = 29
-    LP_ENGAGING = 30
-    LP_ENGAGED = 31
-    LP_DISENGAGING = 32
-    LP_DISENGAGED = 33
+    CLOSED = enum.auto()
+    CRAWLING = enum.auto()
+    ERROR = enum.auto()
+    MOVING = enum.auto()
+    OPEN = enum.auto()
+    PARKED = enum.auto()
+    PARKING = enum.auto()
+    STATIONARY = enum.auto()
+    STOPPED = enum.auto()
+    STOPPING = enum.auto()
 
 
 class LlcName(str, enum.Enum):

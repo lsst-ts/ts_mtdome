@@ -21,6 +21,6 @@
 
 __all__ = ["registry"]
 
-from typing import Any, Dict
+import typing
 
-registry: Dict[str, Any] = {}
+registry: typing.Dict[str, typing.Any] = {}

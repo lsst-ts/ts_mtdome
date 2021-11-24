@@ -22,7 +22,7 @@
 import asyncio
 import logging
 import math
-from typing import Any, List, Optional
+import typing
 import unittest
 from unittest.mock import AsyncMock
 
@@ -44,7 +44,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.ctrl = None
         self.writer = None
         port = 0
-        self.data: Optional[dict] = None
+        self.data: typing.Optional[dict] = None
 
         self.mock_ctrl = mtdome.MockMTDomeController(port=port)
         # Replace the determine_current_tai method with a mock method so that
@@ -76,7 +76,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         data = mtdome.encoding_tools.decode(read_bytes.decode())
         return data
 
-    async def write(self, **data: Any) -> None:
+    async def write(self, **data: typing.Any) -> None:
         """Utility function to write data to the writer.
 
         Parameters
@@ -693,7 +693,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def prepare_louvers(
-        self, louver_ids: List[int], target_positions: List[float]
+        self, louver_ids: typing.List[int], target_positions: typing.List[float]
     ) -> None:
         """Utility method for preparing the louvers for easier testing.
 
@@ -730,7 +730,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
     async def verify_louvers(
-        self, louver_ids: List[int], target_positions: List[float]
+        self, louver_ids: typing.List[int], target_positions: typing.List[float]
     ) -> None:
         """Utility method for verifying the positions of the louvers against
         the provided IDs and target

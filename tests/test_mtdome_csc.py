@@ -20,7 +20,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
-from typing import Any
+import typing
 import unittest
 
 import numpy as np
@@ -48,7 +48,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         config_dir: str,
         simulation_mode: int,
         settings_to_apply: str,
-        **kwargs: Any,
+        **kwargs: typing.Any,
     ) -> None:
         return mtdome.MTDomeCsc(
             initial_state=initial_state,
