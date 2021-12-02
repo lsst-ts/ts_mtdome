@@ -218,15 +218,6 @@ class AzimuthMotion(BaseLlcMotion):
             LlcMotionState.STATIONARY,
         ]:
             end_tai = self._end_tai - additional_duration
-        self.log.info(
-            f"additional_duration = {additional_duration}, "
-            f"distance = {distance}, "
-            f"tai = {tai}, "
-            f"self._start_tai = {self._start_tai}, "
-            f"end_tai = {end_tai}, "
-            f"self._current_motion_state = {self._current_motion_state.name}, "
-            f"self._commanded_motion_state = {self._commanded_motion_state.name}, "
-        )
         if tai >= end_tai:
             if self._commanded_motion_state == LlcMotionState.PARKED:
                 motion_state = LlcMotionState.PARKED
@@ -269,11 +260,6 @@ class AzimuthMotion(BaseLlcMotion):
             velocity = 0.0
             motion_state = self._current_motion_state
 
-            self.log.info(
-                f"tai = {tai}, start_tai = {self._start_tai}, "
-                f"end_tai = {self._end_tai}, additional_duration = {additional_duration}"
-            )
-
             if self._current_motion_state in [
                 LlcMotionState.MOVING,
                 LlcMotionState.CRAWLING,
@@ -313,11 +299,6 @@ class AzimuthMotion(BaseLlcMotion):
                 motion_state = LlcMotionState.MOVING
 
         position = utils.angle_wrap_nonnegative(math.degrees(position)).rad
-        self.log.info(
-            f"position = {position}, "
-            f"velocity = {velocity}, "
-            f"motion_state = {motion_state.name}, "
-        )
         return position, velocity, motion_state
 
     def stop(self, start_tai: float) -> float:
@@ -335,7 +316,6 @@ class AzimuthMotion(BaseLlcMotion):
         `float`
             The expected TAI when the park command will end.
         """
-        self.log.info("Stopping.")
         position, velocity, motion_state = self.get_position_velocity_and_motion_state(
             tai=start_tai
         )
@@ -363,7 +343,6 @@ class AzimuthMotion(BaseLlcMotion):
         `float`
             The expected TAI when the park command will end.
         """
-        self.log.info("Going stationary.")
         position, velocity, motion_state = self.get_position_velocity_and_motion_state(
             tai=start_tai
         )
@@ -391,7 +370,6 @@ class AzimuthMotion(BaseLlcMotion):
         `float`
             The expected TAI when the park command will end.
         """
-        self.log.info("Parking.")
         position, velocity, motion_state = self.get_position_velocity_and_motion_state(
             tai=start_tai
         )
