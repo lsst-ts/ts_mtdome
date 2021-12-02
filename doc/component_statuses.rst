@@ -76,7 +76,7 @@ LCS
 LWCS
 
     * CONFIGURING: executing the configure command
-    * CRAWLING: crawling at the velocity commanded by yhe crawlEl command
+    * CRAWLING: crawling at the velocity commanded by the crawlEl command
     * ERROR: an error has occurred indicated by the provided error code (TBD)
     * MOVING: executing the moveEl command or the crawlEl command until the commanded crawl velocity has been reached
     * STOPPED: the stopEl command has been executed
