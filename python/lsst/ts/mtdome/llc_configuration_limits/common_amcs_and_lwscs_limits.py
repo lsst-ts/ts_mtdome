@@ -23,7 +23,7 @@ __all__ = ["CommonAmcsAndLwscsLimits"]
 
 from abc import abstractmethod
 import math
-from typing import Any, Dict, List
+import typing
 
 from .abstract_limits import AbstractLimits
 
@@ -34,14 +34,16 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
     """
 
     @abstractmethod
-    def validate(self, configuration_parameters: dict) -> List[Dict[str, Any]]:
+    def validate(
+        self, configuration_parameters: dict
+    ) -> typing.List[typing.Dict[str, typing.Any]]:
         pass
 
     def validate_common_parameters(
         self,
         configuration_parameters: dict,
         common_limits: dict,
-    ) -> List[Dict[str, Any]]:
+    ) -> typing.List[typing.Dict[str, typing.Any]]:
         """Validate the data are against the configuration limits of the lower
         level component.
 

@@ -119,6 +119,11 @@ class LwscsStatus(BaseMockStatus):
             "resolverRaw": self.resolver_raw.tolist(),
             "resolverCalibrated": self.resolver_calibrated.tolist(),
             "powerDraw": self.power_draw,
+            "appliedConfiguration": {
+                "jmax": self.jmax,
+                "amax": self.amax,
+                "vmax": self.vmax,
+            },
             "timestampUTC": current_tai,
         }
         self.log.debug(f"lwscs_state = {self.llc_status}")
@@ -181,8 +186,7 @@ class LwscsStatus(BaseMockStatus):
             tests it can be convenient to use other values.
 
         """
-        self.elevation_motion.stop(start_tai)
-        self.duration = 0.0
+        self.duration = self.elevation_motion.stop(start_tai)
         return self.duration
 
     async def go_stationary(self, start_tai: float) -> float:
@@ -197,8 +201,7 @@ class LwscsStatus(BaseMockStatus):
             tests it can be convenient to use other values.
 
         """
-        self.elevation_motion.go_stationary(start_tai)
-        self.duration = 0.0
+        self.duration = self.elevation_motion.go_stationary(start_tai)
         return self.duration
 
     async def exit_fault(self, start_tai: float) -> float:

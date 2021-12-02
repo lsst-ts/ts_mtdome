@@ -33,6 +33,7 @@ logging.basicConfig(
 
 _MAX_SPEED = math.radians(4.0)
 _start_tai = 10001.0
+START_MOTORS_ADD_DURATION = 5.5
 
 
 class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
@@ -114,7 +115,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             velocity,
             motion_state,
         ) = self.azimuth_motion.get_position_velocity_and_motion_state(tai)
-        assert expected_position == pytest.approx(position)
+        assert math.degrees(expected_position) == pytest.approx(math.degrees(position))
         assert expected_velocity == pytest.approx(velocity)
         assert expected_motion_state == motion_state
 
@@ -127,7 +128,9 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(10.0)
         crawl_velocity = math.radians(0.1)
-        expected_duration = (target_position - start_position) / max_speed
+        expected_duration = (
+            START_MOTORS_ADD_DURATION + (target_position - start_position) / max_speed
+        )
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -141,25 +144,25 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.0,
             expected_position=math.radians(8.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.5,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.5,
             expected_position=math.radians(10.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 4.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 4.0,
             expected_position=math.radians(10.15),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
@@ -174,7 +177,9 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(10.0)
         crawl_velocity = math.radians(-0.1)
-        expected_duration = (target_position - start_position) / max_speed
+        expected_duration = (
+            START_MOTORS_ADD_DURATION + (target_position - start_position) / max_speed
+        )
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -188,25 +193,25 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.0,
             expected_position=math.radians(8.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.5,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.5,
             expected_position=math.radians(10.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 4.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 4.0,
             expected_position=math.radians(9.85),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
@@ -221,7 +226,9 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = 0.0
         crawl_velocity = math.radians(0.1)
-        expected_duration = math.fabs((target_position - start_position) / max_speed)
+        expected_duration = START_MOTORS_ADD_DURATION + math.fabs(
+            (target_position - start_position) / max_speed
+        )
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -235,25 +242,25 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(6.0),
             expected_velocity=-_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.0,
             expected_position=math.radians(2.0),
             expected_velocity=-_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.5,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.5,
             expected_position=math.radians(0.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 4.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 4.0,
             expected_position=math.radians(0.15),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
@@ -268,7 +275,9 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = 0.0
         crawl_velocity = math.radians(-0.1)
-        expected_duration = math.fabs((target_position - start_position) / max_speed)
+        expected_duration = START_MOTORS_ADD_DURATION + math.fabs(
+            (target_position - start_position) / max_speed
+        )
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -282,25 +291,25 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(6.0),
             expected_velocity=-_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.0,
             expected_position=math.radians(2.0),
             expected_velocity=-_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.5,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.5,
             expected_position=math.radians(0.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 4.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 4.0,
             expected_position=math.radians(359.85),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
@@ -315,7 +324,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(350.0)
         crawl_velocity = math.radians(0.1)
-        expected_duration = math.fabs(
+        expected_duration = START_MOTORS_ADD_DURATION + math.fabs(
             (target_position - start_position - 2 * math.pi) / max_speed
         )
         await self.prepare_azimuth_motion(
@@ -331,31 +340,31 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(6.0),
             expected_velocity=-_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.0,
             expected_position=math.radians(2.0),
             expected_velocity=-_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 3.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 3.0,
             expected_position=math.radians(358.0),
             expected_velocity=-_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 5.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 5.0,
             expected_position=math.radians(350.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 6.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 6.0,
             expected_position=math.radians(350.1),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
@@ -370,7 +379,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(350.0)
         crawl_velocity = math.radians(-0.1)
-        expected_duration = math.fabs(
+        expected_duration = START_MOTORS_ADD_DURATION + math.fabs(
             (target_position - start_position - 2 * math.pi) / max_speed
         )
         await self.prepare_azimuth_motion(
@@ -386,31 +395,31 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(6.0),
             expected_velocity=-_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.0,
             expected_position=math.radians(2.0),
             expected_velocity=-_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 3.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 3.0,
             expected_position=math.radians(358.0),
             expected_velocity=-_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 5.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 5.0,
             expected_position=math.radians(350.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 6.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 6.0,
             expected_position=math.radians(349.9),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
@@ -426,7 +435,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         target_position = math.radians(10.0)
         crawl_velocity = math.radians(0.1)
         expected_duration = math.fabs(
-            (target_position - start_position + 2 * math.pi) / max_speed
+            START_MOTORS_ADD_DURATION
+            + (target_position - start_position + 2 * math.pi) / max_speed
         )
         await self.prepare_azimuth_motion(
             start_position=start_position,
@@ -441,31 +451,31 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(354.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.0,
             expected_position=math.radians(358.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 3.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 3.0,
             expected_position=math.radians(2.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 5.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 5.0,
             expected_position=math.radians(10.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 6.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 6.0,
             expected_position=math.radians(10.1),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
@@ -481,7 +491,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         target_position = math.radians(10.0)
         crawl_velocity = math.radians(-0.1)
         expected_duration = math.fabs(
-            (target_position - start_position + 2 * math.pi) / max_speed
+            START_MOTORS_ADD_DURATION
+            + (target_position - start_position + 2 * math.pi) / max_speed
         )
         await self.prepare_azimuth_motion(
             start_position=start_position,
@@ -496,31 +507,31 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(354.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.0,
             expected_position=math.radians(358.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 3.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 3.0,
             expected_position=math.radians(2.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 5.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 5.0,
             expected_position=math.radians(10.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 6.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 6.0,
             expected_position=math.radians(9.9),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
@@ -536,7 +547,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(10.0)
         crawl_velocity = math.radians(1.0)
-        expected_duration = 0.0
+        expected_duration = START_MOTORS_ADD_DURATION
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -550,37 +561,37 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(351.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.0,
             expected_position=math.radians(352.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 10.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 10.0,
             expected_position=math.radians(0.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 11.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 11.0,
             expected_position=math.radians(1.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 20.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 20.0,
             expected_position=math.radians(10.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 21.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 21.0,
             expected_position=math.radians(11.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
@@ -596,7 +607,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(350.0)
         crawl_velocity = math.radians(-1.0)
-        expected_duration = 0.0
+        expected_duration = START_MOTORS_ADD_DURATION
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -610,37 +621,37 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(9.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 2.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.0,
             expected_position=math.radians(8.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 10.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 10.0,
             expected_position=math.radians(0.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 11.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 11.0,
             expected_position=math.radians(359.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 20.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 20.0,
             expected_position=math.radians(350.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 21.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 21.0,
             expected_position=math.radians(349.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
@@ -655,7 +666,9 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(10.0)
         crawl_velocity = 0
-        expected_duration = (target_position - start_position) / max_speed
+        expected_duration = (
+            START_MOTORS_ADD_DURATION + (target_position - start_position) / max_speed
+        )
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -669,14 +682,14 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
-        self.azimuth_motion.stop(start_tai=_start_tai + 2.0)
+        self.azimuth_motion.stop(start_tai=_start_tai + START_MOTORS_ADD_DURATION + 2.0)
         await self.verify_azimuth_motion(
-            tai=_start_tai + 3.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 3.0,
             expected_position=math.radians(8.0),
             expected_velocity=0,
             expected_motion_state=mtdome.LlcMotionState.STOPPED,
@@ -691,7 +704,9 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(10.0)
         crawl_velocity = math.radians(0.1)
-        expected_duration = (target_position - start_position) / max_speed
+        expected_duration = (
+            START_MOTORS_ADD_DURATION + (target_position - start_position) / max_speed
+        )
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -705,20 +720,20 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 3.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 3.0,
             expected_position=math.radians(10.05),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
-        self.azimuth_motion.stop(start_tai=_start_tai + 4.0)
+        self.azimuth_motion.stop(start_tai=_start_tai + START_MOTORS_ADD_DURATION + 4.0)
         await self.verify_azimuth_motion(
-            tai=_start_tai + 5.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 5.0,
             expected_position=math.radians(10.15),
             expected_velocity=0,
             expected_motion_state=mtdome.LlcMotionState.STOPPED,
@@ -733,7 +748,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(10.0)
         crawl_velocity = math.radians(1.0)
-        expected_duration = 0.0
+        expected_duration = START_MOTORS_ADD_DURATION
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -747,14 +762,14 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(11.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
-        self.azimuth_motion.stop(start_tai=_start_tai + 4.0)
+        self.azimuth_motion.stop(start_tai=_start_tai + START_MOTORS_ADD_DURATION + 4.0)
         await self.verify_azimuth_motion(
-            tai=_start_tai + 5.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 5.0,
             expected_position=math.radians(14.0),
             expected_velocity=0,
             expected_motion_state=mtdome.LlcMotionState.STOPPED,
@@ -769,7 +784,9 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(10.0)
         crawl_velocity = 0
-        expected_duration = (target_position - start_position) / max_speed
+        expected_duration = (
+            START_MOTORS_ADD_DURATION + (target_position - start_position) / max_speed
+        )
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -783,20 +800,22 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
-        self.azimuth_motion.park(start_tai=_start_tai + 2.0)
+
+        start_tai = _start_tai + START_MOTORS_ADD_DURATION + 1.0
+        self.azimuth_motion.park(start_tai=start_tai)
         await self.verify_azimuth_motion(
-            tai=_start_tai + 3.0,
+            tai=start_tai,
             expected_position=math.radians(4.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=mtdome.LlcMotionState.PARKING,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 4.0,
+            tai=start_tai + 3.0,
             expected_position=math.radians(0.0),
             expected_velocity=0,
             expected_motion_state=mtdome.LlcMotionState.PARKED,
@@ -811,7 +830,9 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(10.0)
         crawl_velocity = math.radians(0.1)
-        expected_duration = (target_position - start_position) / max_speed
+        expected_duration = (
+            START_MOTORS_ADD_DURATION + (target_position - start_position) / max_speed
+        )
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -825,32 +846,34 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 3.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 3.0,
             expected_position=math.radians(10.05),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
-        self.azimuth_motion.park(start_tai=_start_tai + 4.0)
+
+        start_tai = _start_tai + START_MOTORS_ADD_DURATION + 4.0
+        self.azimuth_motion.park(start_tai=start_tai)
         await self.verify_azimuth_motion(
-            tai=_start_tai + 5.0,
+            tai=start_tai + 1.0,
             expected_position=math.radians(6.15),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=mtdome.LlcMotionState.PARKING,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 6.0,
+            tai=start_tai + 2.0,
             expected_position=math.radians(2.15),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=mtdome.LlcMotionState.PARKING,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 7.0,
+            tai=start_tai + 3.0,
             expected_position=math.radians(0.0),
             expected_velocity=0,
             expected_motion_state=mtdome.LlcMotionState.PARKED,
@@ -865,7 +888,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(10.0)
         crawl_velocity = math.radians(1.0)
-        expected_duration = 0.0
+        expected_duration = START_MOTORS_ADD_DURATION
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -879,32 +902,34 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(11.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
-        self.azimuth_motion.park(start_tai=_start_tai + 4.0)
+
+        start_tai = _start_tai + START_MOTORS_ADD_DURATION + 4.0
+        self.azimuth_motion.park(start_tai=start_tai)
         await self.verify_azimuth_motion(
-            tai=_start_tai + 5.0,
+            tai=start_tai + 1.0,
             expected_position=math.radians(10.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=mtdome.LlcMotionState.PARKING,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 6.0,
+            tai=start_tai + 2.0,
             expected_position=math.radians(6.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=mtdome.LlcMotionState.PARKING,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 7.0,
+            tai=start_tai + 3.0,
             expected_position=math.radians(2.0),
             expected_velocity=-_MAX_SPEED,
-            expected_motion_state=mtdome.LlcMotionState.PARKING,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 8.0,
+            tai=start_tai + 5.0,
             expected_position=math.radians(0.0),
             expected_velocity=0,
             expected_motion_state=mtdome.LlcMotionState.PARKED,
@@ -919,7 +944,9 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(10.0)
         crawl_velocity = 0
-        expected_duration = (target_position - start_position) / max_speed
+        expected_duration = (
+            START_MOTORS_ADD_DURATION + (target_position - start_position) / max_speed
+        )
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -933,14 +960,16 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
-        self.azimuth_motion.go_stationary(start_tai=_start_tai + 2.0)
+        self.azimuth_motion.go_stationary(
+            start_tai=_start_tai + START_MOTORS_ADD_DURATION + 2.0
+        )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 3.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 3.0,
             expected_position=math.radians(8.0),
             expected_velocity=0,
             expected_motion_state=mtdome.LlcMotionState.STATIONARY,
@@ -955,7 +984,9 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(10.0)
         crawl_velocity = math.radians(0.1)
-        expected_duration = (target_position - start_position) / max_speed
+        expected_duration = (
+            START_MOTORS_ADD_DURATION + (target_position - start_position) / max_speed
+        )
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -969,20 +1000,22 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(4.0),
             expected_velocity=_MAX_SPEED,
             expected_motion_state=mtdome.LlcMotionState.MOVING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 3.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 3.0,
             expected_position=math.radians(10.05),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
-        self.azimuth_motion.go_stationary(start_tai=_start_tai + 4.0)
+        self.azimuth_motion.go_stationary(
+            start_tai=_start_tai + START_MOTORS_ADD_DURATION + 4.0
+        )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 5.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 5.0,
             expected_position=math.radians(10.15),
             expected_velocity=0,
             expected_motion_state=mtdome.LlcMotionState.STATIONARY,
@@ -997,7 +1030,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         max_speed = _MAX_SPEED
         target_position = math.radians(10.0)
         crawl_velocity = math.radians(1.0)
-        expected_duration = 0.0
+        expected_duration = START_MOTORS_ADD_DURATION
         await self.prepare_azimuth_motion(
             start_position=start_position,
             max_speed=max_speed,
@@ -1011,14 +1044,16 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             motion_state=mtdome.LlcMotionState.CRAWLING,
         )
         await self.verify_azimuth_motion(
-            tai=_start_tai + 1.0,
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
             expected_position=math.radians(11.0),
             expected_velocity=crawl_velocity,
             expected_motion_state=mtdome.LlcMotionState.CRAWLING,
         )
-        self.azimuth_motion.go_stationary(start_tai=_start_tai + 4.0)
+
+        start_tai = _start_tai + START_MOTORS_ADD_DURATION + 4.0
+        self.azimuth_motion.go_stationary(start_tai=start_tai)
         await self.verify_azimuth_motion(
-            tai=_start_tai + 5.0,
+            tai=start_tai + 1.0,
             expected_position=math.radians(14.0),
             expected_velocity=0,
             expected_motion_state=mtdome.LlcMotionState.STATIONARY,

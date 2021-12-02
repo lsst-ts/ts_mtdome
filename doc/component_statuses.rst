@@ -18,56 +18,82 @@ Following that logic, the list of statuses would be:
 
 AMCS
 
-    * moving: executing the moveAz command or the crawlAz command until the commanded crawl velocity has been reached
-    * crawling: crawling at the commanded velocity as commanded by the moveAz or the crawlAz command
-    * stopping: executing the stopAz command or the stop command
-    * parking: executing the park command
-    * stopped: one of the stopAz or stop commands has been executed
-    * parked: the park command has been executed
-    * inflating: executing the inflate ON command
-    * deflating: executing the inflate OFF command
-    * inflated: the inflate ON command was executed
-    * deflated: the inflate OFF command was executed
-    * configuring: executing the configure command
-    * error: an error has occurred indicated by the provided error code (TBD)
+    * CONFIGURING: executing the configure command
+    * CRAWLING: crawling at the commanded velocity as commanded by the moveAz or the crawlAz command
+    * DEFLATED: the inflate OFF command was executed
+    * DEFLATING: executing the inflate OFF command
+    * ERROR: an error has occurred indicated by the provided error code (TBD)
+    * INFLATED: the inflate ON command was executed
+    * INFLATING: executing the inflate ON command
+    * MOVING: executing the moveAz command or the crawlAz command until the commanded crawl velocity has been reached
+    * PARKED: the park command has been executed
+    * PARKING: executing the park command
+    * STOPPED: the stopAz command has been executed
+    * STOPPING: executing the stopAz
+
+These intermediate states are reported by AMCS and are automatically set by the AMCS.
+These states get translated into MOVING (when PARKED or STOPPED) or STOPPING (when MOVING) by the CSC.
+
+    * BRAKES_DISENGAGDED: the brakes have been disengaged
+    * BRAKES_ENGAGDED: the brakes have been engaged
+    * DISENGAGING_BRAKES: disengaging the brakes
+    * DISABLING_MOTOR_POWER: disabling the motor power
+    * ENABLING_MOTOR_POWER: enabling the motor power
+    * ENGAGING_BRAKES: engaging the brakes
+    * GO_DEGRADED: going to degraded mode
+    * GO_NORMAL: going to normal mode
+    * GO_STATIONARY: going to stationary mode
+    * LP_DISENGAGED: the locking pins have been disengaged
+    * LP_DISENGAGING: disengaging the locking pins
+    * LP_ENGAGED: the locking pins have been engaged
+    * LP_ENGAGING: engaging the locking pins
+    * MOTOR_COOLING_OFF: the motor cooling has been switched off
+    * MOTOR_COOLING_ON: the motor cooling has been switched on
+    * MOTOR_POWER_OFF: the motor power has been switched off
+    * MOTOR_POWER_ON: the motor power has been switched on
+    * STARTING_MOTOR_COOLING: starting the motor power
+    * STATIONARY: in stationary mode
+    * STOPPING_MOTOR_COOLING: stopping the motor power
 
 ApCS
 
-    * opening: executing the openShutter command
-    * closing: executing the closeShutter command
-    * stopping: executing the stopShutter command or the stop command
-    * stopped: one of the stopShutter or stop commands has been executed
-    * configuring: executing the configure command
-    * error: an error has occurred indicated by the provided error code (TBD)
+    * CONFIGURING: executing the configure command
+    * CLOSED: the closeShutter command has been executed
+    * CLOSING: executing the closeShutter command
+    * ERROR: an error has occurred indicated by the provided error code (TBD)
+    * OPENING: executing the openShutter command
+    * STOPPED: the stopShutter command has been executed
+    * STOPPING: executing the stopShutter command
 
 LCS
 
-    * moving: executing a setLouver command or a closeLouvers command
-    * stopping: executing a stopLouvers command
-    * stopped: one of the setLouver, stopLouvers or closeLouvers command has been executed
-    * configuring: executing the configure command
-    * error: an error has occurred indicated by the provided error code (TBD)
+    * CONFIGURING: executing the configure command
+    * ERROR: an error has occurred indicated by the provided error code (TBD)
+    * MOVING: executing a setLouver command or a closeLouvers command
+    * STOPPED: one of the setLouver, stopLouvers or closeLouvers command has been executed
+    * STOPPING: executing a stopLouvers command
 
 LWCS
 
-    * moving: executing the moveEl command or the crawlEl command until the commanded crawl velocity has been reached
-    * crawling: crawling at the velocity commanded by yhe crawlEl command
-    * stopping: executing the stopEl command or the stop command
-    * stopped: one of the stopEl, stop or moveEl commands has been executed
-    * configuring: executing the configure command
-    * error: an error has occurred indicated by the provided error code (TBD)
+    * CONFIGURING: executing the configure command
+    * CRAWLING: crawling at the velocity commanded by the crawlEl command
+    * ERROR: an error has occurred indicated by the provided error code (TBD)
+    * MOVING: executing the moveEl command or the crawlEl command until the commanded crawl velocity has been reached
+    * STOPPED: the stopEl command has been executed
+    * STOPPING: executing the stopEl command
 
 ThCS
 
-    * setting: executing the setTemperature command
-    * stopped: the setTemperature command has been executed
-    * fans_on, fans_off
-    * configuring: executing the configure command
-    * error: an error has occurred indicated by the provided error code (TBD)
+    * CONFIGURING: executing the configure command
+    * ERROR: an error has occurred indicated by the provided error code (TBD)
+    * FANS_ON
+    * FANS_OFF
+    * SETTING: executing the setTemperature command
+    * STOPPED: the stopTemperature command has been executed
 
 MonCS
 
-    * normal: the GIS system is normal
-    * alarm: the GIS system has raised an alarm
-    * configuring: executing the configure command
-    * error: an error has occurred indicated by the provided error code (TBD)
+    * ALARM: the GIS system has raised an alarm
+    * CONFIGURING: executing the configure command
+    * ERROR: an error has occurred indicated by the provided error code (TBD)
+    * NORMAL: the GIS system is normal

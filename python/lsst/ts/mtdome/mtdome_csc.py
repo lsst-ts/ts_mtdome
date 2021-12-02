@@ -29,7 +29,7 @@ from types import SimpleNamespace
 from .config_schema import CONFIG_SCHEMA
 from . import __version__, encoding_tools
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
-from .enums import LlcMotionState, LlcName, ResponseCode, LlcNameDict
+from .enums import IntermediateState, LlcMotionState, LlcName, ResponseCode, LlcNameDict
 from lsst.ts import salobj
 from .mock_controller import MockMTDomeController
 from lsst.ts.idl.enums.MTDome import (
@@ -41,13 +41,48 @@ from lsst.ts.idl.enums.MTDome import (
 
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout in s to be used by this module
-# DM-26653: Added "positionError" since this key is still under discussion.
-_KEYS_TO_REMOVE = {"status", "operationalMode"}
+_KEYS_TO_REMOVE = {
+    "status",
+    "operationalMode",  # Remove when next XML release is done
+    "appliedConfiguration",  # Remove when next XML release is done
+}
 _KEYS_IN_RADIANS = {
     "positionActual",
     "positionCommanded",
     "velocityActual",
     "velocityCommanded",
+}
+
+# The next three dicts are used to translate intermediary states into states
+# that are defined in IDL and XML.
+# TODO DM-32671: Remove these dicts.
+_STATES_TO_TRANSLATE_TO_MOVING = {
+    IntermediateState.DEFLATING.name,
+    IntermediateState.DEFLATED.name,
+    IntermediateState.STARTING_MOTOR_COOLING.name,
+    IntermediateState.MOTOR_COOLING_ON.name,
+    IntermediateState.ENABLING_MOTOR_POWER.name,
+    IntermediateState.MOTOR_POWER_ON.name,
+    IntermediateState.GO_NORMAL.name,
+    IntermediateState.GO_DEGRADED.name,
+    IntermediateState.DISENGAGING_BRAKES.name,
+    IntermediateState.BRAKES_DISENGAGED.name,
+}
+_STATES_TO_TRANSLATE_TO_STOPPING = {
+    IntermediateState.INFLATING.name,
+    IntermediateState.INFLATED.name,
+    IntermediateState.ENGAGING_BRAKES.name,
+    IntermediateState.BRAKES_ENGAGED.name,
+    IntermediateState.DISABLING_MOTOR_POWER.name,
+    IntermediateState.MOTOR_POWER_OFF.name,
+    IntermediateState.STOPPING_MOTOR_COOLING.name,
+    IntermediateState.MOTOR_COOLING_OFF.name,
+}
+_STATES_TO_TRANSLATE_TO_PARKING = {
+    IntermediateState.LP_ENGAGING.name,
+    IntermediateState.LP_ENGAGED.name,
+    IntermediateState.LP_DISENGAGING.name,
+    IntermediateState.LP_DISENGAGED.name,
 }
 
 _AMCS_STATUS_PERIOD = 0.2
@@ -782,6 +817,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             else:
                 if llc_status["status"] == LlcMotionState.STATIONARY.name:
                     motion_state = MotionState.STOPPED_BRAKED
+                elif llc_status["status"] in _STATES_TO_TRANSLATE_TO_MOVING:
+                    # TODO: Translate to MOVING until DM-32671 is done.
+                    motion_state = MotionState.MOVING
+                elif llc_status["status"] in _STATES_TO_TRANSLATE_TO_STOPPING:
+                    # TODO: Translate to STOPPING until DM-32671 is done.
+                    motion_state = MotionState.STOPPING
+                elif llc_status["status"] in _STATES_TO_TRANSLATE_TO_PARKING:
+                    # TODO: Translate to PARKING until DM-32671 is done.
+                    motion_state = MotionState.PARKING
                 else:
                     motion_state = MotionState[llc_status["status"]]
                 in_position = False
