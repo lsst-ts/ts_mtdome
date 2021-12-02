@@ -318,6 +318,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mock_ctrl.current_tai = (
                 self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
             )
+            await self.assert_next_sample(
+                topic=self.remote.evt_azMotion,
+                state=MotionState.MOVING,
+            )
 
             sub_system_ids = (
                 SubSystemId.AMCS
@@ -332,6 +336,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 subSystemIds=sub_system_ids,
             )
 
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
                 state=MotionState.STOPPED,
