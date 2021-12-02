@@ -24,7 +24,7 @@ import typing
 
 from abc import ABC, abstractmethod
 
-from ...enums import IntermediateState, LlcMotionState
+from ...enums import LlcMotionState
 from lsst.ts import utils
 
 
@@ -53,9 +53,7 @@ class BaseLlcMotion(ABC):
         # LlcMotionState will be compared. By default the elevation motion
         # starts in STOPPED state. The LlcMotionState only changes when a new
         # command is received.
-        self._commanded_motion_state: typing.Union[
-            IntermediateState, LlcMotionState
-        ] = LlcMotionState.STOPPED
+        self._commanded_motion_state = LlcMotionState.STOPPED
         # This defines the TAI time, unix seconds, at which a move or crawl
         # will start. To model the real dome, this should be the current time.
         # However, for unit tests it can be convenient to use other values.
@@ -161,7 +159,7 @@ class BaseLlcMotion(ABC):
         pass
 
     @abstractmethod
-    def stop(self, start_tai: float) -> None:
+    def stop(self, start_tai: float) -> float:
         pass
 
     @abstractmethod

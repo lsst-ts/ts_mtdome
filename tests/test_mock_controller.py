@@ -24,7 +24,6 @@ import logging
 import math
 import typing
 import unittest
-from unittest.mock import AsyncMock
 
 import numpy as np
 import pytest
@@ -37,9 +36,13 @@ logging.basicConfig(
 )
 
 _CURRENT_TAI = 100001
+START_MOTORS_ADD_DURATION = 5.5
 
 
 class MockTestCase(unittest.IsolatedAsyncioTestCase):
+    async def determine_current_tai(self) -> None:
+        pass
+
     async def asyncSetUp(self) -> None:
         self.ctrl = None
         self.writer = None
@@ -51,7 +54,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # the start_tai value on the mock_ctrl object can be set to make sure
         # that the mock_ctrl object  behaves as if that amount of time has
         # passed.
-        self.mock_ctrl.determine_current_tai = AsyncMock()
+        self.mock_ctrl.determine_current_tai = self.determine_current_tai
         asyncio.create_task(self.mock_ctrl.start())
         await asyncio.sleep(1)
         # Request the assigned port from the mock controller.
@@ -202,7 +205,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Make the amcs rotate and check both status and position at the
         # specified times
         await self.verify_amcs_move(
-            1.0, mtdome.LlcMotionState.MOVING, math.radians(1.5)
+            START_MOTORS_ADD_DURATION + 1.0,
+            mtdome.LlcMotionState.MOVING,
+            math.radians(1.5),
         )
         await self.verify_amcs_move(
             1.0, mtdome.LlcMotionState.MOVING, math.radians(3.0)
@@ -229,7 +234,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Make the amcs rotate and check both status and position at the
         # specified times
         await self.verify_amcs_move(
-            1.0, mtdome.LlcMotionState.MOVING, math.radians(1.5)
+            START_MOTORS_ADD_DURATION + 1.0,
+            mtdome.LlcMotionState.MOVING,
+            math.radians(1.5),
         )
         await self.verify_amcs_move(
             1.0, mtdome.LlcMotionState.MOVING, math.radians(3.0)
@@ -256,7 +263,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Make the amcs rotate and check both status and position at the
         # specified times
         await self.verify_amcs_move(
-            1.0, mtdome.LlcMotionState.MOVING, math.radians(1.5)
+            START_MOTORS_ADD_DURATION + 1.0,
+            mtdome.LlcMotionState.MOVING,
+            math.radians(1.5),
         )
         await self.verify_amcs_move(
             1.0, mtdome.LlcMotionState.MOVING, math.radians(3.0)
@@ -283,7 +292,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Make the amcs rotate and check both status and position at the
         # specified times
         await self.verify_amcs_move(
-            1.0, mtdome.LlcMotionState.MOVING, math.radians(18.5)
+            START_MOTORS_ADD_DURATION + 1.0,
+            mtdome.LlcMotionState.MOVING,
+            math.radians(18.5),
         )
         await self.verify_amcs_move(
             1.0, mtdome.LlcMotionState.MOVING, math.radians(17.0)
@@ -310,7 +321,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Make the amcs rotate and check both status and position at the
         # specified times
         await self.verify_amcs_move(
-            1.0, mtdome.LlcMotionState.MOVING, math.radians(18.5)
+            START_MOTORS_ADD_DURATION + 1.0,
+            mtdome.LlcMotionState.MOVING,
+            math.radians(18.5),
         )
         await self.verify_amcs_move(
             1.0, mtdome.LlcMotionState.MOVING, math.radians(17.0)
@@ -336,7 +349,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Make the amcs rotate and check both status and position at the
         # specified times
         await self.verify_amcs_move(
-            1.0, mtdome.LlcMotionState.MOVING, math.radians(18.5)
+            START_MOTORS_ADD_DURATION + 1.0,
+            mtdome.LlcMotionState.MOVING,
+            math.radians(18.5),
         )
         await self.verify_amcs_move(
             1.0, mtdome.LlcMotionState.MOVING, math.radians(17.0)
@@ -390,7 +405,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         assert self.data["timeout"] == self.mock_ctrl.amcs.duration
 
         # Give some time to the mock device to move.
-        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
+        self.mock_ctrl.current_tai = (
+            self.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 1.0
+        )
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
@@ -410,7 +427,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
         await self.verify_amcs_move(
-            1.0, mtdome.LlcMotionState.MOVING, math.radians(1.5)
+            START_MOTORS_ADD_DURATION + 1.0,
+            mtdome.LlcMotionState.MOVING,
+            math.radians(1.5),
         )
 
         await self.write(command="stopAz", parameters={})
@@ -1040,7 +1059,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         assert self.data["timeout"] == self.mock_ctrl.amcs.duration
 
         # Give some time to the mock device to move.
-        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
+        self.mock_ctrl.current_tai = (
+            self.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.2
+        )
 
         await self.write(command="park", parameters={})
         self.data = await self.read()
@@ -1126,7 +1147,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        assert amcs_status["status"]["status"] == mtdome.LlcMotionState.STOPPED.name
+        assert amcs_status["status"]["status"] == mtdome.LlcMotionState.PARKED.name
         assert amcs_status["positionActual"] == 0
 
         await self.write(command="statusApSCS", parameters={})

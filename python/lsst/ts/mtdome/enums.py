@@ -68,10 +68,8 @@ class LlcMotionState(enum.IntEnum):
     MOVING = enum.auto()
     OPEN = enum.auto()
     PARKED = enum.auto()
-    PARKING = enum.auto()
     STATIONARY = enum.auto()
     STOPPED = enum.auto()
-    STOPPING = enum.auto()
 
 
 class LlcName(str, enum.Enum):
