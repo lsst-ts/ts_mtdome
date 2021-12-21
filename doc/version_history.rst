@@ -15,6 +15,7 @@ Changes:
 * Added additional LLC states that are translated into MOVING, STOPPING or PARKING.
 * Updated the documentation to contain the full list of LLC commands and statuses.
 * Updated the MockController to handle the new state transitions.
+* Fix a new mypy error by not checking DM's `lsst/__init__.py` files.
 
 Requires:
 
