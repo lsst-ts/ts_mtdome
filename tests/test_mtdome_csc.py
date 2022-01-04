@@ -18,6 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import logging
 import typing
 import unittest
@@ -242,6 +243,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             self.csc.mock_ctrl.current_tai = (
                 self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
+            )
+
+            await self.assert_next_sample(
+                topic=self.remote.evt_azMotion,
+                state=MotionState.MOVING,
+                inPosition=False,
             )
 
             await self.remote.cmd_stop.set_start(
