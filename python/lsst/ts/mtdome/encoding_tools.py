@@ -21,7 +21,7 @@
 
 import logging
 import json
-from typing import Any, Dict
+import typing
 
 import jsonschema
 
@@ -31,7 +31,7 @@ from .schema import registry
 log = logging.getLogger("EncodingTools")
 
 
-def encode(**params: Any) -> str:
+def encode(**params: typing.Any) -> str:
     """Encode the given parameters.
 
     The params are treated as the key, value pairs in a dict. In other words::
@@ -54,7 +54,7 @@ def encode(**params: Any) -> str:
     return json.dumps({**params})
 
 
-def decode(st: str) -> Dict[str, Any]:
+def decode(st: str) -> typing.Dict[str, typing.Any]:
     """Decode the given string.
 
     Parameters
@@ -72,7 +72,7 @@ def decode(st: str) -> Dict[str, Any]:
     return data
 
 
-def validate(data: Dict[str, Any]) -> None:
+def validate(data: typing.Dict[str, typing.Any]) -> None:
     """Validates the data against a JSON schema and logs an error in case the
     validation fails.
 

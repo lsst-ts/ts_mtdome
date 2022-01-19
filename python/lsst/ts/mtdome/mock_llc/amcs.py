@@ -123,6 +123,11 @@ class AmcsStatus(BaseMockStatus):
             "barcodeHeadRaw": self.barcode_head_raw.tolist(),
             "barcodeHeadCalibrated": self.barcode_head_calibrated.tolist(),
             "barcodeHeadWeighted": self.barcode_head_weighted.tolist(),
+            "appliedConfiguration": {
+                "jmax": self.jmax,
+                "amax": self.amax,
+                "vmax": self.vmax,
+            },
             "timestampUTC": current_tai,
         }
 
@@ -194,8 +199,7 @@ class AmcsStatus(BaseMockStatus):
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
         """
-        self.azimuth_motion.stop(start_tai)
-        self.duration = 0.0
+        self.duration = self.azimuth_motion.stop(start_tai)
         return self.duration
 
     async def park(self, start_tai: float) -> float:
@@ -209,7 +213,7 @@ class AmcsStatus(BaseMockStatus):
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
         """
-        self.status = LlcMotionState.PARKING
+        self.status = LlcMotionState.MOVING
         self.position_commanded = PARK_POSITION
         self.duration = self.azimuth_motion.park(start_tai)
         return self.duration
@@ -225,8 +229,7 @@ class AmcsStatus(BaseMockStatus):
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
         """
-        self.azimuth_motion.go_stationary(start_tai)
-        self.duration = 0.0
+        self.duration = self.azimuth_motion.go_stationary(start_tai)
         return self.duration
 
     async def inflate(self, action: str) -> float:

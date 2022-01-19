@@ -20,7 +20,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import math
-from typing import Tuple
+import typing
 
 from abc import ABC, abstractmethod
 
@@ -155,11 +155,11 @@ class BaseLlcMotion(ABC):
     @abstractmethod
     def get_position_velocity_and_motion_state(
         self, tai: float
-    ) -> Tuple[float, float, LlcMotionState]:
+    ) -> typing.Tuple[float, float, LlcMotionState]:
         pass
 
     @abstractmethod
-    def stop(self, start_tai: float) -> None:
+    def stop(self, start_tai: float) -> float:
         pass
 
     @abstractmethod

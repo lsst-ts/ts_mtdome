@@ -23,7 +23,7 @@ __all__ = ["BaseMockStatus"]
 
 from abc import ABC, abstractmethod
 import logging
-from typing import Any, Dict
+import typing
 
 from lsst.ts.idl.enums.MTDome import OperationalMode
 
@@ -35,7 +35,7 @@ class BaseMockStatus(ABC):
 
     def __init__(self) -> None:
         # dict to hold the status of the Lower Level Component.
-        self.llc_status: Dict[str, Any] = {}
+        self.llc_status: typing.Dict[str, typing.Any] = {}
         # the operational mode of the Lower Level Component.
         self.operational_mode = OperationalMode.NORMAL
         # time of the last executed command, in TAI Unix seconds.

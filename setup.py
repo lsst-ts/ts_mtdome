@@ -20,10 +20,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import setuptools
-from typing import List
+import typing
 
-install_requires: List[str] = []
-tests_require: List[str] = [
+install_requires: typing.List[str] = []
+tests_require: typing.List[str] = [
     "pytest",
     "pytest-cov",
     "pytest-flake8",

@@ -23,7 +23,7 @@ __all__ = ["MockMTDomeController"]
 
 import asyncio
 import logging
-from typing import Any, Callable, Dict, Optional
+import typing
 
 from lsst.ts import utils
 from lsst.ts.mtdome import encoding_tools
@@ -71,14 +71,14 @@ class MockMTDomeController:
         port: int,
     ) -> None:
         self.port = port
-        self._server: Optional[asyncio.AbstractServer] = None
-        self._writer: Optional[asyncio.StreamWriter] = None
+        self._server: typing.Optional[asyncio.AbstractServer] = None
+        self._writer: typing.Optional[asyncio.StreamWriter] = None
         self.log = logging.getLogger("MockMTDomeController")
         # Dict of command: (has_argument, function).
         # The function is called with:
         # * No arguments, if `has_argument` False.
         # * The argument as a string, if `has_argument` is True.
-        self.dispatch_dict: Dict[str, Callable] = {
+        self.dispatch_dict: typing.Dict[str, typing.Callable] = {
             "closeLouvers": self.close_louvers,
             "closeShutter": self.close_shutter,
             "config": self.config,
@@ -128,12 +128,12 @@ class MockMTDomeController:
         self.current_tai = 0
 
         # Variables for the lower level components.
-        self.amcs: Optional[mock_llc.AmcsStatus] = None
-        self.apscs: Optional[mock_llc.ApscsStatus] = None
-        self.lcs: Optional[mock_llc.LcsStatus] = None
-        self.lwscs: Optional[mock_llc.LwscsStatus] = None
-        self.moncs: Optional[mock_llc.MoncsStatus] = None
-        self.thcs: Optional[mock_llc.ThcsStatus] = None
+        self.amcs: typing.Optional[mock_llc.AmcsStatus] = None
+        self.apscs: typing.Optional[mock_llc.ApscsStatus] = None
+        self.lcs: typing.Optional[mock_llc.LcsStatus] = None
+        self.lwscs: typing.Optional[mock_llc.LwscsStatus] = None
+        self.moncs: typing.Optional[mock_llc.MoncsStatus] = None
+        self.thcs: typing.Optional[mock_llc.ThcsStatus] = None
 
     async def start(self, keep_running: bool = False) -> None:
         """Start the TCP/IP server.
@@ -183,7 +183,7 @@ class MockMTDomeController:
         server.close()
         self.log.info("Done closing")
 
-    async def write(self, **data: Any) -> None:
+    async def write(self, **data: typing.Any) -> None:
         """Write the data appended with a newline character.
 
         Parameters

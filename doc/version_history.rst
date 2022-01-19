@@ -6,6 +6,25 @@
 Version History
 ###############
 
+v1.5.0
+======
+
+Changes:
+
+* Added "appliedConfiguration" to the status replies of AMCS and LWSCS.
+* Added additional LLC states that are translated into MOVING, STOPPING or PARKING.
+* Updated the documentation to contain the full list of LLC commands and statuses.
+* Updated the MockController to handle the new state transitions.
+* Fix a new mypy error by not checking DM's `lsst/__init__.py` files.
+* Added new MotionStates to IDL.
+
+Requires:
+
+* ts_salobj 6.3
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 10.2
+
 v1.4.0
 ======
 

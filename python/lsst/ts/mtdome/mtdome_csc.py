@@ -41,8 +41,11 @@ from lsst.ts.idl.enums.MTDome import (
 
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout in s to be used by this module
-# DM-26653: Added "positionError" since this key is still under discussion.
-_KEYS_TO_REMOVE = {"status", "operationalMode"}
+_KEYS_TO_REMOVE = {
+    "status",
+    "operationalMode",  # Remove when next XML release is done
+    "appliedConfiguration",  # Remove when next XML release is done
+}
 _KEYS_IN_RADIANS = {
     "positionActual",
     "positionCommanded",
