@@ -1067,5 +1067,56 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 operational_mode=operational_mode, sub_system_ids=sub_system_ids
             )
 
+    async def test_slow_network(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=None,
+            simulation_mode=1,
+            settings_to_apply="",
+        ):
+            await self.set_csc_to_enabled()
+            self.csc.mock_ctrl.enable_slow_network = True
+
+            desired_position = 40
+            desired_velocity = 0.1
+            with salobj.assertRaisesAckError():
+                await self.remote.cmd_moveAz.set_start(
+                    position=desired_position,
+                    velocity=desired_velocity,
+                    timeout=STD_TIMEOUT,
+                )
+            data = await self.assert_next_sample(
+                topic=self.remote.evt_azTarget, position=desired_position
+            )
+            assert desired_velocity == pytest.approx(data.velocity)
+
+    async def test_network_interruption(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.DISABLED,
+            config_dir=None,
+            simulation_mode=1,
+            settings_to_apply="",
+        ):
+            await self.assert_next_summary_state(salobj.State.DISABLED)
+            await self.set_csc_to_enabled()
+            await self.assert_next_summary_state(salobj.State.ENABLED)
+            self.csc.mock_ctrl.enable_network_interruption = True
+            await self.assert_next_summary_state(salobj.State.FAULT)
+
+    async def test_no_connection(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=None,
+            simulation_mode=1,
+            settings_to_apply="",
+        ):
+            await self.assert_next_summary_state(salobj.State.STANDBY)
+            self.csc.mock_ctrl_refuse_connections = True
+            with pytest.raises(RuntimeError):
+                await salobj.set_summary_state(
+                    remote=self.remote, state=salobj.State.DISABLED
+                )
+            await self.assert_next_summary_state(salobj.State.FAULT)
+
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome.py")
