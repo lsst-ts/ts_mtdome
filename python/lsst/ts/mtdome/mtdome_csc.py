@@ -112,6 +112,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             MockMTDomeController
         ] = None  # mock controller, or None if not constructed
         self.mock_port = mock_port  # mock port, or None if not used
+        # Make the mock_ctrl refuse connections. Default to False but unit
+        # tests may set it to True.
+        self.mock_ctrl_refuse_connections = False
 
         super().__init__(
             name="MTDome",
@@ -192,10 +195,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             host = self.config.host
             port = self.config.port
-        connect_coro = asyncio.open_connection(host=host, port=port)
-        self.reader, self.writer = await asyncio.wait_for(
-            connect_coro, timeout=self.config.connection_timeout
-        )
+        try:
+            connect_coro = asyncio.open_connection(host=host, port=port)
+            self.reader, self.writer = await asyncio.wait_for(
+                connect_coro, timeout=self.config.connection_timeout
+            )
+        except ConnectionError as e:
+            self.fault(code=3, report=f"Connection to server failed: {e}")
+            raise
 
         # DM-26374: Send enabled events for az and el since they are always
         # enabled.
@@ -204,7 +211,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # DM-26374: Send events for the brakes, interlocks and locking pins
         # with a default value of 0 (meaning nothing engaged) until the
-        # corresponding enums have been defined. This will be done in DM-26863.
+        # corresponding enums have been defined. This will be done in
+        # DM-26863.
         self.evt_brakesEngaged.set_put(brakes=0)
         self.evt_interlocks.set_put(interlocks=0)
         self.evt_lockingPinsEngaged.set_put(engaged=0)
@@ -269,13 +277,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             else:
                 assert self.config is not None
                 port = self.config.port
-            self.mock_ctrl = MockMTDomeController(port)
+            self.mock_ctrl = MockMTDomeController(
+                port, refuse_connections=self.mock_ctrl_refuse_connections
+            )
             await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
 
         except Exception as e:
-            err_msg = "Could not start mock controller"
-            self.log.error(e)
-            self.fault(code=3, report=f"{err_msg}: {e}")
+            self.fault(code=3, report=f"Could not start mock controller: {e}")
             raise
 
     async def stop_mock_ctrl(self) -> None:
@@ -291,7 +299,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         disconnect to the lower level components (or the mock_controller) when
         needed.
         """
-        self.log.info(f"handle_summary_state {self.summary_state}")
+        self.log.info(f"handle_summary_state {self.summary_state.name}")
         if self.disabled_or_enabled:
             if not self.connected:
                 await self.connect()
@@ -321,13 +329,21 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         st = encoding_tools.encode(**command_dict)
         async with self.communication_lock:
             self.log.debug(f"Sending command {st}")
-            assert self.writer is not None
+            try:
+                assert self.writer is not None
+            except AssertionError as e:
+                self.fault(code=3, report=f"Error writing command {st}: {e}")
+                raise
             self.writer.write(st.encode() + b"\r\n")
             await self.writer.drain()
-            assert self.reader is not None
-            read_bytes = await asyncio.wait_for(
-                self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
-            )
+            try:
+                assert self.reader is not None
+                read_bytes = await asyncio.wait_for(
+                    self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
+                )
+            except (asyncio.exceptions.TimeoutError, AssertionError) as e:
+                self.fault(code=3, report=f"Error reading reply to command {st}: {e}")
+                raise
             data: typing.Dict[str, typing.Any] = encoding_tools.decode(
                 read_bytes.decode()
             )
@@ -868,9 +884,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
     @property
     def connected(self) -> bool:
-        if None in (self.reader, self.writer):
-            return False
-        return True
+        """Return True if connected to a server."""
+        return not (
+            self.reader is None
+            or self.writer is None
+            or self.reader.at_eof()
+            or self.writer.is_closing()
+        )
 
     @staticmethod
     def get_config_pkg() -> str:
