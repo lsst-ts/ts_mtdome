@@ -20,6 +20,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+import pathlib
 import typing
 import unittest
 
@@ -36,6 +37,8 @@ from lsst.ts.idl.enums.MTDome import (
 
 STD_TIMEOUT = 10  # standard command timeout (sec)
 START_MOTORS_ADD_DURATION = 5.5
+
+CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
@@ -60,7 +63,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_standard_state_transitions(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.check_standard_state_transitions(
@@ -93,7 +96,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_version(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.assert_next_sample(
@@ -123,7 +126,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_moveAz(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -170,7 +173,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_moveEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -208,7 +211,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_stopAz(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -257,7 +260,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_stopEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -287,7 +290,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_stop(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -350,7 +353,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_crawlAz(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -396,7 +399,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_crawlEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -438,7 +441,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_setLouvers(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -454,7 +457,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_closeLouvers(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -463,7 +466,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_stopLouvers(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -474,7 +477,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_openShutter(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -483,7 +486,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_closeShutter(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -492,7 +495,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_stopShutter(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -503,7 +506,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_park(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -544,7 +547,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_stop_and_brake(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -600,7 +603,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_setTemperature(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -613,7 +616,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_config(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -682,7 +685,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_fans(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -708,7 +711,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_inflate(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -734,7 +737,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_status(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             # It should be possible to always execute the status command but
@@ -792,7 +795,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_status_error(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -824,7 +827,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_exitFault(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -961,7 +964,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_do_setOperationalMode(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -1043,7 +1046,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_slow_network(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.set_csc_to_enabled()
@@ -1065,7 +1068,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_network_interruption(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.DISABLED,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.assert_next_summary_state(salobj.State.DISABLED)
@@ -1077,7 +1080,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_no_connection(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
-            config_dir="tests/data/config",
+            config_dir=CONFIG_DIR,
             simulation_mode=1,
         ):
             await self.assert_next_summary_state(salobj.State.STANDBY)
