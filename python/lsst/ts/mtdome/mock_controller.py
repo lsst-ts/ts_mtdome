@@ -71,7 +71,7 @@ class MockMTDomeController:
     """
 
     """A long sleep to mock a slow network [s]."""
-    SLOW_NETWORK_SLEEP = 5.0
+    SLOW_NETWORK_SLEEP = 10.0
     """A long duration [s]. Used as a return value by commands."""
     LONG_DURATION = 20
 
