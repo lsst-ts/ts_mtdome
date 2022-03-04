@@ -6,6 +6,20 @@
 Version History
 ###############
 
+v1.6.0
+======
+
+Changes:
+
+* Prepare for salobj 7.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 10.2
+
 v1.5.1
 ======
 

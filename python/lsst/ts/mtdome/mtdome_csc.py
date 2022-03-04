@@ -76,8 +76,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         * 0: regular operation.
         * 1: simulation: use a mock low level HVAC controller.
-    settings_to_apply : `str`, optional
-        Settings to apply if ``initial_state`` is `State.DISABLED`
+    override : `str`, optional
+        Override of settings if ``initial_state`` is `State.DISABLED`
         or `State.ENABLED`.
     mock_port : `int`
         The port that the mock controller will listen on
@@ -101,7 +101,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         config_dir: typing.Optional[str] = None,
         initial_state: salobj.State = salobj.State.STANDBY,
         simulation_mode: int = 0,
-        settings_to_apply: str = "",
+        override: str = "",
         mock_port: typing.Optional[int] = None,
     ) -> None:
         self.reader: typing.Optional[asyncio.StreamReader] = None
@@ -123,7 +123,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             config_dir=config_dir,
             initial_state=initial_state,
             simulation_mode=simulation_mode,
-            settings_to_apply=settings_to_apply,
+            override=override,
         )
 
         # Keep the lower level statuses in memory for unit tests.
@@ -201,21 +201,21 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 connect_coro, timeout=self.config.connection_timeout
             )
         except ConnectionError as e:
-            self.fault(code=3, report=f"Connection to server failed: {e}")
+            await self.fault(code=3, report=f"Connection to server failed: {e}")
             raise
 
         # DM-26374: Send enabled events for az and el since they are always
         # enabled.
-        self.evt_azEnabled.set_put(state=EnabledState.ENABLED)
-        self.evt_elEnabled.set_put(state=EnabledState.ENABLED)
+        await self.evt_azEnabled.set_write(state=EnabledState.ENABLED)
+        await self.evt_elEnabled.set_write(state=EnabledState.ENABLED)
 
         # DM-26374: Send events for the brakes, interlocks and locking pins
         # with a default value of 0 (meaning nothing engaged) until the
         # corresponding enums have been defined. This will be done in
         # DM-26863.
-        self.evt_brakesEngaged.set_put(brakes=0)
-        self.evt_interlocks.set_put(interlocks=0)
-        self.evt_lockingPinsEngaged.set_put(engaged=0)
+        await self.evt_brakesEngaged.set_write(brakes=0)
+        await self.evt_interlocks.set_write(interlocks=0)
+        await self.evt_lockingPinsEngaged.set_write(engaged=0)
 
         # Start polling for the status of the lower level components
         # periodically.
@@ -283,7 +283,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
 
         except Exception as e:
-            self.fault(code=3, report=f"Could not start mock controller: {e}")
+            await self.fault(code=3, report=f"Could not start mock controller: {e}")
             raise
 
     async def stop_mock_ctrl(self) -> None:
@@ -332,7 +332,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             try:
                 assert self.writer is not None
             except AssertionError as e:
-                self.fault(code=3, report=f"Error writing command {st}: {e}")
+                await self.fault(code=3, report=f"Error writing command {st}: {e}")
                 raise
             self.writer.write(st.encode() + b"\r\n")
             await self.writer.drain()
@@ -342,7 +342,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
                 )
             except (asyncio.exceptions.TimeoutError, AssertionError) as e:
-                self.fault(code=3, report=f"Error reading reply to command {st}: {e}")
+                await self.fault(
+                    code=3, report=f"Error reading reply to command {st}: {e}"
+                )
                 raise
             data: typing.Dict[str, typing.Any] = encoding_tools.decode(
                 read_bytes.decode()
@@ -382,7 +384,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             position=math.radians(data.position),
             velocity=math.radians(data.velocity),
         )
-        self.evt_azTarget.set_put(position=data.position, velocity=data.velocity)
+        await self.evt_azTarget.set_write(
+            position=data.position, velocity=data.velocity
+        )
 
     async def do_moveEl(self, data: SimpleNamespace) -> None:
         """Move El.
@@ -397,7 +401,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.write_then_read_reply(
             command="moveEl", position=math.radians(data.position)
         )
-        self.evt_elTarget.set_put(position=data.position, velocity=0)
+        await self.evt_elTarget.set_write(position=data.position, velocity=0)
 
     async def stop_az(self, engage_brakes: bool) -> None:
         """Stop AZ motion and engage the brakes if indicated. Also
@@ -494,7 +498,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.write_then_read_reply(
             command="crawlAz", velocity=math.radians(data.velocity)
         )
-        self.evt_azTarget.set_put(position=float("nan"), velocity=data.velocity)
+        await self.evt_azTarget.set_write(position=float("nan"), velocity=data.velocity)
 
     async def do_crawlEl(self, data: SimpleNamespace) -> None:
         """Crawl El.
@@ -508,7 +512,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.write_then_read_reply(
             command="crawlEl", velocity=math.radians(data.velocity)
         )
-        self.evt_elTarget.set_put(position=float("nan"), velocity=data.velocity)
+        await self.evt_elTarget.set_write(position=float("nan"), velocity=data.velocity)
 
     async def do_setLouvers(self, data: SimpleNamespace) -> None:
         """Set Louver.
@@ -565,7 +569,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         await self.write_then_read_reply(command="park")
-        self.evt_azTarget.set_put(position=0, velocity=0)
+        await self.evt_azTarget.set_write(position=0, velocity=0)
 
     async def do_setTemperature(self, data: SimpleNamespace) -> None:
         """Set Temperature.
@@ -615,7 +619,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     operational_mode.name
                 ]
                 await self.write_then_read_reply(command=command)
-                self.evt_operationalMode.set_put(
+                await self.evt_operationalMode.set_write(
                     operationalMode=operational_mode,
                     subSystemId=sub_system_id,
                 )
@@ -755,7 +759,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             sub_system_id = [
                 sid for sid, name in LlcNameDict.items() if name == llc_name
             ][0]
-            self.evt_operationalMode.set_put(
+            await self.evt_operationalMode.set_write(
                 operationalMode=operatinal_mode,
                 subSystemId=sub_system_id,
             )
@@ -781,7 +785,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             telemetry_in_degrees
         )
         # Send the telemetry.
-        topic.set_put(**telemetry)
+        await topic.set_write(**telemetry)
 
         # DM-26374: Check for errors and send the events.
         if llc_name == LlcName.AMCS:
@@ -795,7 +799,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         for message in messages
                     ]
                 )
-                self.evt_azEnabled.set_put(
+                await self.evt_azEnabled.set_write(
                     state=EnabledState.FAULT, faultCode=fault_code
                 )
             else:
@@ -810,7 +814,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     MotionState.PARKED,
                 ]:
                     in_position = True
-                self.evt_azMotion.set_put(state=motion_state, inPosition=in_position)
+                await self.evt_azMotion.set_write(
+                    state=motion_state, inPosition=in_position
+                )
         elif llc_name == LlcName.LWSCS:
             llc_status = status[llc_name]["status"]
             if llc_status["status"] == LlcMotionState.STATIONARY.name:
@@ -823,7 +829,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 MotionState.CRAWLING,
             ]:
                 in_position = True
-            self.evt_elMotion.set_put(state=motion_state, inPosition=in_position)
+            await self.evt_elMotion.set_write(
+                state=motion_state, inPosition=in_position
+            )
         elif llc_name in [LlcName.APSCS, LlcName.LCS, LlcName.THCS]:
             # LCS and MONCS do not set this status yet.
             llc_status = status[llc_name]["status"]

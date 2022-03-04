@@ -48,14 +48,14 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         initial_state: salobj.State,
         config_dir: str,
         simulation_mode: int,
-        settings_to_apply: str,
+        override: str,
         **kwargs: typing.Any,
     ) -> None:
         return mtdome.MTDomeCsc(
             initial_state=initial_state,
             config_dir=config_dir,
             simulation_mode=simulation_mode,
-            settings_to_apply=settings_to_apply,
+            override=override,
             mock_port=0,
         )
 
@@ -64,7 +64,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.check_standard_state_transitions(
                 enabled_commands=(
@@ -98,7 +98,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.assert_next_sample(
                 self.remote.evt_softwareVersions,
@@ -129,7 +129,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -177,7 +177,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -216,7 +216,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -266,7 +266,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stop.set_start(
@@ -297,7 +297,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -361,7 +361,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -408,7 +408,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -451,7 +451,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
             louver_id = 5
@@ -468,7 +468,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_closeLouvers.set_start()
@@ -478,7 +478,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stop.set_start(
@@ -490,7 +490,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_openShutter.set_start()
@@ -500,7 +500,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_closeShutter.set_start()
@@ -510,7 +510,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stop.set_start(
@@ -522,7 +522,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -564,7 +564,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -621,7 +621,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
             desired_temperature = 10.0
@@ -635,7 +635,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -705,7 +705,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -732,7 +732,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -759,7 +759,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             # It should be possible to always execute the status command but
             # the connection with the lower level components only gets made in
@@ -818,7 +818,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -851,7 +851,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -989,7 +989,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
 
@@ -1072,14 +1072,14 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.set_csc_to_enabled()
             self.csc.mock_ctrl.enable_slow_network = True
 
             desired_position = 40
             desired_velocity = 0.1
-            with salobj.assertRaisesAckError():
+            with pytest.raises(salobj.base.AckTimeoutError):
                 await self.remote.cmd_moveAz.set_start(
                     position=desired_position,
                     velocity=desired_velocity,
@@ -1095,7 +1095,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.DISABLED,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.assert_next_summary_state(salobj.State.DISABLED)
             await self.set_csc_to_enabled()
@@ -1108,7 +1108,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=None,
             simulation_mode=1,
-            settings_to_apply="",
+            override="",
         ):
             await self.assert_next_summary_state(salobj.State.STANDBY)
             self.csc.mock_ctrl_refuse_connections = True
