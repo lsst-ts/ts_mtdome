@@ -36,8 +36,12 @@ class MockMTDomeController:
 
     Parameters
     ----------
-    port : int
+    port : `int`
         TCP/IP port
+    refuse_connections : `bool`, optional
+        Refuse connections if True by immediately stopping after having started
+        up. This ensures that a port get allocated to avoid breaking code that
+        relies on that. To be set by unit tests only. Defaults to False.
 
     Notes
     -----
@@ -66,9 +70,15 @@ class MockMTDomeController:
     * Just a framework that needs to be implemented properly
     """
 
+    """A long sleep to mock a slow network [s]."""
+    SLOW_NETWORK_SLEEP = 10.0
+    """A long duration [s]. Used as a return value by commands."""
+    LONG_DURATION = 20
+
     def __init__(
         self,
         port: int,
+        refuse_connections: bool = False,
     ) -> None:
         self.port = port
         self._server: typing.Optional[asyncio.AbstractServer] = None
@@ -121,11 +131,18 @@ class MockMTDomeController:
             "stopLouvers": self.stop_louvers,
             "stopShutter": self.stop_shutter,
         }
-        # Durations used by this class and by its unit test
-        self.long_duration = 20
-        self.short_duration = 2
         # Time keeping
         self.current_tai = 0
+        # Mock a slow network (True) or not (False). To be set by unit tests
+        # only.
+        self.enable_slow_network = False
+        # Mock a network interruption (True) or not (False). To be set by unit
+        # tests only.
+        self.enable_network_interruption = False
+        # Refuse connections by immediately stopping after having started up.
+        # This ensures that a port get allocated to avoid breaking code that
+        # relies on that.
+        self.refuse_connections = refuse_connections
 
         # Variables for the lower level components.
         self.amcs: typing.Optional[mock_llc.AmcsStatus] = None
@@ -143,7 +160,7 @@ class MockMTDomeController:
 
         Parameters
         ----------
-        keep_running : bool
+        keep_running : `bool`
             Used for command line testing and should generally be left to
             False.
         """
@@ -169,7 +186,9 @@ class MockMTDomeController:
         self.moncs = mock_llc.MoncsStatus()
         self.thcs = mock_llc.ThcsStatus()
 
-        if keep_running:
+        if self.refuse_connections:
+            await self.stop()
+        elif keep_running:
             await self._server.serve_forever()
 
     async def stop(self) -> None:
@@ -204,9 +223,9 @@ class MockMTDomeController:
 
         Parameters
         ----------
-        reader: `asyncio.StreamReader
+        reader: `asyncio.StreamReader`
             The stream reader to read from.
-        writer: `asyncio.StreamWriter
+        writer: `asyncio.StreamWriter`
             The stream writer to write to.
         """
         self.log.info("The cmd_loop begins")
@@ -235,12 +254,22 @@ class MockMTDomeController:
                         response = ResponseCode.UNSUPPORTED_COMMAND
                         duration = -1
                     else:
+                        if self.enable_network_interruption:
+                            # Mock a network interruption: it doesn't matter if
+                            # the command never is received or the reply never
+                            # sent.
+                            continue
+
                         func = self.dispatch_dict[cmd]
                         kwargs = items["parameters"]
                         if cmd.startswith("status"):
-                            # the status commands take care of sending a reply
-                            # themselves
+                            # The status commands take care of sending a reply
+                            # themselves.
                             send_response = False
+
+                        if self.enable_slow_network:
+                            # Mock a slow network.
+                            await asyncio.sleep(MockMTDomeController.SLOW_NETWORK_SLEEP)
 
                         duration = await func(**kwargs)
                 except (TypeError, RuntimeError):
@@ -251,7 +280,7 @@ class MockMTDomeController:
                     duration = -1
                 if send_response:
                     if duration is None:
-                        duration = self.long_duration
+                        duration = MockMTDomeController.LONG_DURATION
                     # DM-25189: timeout should be renamed duration and this
                     # needs to be discussed with EIE. As soon as this is done
                     # and agreed upon, I will open another issue to fix this.
@@ -301,9 +330,9 @@ class MockMTDomeController:
 
         Parameters
         ----------
-        llc: mock_llc
-            The Lower Level Component to request the status for.
-        llc_name: LlcName
+        llc: `BaseMockStatus`
+            The Lower Level Component status to request the status from.
+        llc_name: `LlcName`
             The name of the Lower Level Component.
         """
         self.log.debug("Determining current TAI.")
@@ -455,14 +484,14 @@ class MockMTDomeController:
         assert self.apscs is not None
         await self.apscs.stopShutter()
 
-    async def config(self, system: str, settings: dict) -> None:
+    async def config(self, system: str, settings: typing.Dict) -> None:
         """Configure the lower level components.
 
         Parameters
         ----------
         system: `str`
             The name of the system to configure.
-        settings: `list` of `dict`
+        settings: `dict`
             An array containing a single dict with key,value pairs for all the
             parameters that need to be configured. The structure is::
 

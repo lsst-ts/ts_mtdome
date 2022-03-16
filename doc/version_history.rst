@@ -6,17 +6,45 @@
 Version History
 ###############
 
+v1.6.0
+======
+
+Changes:
+
+* Prepare for salobj 7.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 10.2
+
+v1.5.1
+======
+
+Changes:
+
+* Add network error handling.
+
+Requires:
+
+* ts_salobj 6.3
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 10.2
+
 v1.5.0
 ======
 
 Changes:
 
-* Added "appliedConfiguration" to the status replies of AMCS and LWSCS.
-* Added additional LLC states that are translated into MOVING, STOPPING or PARKING.
-* Updated the documentation to contain the full list of LLC commands and statuses.
-* Updated the MockController to handle the new state transitions.
+* Add "appliedConfiguration" to the status replies of AMCS and LWSCS.
+* Add additional LLC states that are translated into MOVING, STOPPING or PARKING.
+* Update the documentation to contain the full list of LLC commands and statuses.
+* Update the MockController to handle the new state transitions.
 * Fix a new mypy error by not checking DM's `lsst/__init__.py` files.
-* Added new MotionStates to IDL.
+* Add new MotionStates to IDL.
 
 Requires:
 
@@ -30,13 +58,13 @@ v1.4.0
 
 Changes:
 
-* Modified the unit tests because of changes in IDL.
-* Replaced the use of ts_salobj functions with ts_utils functions.
-* Added auto-enable capability.
-* Renamed "error" to "messages" in the status telemetry.
-* Added "operationalMode" to the status telemetry.
-* Added commands and events to change the operational mode of a lower level component.
-* Modernized the unit tests.
+* Modify the unit tests because of changes in IDL.
+* Replace the use of ts_salobj functions with ts_utils functions.
+* Adde auto-enable capability.
+* Rename "error" to "messages" in the status telemetry.
+* Add "operationalMode" to the status telemetry.
+* Add commands and events to change the operational mode of a lower level component.
+* Modernize the unit tests.
 
 Requires:
 
@@ -50,12 +78,12 @@ v1.3.0
 
 Changes:
 
-* Changed the ApSCS positionActual from one to two values.
-* Added type annotations.
-* Rewrote the way the JSON schemas are loaded.
-* Updated the error part of the AMCS, ApSCS, LCS, LWSCS and ThCS status replies.
-* Renamed the project to ts_mtdome.
-* Renamed the top level Python module to lsst.ts.mtdome.
+* Change the ApSCS positionActual from one to two values.
+* Add type annotations.
+* Rewrite the way the JSON schemas are loaded.
+* Update the error part of the AMCS, ApSCS, LCS, LWSCS and ThCS status replies.
+* Rename the project to ts_mtdome.
+* Rename the top level Python module to lsst.ts.mtdome.
 
 Requires:
 
@@ -68,8 +96,8 @@ v1.2.0
 
 Changes:
 
-* Added the exitFault, goStationary and restore commands.
-* Renamed the resolver telemetry items to barcodeHead and added a barcodeHead item.
+* Add the exitFault, goStationary and restore commands.
+* Rename the resolver telemetry items to barcodeHead and added a barcodeHead item.
 
 Requires:
 
@@ -82,9 +110,9 @@ v1.1.0
 
 Changes:
 
-* Removed the use of asynctest
-* Upgraded the version of Black to 20.8b1
-* Upgraded the version of ts-conda-build to 0.3
+* Remove the use of asynctest
+* Upgrade the version of Black to 20.8b1
+* Upgrade the version of ts-conda-build to 0.3
 
 Requires:
 
@@ -123,7 +151,7 @@ v0.7.2
 
 Changes:
 
-* Disabled several unit test cases.
+* Disable several unit test cases.
 
 Requires:
 
@@ -149,7 +177,7 @@ v0.7.
 
 Changes:
 
-* Added validation of outgoing and incoming JSON data based on JSON schemas.
+* Add validation of outgoing and incoming JSON data based on JSON schemas.
 
 Requires:
 
@@ -174,9 +202,9 @@ Requires:
 v0.6.0
 ======
 
-* Switched to pre-commit
-* Switched to ts-conda-build
-* Switched to JenkinsShared for the conda build
+* Switch to pre-commit
+* Switch to ts-conda-build
+* Switch to JenkinsShared for the conda build
 * Small code updates due to modifications in ts_xml for MTDome
 
 Requires:
@@ -189,8 +217,8 @@ Requires:
 v0.5.0
 ======
 
-* Renamed Dome to MTDome.
-* Documentation moved to  `New Dome Software Documentation`_
+* Rename Dome to MTDome.
+* Move documentation to  `New Dome Software Documentation`_
 
 .. _New Dome Software Documentation: https://ts-mtdome.lsst.io
 
@@ -206,7 +234,7 @@ v0.4.0
 
 * The Lower Level Component simulators for AMCS and LWSCS now handle 0/360 azimuth and 0/90 elevation limits correctly.
 * The Lower Level Component simulators for AMCS and LWSCS now correctly report the duration of the commands to execute.
-* Added a test to verify that all code has been formatted by Black.
+* Add a test to verify that all code has been formatted by Black.
 
 Requires:
 
@@ -245,7 +273,7 @@ Requires:
 v0.2.0
 ======
 
-Added documentation regarding communication protocols, commands, response codes, component statuses and configuration parameters.
+Add documentation regarding communication protocols, commands, response codes, component statuses and configuration parameters.
 
 Requires:
 

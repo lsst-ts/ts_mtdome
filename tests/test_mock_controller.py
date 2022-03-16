@@ -38,6 +38,11 @@ logging.basicConfig(
 _CURRENT_TAI = 100001
 START_MOTORS_ADD_DURATION = 5.5
 
+# Default timeout for reads
+DEFAULT_TIMEOUT = 1.0
+# Long timeout in case of a mock network issue
+SLOW_NETWORK_TIMEOUT = mtdome.MockMTDomeController.SLOW_NETWORK_SLEEP + 1.0
+
 
 class MockTestCase(unittest.IsolatedAsyncioTestCase):
     async def determine_current_tai(self) -> None:
@@ -67,15 +72,22 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         self.log = logging.getLogger("MockTestCase")
 
-    async def read(self) -> dict:
-        """Utility function to read a string from the reader and unmarshal it
+    async def read(self, timeout: float = DEFAULT_TIMEOUT) -> dict:
+        """Utility function to read a string from the reader and unmarshal it.
+
+        Parameters
+        ----------
+        timeout : float, optional
+            The timeout to use; default to 1 [s].
 
         Returns
         -------
         data : `dict`
             A dictionary with objects representing the string read.
         """
-        read_bytes = await asyncio.wait_for(self.reader.readuntil(b"\r\n"), timeout=1)
+        read_bytes = await asyncio.wait_for(
+            self.reader.readuntil(b"\r\n"), timeout=timeout
+        )
         data = mtdome.encoding_tools.decode(read_bytes.decode())
         return data
 
@@ -628,12 +640,12 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         )
         self.data = await self.read()
         assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         await self.write(command="openShutter", parameters={})
         self.data = await self.read()
         assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
@@ -738,7 +750,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -811,7 +823,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -843,7 +855,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -856,7 +868,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="stopLouvers", parameters={})
         self.data = await self.read()
         assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         # Give some time to the mock device to stop.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
@@ -880,7 +892,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -902,7 +914,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -924,7 +936,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -937,7 +949,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="stopShutter", parameters={})
         self.data = await self.read()
         assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         # Give some time to the mock device to stop.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
@@ -1014,7 +1026,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
         assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         assert self.mock_ctrl.amcs.amcs_limits.jmax == amcs_jmax
         assert self.mock_ctrl.amcs.amcs_limits.amax == amcs_amax
@@ -1036,7 +1048,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
         assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         assert self.mock_ctrl.lwscs.lwscs_limits.jmax == lwscs_jmax
         assert self.mock_ctrl.lwscs.lwscs_limits.amax == lwscs_amax
@@ -1086,7 +1098,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -1117,7 +1129,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
         assert self.mock_ctrl.amcs.seal_inflated == mtdome.OnOff.ON
         # Also check that the inflate status is set in the AMCS status.
         await self.write(command="statusAMCS", parameters={})
@@ -1135,7 +1147,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         assert self.data["response"] == 0
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == self.mock_ctrl.long_duration
+        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
         assert self.mock_ctrl.amcs.fans_enabled == mtdome.OnOff.ON
         # Also check that the fans status is set in the AMCS status.
         await self.write(command="statusAMCS", parameters={})
@@ -1182,3 +1194,28 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         thcs_status = self.data[mtdome.LlcName.THCS.value]
         assert thcs_status["status"]["status"] == mtdome.LlcMotionState.CLOSED.name
         assert thcs_status["temperature"] == [0.0] * mtdome.mock_llc.NUM_THERMO_SENSORS
+
+    async def test_slow_network(self) -> None:
+        """Test the slow network feature of the mock controller."""
+        self.mock_ctrl.enable_slow_network = True
+        await self.write(command="statusAMCS", parameters={})
+        with pytest.raises(asyncio.exceptions.TimeoutError):
+            # The default timeout should time out because of the slow network.
+            await self.read()
+        # Waiting longer should eventually result in a successful read.
+        self.data = await self.read(timeout=SLOW_NETWORK_TIMEOUT)
+        amcs_status = self.data[mtdome.LlcName.AMCS.value]
+        assert amcs_status["status"]["status"] == mtdome.LlcMotionState.PARKED.name
+        assert amcs_status["positionActual"] == 0
+
+    async def test_network_interruption(self) -> None:
+        """Test the network interruption feature of the mock controller."""
+        self.mock_ctrl.enable_network_interruption = True
+        await self.write(command="statusAMCS", parameters={})
+        with pytest.raises(asyncio.exceptions.TimeoutError):
+            # The default timeout should time out because of the network
+            # interruption.
+            await self.read()
+        with pytest.raises(asyncio.exceptions.TimeoutError):
+            # Waiting longer should also not result in a successful read.
+            await self.read(timeout=SLOW_NETWORK_TIMEOUT)
