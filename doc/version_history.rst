@@ -6,6 +6,21 @@
 Version History
 ###############
 
+v1.7.0
+======
+
+Changes:
+
+* Improved handling of ERROR in the MockController.
+* Added the resetDrivesAz and calibrateAz commands.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 11
+
 v1.6.0
 ======
 
@@ -18,7 +33,7 @@ Requires:
 * ts_salobj 7.0
 * ts_idl
 * ts_utils 1.0
-* IDL file for MTDome from ts_xml 10.2
+* IDL file for MTDome from ts_xml 11
 
 v1.5.1
 ======

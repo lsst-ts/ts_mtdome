@@ -76,7 +76,9 @@ registry["command"] = json.loads(
         "statusLWSCS",
         "statusMonCS",
         "statusThCS",
-        "exitFault"
+        "exitFault",
+        "resetDrivesAz",
+        "calibrateAz"
       ]
     }
   },
@@ -831,6 +833,55 @@ registry["command"] = json.loads(
         "properties": {
           "command": {
             "const": "exitFault"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "resetDrivesAz"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "reset": {
+                "type": "array",
+                "minItems": 5,
+                "maxItems": 5,
+                "items": [
+                  {
+                    "type": "integer"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "reset"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "calibrateAz"
           }
         }
       },

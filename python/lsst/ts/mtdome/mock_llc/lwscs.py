@@ -65,7 +65,9 @@ class LwscsStatus(BaseMockStatus):
             max_speed=math.fabs(self.vmax),
             start_tai=start_tai,
         )
-        self.duration = 0.0
+
+        # Keep the end TAI time as a reference for unit tests
+        self.end_tai = 0.0
 
         # Variables holding the status of the mock EL motion
         self.status = LlcMotionState.STOPPED
@@ -142,13 +144,14 @@ class LwscsStatus(BaseMockStatus):
             tests it can be convenient to use other values.
         """
         self.position_commanded = position
-        self.duration = self.elevation_motion.set_target_position_and_velocity(
+        duration = self.elevation_motion.set_target_position_and_velocity(
             start_tai=start_tai,
             end_position=position,
             crawl_velocity=0,
             motion_state=LlcMotionState.MOVING,
         )
-        return self.duration
+        self.end_tai = start_tai + duration
+        return duration
 
     async def crawlEl(self, velocity: float, start_tai: float) -> float:
         """Crawl the light and wind screen in the given direction at the given
@@ -167,13 +170,14 @@ class LwscsStatus(BaseMockStatus):
         self.position_commanded = math.pi
         if velocity < 0:
             self.position_commanded = 0
-        self.duration = self.elevation_motion.set_target_position_and_velocity(
+        duration = self.elevation_motion.set_target_position_and_velocity(
             start_tai=start_tai,
             end_position=self.position_commanded,
             crawl_velocity=velocity,
             motion_state=LlcMotionState.CRAWLING,
         )
-        return self.duration
+        self.end_tai = start_tai + duration
+        return duration
 
     async def stopEl(self, start_tai: float) -> float:
         """Stop moving the light and wind screen.
@@ -186,8 +190,9 @@ class LwscsStatus(BaseMockStatus):
             tests it can be convenient to use other values.
 
         """
-        self.duration = self.elevation_motion.stop(start_tai)
-        return self.duration
+        duration = self.elevation_motion.stop(start_tai)
+        self.end_tai = start_tai + duration
+        return duration
 
     async def go_stationary(self, start_tai: float) -> float:
         """Stop elevation motion and engage the brakes. Also disengage the
@@ -201,8 +206,9 @@ class LwscsStatus(BaseMockStatus):
             tests it can be convenient to use other values.
 
         """
-        self.duration = self.elevation_motion.go_stationary(start_tai)
-        return self.duration
+        duration = self.elevation_motion.go_stationary(start_tai)
+        self.end_tai = start_tai + duration
+        return duration
 
     async def exit_fault(self, start_tai: float) -> float:
         """Clear the fault state.
@@ -215,5 +221,6 @@ class LwscsStatus(BaseMockStatus):
             tests it can be convenient to use other values.
         """
         self.elevation_motion.exit_fault(start_tai)
-        self.duration = 0.0
-        return self.duration
+        duration = 0.0
+        self.end_tai = start_tai
+        return duration

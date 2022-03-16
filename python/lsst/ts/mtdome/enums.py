@@ -95,7 +95,7 @@ class ResponseCode(enum.IntEnum):
 
     OK = 0
     UNSUPPORTED_COMMAND = 2
-    INCORRECT_PARAMETER = 3
+    COMMAND_REJECTED = 3
 
 
 # Dictionary to look up which LlcName is associated with which sub-system.

@@ -358,10 +358,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     self.log.debug(f"Received reply {data}")
             else:
                 self.log.error(f"Received ERROR {data}.")
-                if response == ResponseCode.INCORRECT_PARAMETER:
-                    raise ValueError(
-                        f"The command {command} contains an incorrect parameter."
-                    )
+                if response == ResponseCode.COMMAND_REJECTED:
+                    raise ValueError(f"The command {command} was rejected.")
                 elif response == ResponseCode.UNSUPPORTED_COMMAND:
                     raise KeyError(f"The command {command} is unsupported.")
 
@@ -624,6 +622,33 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     subSystemId=sub_system_id,
                 )
 
+    async def do_resetDrivesAz(self, data: SimpleNamespace) -> None:
+        """Reset one or more AZ drives. This is necessary when exiting from
+        FAULT state without going to Degraded Mode since the drives don't reset
+        themselves.
+
+        Parameters
+        ----------
+        data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        reset_ints = [int(value) for value in data.reset]
+        await self.write_then_read_reply(command="resetDrivesAz", reset=reset_ints)
+
+    async def do_setZeroAz(self, data: SimpleNamespace) -> None:
+        """Take the current position of the dome as zero. This is necessary as
+        long as the racks and pinions on the drives have not been installed yet
+        to compensate for slippage of the drives.
+
+        Parameters
+        ----------
+        data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        await self.write_then_read_reply(command="calibrateAz")
+
     async def config_llcs(self, system: str, settings: typing.Dict[str, float]) -> None:
         """Config command not to be executed by SAL.
 
@@ -814,8 +839,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     MotionState.PARKED,
                 ]:
                     in_position = True
+
+                # In case of some unit tests, this event is expected to be
+                # emitted twice with the same data.
                 await self.evt_azMotion.set_write(
-                    state=motion_state, inPosition=in_position
+                    force_output=True, state=motion_state, inPosition=in_position
                 )
         elif llc_name == LlcName.LWSCS:
             llc_status = status[llc_name]["status"]
