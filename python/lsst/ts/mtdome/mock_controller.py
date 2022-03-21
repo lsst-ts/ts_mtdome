@@ -89,6 +89,7 @@ class MockMTDomeController:
         # * No arguments, if `has_argument` False.
         # * The argument as a string, if `has_argument` is True.
         self.dispatch_dict: typing.Dict[str, typing.Callable] = {
+            "calibrateAz": self.calibrate_az,
             "closeLouvers": self.close_louvers,
             "closeShutter": self.close_shutter,
             "config": self.config,
@@ -105,6 +106,7 @@ class MockMTDomeController:
             "moveEl": self.move_el,
             "openShutter": self.open_shutter,
             "park": self.park,
+            "resetDrivesAz": self.reset_drives_az,
             "restore": self.restore,
             "setDegradedAz": self.set_degraded_az,
             "setDegradedEl": self.set_degraded_el,
@@ -272,11 +274,15 @@ class MockMTDomeController:
                             await asyncio.sleep(MockMTDomeController.SLOW_NETWORK_SLEEP)
 
                         duration = await func(**kwargs)
-                except (TypeError, RuntimeError):
+                except asyncio.CancelledError:
+                    self.log.debug("cmd_loop ends")
+                    duration = -1
+                except Exception:
                     self.log.exception(f"Command '{line}' failed")
-                    # CODE=3 in this case means "Missing or incorrect
-                    # parameter(s)."
-                    response = ResponseCode.INCORRECT_PARAMETER
+                    # Command rejected: a message explaining why needs to be
+                    # added at some point but we haven't discussed that yet
+                    # with the vendor.
+                    response = ResponseCode.COMMAND_REJECTED
                     duration = -1
                 if send_response:
                     if duration is None:
@@ -447,7 +453,7 @@ class MockMTDomeController:
         assert self.lwscs is not None
         return await self.lwscs.crawlEl(velocity, self.current_tai)
 
-    async def set_louvers(self, position: float) -> None:
+    async def set_louvers(self, position: typing.List[float]) -> None:
         """Set the positions of the louvers.
 
         Parameters
@@ -680,7 +686,7 @@ class MockMTDomeController:
             ON means inflate and OFF deflate the inflatable seal.
         """
         assert self.amcs is not None
-        await self.amcs.inflate(action)
+        await self.amcs.inflate(self.current_tai, action)
 
     async def fans(self, action: str) -> None:
         """Enable or disable the fans in the dome.
@@ -691,7 +697,43 @@ class MockMTDomeController:
             ON means fans on and OFF fans off.
         """
         assert self.amcs is not None
-        await self.amcs.fans(action)
+        await self.amcs.fans(self.current_tai, action)
+
+    async def reset_drives_az(self, reset: typing.List[int]) -> None:
+        """Reset one or more AZ drives.
+
+        Parameters
+        ----------
+        reset: array of int
+            Desired reset action to execute on each AZ drive: 0 means don't
+            reset, 1 means reset.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+
+        Notes
+        -----
+        This is necessary when exiting from FAULT state without going to
+        Degraded Mode since the drives don't reset themselves.
+        The number of values in the reset parameter is not validated.
+        """
+        assert self.amcs is not None
+        return await self.amcs.reset_drives_az(self.current_tai, reset)
+
+    async def calibrate_az(self) -> float:
+        """Take the current position of the dome as zero. This is necessary as
+        long as the racks, pinions and encoders on the drives have not been
+        installed yet to compensate for slippage of the drives.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+        """
+        assert self.amcs is not None
+        return await self.amcs.calibrate_az(self.current_tai)
 
 
 async def main() -> None:

@@ -120,7 +120,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": 0.1, "velocity": 0.1, "acceleration": 0.1},
         )
         self.data = await self.read()
-        assert self.data["response"] == 3
+        assert self.data["response"] == mtdome.ResponseCode.COMMAND_REJECTED
         assert self.data["timeout"] == -1
 
     async def prepare_amcs_move(
@@ -156,8 +156,10 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": target_position, "velocity": target_velocity},
         )
         self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.amcs.duration
+        assert self.data["response"] == mtdome.ResponseCode.OK
+        assert self.data["timeout"] == pytest.approx(
+            self.mock_ctrl.amcs.end_tai - _CURRENT_TAI
+        )
 
     async def verify_amcs_move(
         self,
@@ -192,15 +194,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
         assert amcs_status["status"]["status"] == expected_status.name
-        if expected_status == mtdome.LlcMotionState.MOVING:
-            assert amcs_status["positionActual"] == pytest.approx(expected_position, 3)
-        elif expected_status == mtdome.LlcMotionState.CRAWLING:
-            if crawl_velocity > 0:
-                assert amcs_status["positionActual"] >= expected_position
-            elif crawl_velocity < 0:
-                assert amcs_status["positionActual"] <= expected_position
-            else:
-                assert amcs_status["positionActual"] == pytest.approx(expected_position)
+        assert amcs_status["positionActual"] == pytest.approx(
+            expected_position, rel=1e-3
+        )
 
     async def test_moveAz_zero_pos_pos(self) -> None:
         # Test moving the AMCS to a position in positive direction starting
@@ -227,7 +223,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_amcs_move(
             5.0,
             mtdome.LlcMotionState.CRAWLING,
-            math.radians(10.0),
+            math.radians(10.03),
             crawl_velocity=target_velocity,
         )
 
@@ -256,7 +252,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_amcs_move(
             5.0,
             mtdome.LlcMotionState.CRAWLING,
-            math.radians(10.0),
+            math.radians(9.97),
             crawl_velocity=target_velocity,
         )
 
@@ -314,7 +310,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_amcs_move(
             5.0,
             mtdome.LlcMotionState.CRAWLING,
-            math.radians(10.0),
+            math.radians(10.03),
             crawl_velocity=target_velocity,
         )
 
@@ -343,7 +339,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_amcs_move(
             5.0,
             mtdome.LlcMotionState.CRAWLING,
-            math.radians(10.0),
+            math.radians(9.97),
             crawl_velocity=target_velocity,
         )
 
@@ -413,8 +409,10 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         target_velocity = math.radians(0.1)
         await self.write(command="crawlAz", parameters={"velocity": target_velocity})
         self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.amcs.duration
+        assert self.data["response"] == mtdome.ResponseCode.OK
+        assert self.data["timeout"] == pytest.approx(
+            self.mock_ctrl.amcs.end_tai - _CURRENT_TAI
+        )
 
         # Give some time to the mock device to move.
         self.mock_ctrl.current_tai = (
@@ -449,8 +447,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         assert self.mock_ctrl is not None
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
         self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.amcs.duration
+        assert self.data["response"] == mtdome.ResponseCode.OK
+        assert self.data["timeout"] == 0.0
 
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
@@ -482,8 +480,10 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.mock_ctrl.lwscs.elevation_motion._start_position = start_position
         await self.write(command="moveEl", parameters={"position": target_position})
         self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.lwscs.duration
+        assert self.data["response"] == mtdome.ResponseCode.OK
+        assert self.data["timeout"] == pytest.approx(
+            self.mock_ctrl.lwscs.end_tai - _CURRENT_TAI
+        )
 
     async def verify_lwscs_move(
         self,
@@ -593,7 +593,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="stopEl", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.data["timeout"] == 0.0
 
         await self.write(command="statusLWSCS", parameters={})
@@ -621,14 +621,16 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": target_position, "velocity": target_velocity},
         )
         self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.amcs.duration
+        assert self.data["response"] == mtdome.ResponseCode.OK
+        assert self.data["timeout"] == pytest.approx(
+            self.mock_ctrl.amcs.end_tai - _CURRENT_TAI
+        )
 
         target_position = math.radians(5)
         await self.write(command="moveEl", parameters={"position": target_position})
         self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.lwscs.duration
+        assert self.data["response"] == mtdome.ResponseCode.OK
+        assert self.data["timeout"] == self.mock_ctrl.lwscs.end_tai - _CURRENT_TAI
 
         louver_id = 5
         target_position = 100
@@ -639,12 +641,12 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": position.tolist()},
         )
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         await self.write(command="openShutter", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         # Give some time to the mock device to move.
@@ -676,8 +678,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"velocity": target_velocity},
         )
         self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.lwscs.duration
+        assert self.data["response"] == mtdome.ResponseCode.OK
+        assert self.data["timeout"] == self.mock_ctrl.lwscs.end_tai - _CURRENT_TAI
 
     async def verify_lwscs_crawl(
         self,
@@ -748,7 +750,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": position.tolist()},
         )
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
@@ -821,7 +823,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_closeLouvers(self) -> None:
         await self.write(command="closeLouvers", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
@@ -853,7 +855,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": position.tolist()},
         )
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
@@ -867,7 +869,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="stopLouvers", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         # Give some time to the mock device to stop.
@@ -890,7 +892,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_openShutter(self) -> None:
         await self.write(command="openShutter", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
@@ -912,7 +914,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_closeShutter(self) -> None:
         await self.write(command="closeShutter", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
@@ -934,7 +936,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_stopShutter(self) -> None:
         await self.write(command="openShutter", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
@@ -948,7 +950,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.write(command="stopShutter", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         # Give some time to the mock device to stop.
@@ -972,33 +974,33 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         llc.operational_mode = OperationalMode.DEGRADED
         await self.write(command=f"setNormal{command_part}", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert llc.operational_mode == OperationalMode.NORMAL
 
         # Send a command to set the lower level component to normal while
         # already in normal. This should not raise an exception.
         await self.write(command=f"setNormal{command_part}", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert llc.operational_mode == OperationalMode.NORMAL
 
         # Send a command to set the lower level component to degraded.
         await self.write(command=f"setDegraded{command_part}", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert llc.operational_mode == OperationalMode.DEGRADED
 
         # Send a command to set the lower level component to degraded while
         # already in degraded. This should not raise an exception.
         await self.write(command=f"setDegraded{command_part}", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert llc.operational_mode == OperationalMode.DEGRADED
 
         # Send a command to set the lower level component to normal again.
         await self.write(command=f"setNormal{command_part}", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert llc.operational_mode == OperationalMode.NORMAL
 
     async def test_operational_mode(self) -> None:
@@ -1025,7 +1027,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         }
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         assert self.mock_ctrl.amcs.amcs_limits.jmax == amcs_jmax
@@ -1047,7 +1049,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         }
         await self.write(command="config", parameters=parameters)
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
         assert self.mock_ctrl.lwscs.lwscs_limits.jmax == lwscs_jmax
@@ -1067,18 +1069,26 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": target_position, "velocity": target_velocity},
         )
         self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.amcs.duration
+        assert self.data["response"] == mtdome.ResponseCode.OK
+        assert self.data["timeout"] == pytest.approx(
+            self.mock_ctrl.amcs.end_tai - _CURRENT_TAI
+        )
 
         # Give some time to the mock device to move.
+        wait_time = 0.2
         self.mock_ctrl.current_tai = (
-            self.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.2
+            self.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + wait_time
         )
 
         await self.write(command="park", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == 0
-        assert self.data["timeout"] == self.mock_ctrl.amcs.duration
+        assert self.data["response"] == mtdome.ResponseCode.OK
+        assert self.data["timeout"] == pytest.approx(
+            self.mock_ctrl.amcs.end_tai
+            - _CURRENT_TAI
+            - START_MOTORS_ADD_DURATION
+            - wait_time
+        )
 
         # Give some time to the mock device to park.
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 5.0
@@ -1096,7 +1106,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             command="setTemperature", parameters={"temperature": temperature}
         )
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
@@ -1123,11 +1133,17 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
         assert amcs_status["status"]["inflate"] == mtdome.OnOff.OFF.value
+
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = _CURRENT_TAI
+        # Set the mock device statuses TAI time to the mock controller time for
+        # easier control
+        self.mock_ctrl.thcs.command_time_tai = self.mock_ctrl.current_tai
         await self.write(
             command="inflate", parameters={"action": mtdome.OnOff.ON.value}
         )
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
         assert self.mock_ctrl.amcs.seal_inflated == mtdome.OnOff.ON
@@ -1143,9 +1159,15 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
         assert amcs_status["status"]["fans"] == mtdome.OnOff.OFF.value
+
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = _CURRENT_TAI
+        # Set the mock device statuses TAI time to the mock controller time for
+        # easier control
+        self.mock_ctrl.thcs.command_time_tai = self.mock_ctrl.current_tai
         await self.write(command="fans", parameters={"action": mtdome.OnOff.ON.value})
         self.data = await self.read()
-        assert self.data["response"] == 0
+        assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
         assert self.mock_ctrl.amcs.fans_enabled == mtdome.OnOff.ON
@@ -1219,3 +1241,133 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(asyncio.exceptions.TimeoutError):
             # Waiting longer should also not result in a successful read.
             await self.read(timeout=SLOW_NETWORK_TIMEOUT)
+
+    async def test_reset_drives(self) -> None:
+        assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is False
+
+        drives_in_error = [1, 1, 0, 0, 0]
+        expected_drive_error_state = [True, True, False, False, False]
+        await self.mock_ctrl.amcs.set_fault(0.0, drives_in_error=drives_in_error)
+        assert (
+            self.mock_ctrl.amcs.azimuth_motion.drives_in_error_state
+            == expected_drive_error_state
+        )
+        assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is True
+
+        expected_drive_error_state = [False, True, False, False, False]
+        reset = [1, 0, 0, 0, 0]
+        await self.mock_ctrl.reset_drives_az(reset=reset)
+        assert (
+            self.mock_ctrl.amcs.azimuth_motion.drives_in_error_state
+            == expected_drive_error_state
+        )
+        assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is True
+
+        expected_drive_error_state = [False, False, False, False, False]
+        reset = [1, 1, 0, 0, 0]
+        await self.mock_ctrl.reset_drives_az(reset=reset)
+        assert (
+            self.mock_ctrl.amcs.azimuth_motion.drives_in_error_state
+            == expected_drive_error_state
+        )
+        assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is True
+
+    async def test_exit_fault_and_reset_drives(self) -> None:
+        """Test recovering from an ERROR state."""
+        start_position = 0
+        target_position = math.radians(10)
+        target_velocity = math.radians(0.1)
+        await self.prepare_amcs_move(
+            start_position,
+            target_position,
+            target_velocity,
+        )
+
+        # Make the amcs rotate and check both status and position at the
+        # specified times
+        await self.verify_amcs_move(
+            START_MOTORS_ADD_DURATION + 1.0,
+            mtdome.LlcMotionState.MOVING,
+            math.radians(1.5),
+        )
+        await self.verify_amcs_move(
+            0.5, mtdome.LlcMotionState.MOVING, math.radians(2.25)
+        )
+
+        # This sets the status of the state machine to ERROR.
+        drives_in_error = [1, 1, 0, 0, 0]
+        expected_drive_error_state = [True, True, False, False, False]
+        current_tai = self.mock_ctrl.current_tai + 0.1
+        await self.mock_ctrl.amcs.set_fault(current_tai, drives_in_error)
+        assert (
+            self.mock_ctrl.amcs.azimuth_motion.drives_in_error_state
+            == expected_drive_error_state
+        )
+        assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is True
+        await self.verify_amcs_move(
+            0.5, mtdome.LlcMotionState.ERROR, math.radians(2.40)
+        )
+
+        # Now call exit_fault. This will fail because there still are drives at
+        # fault.
+        await self.write(command="exitFault", parameters={})
+        self.data = await self.read()
+        assert self.data["response"] == mtdome.ResponseCode.COMMAND_REJECTED
+        assert self.data["timeout"] == -1
+
+        expected_drive_error_state = [False, False, False, False, False]
+        reset = [1, 1, 0, 0, 0]
+        await self.mock_ctrl.reset_drives_az(reset=reset)
+        assert (
+            self.mock_ctrl.amcs.azimuth_motion.drives_in_error_state
+            == expected_drive_error_state
+        )
+
+        # Now call exit_fault which will not fail because the drives have been
+        # reset.
+        await self.mock_ctrl.exit_fault()
+        await self.verify_amcs_move(
+            0.0, mtdome.LlcMotionState.STATIONARY, math.radians(2.40)
+        )
+
+    async def test_calibrate_az(self) -> None:
+        start_position = 0
+        target_position = math.radians(10)
+        target_velocity = math.radians(0.0)
+        await self.prepare_amcs_move(
+            start_position,
+            target_position,
+            target_velocity,
+        )
+
+        # Make the amcs rotate and check both status and position at the
+        # specified times
+        await self.verify_amcs_move(
+            START_MOTORS_ADD_DURATION + 1.0,
+            mtdome.LlcMotionState.MOVING,
+            math.radians(1.5),
+        )
+
+        # Cannot calibrate while AMCS is MOVING
+        await self.write(command="calibrateAz", parameters={})
+        self.data = await self.read()
+        assert self.data["response"] == mtdome.ResponseCode.COMMAND_REJECTED
+        assert self.data["timeout"] == -1
+
+        await self.verify_amcs_move(
+            6.0,
+            mtdome.LlcMotionState.STOPPED,
+            math.radians(10.0),
+        )
+
+        # Can calibrate while AMCS is STOPPED
+        await self.write(command="calibrateAz", parameters={})
+        self.data = await self.read()
+        assert self.data["response"] == mtdome.ResponseCode.OK
+        assert self.data["timeout"] == 0.0
+
+        await self.verify_amcs_move(
+            7.0,
+            mtdome.LlcMotionState.STOPPED,
+            math.radians(0.0),
+        )

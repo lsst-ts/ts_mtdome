@@ -23,6 +23,7 @@ __all__ = ["AmcsStatus", "PARK_POSITION"]
 
 import logging
 import math
+import typing
 
 import numpy as np
 
@@ -66,11 +67,13 @@ class AmcsStatus(BaseMockStatus):
         self.azimuth_motion = AzimuthMotion(
             start_position=PARK_POSITION, max_speed=self.vmax, start_tai=start_tai
         )
-        self.duration = 0.0
 
-        # Variables holding the status of the mock AZ motion. The error codes
-        # will be specified in a future Dome Software meeting.
-        self.status = LlcMotionState.STOPPED
+        # Keep the end TAI time as a reference for unit tests
+        self.end_tai = 0.0
+
+        # Variables holding the status of the mock AZ motion.
+        # For now the value of 'messages' is kept as is since the error codes
+        # and descriptions still are being discussed.
         self.messages = [{"code": 0, "description": "No Errors"}]
         self.fans_enabled = OnOff.OFF
         self.seal_inflated = OnOff.OFF
@@ -154,13 +157,14 @@ class AmcsStatus(BaseMockStatus):
         """
         self.log.debug(f"moveAz with position={position} and velocity={velocity}")
         self.position_commanded = position
-        self.duration = self.azimuth_motion.set_target_position_and_velocity(
+        duration = self.azimuth_motion.set_target_position_and_velocity(
             start_tai=start_tai,
             end_position=position,
             crawl_velocity=velocity,
             motion_state=LlcMotionState.MOVING,
         )
-        return self.duration
+        self.end_tai = start_tai + duration
+        return duration
 
     async def crawlAz(self, velocity: float, start_tai: float) -> float:
         """Crawl the dome in the given direction at the given velocity.
@@ -174,6 +178,11 @@ class AmcsStatus(BaseMockStatus):
             The TAI time, unix seconds, when the command was issued. To model
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command [s].
         """
         if velocity >= 0:
             # make sure that the dome never stops moving
@@ -181,13 +190,14 @@ class AmcsStatus(BaseMockStatus):
         else:
             # make sure that the dome never stops moving
             self.position_commanded = -math.inf
-        self.duration = self.azimuth_motion.set_target_position_and_velocity(
+        duration = self.azimuth_motion.set_target_position_and_velocity(
             start_tai=start_tai,
             end_position=self.position_commanded,
             crawl_velocity=velocity,
             motion_state=LlcMotionState.CRAWLING,
         )
-        return self.duration
+        self.end_tai = start_tai + duration
+        return duration
 
     async def stopAz(self, start_tai: float) -> float:
         """Stop all motion of the dome.
@@ -198,13 +208,18 @@ class AmcsStatus(BaseMockStatus):
             The TAI time, unix seconds, when the command was issued. To model
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command [s].
         """
-        self.duration = self.azimuth_motion.stop(start_tai)
-        return self.duration
+        duration = self.azimuth_motion.stop(start_tai)
+        self.end_tai = start_tai + duration
+        return duration
 
     async def park(self, start_tai: float) -> float:
         """Park the dome by moving it to azimuth 0.
-
 
         Parameters
         ----------
@@ -212,11 +227,16 @@ class AmcsStatus(BaseMockStatus):
             The TAI time, unix seconds, when the command was issued. To model
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command [s].
         """
-        self.status = LlcMotionState.MOVING
         self.position_commanded = PARK_POSITION
-        self.duration = self.azimuth_motion.park(start_tai)
-        return self.duration
+        duration = self.azimuth_motion.park(start_tai)
+        self.end_tai = start_tai + duration
+        return duration
 
     async def go_stationary(self, start_tai: float) -> float:
         """Stop azimuth motion and engage the brakes. Also disengage the
@@ -228,11 +248,17 @@ class AmcsStatus(BaseMockStatus):
             The TAI time, unix seconds, when the command was issued. To model
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
-        """
-        self.duration = self.azimuth_motion.go_stationary(start_tai)
-        return self.duration
 
-    async def inflate(self, action: str) -> float:
+        Returns
+        -------
+        `float`
+            The expected duration of the command [s].
+        """
+        duration = self.azimuth_motion.go_stationary(start_tai)
+        self.end_tai = start_tai + duration
+        return duration
+
+    async def inflate(self, start_tai: float, action: str) -> float:
         """Inflate or deflate the inflatable seal.
 
         This is a placeholder for now until it becomes clear what this command
@@ -240,15 +266,25 @@ class AmcsStatus(BaseMockStatus):
 
         Parameters
         ----------
+        start_tai: `float`
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
         action: `str`
             The value should be ON or OFF but the value doesn't get validated
             here.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command [s].
         """
         self.seal_inflated = OnOff(action)
-        self.duration = 0.0
-        return self.duration
+        duration = 0.0
+        self.end_tai = start_tai
+        return duration
 
-    async def fans(self, action: str) -> float:
+    async def fans(self, start_tai: float, action: str) -> float:
         """Enable or disable the fans in the dome.
 
         This is a placeholder for now until it becomes clear what this command
@@ -256,13 +292,23 @@ class AmcsStatus(BaseMockStatus):
 
         Parameters
         ----------
+        start_tai: `float`
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
         action: `str`
             The value should be ON or OFF but the value doesn't get validated
             here.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command [s].
         """
         self.fans_enabled = OnOff(action)
-        self.duration = 0.0
-        return self.duration
+        duration = 0.0
+        self.end_tai = start_tai
+        return duration
 
     async def exit_fault(self, start_tai: float) -> float:
         """Clear the fault state.
@@ -273,7 +319,85 @@ class AmcsStatus(BaseMockStatus):
             The TAI time, unix seconds, when the command was issued. To model
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command [s].
         """
-        self.azimuth_motion.exit_fault(start_tai)
-        self.duration = 0.0
-        return self.duration
+        duration = self.azimuth_motion.exit_fault(start_tai)
+        self.end_tai = start_tai + duration
+        return duration
+
+    async def reset_drives_az(self, start_tai: float, reset: typing.List[int]) -> float:
+        """Reset one or more AZ drives.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
+        reset: array of int
+            Desired reset action to execute on each AZ drive: 0 means don't
+            reset, 1 means reset.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command [s].
+
+        Notes
+        -----
+        This is necessary when exiting from FAULT state without going to
+        Degraded Mode since the drives don't reset themselves.
+        The number of values in the reset parameter is not validated.
+        """
+        duration = self.azimuth_motion.reset_drives_az(start_tai, reset)
+        self.end_tai = start_tai + duration
+        return duration
+
+    async def calibrate_az(self, start_tai: float) -> float:
+        """Take the current position of the dome as zero. This is necessary as
+        long as the racks and pinions on the drives have not been installed yet
+        to compensate for slippage of the drives.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command [s].
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
+        """
+        self.azimuth_motion.calibrate_az(start_tai)
+        duration = 0.0
+        self.end_tai = start_tai + duration
+        return duration
+
+    async def set_fault(
+        self, start_tai: float, drives_in_error: typing.List[int]
+    ) -> None:
+        """Set the LlcMotionState of AMCS to fault and set the drives in
+        drives_in_error to error.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, when the command was issued. To model
+            the real dome, this should be the current time. However, for unit
+            tests it can be convenient to use other values.
+        drives_in_error : array of int
+            Desired error action to execute on each AZ drive: 0 means don't
+            set to error, 1 means set to error.
+
+        Notes
+        -----
+        This function is not mapped to a command that MockMTDomeController can
+        receive. It is intended to be set by unit test cases.
+        """
+        self.azimuth_motion.set_fault(start_tai, drives_in_error)
