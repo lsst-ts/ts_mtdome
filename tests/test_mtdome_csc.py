@@ -20,6 +20,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+import math
 import pathlib
 import typing
 import unittest
@@ -90,6 +91,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     "setTemperature",
                     "exitFault",
                     "setOperationalMode",
+                    "resetDrivesAz",
+                    "setZeroAz",
                 ),
             )
 
@@ -537,12 +540,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
-            # TODO Find out why this suddenly fails.
-            # await self.assert_next_sample(
-            #     topic=self.remote.evt_azMotion,
-            #     state=MotionState.PARKED,
-            #     inPosition=True,
-            # )
+            await self.assert_next_sample(
+                topic=self.remote.evt_azMotion,
+                state=MotionState.PARKED,
+                inPosition=True,
+            )
 
     async def test_do_stop_and_brake(self) -> None:
         async with self.make_csc(
@@ -637,11 +639,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 {"target": "amax", "setting": [1.0]},
                 {"target": "vmax", "setting": [1.0]},
             ]
-            try:
+            with pytest.raises(ValueError):
                 await self.csc.config_llcs(system, settings)
-                self.fail("Expected a ValueError.")
-            except ValueError:
-                pass
 
             # The value of AMCS amax is too low.
             system = mtdome.LlcName.AMCS.value
@@ -650,11 +649,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 {"target": "amax", "setting": [-0.5]},
                 {"target": "vmax", "setting": [1.0]},
             ]
-            try:
+            with pytest.raises(ValueError):
                 await self.csc.config_llcs(system, settings)
-                self.fail("Expected a ValueError.")
-            except ValueError:
-                pass
 
             # The param AMCS smax doesn't exist.
             system = mtdome.LlcName.AMCS.value
@@ -664,11 +660,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 {"target": "vmax", "setting": [1.0]},
                 {"target": "smax", "setting": [1.0]},
             ]
-            try:
+            with pytest.raises(KeyError):
                 await self.csc.config_llcs(system, settings)
-                self.fail("Expected a KeyError.")
-            except KeyError:
-                pass
 
             # No parameter can be missing.
             system = mtdome.LlcName.AMCS.value
@@ -676,11 +669,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 {"target": "jmax", "setting": [1.0]},
                 {"target": "amax", "setting": [0.5]},
             ]
-            try:
+            with pytest.raises(KeyError):
                 await self.csc.config_llcs(system, settings)
-                self.fail("Expected a KeyError.")
-            except KeyError:
-                pass
 
     async def test_fans(self) -> None:
         async with self.make_csc(
@@ -863,7 +853,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             # Prepare the lower level components
-            self.csc.mock_ctrl.amcs.status = MotionState.ERROR
+            current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            drives_in_error = [1, 1, 0, 0, 0]
+            await self.csc.mock_ctrl.amcs.set_fault(current_tai, drives_in_error)
             self.csc.mock_ctrl.apscs.status = MotionState.ERROR
             self.csc.mock_ctrl.lcs.status[:] = MotionState.ERROR.name
             self.csc.mock_ctrl.lwscs.status = MotionState.ERROR
@@ -872,7 +864,17 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mock_ctrl.amcs._commanded_motion_state = MotionState.ERROR
             self.csc.mock_ctrl.lwscs._commanded_motion_state = MotionState.ERROR
 
-            await self.csc.write_then_read_reply(command="exitFault")
+            await self.csc.statusAMCS()
+            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            assert amcs_status["status"]["status"] == mtdome.LlcMotionState.ERROR.name
+
+            # Cannot exit_fault with drives in error.
+            with salobj.assertRaisesAckError():
+                await self.remote.cmd_exitFault.set_start()
+
+            reset = [1, 1, 0, 0, 0]
+            await self.remote.cmd_resetDrivesAz.set_start(reset=reset)
+            await self.remote.cmd_exitFault.set_start()
 
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
@@ -919,6 +921,81 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             assert (
                 thcs_status["temperature"] == [0.0] * mtdome.mock_llc.NUM_THERMO_SENSORS
+            )
+
+    async def test_setZeroAz(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=1,
+        ):
+            await self.set_csc_to_enabled()
+
+            # Set the TAI time in the mock controller for easier control
+            self.csc.mock_ctrl.current_tai = utils.current_tai()
+            # Set the mock device status TAI time to the mock controller time
+            # for easier control
+            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
+
+            await self.assert_next_sample(
+                topic=self.remote.evt_azMotion,
+                state=MotionState.PARKED,
+                inPosition=True,
+            )
+
+            desired_position = 2.0
+            desired_velocity = 0.0
+            await self.remote.cmd_moveAz.set_start(
+                position=desired_position,
+                velocity=desired_velocity,
+                timeout=STD_TIMEOUT,
+            )
+            data = await self.assert_next_sample(
+                topic=self.remote.evt_azTarget, position=desired_position
+            )
+            assert desired_velocity == pytest.approx(data.velocity)
+
+            # Give some time to the mock device to move.
+            self.csc.mock_ctrl.current_tai = (
+                self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
+            )
+
+            # Now also check the azMotion event.
+            await self.csc.statusAMCS()
+            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            assert amcs_status["status"]["status"] == MotionState.MOVING.name
+            await self.assert_next_sample(
+                topic=self.remote.evt_azMotion,
+                state=MotionState.MOVING,
+                inPosition=False,
+            )
+
+            # Cannot set to zero while AMCS is MOVING
+            with salobj.assertRaisesAckError():
+                await self.remote.cmd_setZeroAz.set_start()
+
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 2.0
+            await self.csc.statusAMCS()
+            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            assert amcs_status["positionActual"] == pytest.approx(math.radians(2.0))
+            assert amcs_status["status"]["status"] == MotionState.STOPPED.name
+            await self.assert_next_sample(
+                topic=self.remote.evt_azMotion,
+                state=MotionState.STOPPED,
+                inPosition=True,
+            )
+
+            await self.remote.cmd_setZeroAz.set_start()
+
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            await self.csc.statusAMCS()
+            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            assert amcs_status["positionActual"] == pytest.approx(0.0)
+            assert amcs_status["status"]["status"] == MotionState.STOPPED.name
+            await self.assert_next_sample(
+                topic=self.remote.evt_azMotion,
+                state=MotionState.STOPPED,
+                inPosition=True,
             )
 
     async def validate_operational_mode(

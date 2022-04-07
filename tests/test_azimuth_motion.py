@@ -1085,3 +1085,118 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             self.fail("Expected a ValueError.")
         except ValueError:
             pass
+
+    async def test_exit_fault(self) -> None:
+        start_position = 0.0
+        start_tai = _start_tai
+        max_speed = _MAX_SPEED
+        target_position = math.radians(10.0)
+        crawl_velocity = math.radians(0.1)
+        expected_duration = (
+            START_MOTORS_ADD_DURATION + (target_position - start_position) / max_speed
+        )
+        await self.prepare_azimuth_motion(
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
+        )
+        await self.verify_azimuth_motion_duration(
+            start_tai=start_tai,
+            target_position=target_position,
+            crawl_velocity=crawl_velocity,
+            expected_duration=expected_duration,
+            motion_state=mtdome.LlcMotionState.MOVING,
+        )
+        await self.verify_azimuth_motion(
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
+            expected_position=math.radians(4.0),
+            expected_velocity=_MAX_SPEED,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
+        )
+
+        # This sets the status of the state machine to ERROR.
+        drives_in_error = [1, 1, 0, 0, 0]
+        expected_drive_error_state = [True, True, False, False, False]
+        current_tai = _start_tai + START_MOTORS_ADD_DURATION + 1.1
+        self.azimuth_motion.set_fault(current_tai, drives_in_error)
+        assert self.azimuth_motion.drives_in_error_state == expected_drive_error_state
+        await self.verify_azimuth_motion(
+            tai=current_tai,
+            expected_position=math.radians(4.4),
+            expected_velocity=0.0,
+            expected_motion_state=mtdome.LlcMotionState.ERROR,
+        )
+
+        current_tai = _start_tai + START_MOTORS_ADD_DURATION + 2.0
+
+        # Now call exit_fault. This will fail because there still are drives at
+        # fault.
+        with pytest.raises(RuntimeError):
+            self.azimuth_motion.exit_fault(current_tai)
+
+        # Reset the drives.
+        expected_drive_error_state = [False, False, False, False, False]
+        reset = [1, 1, 0, 0, 0]
+        self.azimuth_motion.reset_drives_az(current_tai, reset)
+        assert self.azimuth_motion.drives_in_error_state == expected_drive_error_state
+
+        # Now call exit_fault which will not fail because the drives have been
+        # reset.
+        self.azimuth_motion.exit_fault(current_tai)
+        await self.verify_azimuth_motion(
+            tai=current_tai,
+            expected_position=math.radians(4.4),
+            expected_velocity=0.0,
+            expected_motion_state=mtdome.LlcMotionState.STATIONARY,
+        )
+        assert self.azimuth_motion.drives_in_error_state == expected_drive_error_state
+        assert self.azimuth_motion.motion_state_in_error is False
+
+    async def test_calibrate_az(self) -> None:
+        start_position = 0.0
+        start_tai = _start_tai
+        max_speed = _MAX_SPEED
+        target_position = math.radians(10.0)
+        crawl_velocity = math.radians(0.0)
+        expected_duration = (
+            START_MOTORS_ADD_DURATION + (target_position - start_position) / max_speed
+        )
+        await self.prepare_azimuth_motion(
+            start_position=start_position,
+            max_speed=max_speed,
+            start_tai=start_tai,
+        )
+        await self.verify_azimuth_motion_duration(
+            start_tai=start_tai,
+            target_position=target_position,
+            crawl_velocity=crawl_velocity,
+            expected_duration=expected_duration,
+            motion_state=mtdome.LlcMotionState.MOVING,
+        )
+        await self.verify_azimuth_motion(
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 1.0,
+            expected_position=math.radians(4.0),
+            expected_velocity=_MAX_SPEED,
+            expected_motion_state=mtdome.LlcMotionState.MOVING,
+        )
+
+        current_tai = _start_tai + START_MOTORS_ADD_DURATION + 1.1
+        with pytest.raises(RuntimeError):
+            self.azimuth_motion.calibrate_az(current_tai)
+
+        await self.verify_azimuth_motion(
+            tai=_start_tai + START_MOTORS_ADD_DURATION + 2.5,
+            expected_position=math.radians(10.0),
+            expected_velocity=0.0,
+            expected_motion_state=mtdome.LlcMotionState.STOPPED,
+        )
+
+        current_tai = _start_tai + START_MOTORS_ADD_DURATION + 3.0
+        self.azimuth_motion.calibrate_az(current_tai)
+
+        await self.verify_azimuth_motion(
+            tai=current_tai,
+            expected_position=math.radians(0.0),
+            expected_velocity=0.0,
+            expected_motion_state=mtdome.LlcMotionState.STOPPED,
+        )

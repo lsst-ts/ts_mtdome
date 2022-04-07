@@ -62,13 +62,14 @@ STATE_TRANSITIONS: typing.Dict[
     typing.Tuple[LlcMotionState, LlcMotionState],
     typing.List[typing.Tuple[IntermediateState, float]],
 ] = {
-    (LlcMotionState.PARKED, LlcMotionState.PARKED): [],
     (LlcMotionState.PARKED, LlcMotionState.MOVING): STATE_SEQUENCE_START_MOTORS,
     (LlcMotionState.PARKED, LlcMotionState.CRAWLING): STATE_SEQUENCE_START_MOTORS,
     (LlcMotionState.MOVING, LlcMotionState.CRAWLING): [],
     (LlcMotionState.CRAWLING, LlcMotionState.MOVING): [],
     (LlcMotionState.CRAWLING, LlcMotionState.STOPPED): [],
+    (LlcMotionState.MOVING, LlcMotionState.CRAWLING): [],
     (LlcMotionState.MOVING, LlcMotionState.STOPPED): [],
+    (LlcMotionState.CRAWLING, LlcMotionState.MOVING): [],
     (LlcMotionState.MOVING, LlcMotionState.PARKED): STATE_SEQUENCE_STOP_MOTORS,
     (LlcMotionState.CRAWLING, LlcMotionState.PARKED): STATE_SEQUENCE_STOP_MOTORS,
     (LlcMotionState.STOPPED, LlcMotionState.PARKED): STATE_SEQUENCE_STOP_MOTORS,
@@ -76,6 +77,12 @@ STATE_TRANSITIONS: typing.Dict[
     (LlcMotionState.CRAWLING, LlcMotionState.STATIONARY): STATE_SEQUENCE_STOP_MOTORS,
     (LlcMotionState.STOPPED, LlcMotionState.STATIONARY): STATE_SEQUENCE_STOP_MOTORS,
 }
+
+CALIBRATE_AZ_ALLOWED_STATES = [
+    LlcMotionState.PARKED,
+    LlcMotionState.STATIONARY,
+    LlcMotionState.STOPPED,
+]
 
 
 class AzimuthMotion(BaseLlcMotion):
@@ -116,8 +123,26 @@ class AzimuthMotion(BaseLlcMotion):
         self._commanded_motion_state = LlcMotionState.PARKED
         # Keep track of the motion state where we came from.
         self._current_motion_state = LlcMotionState.PARKED
+        # Keep track of being in error state or not.
+        self.motion_state_in_error = False
+        # Keep track of which drives are in error state.
+        self.drives_in_error_state = [False] * 5
+        # Keep track of when motion state went into ERROR
+        self._error_start_tai = 0.0
+        # Keep track of the additional duration needed for the dome to start
+        # moving when PARKED or STATIONARY for computations of the position and
+        # velocity when MOVING or CRAWLING
+        self._computed_additional_duration = 0.0
+        # Keep track of the position at the moment that ERROR state starts.
+        self._error_state_position = 0.0
 
     def _get_additional_duration(self) -> float:
+        if (
+            self._current_motion_state == LlcMotionState.ERROR
+            or self._current_motion_state == self._commanded_motion_state
+        ):
+            return 0.0
+
         intermediate_state_list = STATE_TRANSITIONS[
             (self._current_motion_state, self._commanded_motion_state)
         ]
@@ -206,6 +231,10 @@ class AzimuthMotion(BaseLlcMotion):
         motion_state: `LlcMotionState`
             The LlcMotionState at the given TAI time.
         """
+
+        if self.motion_state_in_error:
+            tai = self._error_start_tai
+
         additional_duration = self._get_additional_duration()
         distance = self._get_distance()
         end_tai = self._end_tai
@@ -256,10 +285,6 @@ class AzimuthMotion(BaseLlcMotion):
                 f"Encountered TAI {tai} which is smaller than start TAI {self._start_tai}"
             )
         else:
-            position = 0.0
-            velocity = 0.0
-            motion_state = self._current_motion_state
-
             if self._current_motion_state in [
                 LlcMotionState.MOVING,
                 LlcMotionState.CRAWLING,
@@ -282,6 +307,19 @@ class AzimuthMotion(BaseLlcMotion):
                 frac_time = (tai - self._start_tai - additional_duration) / (
                     self._end_tai - self._start_tai - additional_duration
                 )
+                self._computed_additional_duration = additional_duration
+            elif self._current_motion_state in [
+                LlcMotionState.MOVING,
+                LlcMotionState.CRAWLING,
+            ] and self._commanded_motion_state in [
+                LlcMotionState.MOVING,
+                LlcMotionState.CRAWLING,
+            ]:
+                frac_time = (
+                    tai - self._start_tai - self._computed_additional_duration
+                ) / (
+                    self._end_tai - self._start_tai - self._computed_additional_duration
+                )
             else:
                 frac_time = additional_duration
 
@@ -299,6 +337,12 @@ class AzimuthMotion(BaseLlcMotion):
                 motion_state = LlcMotionState.MOVING
 
         position = utils.angle_wrap_nonnegative(math.degrees(position)).rad
+
+        if self.motion_state_in_error:
+            velocity = 0.0
+            motion_state = LlcMotionState.ERROR
+
+        self._current_motion_state = motion_state
         return position, velocity, motion_state
 
     def stop(self, start_tai: float) -> float:
@@ -311,10 +355,11 @@ class AzimuthMotion(BaseLlcMotion):
             model the real dome, this should be the current time. However, for
             unit tests it can be convenient to use other values.
 
+
         Returns
         -------
         `float`
-            The expected TAI when the park command will end.
+            The expected duration of the command.
         """
         position, velocity, motion_state = self.get_position_velocity_and_motion_state(
             tai=start_tai
@@ -341,7 +386,7 @@ class AzimuthMotion(BaseLlcMotion):
         Returns
         -------
         `float`
-            The expected TAI when the park command will end.
+            The expected duration of the command.
         """
         position, velocity, motion_state = self.get_position_velocity_and_motion_state(
             tai=start_tai
@@ -365,10 +410,11 @@ class AzimuthMotion(BaseLlcMotion):
             model the real dome, this should be the current time. However, for
             unit tests it can be convenient to use other values.
 
+
         Returns
         -------
         `float`
-            The expected TAI when the park command will end.
+            The expected duration of the command.
         """
         position, velocity, motion_state = self.get_position_velocity_and_motion_state(
             tai=start_tai
@@ -382,7 +428,7 @@ class AzimuthMotion(BaseLlcMotion):
         self._end_tai = self._start_tai + self._get_duration()
         return self._end_tai - start_tai
 
-    def exit_fault(self, start_tai: float) -> None:
+    def exit_fault(self, start_tai: float) -> float:
         """Clear the fault state.
 
         Parameters
@@ -391,13 +437,111 @@ class AzimuthMotion(BaseLlcMotion):
             The TAI time, unix seconds, at which the command was issued. To
             model the real dome, this should be the current time. However, for
             unit tests it can be convenient to use other values.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command.
         """
+        if True in self.drives_in_error_state:
+            raise RuntimeError("Make sure to reset drives before exiting from fault.")
+
         position, velocity, motion_state = self.get_position_velocity_and_motion_state(
             tai=start_tai
         )
         self._start_tai = start_tai
-        self._start_position = position
-        self._end_position = position
+        self._start_position = self._error_state_position
+        self._end_position = self._error_state_position
         self._crawl_velocity = 0.0
         self._current_motion_state = motion_state
         self._commanded_motion_state = LlcMotionState.STATIONARY
+        self.motion_state_in_error = False
+        self._error_start_tai = 0.0
+        self._error_state_position = 0.0
+        return 0.0
+
+    def reset_drives_az(self, start_tai: float, reset: typing.List[int]) -> float:
+        """Reset one or more AZ drives.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
+        reset: array of int
+            Desired reset action to execute on each AZ drive: 0 means don't
+            reset, 1 means reset.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command.
+
+        Notes
+        -----
+        This is necessary when exiting from FAULT state without going to
+        Degraded Mode since the drives don't reset themselves.
+        The number of values in the reset parameter is not validated.
+        """
+        for i, val in enumerate(reset):
+            if val == 1:
+                self.drives_in_error_state[i] = False
+        return 0.0
+
+    def calibrate_az(self, start_tai: float) -> float:
+        """Take the current position of the dome as zero. This is necessary as
+        long as the racks and pinions on the drives have not been installed yet
+        to compensate for slippage of the drives.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command.
+        """
+        if self._current_motion_state not in CALIBRATE_AZ_ALLOWED_STATES:
+            raise RuntimeError(
+                "calibrate_az can only be called when the AMCS in "
+                f"{','.join([state.name for state in CALIBRATE_AZ_ALLOWED_STATES])}."
+            )
+        self._start_position = 0
+        self._end_position = 0
+        self._start_tai = start_tai
+        self._commanded_motion_state = self._current_motion_state
+        return 0.0
+
+    def set_fault(self, start_tai: float, drives_in_error: typing.List[int]) -> None:
+        """Set the LlcMotionState of AMCS to fault and set the drives in
+        drives_in_error to error.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
+        drives_in_error : array of int
+            Desired error action to execute on each AZ drive: 0 means don't
+            set to error, 1 means set to error.
+
+        Notes
+        -----
+        This function is not mapped to a command that MockMTDomeController can
+        receive. It is intended to be set by unit test cases.
+        """
+        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
+            tai=start_tai
+        )
+        self._error_state_position = position
+        self.motion_state_in_error = True
+        self._error_start_tai = start_tai
+        for i, val in enumerate(drives_in_error):
+            if val == 1:
+                self.drives_in_error_state[i] = True
