@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["MTDomeCsc"]
+__all__ = ["MTDomeCsc", "DOME_AZIMUTH_OFFSET"]
 
 import asyncio
 import math
@@ -31,6 +31,7 @@ from . import __version__, encoding_tools
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .enums import LlcMotionState, LlcName, ResponseCode, LlcNameDict
 from lsst.ts import salobj
+from lsst.ts import utils
 from .mock_controller import MockMTDomeController
 from lsst.ts.idl.enums.MTDome import (
     EnabledState,
@@ -40,19 +41,37 @@ from lsst.ts.idl.enums.MTDome import (
 )
 
 _LOCAL_HOST = "127.0.0.1"
-_TIMEOUT = 20  # timeout in s to be used by this module
+_TIMEOUT = 20  # timeout [sec] to be used by this module
 _KEYS_TO_REMOVE = {
     "status",
     "operationalMode",  # Remove when next XML release is done
     "appliedConfiguration",  # Remove when next XML release is done
 }
-_KEYS_IN_RADIANS = {
+
+# The values of these keys need to be compensated for the dome azimuth offset
+# in the AMCS status. Note that these keys are shared with LWSCS so they can be
+# added to _KEYS_IN_RADIANS to avoid duplication but this also means that an
+# additional check for the AMCS lower level component needs to be done when
+# applying the offset correction. That is a trade off I can live with.
+_AMCS_KEYS_OFFSET = {
     "positionActual",
     "positionCommanded",
+}
+# The values of these keys need to be converted from radians to degrees when
+# the status is recevied and telemetry with these values is sent.
+_KEYS_IN_RADIANS = {
     "velocityActual",
     "velocityCommanded",
-}
+}.union(_AMCS_KEYS_OFFSET)
 
+# The offset of the dome rotation zero point with respect to azimuth 0º (true
+# north) is 32º west and the aperture lies at the opposite side of the dome.
+# Therefore the dome azimuth offset is 180º - 32º = 148º and this needs to be
+# subtracted when commanding the azimuth position, or added when sending the
+# azimuth telemetry.
+DOME_AZIMUTH_OFFSET = 148.0
+
+# Polling periods [sec] for the lower level components.
 _AMCS_STATUS_PERIOD = 0.2
 _APsCS_STATUS_PERIOD = 2.0
 _LCS_STATUS_PERIOD = 2.0
@@ -377,9 +396,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(
             f"Moving Dome to azimuth {data.position} and then start crawling at azRate {data.velocity}"
         )
+        # Compensate for the dome azimuth offset.
+        position = utils.angle_wrap_nonnegative(
+            data.position - DOME_AZIMUTH_OFFSET
+        ).degree
         await self.write_then_read_reply(
             command="moveAz",
-            position=math.radians(data.position),
+            position=math.radians(position),
             velocity=math.radians(data.velocity),
         )
         await self.evt_azTarget.set_write(
@@ -797,6 +820,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         for key in telemetry_in_radians.keys():
             if key in _KEYS_IN_RADIANS and llc_name in [LlcName.AMCS, LlcName.LWSCS]:
                 telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
+                # Compensate for the dome azimuth offset. This is done here and
+                # not one level higher since angle_wrap_nonnegative only
+                # accepts Angle or a float in degrees and this way the
+                # conversion from radians to degrees only is done in one line
+                # of code.
+                if key in _AMCS_KEYS_OFFSET and llc_name == LlcName.AMCS:
+                    offset_value = utils.angle_wrap_nonnegative(
+                        telemetry_in_degrees[key] + DOME_AZIMUTH_OFFSET
+                    ).degree
+                    telemetry_in_degrees[key] = offset_value
             elif key == "timestampUTC":
                 # DM-26653: The name of this parameter is still under
                 # discussion.
