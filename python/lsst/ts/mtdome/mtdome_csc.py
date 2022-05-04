@@ -79,6 +79,20 @@ _LWSCS_STATUS_PERIOD = 2.0
 _MONCS_STATUS_PERIOD = 2.0
 _THCS_STATUS_PERIOD = 2.0
 
+# These next commands are temporarily disabled because they will be issued
+# during the upcoming TMA pointing test and the EIE LabVIEW code doesn't handle
+# them yet, which will result in an error. As soon as the TMA pointing test is
+# done, they will be reenabled. The name reflects the fact that there probably
+# will be more situations during commissioning in which commands need to be
+# disabled.
+COMMANDS_DISABLED_FOR_COMMISSIONING = {
+    "crawlEl",
+    "goStationaryEl",
+    "moveEl",
+    "stopEl",
+}
+REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
+
 
 class MTDomeCsc(salobj.ConfigurableCsc):
     """Upper level Commandable SAL Component to interface with the Simonyi
@@ -353,21 +367,25 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             except AssertionError as e:
                 await self.fault(code=3, report=f"Error writing command {st}: {e}")
                 raise
-            self.writer.write(st.encode() + b"\r\n")
-            await self.writer.drain()
-            try:
-                assert self.reader is not None
-                read_bytes = await asyncio.wait_for(
-                    self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
+
+            if command not in COMMANDS_DISABLED_FOR_COMMISSIONING:
+                self.writer.write(st.encode() + b"\r\n")
+                await self.writer.drain()
+                try:
+                    assert self.reader is not None
+                    read_bytes = await asyncio.wait_for(
+                        self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
+                    )
+                except (asyncio.exceptions.TimeoutError, AssertionError) as e:
+                    await self.fault(
+                        code=3, report=f"Error reading reply to command {st}: {e}"
+                    )
+                    raise
+                data: typing.Dict[str, typing.Any] = encoding_tools.decode(
+                    read_bytes.decode()
                 )
-            except (asyncio.exceptions.TimeoutError, AssertionError) as e:
-                await self.fault(
-                    code=3, report=f"Error reading reply to command {st}: {e}"
-                )
-                raise
-            data: typing.Dict[str, typing.Any] = encoding_tools.decode(
-                read_bytes.decode()
-            )
+            else:
+                data = REPLY_DATA_FOR_DISABLED_COMMANDS
             response = data["response"]
 
             if response == ResponseCode.OK:

@@ -173,6 +173,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=False,
             )
 
+    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
     async def test_do_moveEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -399,6 +400,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
+    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
     async def test_do_crawlEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
