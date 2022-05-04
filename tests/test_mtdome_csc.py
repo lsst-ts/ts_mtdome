@@ -520,6 +520,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # for easier control
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
+            # This event gets emitted as soon as the CSC has started.
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
                 state=MotionState.PARKED,
@@ -531,20 +532,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 topic=self.remote.evt_azTarget, position=0, velocity=0
             )
 
-            # Give some time to the mock device to move.
-            self.csc.mock_ctrl.current_tai = (
-                self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
-            )
-
-            # Now also check the azMotion event.
-            await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
-            assert amcs_status["status"]["status"] == MotionState.PARKED.name
-            await self.assert_next_sample(
-                topic=self.remote.evt_azMotion,
-                state=MotionState.PARKED,
-                inPosition=True,
-            )
+            # No new azMotion event gets emitted since the PARKED event already
+            # was emitted and AMCS has not changed status since, so we're done.
 
     async def test_do_stop_and_brake(self) -> None:
         async with self.make_csc(
@@ -964,11 +953,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.MOVING.name
-            await self.assert_next_sample(
-                topic=self.remote.evt_azMotion,
-                state=MotionState.MOVING,
-                inPosition=False,
-            )
 
             # Cannot set to zero while AMCS is MOVING
             with salobj.assertRaisesAckError():
@@ -979,11 +963,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["positionActual"] == pytest.approx(math.radians(2.0))
             assert amcs_status["status"]["status"] == MotionState.STOPPED.name
-            await self.assert_next_sample(
-                topic=self.remote.evt_azMotion,
-                state=MotionState.STOPPED,
-                inPosition=True,
-            )
 
             await self.remote.cmd_setZeroAz.set_start()
 
@@ -992,11 +971,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["positionActual"] == pytest.approx(0.0)
             assert amcs_status["status"]["status"] == MotionState.STOPPED.name
-            await self.assert_next_sample(
-                topic=self.remote.evt_azMotion,
-                state=MotionState.STOPPED,
-                inPosition=True,
-            )
 
     async def validate_operational_mode(
         self, operational_mode: OperationalMode, sub_system_ids: int

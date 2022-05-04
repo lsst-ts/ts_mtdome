@@ -843,7 +843,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 # In case of some unit tests, this event is expected to be
                 # emitted twice with the same data.
                 await self.evt_azMotion.set_write(
-                    force_output=True, state=motion_state, inPosition=in_position
+                    state=motion_state, inPosition=in_position
                 )
         elif llc_name == LlcName.LWSCS:
             llc_status = status[llc_name]["status"]
