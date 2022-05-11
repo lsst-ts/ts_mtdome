@@ -125,6 +125,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             topic=self.remote.evt_lockingPinsEngaged, engaged=0
         )
         self.csc.mock_ctrl.determine_current_tai = self.determine_current_tai
+        sub_system_ids = SubSystemId.AMCS
+        await self.validate_operational_mode(
+            operational_mode=OperationalMode.NORMAL, sub_system_ids=sub_system_ids
+        )
+        await self.assert_next_sample(topic=self.remote.evt_azConfigurationApplied)
 
     async def test_do_moveAz(self) -> None:
         async with self.make_csc(

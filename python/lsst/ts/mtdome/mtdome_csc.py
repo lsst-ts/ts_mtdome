@@ -44,8 +44,8 @@ _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout [sec] to be used by this module
 _KEYS_TO_REMOVE = {
     "status",
-    "operationalMode",  # Remove when next XML release is done
-    "appliedConfiguration",  # Remove when next XML release is done
+    "operationalMode",  # Remove because gets emitted as an event
+    "appliedConfiguration",  # Remove because gets emitted as an event
 }
 
 # The values of these keys need to be compensated for the dome azimuth offset
@@ -818,9 +818,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=command
         )
 
-        # DM-30807: Send OperationalMode event at start up.
-        current_operational_mode = status[llc_name]["status"]["operationalMode"]
         if llc_name not in self.lower_level_status:
+            # DM-30807: Send OperationalMode event at start up.
+            current_operational_mode = status[llc_name]["status"]["operationalMode"]
             operatinal_mode = OperationalMode[current_operational_mode]
             sub_system_id = [
                 sid for sid, name in LlcNameDict.items() if name == llc_name
@@ -829,6 +829,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 operationalMode=operatinal_mode,
                 subSystemId=sub_system_id,
             )
+
+            # DM-34664: Send appliedConfiguration event as well, if present.
+            if "appliedConfiguration" in status[llc_name]:
+                applied_configuration = status[llc_name]["appliedConfiguration"]
+                jmax = applied_configuration["jmax"]
+                amax = applied_configuration["amax"]
+                vmax = applied_configuration["vmax"]
+                await self.evt_azConfigurationApplied.set_write(
+                    jmax=jmax, amax=amax, vmax=vmax
+                )
 
         # Store the status for reference.
         self.lower_level_status[llc_name] = status[llc_name]
