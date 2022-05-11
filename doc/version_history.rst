@@ -6,6 +6,18 @@
 Version History
 ###############
 
+v1.7.2
+======
+* Modernize Jenkinsfile.
+* Add emitting the evt_azConfigurationApplied event.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 11.2
+
 v1.7.1
 ======
 * Fix a unit test that occasionally failed due to timing issues by removing the checks for events and adding a missing state transition.
