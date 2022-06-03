@@ -19,11 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import pathlib
 from setuptools import setup
 import setuptools_scm
 
-setup(
-    version=setuptools_scm.get_version(),
-    scripts=[str(path) for path in pathlib.Path("bin").glob("*.py")],
-)
+setup(version=setuptools_scm.get_version())
