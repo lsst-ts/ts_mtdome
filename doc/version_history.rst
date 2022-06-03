@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v1.8.0
+======
+* Modernize pre-commit config versions.
+* Switch to pyproject.toml.
+* Use entry_points instead of bin scripts.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 11.2
+
 v1.7.2
 ======
 * Modernize Jenkinsfile.

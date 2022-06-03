@@ -1153,4 +1153,4 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.assert_next_summary_state(salobj.State.FAULT)
 
     async def test_bin_script(self) -> None:
-        await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome.py")
+        await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")
