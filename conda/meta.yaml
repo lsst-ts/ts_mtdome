@@ -11,13 +11,6 @@ build:
   script: python -m pip install --no-deps --ignore-installed .
   entry_points:
     - run_mtdome = lsst.ts.mtdome.cli:execute_csc
-  script_env:
-    - PATH
-    - LD_LIBRARY_PATH
-    - OSPL_HOME
-    - PYTHON_BUILD_LOCATION
-    - LSST_DDS_PARTITION_PREFIX
-    - TS_CONFIG_MTTCS_DIR
 
 test:
   requires:
