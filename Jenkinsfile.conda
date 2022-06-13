@@ -1,2 +1,2 @@
 @Library('JenkinsShared')_
-CondaPipeline(["ts_config_mttcs"], "ts-mtdome", "lsst.ts.mtdome")
+CondaPipeline(["ts_config_mttcs"], "ts-mtdome", "lsst.ts.mtdome", "noarch")
