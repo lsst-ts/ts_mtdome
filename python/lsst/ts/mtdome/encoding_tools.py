@@ -66,7 +66,6 @@ def decode(st: str) -> typing.Dict[str, typing.Any]:
     -------
         A decoded Python representation of the string.
     """
-    log.debug(f"Received string for decoding {st}")
     data = json.loads(st)
     validate(data)
     return data
