@@ -31,7 +31,6 @@ else:
     except ImportError:
         __version__ = "?"
 
-from .cli import *
 from .config_schema import CONFIG_SCHEMA
 from .enums import *
 from .mock_controller import *

@@ -10,7 +10,7 @@ build:
   noarch: generic
   script: python -m pip install --no-deps --ignore-installed .
   entry_points:
-    - run_mtdome = lsst.ts.mtdome.cli:execute_csc
+    - run_mtdome = lsst.ts.mtdome:run_mtdome
 
 test:
   requires:

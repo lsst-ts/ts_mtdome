@@ -17,7 +17,7 @@ version = { attr = "setuptools_scm.get_version" }
 where = [ "python" ]
 
 [project.scripts]
-run_mtdome = "lsst.ts.mtdome.cli:execute_csc"
+run_mtdome = "lsst.ts.mtdome:run_mtdome"
 
 [tool.setuptools_scm]
 write_to = "python/lsst/ts/mtdome/version.py"

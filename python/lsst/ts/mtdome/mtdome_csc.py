@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["MTDomeCsc", "DOME_AZIMUTH_OFFSET"]
+__all__ = ["MTDomeCsc", "DOME_AZIMUTH_OFFSET", "run_mtdome"]
 
 import asyncio
 import math
@@ -92,6 +92,10 @@ COMMANDS_DISABLED_FOR_COMMISSIONING = {
     "stopEl",
 }
 REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
+
+
+def run_mtdome() -> None:
+    asyncio.run(MTDomeCsc.amain(index=None))
 
 
 class MTDomeCsc(salobj.ConfigurableCsc):
