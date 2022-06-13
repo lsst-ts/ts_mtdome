@@ -11,6 +11,7 @@ v1.8.0
 * Modernize pre-commit config versions.
 * Switch to pyproject.toml.
 * Use entry_points instead of bin scripts.
+* Disable all non-azimuth rotation related commands.
 
 Requires:
 
