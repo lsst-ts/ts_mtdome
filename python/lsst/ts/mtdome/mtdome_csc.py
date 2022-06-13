@@ -86,10 +86,21 @@ _THCS_STATUS_PERIOD = 2.0
 # will be more situations during commissioning in which commands need to be
 # disabled.
 COMMANDS_DISABLED_FOR_COMMISSIONING = {
+    "closeLouvers",
+    "closeShutter",
     "crawlEl",
+    "fans",
     "goStationaryEl",
+    "goStationaryLouvers",
+    "goStationaryShutter",
+    "inflate",
     "moveEl",
+    "openShutter",
+    "setLouvers",
+    "setTemperature",
     "stopEl",
+    "stopLouvers",
+    "stopShutter",
 }
 REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
 
@@ -188,26 +199,29 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 OperationalMode.NORMAL.name: "setNormalAz",
                 OperationalMode.DEGRADED.name: "setDegradedAz",
             },
-            SubSystemId.LWSCS: {
-                OperationalMode.NORMAL.name: "setNormalEl",
-                OperationalMode.DEGRADED.name: "setDegradedEl",
-            },
-            SubSystemId.APSCS: {
-                OperationalMode.NORMAL.name: "setNormalShutter",
-                OperationalMode.DEGRADED.name: "setDegradedShutter",
-            },
-            SubSystemId.LCS: {
-                OperationalMode.NORMAL.name: "setNormalLouvers",
-                OperationalMode.DEGRADED.name: "setDegradedLouvers",
-            },
-            SubSystemId.MONCS: {
-                OperationalMode.NORMAL.name: "setNormalMonitoring",
-                OperationalMode.DEGRADED.name: "setDegradedMonitoring",
-            },
-            SubSystemId.THCS: {
-                OperationalMode.NORMAL.name: "setNormalThermal",
-                OperationalMode.DEGRADED.name: "setDegradedThermal",
-            },
+            # The next lines have been commented out because the systems
+            # concerned are not available at the summit yet. As soon as they
+            # are made available, the corresponding lines will be uncommented.
+            # SubSystemId.LWSCS: {
+            #     OperationalMode.NORMAL.name: "setNormalEl",
+            #     OperationalMode.DEGRADED.name: "setDegradedEl",
+            # },
+            # SubSystemId.APSCS: {
+            #     OperationalMode.NORMAL.name: "setNormalShutter",
+            #     OperationalMode.DEGRADED.name: "setDegradedShutter",
+            # },
+            # SubSystemId.LCS: {
+            #     OperationalMode.NORMAL.name: "setNormalLouvers",
+            #     OperationalMode.DEGRADED.name: "setDegradedLouvers",
+            # },
+            # SubSystemId.MONCS: {
+            #     OperationalMode.NORMAL.name: "setNormalMonitoring",
+            #     OperationalMode.DEGRADED.name: "setDegradedMonitoring",
+            # },
+            # SubSystemId.THCS: {
+            #     OperationalMode.NORMAL.name: "setNormalThermal",
+            #     OperationalMode.DEGRADED.name: "setDegradedThermal",
+            # },
         }
 
         self.log.info("DomeCsc constructed")

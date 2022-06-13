@@ -692,7 +692,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
-            assert amcs_status["status"]["fans"] == mtdome.OnOff.ON.value
+            # The "fans" command has been disabled so the status doesn't
+            # change.
+            assert amcs_status["status"]["fans"] == mtdome.OnOff.OFF.value
 
     async def test_inflate(self) -> None:
         async with self.make_csc(
@@ -718,7 +720,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
-            assert amcs_status["status"]["inflate"] == mtdome.OnOff.ON.value
+            # The "inflate" command has been disabled so the status doesn't
+            # change.
+            assert amcs_status["status"]["inflate"] == mtdome.OnOff.OFF.value
 
     async def test_status(self) -> None:
         async with self.make_csc(
@@ -1046,63 +1050,77 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 operational_mode=operational_mode, sub_system_ids=sub_system_ids
             )
 
-            # Set another lower level component to degraded.
-            operational_mode = OperationalMode.DEGRADED
-            sub_system_ids = SubSystemId.MONCS
-            await self.validate_operational_mode(
-                operational_mode=operational_mode, sub_system_ids=sub_system_ids
-            )
-
-            # Set the same, first, lower level component to degraded again.
-            # This should not raise an exsception.
-            operational_mode = OperationalMode.DEGRADED
+            # Set to NORMAL again.
+            operational_mode = OperationalMode.NORMAL
             sub_system_ids = SubSystemId.AMCS
             await self.validate_operational_mode(
                 operational_mode=operational_mode, sub_system_ids=sub_system_ids
             )
 
-            # Set two lower level components to normal.
-            operational_mode = OperationalMode.NORMAL
-            sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
-            await self.validate_operational_mode(
-                operational_mode=operational_mode, sub_system_ids=sub_system_ids
-            )
-
-            # Set two lower level components to normal again. This should not
-            # raise an exception.
-            operational_mode = OperationalMode.NORMAL
-            sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
-            await self.validate_operational_mode(
-                operational_mode=operational_mode, sub_system_ids=sub_system_ids
-            )
-
-            # Set all to degraded
-            operational_mode = OperationalMode.DEGRADED
-            sub_system_ids = (
-                SubSystemId.AMCS
-                | SubSystemId.APSCS
-                | SubSystemId.LCS
-                | SubSystemId.LWSCS
-                | SubSystemId.MONCS
-                | SubSystemId.THCS
-            )
-            await self.validate_operational_mode(
-                operational_mode=operational_mode, sub_system_ids=sub_system_ids
-            )
-
-            # Set all back to normal
-            operational_mode = OperationalMode.NORMAL
-            sub_system_ids = (
-                SubSystemId.AMCS
-                | SubSystemId.APSCS
-                | SubSystemId.LCS
-                | SubSystemId.LWSCS
-                | SubSystemId.MONCS
-                | SubSystemId.THCS
-            )
-            await self.validate_operational_mode(
-                operational_mode=operational_mode, sub_system_ids=sub_system_ids
-            )
+            # Disabled until all sub-systems get enabled at the summit.
+            # # Set another lower level component to degraded.
+            # operational_mode = OperationalMode.DEGRADED
+            # sub_system_ids = SubSystemId.MONCS
+            # await self.validate_operational_mode(
+            #     operational_mode=operational_mode,
+            #       sub_system_ids=sub_system_ids
+            # )
+            #
+            # # Set the same, first, lower level component to degraded again.
+            # # This should not raise an exception.
+            # operational_mode = OperationalMode.DEGRADED
+            # sub_system_ids = SubSystemId.AMCS
+            # await self.validate_operational_mode(
+            #     operational_mode=operational_mode,
+            #       sub_system_ids=sub_system_ids
+            # )
+            #
+            # # Set two lower level components to normal.
+            # operational_mode = OperationalMode.NORMAL
+            # sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
+            # await self.validate_operational_mode(
+            #     operational_mode=operational_mode,
+            #       sub_system_ids=sub_system_ids
+            # )
+            #
+            # # Set two lower level components to normal again. This should not
+            # # raise an exception.
+            # operational_mode = OperationalMode.NORMAL
+            # sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
+            # await self.validate_operational_mode(
+            #     operational_mode=operational_mode,
+            #       sub_system_ids=sub_system_ids
+            # )
+            #
+            # # Set all to degraded
+            # operational_mode = OperationalMode.DEGRADED
+            # sub_system_ids = (
+            #     SubSystemId.AMCS
+            #     | SubSystemId.APSCS
+            #     | SubSystemId.LCS
+            #     | SubSystemId.LWSCS
+            #     | SubSystemId.MONCS
+            #     | SubSystemId.THCS
+            # )
+            # await self.validate_operational_mode(
+            #     operational_mode=operational_mode,
+            #       sub_system_ids=sub_system_ids
+            # )
+            #
+            # # Set all back to normal
+            # operational_mode = OperationalMode.NORMAL
+            # sub_system_ids = (
+            #     SubSystemId.AMCS
+            #     | SubSystemId.APSCS
+            #     | SubSystemId.LCS
+            #     | SubSystemId.LWSCS
+            #     | SubSystemId.MONCS
+            #     | SubSystemId.THCS
+            # )
+            # await self.validate_operational_mode(
+            #     operational_mode=operational_mode,
+            #       sub_system_ids=sub_system_ids
+            # )
 
     async def test_slow_network(self) -> None:
         async with self.make_csc(
