@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["MTDomeCsc", "DOME_AZIMUTH_OFFSET"]
+__all__ = ["MTDomeCsc", "DOME_AZIMUTH_OFFSET", "run_mtdome"]
 
 import asyncio
 import math
@@ -86,12 +86,27 @@ _THCS_STATUS_PERIOD = 2.0
 # will be more situations during commissioning in which commands need to be
 # disabled.
 COMMANDS_DISABLED_FOR_COMMISSIONING = {
+    "closeLouvers",
+    "closeShutter",
     "crawlEl",
+    "fans",
     "goStationaryEl",
+    "goStationaryLouvers",
+    "goStationaryShutter",
+    "inflate",
     "moveEl",
+    "openShutter",
+    "setLouvers",
+    "setTemperature",
     "stopEl",
+    "stopLouvers",
+    "stopShutter",
 }
 REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
+
+
+def run_mtdome() -> None:
+    asyncio.run(MTDomeCsc.amain(index=None))
 
 
 class MTDomeCsc(salobj.ConfigurableCsc):
@@ -184,26 +199,29 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 OperationalMode.NORMAL.name: "setNormalAz",
                 OperationalMode.DEGRADED.name: "setDegradedAz",
             },
-            SubSystemId.LWSCS: {
-                OperationalMode.NORMAL.name: "setNormalEl",
-                OperationalMode.DEGRADED.name: "setDegradedEl",
-            },
-            SubSystemId.APSCS: {
-                OperationalMode.NORMAL.name: "setNormalShutter",
-                OperationalMode.DEGRADED.name: "setDegradedShutter",
-            },
-            SubSystemId.LCS: {
-                OperationalMode.NORMAL.name: "setNormalLouvers",
-                OperationalMode.DEGRADED.name: "setDegradedLouvers",
-            },
-            SubSystemId.MONCS: {
-                OperationalMode.NORMAL.name: "setNormalMonitoring",
-                OperationalMode.DEGRADED.name: "setDegradedMonitoring",
-            },
-            SubSystemId.THCS: {
-                OperationalMode.NORMAL.name: "setNormalThermal",
-                OperationalMode.DEGRADED.name: "setDegradedThermal",
-            },
+            # The next lines have been commented out because the systems
+            # concerned are not available at the summit yet. As soon as they
+            # are made available, the corresponding lines will be uncommented.
+            # SubSystemId.LWSCS: {
+            #     OperationalMode.NORMAL.name: "setNormalEl",
+            #     OperationalMode.DEGRADED.name: "setDegradedEl",
+            # },
+            # SubSystemId.APSCS: {
+            #     OperationalMode.NORMAL.name: "setNormalShutter",
+            #     OperationalMode.DEGRADED.name: "setDegradedShutter",
+            # },
+            # SubSystemId.LCS: {
+            #     OperationalMode.NORMAL.name: "setNormalLouvers",
+            #     OperationalMode.DEGRADED.name: "setDegradedLouvers",
+            # },
+            # SubSystemId.MONCS: {
+            #     OperationalMode.NORMAL.name: "setNormalMonitoring",
+            #     OperationalMode.DEGRADED.name: "setDegradedMonitoring",
+            # },
+            # SubSystemId.THCS: {
+            #     OperationalMode.NORMAL.name: "setNormalThermal",
+            #     OperationalMode.DEGRADED.name: "setDegradedThermal",
+            # },
         }
 
         self.log.info("DomeCsc constructed")
@@ -229,6 +247,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             host = self.config.host
             port = self.config.port
         try:
+            self.log.info(f"Connecting to host={host} and port={port}")
             connect_coro = asyncio.open_connection(host=host, port=port)
             self.reader, self.writer = await asyncio.wait_for(
                 connect_coro, timeout=self.config.connection_timeout
@@ -361,7 +380,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         command_dict = dict(command=command, parameters=params)
         st = encoding_tools.encode(**command_dict)
         async with self.communication_lock:
-            self.log.debug(f"Sending command {st}")
             try:
                 assert self.writer is not None
             except AssertionError as e:
@@ -388,12 +406,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 data = REPLY_DATA_FOR_DISABLED_COMMANDS
             response = data["response"]
 
-            if response == ResponseCode.OK:
-                if "status" not in command:
-                    self.log.info(f"Received reply {data}")
-                else:
-                    self.log.debug(f"Received reply {data}")
-            else:
+            if response != ResponseCode.OK:
                 self.log.error(f"Received ERROR {data}.")
                 if response == ResponseCode.COMMAND_REJECTED:
                     raise ValueError(f"The command {command} was rejected.")
