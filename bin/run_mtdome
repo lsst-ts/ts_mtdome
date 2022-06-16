@@ -26,4 +26,4 @@ import asyncio
 
 from lsst.ts import mtdome
 
-asyncio.run(mtdome.MTDomeCsc.amain(index=None))
+mtdome.run_mtdome()

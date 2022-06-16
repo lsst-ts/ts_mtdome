@@ -7,16 +7,10 @@ source:
   path: ../
 
 build:
+  noarch: generic
   script: python -m pip install --no-deps --ignore-installed .
-  script_env:
-    - PATH
-    - PYTHONPATH
-    - LD_LIBRARY_PATH
-    - OSPL_HOME
-    - PYTHON_BUILD_VERSION
-    - PYTHON_BUILD_LOCATION
-    - TS_CONFIG_MTTCS_DIR
-    - LSST_DDS_DOMAIN
+  entry_points:
+    - run_mtdome = lsst.ts.mtdome:run_mtdome
 
 test:
   requires:
@@ -28,6 +22,7 @@ test:
     - bin
     - tests
     - setup.cfg
+    - pyproject.toml
   commands:
     - py.test
 

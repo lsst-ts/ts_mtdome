@@ -125,6 +125,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             topic=self.remote.evt_lockingPinsEngaged, engaged=0
         )
         self.csc.mock_ctrl.determine_current_tai = self.determine_current_tai
+        sub_system_ids = SubSystemId.AMCS
+        await self.validate_operational_mode(
+            operational_mode=OperationalMode.NORMAL, sub_system_ids=sub_system_ids
+        )
+        await self.assert_next_sample(topic=self.remote.evt_azConfigurationApplied)
 
     async def test_do_moveAz(self) -> None:
         async with self.make_csc(
@@ -173,6 +178,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=False,
             )
 
+    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
     async def test_do_moveEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -399,6 +405,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
+    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
     async def test_do_crawlEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -520,6 +527,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # for easier control
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
+            # This event gets emitted as soon as the CSC has started.
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
                 state=MotionState.PARKED,
@@ -531,20 +539,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 topic=self.remote.evt_azTarget, position=0, velocity=0
             )
 
-            # Give some time to the mock device to move.
-            self.csc.mock_ctrl.current_tai = (
-                self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
-            )
-
-            # Now also check the azMotion event.
-            await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
-            assert amcs_status["status"]["status"] == MotionState.PARKED.name
-            await self.assert_next_sample(
-                topic=self.remote.evt_azMotion,
-                state=MotionState.PARKED,
-                inPosition=True,
-            )
+            # No new azMotion event gets emitted since the PARKED event already
+            # was emitted and AMCS has not changed status since, so we're done.
 
     async def test_do_stop_and_brake(self) -> None:
         async with self.make_csc(
@@ -696,7 +692,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
-            assert amcs_status["status"]["fans"] == mtdome.OnOff.ON.value
+            # The "fans" command has been disabled so the status doesn't
+            # change.
+            assert amcs_status["status"]["fans"] == mtdome.OnOff.OFF.value
 
     async def test_inflate(self) -> None:
         async with self.make_csc(
@@ -722,7 +720,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
-            assert amcs_status["status"]["inflate"] == mtdome.OnOff.ON.value
+            # The "inflate" command has been disabled so the status doesn't
+            # change.
+            assert amcs_status["status"]["inflate"] == mtdome.OnOff.OFF.value
 
     async def test_status(self) -> None:
         async with self.make_csc(
@@ -943,7 +943,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
-            desired_position = 2.0
+            # Compensate for the dome azimuth offset.
+            desired_position = utils.angle_wrap_nonnegative(
+                2.0 + mtdome.DOME_AZIMUTH_OFFSET
+            ).degree
             desired_velocity = 0.0
             await self.remote.cmd_moveAz.set_start(
                 position=desired_position,
@@ -964,11 +967,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.MOVING.name
-            await self.assert_next_sample(
-                topic=self.remote.evt_azMotion,
-                state=MotionState.MOVING,
-                inPosition=False,
-            )
 
             # Cannot set to zero while AMCS is MOVING
             with salobj.assertRaisesAckError():
@@ -979,11 +977,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["positionActual"] == pytest.approx(math.radians(2.0))
             assert amcs_status["status"]["status"] == MotionState.STOPPED.name
-            await self.assert_next_sample(
-                topic=self.remote.evt_azMotion,
-                state=MotionState.STOPPED,
-                inPosition=True,
-            )
 
             await self.remote.cmd_setZeroAz.set_start()
 
@@ -992,11 +985,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["positionActual"] == pytest.approx(0.0)
             assert amcs_status["status"]["status"] == MotionState.STOPPED.name
-            await self.assert_next_sample(
-                topic=self.remote.evt_azMotion,
-                state=MotionState.STOPPED,
-                inPosition=True,
-            )
 
     async def validate_operational_mode(
         self, operational_mode: OperationalMode, sub_system_ids: int
@@ -1062,63 +1050,77 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 operational_mode=operational_mode, sub_system_ids=sub_system_ids
             )
 
-            # Set another lower level component to degraded.
-            operational_mode = OperationalMode.DEGRADED
-            sub_system_ids = SubSystemId.MONCS
-            await self.validate_operational_mode(
-                operational_mode=operational_mode, sub_system_ids=sub_system_ids
-            )
-
-            # Set the same, first, lower level component to degraded again.
-            # This should not raise an exsception.
-            operational_mode = OperationalMode.DEGRADED
+            # Set to NORMAL again.
+            operational_mode = OperationalMode.NORMAL
             sub_system_ids = SubSystemId.AMCS
             await self.validate_operational_mode(
                 operational_mode=operational_mode, sub_system_ids=sub_system_ids
             )
 
-            # Set two lower level components to normal.
-            operational_mode = OperationalMode.NORMAL
-            sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
-            await self.validate_operational_mode(
-                operational_mode=operational_mode, sub_system_ids=sub_system_ids
-            )
-
-            # Set two lower level components to normal again. This should not
-            # raise an exception.
-            operational_mode = OperationalMode.NORMAL
-            sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
-            await self.validate_operational_mode(
-                operational_mode=operational_mode, sub_system_ids=sub_system_ids
-            )
-
-            # Set all to degraded
-            operational_mode = OperationalMode.DEGRADED
-            sub_system_ids = (
-                SubSystemId.AMCS
-                | SubSystemId.APSCS
-                | SubSystemId.LCS
-                | SubSystemId.LWSCS
-                | SubSystemId.MONCS
-                | SubSystemId.THCS
-            )
-            await self.validate_operational_mode(
-                operational_mode=operational_mode, sub_system_ids=sub_system_ids
-            )
-
-            # Set all back to normal
-            operational_mode = OperationalMode.NORMAL
-            sub_system_ids = (
-                SubSystemId.AMCS
-                | SubSystemId.APSCS
-                | SubSystemId.LCS
-                | SubSystemId.LWSCS
-                | SubSystemId.MONCS
-                | SubSystemId.THCS
-            )
-            await self.validate_operational_mode(
-                operational_mode=operational_mode, sub_system_ids=sub_system_ids
-            )
+            # Disabled until all sub-systems get enabled at the summit.
+            # # Set another lower level component to degraded.
+            # operational_mode = OperationalMode.DEGRADED
+            # sub_system_ids = SubSystemId.MONCS
+            # await self.validate_operational_mode(
+            #     operational_mode=operational_mode,
+            #       sub_system_ids=sub_system_ids
+            # )
+            #
+            # # Set the same, first, lower level component to degraded again.
+            # # This should not raise an exception.
+            # operational_mode = OperationalMode.DEGRADED
+            # sub_system_ids = SubSystemId.AMCS
+            # await self.validate_operational_mode(
+            #     operational_mode=operational_mode,
+            #       sub_system_ids=sub_system_ids
+            # )
+            #
+            # # Set two lower level components to normal.
+            # operational_mode = OperationalMode.NORMAL
+            # sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
+            # await self.validate_operational_mode(
+            #     operational_mode=operational_mode,
+            #       sub_system_ids=sub_system_ids
+            # )
+            #
+            # # Set two lower level components to normal again. This should not
+            # # raise an exception.
+            # operational_mode = OperationalMode.NORMAL
+            # sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
+            # await self.validate_operational_mode(
+            #     operational_mode=operational_mode,
+            #       sub_system_ids=sub_system_ids
+            # )
+            #
+            # # Set all to degraded
+            # operational_mode = OperationalMode.DEGRADED
+            # sub_system_ids = (
+            #     SubSystemId.AMCS
+            #     | SubSystemId.APSCS
+            #     | SubSystemId.LCS
+            #     | SubSystemId.LWSCS
+            #     | SubSystemId.MONCS
+            #     | SubSystemId.THCS
+            # )
+            # await self.validate_operational_mode(
+            #     operational_mode=operational_mode,
+            #       sub_system_ids=sub_system_ids
+            # )
+            #
+            # # Set all back to normal
+            # operational_mode = OperationalMode.NORMAL
+            # sub_system_ids = (
+            #     SubSystemId.AMCS
+            #     | SubSystemId.APSCS
+            #     | SubSystemId.LCS
+            #     | SubSystemId.LWSCS
+            #     | SubSystemId.MONCS
+            #     | SubSystemId.THCS
+            # )
+            # await self.validate_operational_mode(
+            #     operational_mode=operational_mode,
+            #       sub_system_ids=sub_system_ids
+            # )
 
     async def test_slow_network(self) -> None:
         async with self.make_csc(
@@ -1169,4 +1171,4 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.assert_next_summary_state(salobj.State.FAULT)
 
     async def test_bin_script(self) -> None:
-        await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome.py")
+        await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")

@@ -6,6 +6,46 @@
 Version History
 ###############
 
+v1.8.0
+======
+* Modernize pre-commit config versions.
+* Switch to pyproject.toml.
+* Use entry_points instead of bin scripts.
+* Disable all non-azimuth rotation related commands.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 11.2
+
+v1.7.2
+======
+* Modernize Jenkinsfile.
+* Add emitting the evt_azConfigurationApplied event.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 11.2
+
+v1.7.1
+======
+* Fix a unit test that occasionally failed due to timing issues by removing the checks for events and adding a missing state transition.
+* Fix another unit test that was waiting for an event that never got emitted.
+* Implement the dome zero point offset of 32 degrees.
+* Temporarily disable LWSCS commands because of the upcoming TMA pointing test.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 11
+
 v1.7.0
 ======
 
