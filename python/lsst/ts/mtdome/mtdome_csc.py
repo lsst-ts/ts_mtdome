@@ -87,20 +87,16 @@ _THCS_STATUS_PERIOD = 2.0
 # disabled.
 COMMANDS_DISABLED_FOR_COMMISSIONING = {
     "closeLouvers",
-    "closeShutter",
     "crawlEl",
     "fans",
     "goStationaryEl",
     "goStationaryLouvers",
-    "goStationaryShutter",
     "inflate",
     "moveEl",
-    "openShutter",
     "setLouvers",
     "setTemperature",
     "stopEl",
     "stopLouvers",
-    "stopShutter",
 }
 REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
 
