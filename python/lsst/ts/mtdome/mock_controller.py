@@ -107,7 +107,9 @@ class MockMTDomeController:
             "openShutter": self.open_shutter,
             "park": self.park,
             "resetDrivesAz": self.reset_drives_az,
+            "resetDrivesShutter": self.reset_drives_shutter,
             "restore": self.restore,
+            "searchZeroShutter": self.search_zero_shutter,
             "setDegradedAz": self.set_degraded_az,
             "setDegradedEl": self.set_degraded_el,
             "setDegradedLouvers": self.set_degraded_louvers,
@@ -699,7 +701,7 @@ class MockMTDomeController:
         assert self.amcs is not None
         await self.amcs.fans(self.current_tai, action)
 
-    async def reset_drives_az(self, reset: typing.List[int]) -> None:
+    async def reset_drives_az(self, reset: typing.List[int]) -> float:
         """Reset one or more AZ drives.
 
         Parameters
@@ -722,6 +724,24 @@ class MockMTDomeController:
         assert self.amcs is not None
         return await self.amcs.reset_drives_az(self.current_tai, reset)
 
+    async def reset_drives_shutter(self, reset: typing.List[int]) -> None:
+        """Reset one or more Aperture Shutter drives.
+
+        Parameters
+        ----------
+        reset: array of int
+            Desired reset action to execute on each Aperture Shutter drive: 0
+            means don't reset, 1 means reset.
+
+        Notes
+        -----
+        This is necessary when exiting from FAULT state without going to
+        Degraded Mode since the drives don't reset themselves.
+        The number of values in the reset parameter is not validated.
+        """
+        assert self.apscs is not None
+        await self.apscs.reset_drives_shutter(reset)
+
     async def calibrate_az(self) -> float:
         """Take the current position of the dome as zero. This is necessary as
         long as the racks, pinions and encoders on the drives have not been
@@ -734,6 +754,15 @@ class MockMTDomeController:
         """
         assert self.amcs is not None
         return await self.amcs.calibrate_az(self.current_tai)
+
+    async def search_zero_shutter(self) -> None:
+        """Search the zero position of the Aperture Shutter, which is the
+        closed position. This is necessary in case the ApSCS (Aperture Shutter
+        Control system) was shutdown with the Aperture Shutter not fully open
+        or fully closed.
+        """
+        assert self.apscs is not None
+        await self.apscs.search_zero_shutter()
 
 
 async def main() -> None:

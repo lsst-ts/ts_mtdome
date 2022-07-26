@@ -447,18 +447,21 @@ class AzimuthMotion(BaseLlcMotion):
         if True in self.drives_in_error_state:
             raise RuntimeError("Make sure to reset drives before exiting from fault.")
 
-        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
-            tai=start_tai
-        )
-        self._start_tai = start_tai
-        self._start_position = self._error_state_position
-        self._end_position = self._error_state_position
-        self._crawl_velocity = 0.0
-        self._current_motion_state = motion_state
-        self._commanded_motion_state = LlcMotionState.STATIONARY
-        self.motion_state_in_error = False
-        self._error_start_tai = 0.0
-        self._error_state_position = 0.0
+        if self.motion_state_in_error:
+            (
+                position,
+                velocity,
+                motion_state,
+            ) = self.get_position_velocity_and_motion_state(tai=start_tai)
+            self._start_tai = start_tai
+            self._start_position = self._error_state_position
+            self._end_position = self._error_state_position
+            self._crawl_velocity = 0.0
+            self._current_motion_state = motion_state
+            self._commanded_motion_state = LlcMotionState.STATIONARY
+            self.motion_state_in_error = False
+            self._error_start_tai = 0.0
+            self._error_state_position = 0.0
         return 0.0
 
     def reset_drives_az(self, start_tai: float, reset: typing.List[int]) -> float:

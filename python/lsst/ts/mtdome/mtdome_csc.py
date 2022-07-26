@@ -686,6 +686,20 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         reset_ints = [int(value) for value in data.reset]
         await self.write_then_read_reply(command="resetDrivesAz", reset=reset_ints)
 
+    async def do_resetDrivesShutter(self, data: SimpleNamespace) -> None:
+        """Reset one or more Aperture Shutter drives. This is necessary when
+        exiting from FAULT state without going to Degraded Mode since the
+        drives don't reset themselves.
+
+        Parameters
+        ----------
+        data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        reset_ints = [int(value) for value in data.reset]
+        await self.write_then_read_reply(command="resetDrivesShutter", reset=reset_ints)
+
     async def do_setZeroAz(self, data: SimpleNamespace) -> None:
         """Take the current position of the dome as zero. This is necessary as
         long as the racks and pinions on the drives have not been installed yet
@@ -698,6 +712,20 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         await self.write_then_read_reply(command="calibrateAz")
+
+    async def do_searchZeroShutter(self, data: SimpleNamespace) -> None:
+        """Search the zero position of the Aperture Shutter, which is the
+        closed position. This is necessary in case the ApSCS (Aperture Shutter
+        Control system) was shutdown with the Aperture Shutter not fully open
+        or fully closed.
+
+        Parameters
+        ----------
+        data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        await self.write_then_read_reply(command="searchZeroShutter")
 
     async def config_llcs(self, system: str, settings: typing.Dict[str, float]) -> None:
         """Config command not to be executed by SAL.
