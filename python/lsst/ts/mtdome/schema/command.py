@@ -78,7 +78,9 @@ registry["command"] = json.loads(
         "statusThCS",
         "exitFault",
         "resetDrivesAz",
-        "calibrateAz"
+        "calibrateAz",
+        "resetDrivesShutter",
+        "searchZeroShutter"
       ]
     }
   },
@@ -882,6 +884,55 @@ registry["command"] = json.loads(
         "properties": {
           "command": {
             "const": "calibrateAz"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "resetDrivesShutter"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "reset": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "items": [
+                  {
+                    "type": "integer"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "reset"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "searchZeroShutter"
           }
         }
       },
