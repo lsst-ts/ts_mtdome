@@ -88,7 +88,7 @@ class MockMTDomeController:
         # The function is called with:
         # * No arguments, if `has_argument` False.
         # * The argument as a string, if `has_argument` is True.
-        self.dispatch_dict: typing.Dict[str, typing.Callable] = {
+        self.dispatch_dict: dict[str, typing.Callable] = {
             "calibrateAz": self.calibrate_az,
             "closeLouvers": self.close_louvers,
             "closeShutter": self.close_shutter,
@@ -455,7 +455,7 @@ class MockMTDomeController:
         assert self.lwscs is not None
         return await self.lwscs.crawlEl(velocity, self.current_tai)
 
-    async def set_louvers(self, position: typing.List[float]) -> None:
+    async def set_louvers(self, position: list[float]) -> None:
         """Set the positions of the louvers.
 
         Parameters
@@ -492,7 +492,7 @@ class MockMTDomeController:
         assert self.apscs is not None
         await self.apscs.stopShutter()
 
-    async def config(self, system: str, settings: typing.Dict) -> None:
+    async def config(self, system: str, settings: dict) -> None:
         """Configure the lower level components.
 
         Parameters
@@ -701,7 +701,7 @@ class MockMTDomeController:
         assert self.amcs is not None
         await self.amcs.fans(self.current_tai, action)
 
-    async def reset_drives_az(self, reset: typing.List[int]) -> float:
+    async def reset_drives_az(self, reset: list[int]) -> float:
         """Reset one or more AZ drives.
 
         Parameters
@@ -724,7 +724,7 @@ class MockMTDomeController:
         assert self.amcs is not None
         return await self.amcs.reset_drives_az(self.current_tai, reset)
 
-    async def reset_drives_shutter(self, reset: typing.List[int]) -> None:
+    async def reset_drives_shutter(self, reset: list[int]) -> None:
         """Reset one or more Aperture Shutter drives.
 
         Parameters

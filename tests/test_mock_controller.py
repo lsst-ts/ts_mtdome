@@ -726,7 +726,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def prepare_louvers(
-        self, louver_ids: typing.List[int], target_positions: typing.List[float]
+        self, louver_ids: list[int], target_positions: list[float]
     ) -> None:
         """Utility method for preparing the louvers for easier testing.
 
@@ -763,7 +763,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
     async def verify_louvers(
-        self, louver_ids: typing.List[int], target_positions: typing.List[float]
+        self, louver_ids: list[int], target_positions: list[float]
     ) -> None:
         """Utility method for verifying the positions of the louvers against
         the provided IDs and target

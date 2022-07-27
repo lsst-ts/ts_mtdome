@@ -34,16 +34,14 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
     """
 
     @abstractmethod
-    def validate(
-        self, configuration_parameters: dict
-    ) -> typing.List[typing.Dict[str, typing.Any]]:
+    def validate(self, configuration_parameters: dict) -> list[dict[str, typing.Any]]:
         pass
 
     def validate_common_parameters(
         self,
         configuration_parameters: dict,
         common_limits: dict,
-    ) -> typing.List[typing.Dict[str, typing.Any]]:
+    ) -> list[dict[str, typing.Any]]:
         """Validate the data are against the configuration limits of the lower
         level component.
 

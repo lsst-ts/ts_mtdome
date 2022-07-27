@@ -23,7 +23,6 @@ __all__ = ["AmcsStatus", "PARK_POSITION"]
 
 import logging
 import math
-import typing
 
 import numpy as np
 
@@ -329,7 +328,7 @@ class AmcsStatus(BaseMockStatus):
         self.end_tai = start_tai + duration
         return duration
 
-    async def reset_drives_az(self, start_tai: float, reset: typing.List[int]) -> float:
+    async def reset_drives_az(self, start_tai: float, reset: list[int]) -> float:
         """Reset one or more AZ drives.
 
         Parameters
@@ -379,9 +378,7 @@ class AmcsStatus(BaseMockStatus):
         self.end_tai = start_tai + duration
         return duration
 
-    async def set_fault(
-        self, start_tai: float, drives_in_error: typing.List[int]
-    ) -> None:
+    async def set_fault(self, start_tai: float, drives_in_error: list[int]) -> None:
         """Set the LlcMotionState of AMCS to fault and set the drives in
         drives_in_error to error.
 
