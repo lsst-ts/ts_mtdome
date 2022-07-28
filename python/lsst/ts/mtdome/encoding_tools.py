@@ -54,7 +54,7 @@ def encode(**params: typing.Any) -> str:
     return json.dumps({**params})
 
 
-def decode(st: str) -> typing.Dict[str, typing.Any]:
+def decode(st: str) -> dict[str, typing.Any]:
     """Decode the given string.
 
     Parameters
@@ -71,7 +71,7 @@ def decode(st: str) -> typing.Dict[str, typing.Any]:
     return data
 
 
-def validate(data: typing.Dict[str, typing.Any]) -> None:
+def validate(data: dict[str, typing.Any]) -> None:
     """Validates the data against a JSON schema and logs an error in case the
     validation fails.
 

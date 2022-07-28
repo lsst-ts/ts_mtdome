@@ -87,20 +87,16 @@ _THCS_STATUS_PERIOD = 2.0
 # disabled.
 COMMANDS_DISABLED_FOR_COMMISSIONING = {
     "closeLouvers",
-    "closeShutter",
     "crawlEl",
     "fans",
     "goStationaryEl",
     "goStationaryLouvers",
-    "goStationaryShutter",
     "inflate",
     "moveEl",
-    "openShutter",
     "setLouvers",
     "setTemperature",
     "stopEl",
     "stopLouvers",
-    "stopShutter",
 }
 REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
 
@@ -175,8 +171,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
 
         # Keep the lower level statuses in memory for unit tests.
-        self.lower_level_status: typing.Dict[str, typing.Any] = {}
-        self.status_tasks: typing.List[asyncio.Future] = []
+        self.lower_level_status: dict[str, typing.Any] = {}
+        self.status_tasks: list[asyncio.Future] = []
 
         # Keep a lock so only one remote command can be executed at a time.
         self.communication_lock = asyncio.Lock()
@@ -360,7 +356,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
     async def write_then_read_reply(
         self, command: str, **params: typing.Any
-    ) -> typing.Dict[str, typing.Any]:
+    ) -> dict[str, typing.Any]:
         """Write the cmd string and then read the reply to the command.
 
         Parameters
@@ -399,9 +395,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         code=3, report=f"Error reading reply to command {st}: {e}"
                     )
                     raise
-                data: typing.Dict[str, typing.Any] = encoding_tools.decode(
-                    read_bytes.decode()
-                )
+                data = encoding_tools.decode(read_bytes.decode())
             else:
                 data = REPLY_DATA_FOR_DISABLED_COMMANDS
             response = data["response"]
@@ -690,6 +684,20 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         reset_ints = [int(value) for value in data.reset]
         await self.write_then_read_reply(command="resetDrivesAz", reset=reset_ints)
 
+    async def do_resetDrivesShutter(self, data: SimpleNamespace) -> None:
+        """Reset one or more Aperture Shutter drives. This is necessary when
+        exiting from FAULT state without going to Degraded Mode since the
+        drives don't reset themselves.
+
+        Parameters
+        ----------
+        data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        reset_ints = [int(value) for value in data.reset]
+        await self.write_then_read_reply(command="resetDrivesShutter", reset=reset_ints)
+
     async def do_setZeroAz(self, data: SimpleNamespace) -> None:
         """Take the current position of the dome as zero. This is necessary as
         long as the racks and pinions on the drives have not been installed yet
@@ -703,7 +711,21 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         await self.write_then_read_reply(command="calibrateAz")
 
-    async def config_llcs(self, system: str, settings: typing.Dict[str, float]) -> None:
+    async def do_searchZeroShutter(self, data: SimpleNamespace) -> None:
+        """Search the zero position of the Aperture Shutter, which is the
+        closed position. This is necessary in case the ApSCS (Aperture Shutter
+        Control system) was shutdown with the Aperture Shutter not fully open
+        or fully closed.
+
+        Parameters
+        ----------
+        data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        await self.write_then_read_reply(command="searchZeroShutter")
+
+    async def config_llcs(self, system: str, settings: dict[str, float]) -> None:
         """Config command not to be executed by SAL.
 
         This command will be used to send the values of one or more parameters
@@ -736,7 +758,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def restore_llcs(self) -> None:
         await self.write_then_read_reply(command="restore")
 
-    async def fans(self, data: typing.Dict[str, typing.Any]) -> None:
+    async def fans(self, data: dict[str, typing.Any]) -> None:
         """Fans command not to be executed by SAL.
 
         This command will be used to switch on or off the fans in the dome.
@@ -750,7 +772,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.write_then_read_reply(command="fans", action=data["action"])
 
-    async def inflate(self, data: typing.Dict[str, typing.Any]) -> None:
+    async def inflate(self, data: dict[str, typing.Any]) -> None:
         """Inflate command not to be executed by SAL.
 
         This command will be used to inflate or deflate the inflatable seal.
@@ -827,7 +849,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         """
         command = f"status{llc_name}"
-        status: typing.Dict[str, typing.Any] = await self.write_then_read_reply(
+        status: dict[str, typing.Any] = await self.write_then_read_reply(
             command=command
         )
 
@@ -856,8 +878,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # Store the status for reference.
         self.lower_level_status[llc_name] = status[llc_name]
 
-        telemetry_in_degrees: typing.Dict[str, typing.Any] = {}
-        telemetry_in_radians: typing.Dict[str, typing.Any] = status[llc_name]
+        telemetry_in_degrees: dict[str, typing.Any] = {}
+        telemetry_in_radians: dict[str, typing.Any] = status[llc_name]
         for key in telemetry_in_radians.keys():
             if key in _KEYS_IN_RADIANS and llc_name in [LlcName.AMCS, LlcName.LWSCS]:
                 telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
@@ -880,7 +902,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 # angle
                 telemetry_in_degrees[key] = telemetry_in_radians[key]
         # Remove some keys because they are not reported in the telemetry.
-        telemetry: typing.Dict[str, typing.Any] = self.remove_keys_from_dict(
+        telemetry: dict[str, typing.Any] = self.remove_keys_from_dict(
             telemetry_in_degrees
         )
         # Send the telemetry.
@@ -941,8 +963,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 motion_state = MotionState.STOPPED_BRAKED
 
     def remove_keys_from_dict(
-        self, dict_with_too_many_keys: typing.Dict[str, typing.Any]
-    ) -> typing.Dict[str, typing.Any]:
+        self, dict_with_too_many_keys: dict[str, typing.Any]
+    ) -> dict[str, typing.Any]:
         """
         Return a copy of a dict with specified items removed.
 

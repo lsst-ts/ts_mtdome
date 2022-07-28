@@ -58,9 +58,9 @@ STATE_SEQUENCE_STOP_MOTORS = [
 
 # Dict of allowed motion state transitions and the intermediary states between
 # those motion states, if applicable.
-STATE_TRANSITIONS: typing.Dict[
+STATE_TRANSITIONS: dict[
     typing.Tuple[LlcMotionState, LlcMotionState],
-    typing.List[typing.Tuple[IntermediateState, float]],
+    list[typing.Tuple[IntermediateState, float]],
 ] = {
     (LlcMotionState.PARKED, LlcMotionState.MOVING): STATE_SEQUENCE_START_MOTORS,
     (LlcMotionState.PARKED, LlcMotionState.CRAWLING): STATE_SEQUENCE_START_MOTORS,
@@ -447,21 +447,24 @@ class AzimuthMotion(BaseLlcMotion):
         if True in self.drives_in_error_state:
             raise RuntimeError("Make sure to reset drives before exiting from fault.")
 
-        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
-            tai=start_tai
-        )
-        self._start_tai = start_tai
-        self._start_position = self._error_state_position
-        self._end_position = self._error_state_position
-        self._crawl_velocity = 0.0
-        self._current_motion_state = motion_state
-        self._commanded_motion_state = LlcMotionState.STATIONARY
-        self.motion_state_in_error = False
-        self._error_start_tai = 0.0
-        self._error_state_position = 0.0
+        if self.motion_state_in_error:
+            (
+                position,
+                velocity,
+                motion_state,
+            ) = self.get_position_velocity_and_motion_state(tai=start_tai)
+            self._start_tai = start_tai
+            self._start_position = self._error_state_position
+            self._end_position = self._error_state_position
+            self._crawl_velocity = 0.0
+            self._current_motion_state = motion_state
+            self._commanded_motion_state = LlcMotionState.STATIONARY
+            self.motion_state_in_error = False
+            self._error_start_tai = 0.0
+            self._error_state_position = 0.0
         return 0.0
 
-    def reset_drives_az(self, start_tai: float, reset: typing.List[int]) -> float:
+    def reset_drives_az(self, start_tai: float, reset: list[int]) -> float:
         """Reset one or more AZ drives.
 
         Parameters
@@ -518,7 +521,7 @@ class AzimuthMotion(BaseLlcMotion):
         self._commanded_motion_state = self._current_motion_state
         return 0.0
 
-    def set_fault(self, start_tai: float, drives_in_error: typing.List[int]) -> None:
+    def set_fault(self, start_tai: float, drives_in_error: list[int]) -> None:
         """Set the LlcMotionState of AMCS to fault and set the drives in
         drives_in_error to error.
 

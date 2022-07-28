@@ -20,11 +20,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
-import typing
 
 from .registry import registry
 
-__all__: typing.List[str] = []
+__all__: list[str] = []
 
 registry["command"] = json.loads(
     """
@@ -78,7 +77,9 @@ registry["command"] = json.loads(
         "statusThCS",
         "exitFault",
         "resetDrivesAz",
-        "calibrateAz"
+        "calibrateAz",
+        "resetDrivesShutter",
+        "searchZeroShutter"
       ]
     }
   },
@@ -882,6 +883,55 @@ registry["command"] = json.loads(
         "properties": {
           "command": {
             "const": "calibrateAz"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "resetDrivesShutter"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "reset": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "items": [
+                  {
+                    "type": "integer"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "reset"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "searchZeroShutter"
           }
         }
       },
