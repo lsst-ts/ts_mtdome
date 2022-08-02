@@ -920,7 +920,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         apscs_status = self.data[mtdome.LlcName.APSCS.value]
         if status is not None:
-            assert apscs_status["status"]["status"] == status.name
+            assert apscs_status["status"]["status"] == [status.name, status.name]
         if position_actual is not None:
             assert apscs_status["positionActual"] == position_actual
         if position_commanded is not None:
@@ -1191,11 +1191,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         assert amcs_status["status"]["status"] == mtdome.LlcMotionState.PARKED.name
         assert amcs_status["positionActual"] == 0
 
-        await self.write(command="statusApSCS", parameters={})
-        self.data = await self.read()
-        apscs_status = self.data[mtdome.LlcName.APSCS.value]
-        assert apscs_status["status"]["status"] == mtdome.LlcMotionState.CLOSED.name
-        assert apscs_status["positionActual"] == [0.0, 0.0]
+        await self.validate_apscs(
+            status=mtdome.LlcMotionState.CLOSED, position_actual=[0.0, 0.0]
+        )
 
         await self.write(command="statusLCS", parameters={})
         self.data = await self.read()

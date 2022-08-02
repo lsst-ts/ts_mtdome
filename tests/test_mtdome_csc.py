@@ -121,6 +121,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         await self.assert_next_sample(
             topic=self.remote.evt_elEnabled, state=EnabledState.ENABLED
         )
+        await self.assert_next_sample(
+            topic=self.remote.evt_shutterEnabled, state=EnabledState.ENABLED
+        )
         await self.assert_next_sample(topic=self.remote.evt_brakesEngaged, brakes=0)
         await self.assert_next_sample(topic=self.remote.evt_interlocks, interlocks=0)
         await self.assert_next_sample(
@@ -750,7 +753,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.csc.statusApSCS()
             apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
-            assert apscs_status["status"]["status"] == MotionState.CLOSED.name
+            assert apscs_status["status"]["status"] == [
+                MotionState.CLOSED.name,
+                MotionState.CLOSED.name,
+            ]
             assert apscs_status["positionActual"] == [0.0, 0.0]
 
             await self.csc.statusLCS()
@@ -889,10 +895,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.csc.statusApSCS()
             apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
-            assert (
-                apscs_status["status"]["status"]
-                == mtdome.LlcMotionState.STATIONARY.name
-            )
+            assert apscs_status["status"]["status"] == [
+                mtdome.LlcMotionState.STATIONARY.name,
+                mtdome.LlcMotionState.STATIONARY.name,
+            ]
             assert apscs_status["positionActual"] == [0.0, 0.0]
 
             await self.csc.statusLCS()
