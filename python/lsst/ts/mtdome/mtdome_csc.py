@@ -834,6 +834,59 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.request_and_send_llc_status(LlcName.THCS, self.tel_thermal)
 
+    async def _check_errors_and_send_events_az(self, status: dict[str, typing.Any]):
+        llc_status = status[llc_name]["status"]
+        messages = llc_status["messages"]
+        codes = [message["code"] for message in messages]
+        if len(messages) != 1 or codes[0] != 0:
+            fault_code = ", ".join(
+                [f"{message['code']}={message['description']}" for message in messages]
+            )
+            await self.evt_azEnabled.set_write(
+                state=EnabledState.FAULT, faultCode=fault_code
+            )
+        else:
+            if llc_status["status"] == LlcMotionState.STATIONARY.name:
+                motion_state = MotionState.STOPPED_BRAKED
+            else:
+                motion_state = MotionState[llc_status["status"]]
+            in_position = False
+            if motion_state in [
+                MotionState.STOPPED,
+                MotionState.STOPPED_BRAKED,
+                MotionState.CRAWLING,
+                MotionState.PARKED,
+            ]:
+                in_position = True
+
+            # In case of some unit tests, this event is expected to be
+            # emitted twice with the same data.
+            await self.evt_azMotion.set_write(
+                state=motion_state, inPosition=in_position
+            )
+
+    async def _check_errors_and_send_events_el(self, status: dict[str, typing.Any]):
+        llc_status = status[llc_name]["status"]
+        if llc_status["status"] == LlcMotionState.STATIONARY.name:
+            motion_state = MotionState.STOPPED_BRAKED
+        else:
+            motion_state = MotionState[llc_status["status"]]
+        in_position = False
+        if motion_state in [
+            MotionState.STOPPED,
+            MotionState.STOPPED_BRAKED,
+            MotionState.CRAWLING,
+        ]:
+            in_position = True
+        await self.evt_elMotion.set_write(state=motion_state, inPosition=in_position)
+
+    async def _check_errors_and_send_events_shutter(
+        self, status: dict[str, typing.Any]
+    ):
+        llc_status = status[llc_name]["status"]
+        if llc_status["status"] == LlcMotionState.STATIONARY.name:
+            motion_state = MotionState.STOPPED_BRAKED
+
     async def request_and_send_llc_status(
         self, llc_name: LlcName, topic: SimpleNamespace
     ) -> None:
@@ -910,53 +963,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # DM-26374: Check for errors and send the events.
         if llc_name == LlcName.AMCS:
-            llc_status = status[llc_name]["status"]
-            messages = llc_status["messages"]
-            codes = [message["code"] for message in messages]
-            if len(messages) != 1 or codes[0] != 0:
-                fault_code = ", ".join(
-                    [
-                        f"{message['code']}={message['description']}"
-                        for message in messages
-                    ]
-                )
-                await self.evt_azEnabled.set_write(
-                    state=EnabledState.FAULT, faultCode=fault_code
-                )
-            else:
-                if llc_status["status"] == LlcMotionState.STATIONARY.name:
-                    motion_state = MotionState.STOPPED_BRAKED
-                else:
-                    motion_state = MotionState[llc_status["status"]]
-                in_position = False
-                if motion_state in [
-                    MotionState.STOPPED,
-                    MotionState.CRAWLING,
-                    MotionState.PARKED,
-                ]:
-                    in_position = True
-
-                # In case of some unit tests, this event is expected to be
-                # emitted twice with the same data.
-                await self.evt_azMotion.set_write(
-                    state=motion_state, inPosition=in_position
-                )
+            await self._check_errors_and_send_events_az(status)
         elif llc_name == LlcName.LWSCS:
-            llc_status = status[llc_name]["status"]
-            if llc_status["status"] == LlcMotionState.STATIONARY.name:
-                motion_state = MotionState.STOPPED_BRAKED
-            else:
-                motion_state = MotionState[llc_status["status"]]
-            in_position = False
-            if motion_state in [
-                MotionState.STOPPED,
-                MotionState.CRAWLING,
-            ]:
-                in_position = True
-            await self.evt_elMotion.set_write(
-                state=motion_state, inPosition=in_position
-            )
-        elif llc_name in [LlcName.APSCS, LlcName.LCS, LlcName.THCS]:
+            await self._check_errors_and_send_events_el(status)
+        elif llc_name == LlcName.APSCS:
+            await self._check_errors_and_send_events_shutter(status)
+        elif llc_name in [LlcName.LCS, LlcName.THCS]:
             # LCS and MONCS do not set this status yet.
             llc_status = status[llc_name]["status"]
             if llc_status["status"] == LlcMotionState.STATIONARY.name:
