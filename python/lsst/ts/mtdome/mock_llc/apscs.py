@@ -42,7 +42,7 @@ class ApscsStatus(BaseMockStatus):
         self.log = logging.getLogger("MockApscsStatus")
 
         # Variables holding the status of the mock Aperture Shutter
-        self.status = LlcMotionState.CLOSED
+        self.status = [LlcMotionState.CLOSED, LlcMotionState.CLOSED]
         self.messages = [{"code": 0, "description": "No Errors"}]
         self.position_actual = np.zeros(NUM_SHUTTERS, dtype=float)
         self.position_commanded = 0.0
@@ -70,7 +70,7 @@ class ApscsStatus(BaseMockStatus):
         self.llc_status = {
             "status": {
                 "messages": self.messages,
-                "status": self.status.name,
+                "status": [s.name for s in self.status],
                 "operationalMode": self.operational_mode.name,
             },
             "positionActual": self.position_actual.tolist(),
@@ -89,7 +89,7 @@ class ApscsStatus(BaseMockStatus):
     async def openShutter(self) -> None:
         """Open the shutter."""
         self.command_time_tai = utils.current_tai()
-        self.status = LlcMotionState.OPEN
+        self.status = [LlcMotionState.OPEN, LlcMotionState.OPEN]
         # Both positions are expressed in percentage.
         self.position_actual = np.full(NUM_SHUTTERS, 100.0, dtype=float)
         self.position_commanded = 100.0
@@ -97,7 +97,7 @@ class ApscsStatus(BaseMockStatus):
     async def closeShutter(self) -> None:
         """Close the shutter."""
         self.command_time_tai = utils.current_tai()
-        self.status = LlcMotionState.CLOSED
+        self.status = [LlcMotionState.CLOSED, LlcMotionState.CLOSED]
         # Both positions are expressed in percentage.
         self.position_actual = np.zeros(NUM_SHUTTERS, dtype=float)
         self.position_commanded = 0.0
@@ -105,12 +105,12 @@ class ApscsStatus(BaseMockStatus):
     async def stopShutter(self) -> None:
         """Stop all motion of the shutter."""
         self.command_time_tai = utils.current_tai()
-        self.status = LlcMotionState.STOPPED
+        self.status = [LlcMotionState.STOPPED, LlcMotionState.STOPPED]
 
     async def go_stationary(self) -> None:
         """Stop shutter motion and engage the brakes."""
         self.command_time_tai = utils.current_tai()
-        self.status = LlcMotionState.STATIONARY
+        self.status = [LlcMotionState.STATIONARY, LlcMotionState.STATIONARY]
 
     async def reset_drives_shutter(self, reset: list[int]) -> None:
         """Reset one or more Aperture Shutter drives.
@@ -145,7 +145,7 @@ class ApscsStatus(BaseMockStatus):
         if True in self.drives_in_error_state:
             raise RuntimeError("Make sure to reset drives before exiting from fault.")
 
-        self.status = LlcMotionState.STATIONARY
+        self.status = [LlcMotionState.STATIONARY, LlcMotionState.STATIONARY]
         self.motion_state_in_error = False
 
     async def set_fault(self, drives_in_error: list[int]) -> None:
@@ -164,7 +164,7 @@ class ApscsStatus(BaseMockStatus):
         receive. It is intended to be set by unit test cases.
         """
         self.motion_state_in_error = True
-        self.status = LlcMotionState.ERROR
+        self.status = [LlcMotionState.ERROR, LlcMotionState.ERROR]
         for i, val in enumerate(drives_in_error):
             if val == 1:
                 self.drives_in_error_state[i] = True

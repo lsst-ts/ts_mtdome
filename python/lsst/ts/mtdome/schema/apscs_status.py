@@ -63,7 +63,14 @@ registry["ApSCS"] = json.loads(
               "additionalProperties": false
             },
             "status": {
-              "type": "string"
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": [
+                {
+                  "type": "string"
+                }
+              ]
             },
             "operationalMode": {
               "type": "string"
