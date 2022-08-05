@@ -27,20 +27,19 @@ import typing
 from types import SimpleNamespace
 
 import numpy as np
-
-from .config_schema import CONFIG_SCHEMA
-from . import __version__, encoding_tools
-from .llc_configuration_limits import AmcsLimits, LwscsLimits
-from .enums import LlcMotionState, LlcName, ResponseCode, LlcNameDict
-from lsst.ts import salobj
-from lsst.ts import utils
-from .mock_controller import MockMTDomeController
+from lsst.ts import salobj, utils
 from lsst.ts.idl.enums.MTDome import (
     EnabledState,
     MotionState,
     OperationalMode,
     SubSystemId,
 )
+
+from . import __version__, encoding_tools
+from .config_schema import CONFIG_SCHEMA
+from .enums import LlcMotionState, LlcName, LlcNameDict, ResponseCode
+from .llc_configuration_limits import AmcsLimits, LwscsLimits
+from .mock_controller import MockMTDomeController
 
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout [sec] to be used by this module

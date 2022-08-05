@@ -26,9 +26,9 @@ import math
 
 import numpy as np
 
-from .base_mock_llc import BaseMockStatus
-from ..llc_configuration_limits.lwscs_limits import LwscsLimits
 from ..enums import LlcMotionState
+from ..llc_configuration_limits.lwscs_limits import LwscsLimits
+from .base_mock_llc import BaseMockStatus
 from .mock_motion.elevation_motion import ElevationMotion
 
 _NUM_MOTORS = 2

@@ -22,11 +22,12 @@
 __all__ = ["ThcsStatus", "NUM_THERMO_SENSORS"]
 
 import logging
-import numpy as np
 
+import numpy as np
 from lsst.ts import utils
-from .base_mock_llc import BaseMockStatus
+
 from ..enums import LlcMotionState
+from .base_mock_llc import BaseMockStatus
 
 NUM_THERMO_SENSORS = 13
 

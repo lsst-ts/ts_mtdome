@@ -22,11 +22,12 @@
 __all__ = ["ApscsStatus", "NUM_SHUTTERS"]
 
 import logging
-import numpy as np
 
+import numpy as np
 from lsst.ts import utils
-from .base_mock_llc import BaseMockStatus
+
 from ..enums import LlcMotionState
+from .base_mock_llc import BaseMockStatus
 
 NUM_SHUTTERS = 2
 _NUM_MOTORS = 4

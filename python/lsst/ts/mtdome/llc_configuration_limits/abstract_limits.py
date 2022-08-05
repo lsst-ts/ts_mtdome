@@ -21,8 +21,8 @@
 
 __all__ = ["AbstractLimits"]
 
-from abc import ABC, abstractmethod
 import typing
+from abc import ABC, abstractmethod
 
 
 class AbstractLimits(ABC):

@@ -27,7 +27,6 @@ import unittest
 
 import numpy as np
 import pytest
-
 from lsst.ts import mtdome
 from lsst.ts.idl.enums.MTDome import OperationalMode
 

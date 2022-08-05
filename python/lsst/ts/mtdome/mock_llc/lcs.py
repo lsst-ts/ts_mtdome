@@ -22,11 +22,12 @@
 __all__ = ["LcsStatus", "NUM_LOUVERS"]
 
 import logging
-import numpy as np
 
+import numpy as np
 from lsst.ts import utils
-from .base_mock_llc import BaseMockStatus
+
 from ..enums import LlcMotionState
+from .base_mock_llc import BaseMockStatus
 
 NUM_LOUVERS = 34
 _NUM_MOTORS = 68

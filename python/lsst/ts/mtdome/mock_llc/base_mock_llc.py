@@ -21,9 +21,9 @@
 
 __all__ = ["BaseMockStatus"]
 
-from abc import ABC, abstractmethod
 import logging
 import typing
+from abc import ABC, abstractmethod
 
 from lsst.ts.idl.enums.MTDome import OperationalMode
 
