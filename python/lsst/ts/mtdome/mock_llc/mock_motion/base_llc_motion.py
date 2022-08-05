@@ -21,11 +21,11 @@
 
 import math
 import typing
-
 from abc import ABC, abstractmethod
 
-from ...enums import LlcMotionState
 from lsst.ts import utils
+
+from ...enums import LlcMotionState
 
 
 class BaseLlcMotion(ABC):

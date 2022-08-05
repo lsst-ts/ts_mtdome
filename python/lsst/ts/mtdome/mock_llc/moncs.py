@@ -22,10 +22,11 @@
 __all__ = ["MoncsStatus", "NUM_MON_SENSORS"]
 
 import logging
+
 import numpy as np
 
-from .base_mock_llc import BaseMockStatus
 from ..enums import LlcMotionState
+from .base_mock_llc import BaseMockStatus
 
 NUM_MON_SENSORS = 16
 

@@ -22,12 +22,12 @@
 __all__ = ["LcsStatus", "NUM_LOUVERS"]
 
 import logging
-import numpy as np
-import typing
 
+import numpy as np
 from lsst.ts import utils
-from .base_mock_llc import BaseMockStatus
+
 from ..enums import LlcMotionState
+from .base_mock_llc import BaseMockStatus
 
 NUM_LOUVERS = 34
 _NUM_MOTORS = 68
@@ -86,7 +86,7 @@ class LcsStatus(BaseMockStatus):
         }
         self.log.debug(f"lcs_state = {self.llc_status}")
 
-    async def setLouvers(self, position: typing.List[float]) -> None:
+    async def setLouvers(self, position: list[float]) -> None:
         """Set the position of the louver with the given louver_id.
 
         Parameters

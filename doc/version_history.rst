@@ -6,6 +6,32 @@
 Version History
 ###############
 
+v1.10.0
+======
+* Sort imports with isort.
+* Install new pre-commit hooks.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.1
+
+v1.9.0
+======
+* Re-enable the shutter commands.
+* Add the searchZeroShutter and resetDrivesShutter commands.
+* Add support for multiple Python versions for conda.
+* Modernize type annotations.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.1
+
 v1.8.0
 ======
 * Modernize pre-commit config versions.

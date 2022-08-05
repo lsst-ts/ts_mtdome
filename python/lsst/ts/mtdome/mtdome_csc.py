@@ -26,19 +26,20 @@ import math
 import typing
 from types import SimpleNamespace
 
-from .config_schema import CONFIG_SCHEMA
-from . import __version__, encoding_tools
-from .llc_configuration_limits import AmcsLimits, LwscsLimits
-from .enums import LlcMotionState, LlcName, ResponseCode, LlcNameDict
-from lsst.ts import salobj
-from lsst.ts import utils
-from .mock_controller import MockMTDomeController
+import numpy as np
+from lsst.ts import salobj, utils
 from lsst.ts.idl.enums.MTDome import (
     EnabledState,
     MotionState,
     OperationalMode,
     SubSystemId,
 )
+
+from . import __version__, encoding_tools
+from .config_schema import CONFIG_SCHEMA
+from .enums import LlcMotionState, LlcName, LlcNameDict, ResponseCode
+from .llc_configuration_limits import AmcsLimits, LwscsLimits
+from .mock_controller import MockMTDomeController
 
 _LOCAL_HOST = "127.0.0.1"
 _TIMEOUT = 20  # timeout [sec] to be used by this module
@@ -63,6 +64,9 @@ _KEYS_IN_RADIANS = {
     "velocityActual",
     "velocityCommanded",
 }.union(_AMCS_KEYS_OFFSET)
+# The values of the following ApSCS keys are lists and also need to be
+# converted from radians to degrees.
+_APSCS_LIST_KEYS_IN_RADIANS = {"positionActual"}
 
 # The offset of the dome rotation zero point with respect to azimuth 0º (true
 # north) is 32º west and the aperture lies at the opposite side of the dome.
@@ -73,7 +77,7 @@ DOME_AZIMUTH_OFFSET = 148.0
 
 # Polling periods [sec] for the lower level components.
 _AMCS_STATUS_PERIOD = 0.2
-_APsCS_STATUS_PERIOD = 2.0
+_APSCS_STATUS_PERIOD = 2.0
 _LCS_STATUS_PERIOD = 2.0
 _LWSCS_STATUS_PERIOD = 2.0
 _MONCS_STATUS_PERIOD = 2.0
@@ -87,20 +91,16 @@ _THCS_STATUS_PERIOD = 2.0
 # disabled.
 COMMANDS_DISABLED_FOR_COMMISSIONING = {
     "closeLouvers",
-    "closeShutter",
     "crawlEl",
     "fans",
     "goStationaryEl",
     "goStationaryLouvers",
-    "goStationaryShutter",
     "inflate",
     "moveEl",
-    "openShutter",
     "setLouvers",
     "setTemperature",
     "stopEl",
     "stopLouvers",
-    "stopShutter",
 }
 REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
 
@@ -175,8 +175,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
 
         # Keep the lower level statuses in memory for unit tests.
-        self.lower_level_status: typing.Dict[str, typing.Any] = {}
-        self.status_tasks: typing.List[asyncio.Future] = []
+        self.lower_level_status: dict[str, typing.Any] = {}
+        self.status_tasks: list[asyncio.Future] = []
 
         # Keep a lock so only one remote command can be executed at a time.
         self.communication_lock = asyncio.Lock()
@@ -258,8 +258,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # DM-26374: Send enabled events for az and el since they are always
         # enabled.
+        # DM-35794: Also send enabled event for Aperture Shutter.
         await self.evt_azEnabled.set_write(state=EnabledState.ENABLED)
         await self.evt_elEnabled.set_write(state=EnabledState.ENABLED)
+        await self.evt_shutterEnabled.set_write(state=EnabledState.ENABLED)
 
         # DM-26374: Send events for the brakes, interlocks and locking pins
         # with a default value of 0 (meaning nothing engaged) until the
@@ -285,7 +287,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.cancel_status_tasks()
         for method, interval in (
             (self.statusAMCS, _AMCS_STATUS_PERIOD),
-            (self.statusApSCS, _APsCS_STATUS_PERIOD),
+            (self.statusApSCS, _APSCS_STATUS_PERIOD),
             (self.statusLCS, _LCS_STATUS_PERIOD),
             (self.statusLWSCS, _LWSCS_STATUS_PERIOD),
             (self.statusMonCS, _MONCS_STATUS_PERIOD),
@@ -360,7 +362,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
     async def write_then_read_reply(
         self, command: str, **params: typing.Any
-    ) -> typing.Dict[str, typing.Any]:
+    ) -> dict[str, typing.Any]:
         """Write the cmd string and then read the reply to the command.
 
         Parameters
@@ -399,9 +401,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         code=3, report=f"Error reading reply to command {st}: {e}"
                     )
                     raise
-                data: typing.Dict[str, typing.Any] = encoding_tools.decode(
-                    read_bytes.decode()
-                )
+                data = encoding_tools.decode(read_bytes.decode())
             else:
                 data = REPLY_DATA_FOR_DISABLED_COMMANDS
             response = data["response"]
@@ -690,6 +690,20 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         reset_ints = [int(value) for value in data.reset]
         await self.write_then_read_reply(command="resetDrivesAz", reset=reset_ints)
 
+    async def do_resetDrivesShutter(self, data: SimpleNamespace) -> None:
+        """Reset one or more Aperture Shutter drives. This is necessary when
+        exiting from FAULT state without going to Degraded Mode since the
+        drives don't reset themselves.
+
+        Parameters
+        ----------
+        data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        reset_ints = [int(value) for value in data.reset]
+        await self.write_then_read_reply(command="resetDrivesShutter", reset=reset_ints)
+
     async def do_setZeroAz(self, data: SimpleNamespace) -> None:
         """Take the current position of the dome as zero. This is necessary as
         long as the racks and pinions on the drives have not been installed yet
@@ -703,7 +717,21 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         await self.write_then_read_reply(command="calibrateAz")
 
-    async def config_llcs(self, system: str, settings: typing.Dict[str, float]) -> None:
+    async def do_searchZeroShutter(self, data: SimpleNamespace) -> None:
+        """Search the zero position of the Aperture Shutter, which is the
+        closed position. This is necessary in case the ApSCS (Aperture Shutter
+        Control system) was shutdown with the Aperture Shutter not fully open
+        or fully closed.
+
+        Parameters
+        ----------
+        data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        await self.write_then_read_reply(command="searchZeroShutter")
+
+    async def config_llcs(self, system: str, settings: dict[str, float]) -> None:
         """Config command not to be executed by SAL.
 
         This command will be used to send the values of one or more parameters
@@ -736,7 +764,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def restore_llcs(self) -> None:
         await self.write_then_read_reply(command="restore")
 
-    async def fans(self, data: typing.Dict[str, typing.Any]) -> None:
+    async def fans(self, data: dict[str, typing.Any]) -> None:
         """Fans command not to be executed by SAL.
 
         This command will be used to switch on or off the fans in the dome.
@@ -750,7 +778,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.write_then_read_reply(command="fans", action=data["action"])
 
-    async def inflate(self, data: typing.Dict[str, typing.Any]) -> None:
+    async def inflate(self, data: dict[str, typing.Any]) -> None:
         """Inflate command not to be executed by SAL.
 
         This command will be used to inflate or deflate the inflatable seal.
@@ -812,6 +840,115 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.request_and_send_llc_status(LlcName.THCS, self.tel_thermal)
 
+    async def _check_errors_and_send_events_az(
+        self, llc_status: dict[str, typing.Any]
+    ) -> None:
+        messages = llc_status["messages"]
+        codes = [message["code"] for message in messages]
+        if len(messages) != 1 or codes[0] != 0:
+            fault_code = ", ".join(
+                [f"{message['code']}={message['description']}" for message in messages]
+            )
+            await self.evt_azEnabled.set_write(
+                state=EnabledState.FAULT, faultCode=fault_code
+            )
+        else:
+            if llc_status["status"] == LlcMotionState.STATIONARY.name:
+                motion_state = MotionState.STOPPED_BRAKED
+            else:
+                motion_state = MotionState[llc_status["status"]]
+            in_position = False
+            if motion_state in [
+                MotionState.STOPPED,
+                MotionState.STOPPED_BRAKED,
+                MotionState.CRAWLING,
+                MotionState.PARKED,
+            ]:
+                in_position = True
+
+            # In case of some unit tests, this event is expected to be
+            # emitted twice with the same data.
+            await self.evt_azMotion.set_write(
+                state=motion_state, inPosition=in_position
+            )
+
+    async def _check_errors_and_send_events_el(
+        self, llc_status: dict[str, typing.Any]
+    ) -> None:
+        messages = llc_status["messages"]
+        codes = [message["code"] for message in messages]
+        if len(messages) != 1 or codes[0] != 0:
+            fault_code = ", ".join(
+                [f"{message['code']}={message['description']}" for message in messages]
+            )
+            await self.evt_elEnabled.set_write(
+                state=EnabledState.FAULT, faultCode=fault_code
+            )
+        else:
+            if llc_status["status"] == LlcMotionState.STATIONARY.name:
+                motion_state = MotionState.STOPPED_BRAKED
+            else:
+                motion_state = MotionState[llc_status["status"]]
+            in_position = False
+            if motion_state in [
+                MotionState.STOPPED,
+                MotionState.STOPPED_BRAKED,
+                MotionState.CRAWLING,
+            ]:
+                in_position = True
+            await self.evt_elMotion.set_write(
+                state=motion_state, inPosition=in_position
+            )
+
+    async def _check_errors_and_send_events_shutter(
+        self, llc_status: dict[str, typing.Any]
+    ) -> None:
+        messages = llc_status["messages"]
+        codes = [message["code"] for message in messages]
+        if len(messages) != 1 or codes[0] != 0:
+            fault_code = ", ".join(
+                [f"{message['code']}={message['description']}" for message in messages]
+            )
+            await self.evt_shutterEnabled.set_write(
+                state=EnabledState.FAULT, faultCode=fault_code
+            )
+        else:
+            statuses = llc_status["status"]
+            motion_state: list[str] = []
+            in_position: list[bool] = []
+            # The number of statuses has been validated by the JSON schema. So
+            # here it is safe to loop over all statuses.
+            for status in statuses:
+                if status == LlcMotionState.STATIONARY.name:
+                    motion_state.append(MotionState.STOPPED_BRAKED)
+
+                # DM-35794: The next elifs are temporary workarounds to make
+                # the CSC work with the LabVIEW state machine, which still is
+                # under development.
+                # TODO remove these workarounds and make the CSC work with
+                #  the final state machine. DM-35795
+                elif status in [
+                    "CLOSING",
+                    "OPENING",
+                    "APPROACHING_END",
+                    "STOPPING",
+                ]:
+                    motion_state.append(MotionState.MOVING)
+                elif status in ["UNDETERMINED"]:
+                    motion_state.append(MotionState.CLOSED)
+                else:
+                    motion_state.append(MotionState[status])
+                in_position.append(
+                    status
+                    in [
+                        MotionState.STOPPED,
+                        MotionState.STOPPED_BRAKED,
+                    ]
+                )
+            await self.evt_shutterMotion.set_write(
+                state=motion_state, inPosition=in_position
+            )
+
     async def request_and_send_llc_status(
         self, llc_name: LlcName, topic: SimpleNamespace
     ) -> None:
@@ -827,7 +964,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         """
         command = f"status{llc_name}"
-        status: typing.Dict[str, typing.Any] = await self.write_then_read_reply(
+        status: dict[str, typing.Any] = await self.write_then_read_reply(
             command=command
         )
 
@@ -856,8 +993,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # Store the status for reference.
         self.lower_level_status[llc_name] = status[llc_name]
 
-        telemetry_in_degrees: typing.Dict[str, typing.Any] = {}
-        telemetry_in_radians: typing.Dict[str, typing.Any] = status[llc_name]
+        telemetry_in_degrees: dict[str, typing.Any] = {}
+        telemetry_in_radians: dict[str, typing.Any] = status[llc_name]
         for key in telemetry_in_radians.keys():
             if key in _KEYS_IN_RADIANS and llc_name in [LlcName.AMCS, LlcName.LWSCS]:
                 telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
@@ -871,78 +1008,39 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         telemetry_in_degrees[key] + DOME_AZIMUTH_OFFSET
                     ).degree
                     telemetry_in_degrees[key] = offset_value
+            elif key in _APSCS_LIST_KEYS_IN_RADIANS and llc_name == LlcName.APSCS:
+                # APSCS key values that are lists can be converted from radians
+                # to degrees using numpy.
+                telemetry_in_degrees[key] = np.degrees(
+                    np.array(telemetry_in_radians[key])
+                ).tolist()
             elif key == "timestampUTC":
                 # DM-26653: The name of this parameter is still under
                 # discussion.
                 telemetry_in_degrees["timestamp"] = telemetry_in_radians["timestampUTC"]
             else:
                 # No conversion needed since the value does not express an
-                # angle
+                # angle.
                 telemetry_in_degrees[key] = telemetry_in_radians[key]
         # Remove some keys because they are not reported in the telemetry.
-        telemetry: typing.Dict[str, typing.Any] = self.remove_keys_from_dict(
+        telemetry: dict[str, typing.Any] = self.remove_keys_from_dict(
             telemetry_in_degrees
         )
         # Send the telemetry.
         await topic.set_write(**telemetry)
 
         # DM-26374: Check for errors and send the events.
+        llc_status = status[llc_name]["status"]
         if llc_name == LlcName.AMCS:
-            llc_status = status[llc_name]["status"]
-            messages = llc_status["messages"]
-            codes = [message["code"] for message in messages]
-            if len(messages) != 1 or codes[0] != 0:
-                fault_code = ", ".join(
-                    [
-                        f"{message['code']}={message['description']}"
-                        for message in messages
-                    ]
-                )
-                await self.evt_azEnabled.set_write(
-                    state=EnabledState.FAULT, faultCode=fault_code
-                )
-            else:
-                if llc_status["status"] == LlcMotionState.STATIONARY.name:
-                    motion_state = MotionState.STOPPED_BRAKED
-                else:
-                    motion_state = MotionState[llc_status["status"]]
-                in_position = False
-                if motion_state in [
-                    MotionState.STOPPED,
-                    MotionState.CRAWLING,
-                    MotionState.PARKED,
-                ]:
-                    in_position = True
-
-                # In case of some unit tests, this event is expected to be
-                # emitted twice with the same data.
-                await self.evt_azMotion.set_write(
-                    state=motion_state, inPosition=in_position
-                )
+            await self._check_errors_and_send_events_az(llc_status)
         elif llc_name == LlcName.LWSCS:
-            llc_status = status[llc_name]["status"]
-            if llc_status["status"] == LlcMotionState.STATIONARY.name:
-                motion_state = MotionState.STOPPED_BRAKED
-            else:
-                motion_state = MotionState[llc_status["status"]]
-            in_position = False
-            if motion_state in [
-                MotionState.STOPPED,
-                MotionState.CRAWLING,
-            ]:
-                in_position = True
-            await self.evt_elMotion.set_write(
-                state=motion_state, inPosition=in_position
-            )
-        elif llc_name in [LlcName.APSCS, LlcName.LCS, LlcName.THCS]:
-            # LCS and MONCS do not set this status yet.
-            llc_status = status[llc_name]["status"]
-            if llc_status["status"] == LlcMotionState.STATIONARY.name:
-                motion_state = MotionState.STOPPED_BRAKED
+            await self._check_errors_and_send_events_el(llc_status)
+        elif llc_name == LlcName.APSCS:
+            await self._check_errors_and_send_events_shutter(llc_status)
 
     def remove_keys_from_dict(
-        self, dict_with_too_many_keys: typing.Dict[str, typing.Any]
-    ) -> typing.Dict[str, typing.Any]:
+        self, dict_with_too_many_keys: dict[str, typing.Any]
+    ) -> dict[str, typing.Any]:
         """
         Return a copy of a dict with specified items removed.
 

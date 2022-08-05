@@ -23,4 +23,4 @@ __all__ = ["registry"]
 
 import typing
 
-registry: typing.Dict[str, typing.Any] = {}
+registry: dict[str, typing.Any] = {}

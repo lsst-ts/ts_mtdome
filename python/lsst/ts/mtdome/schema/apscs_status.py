@@ -20,11 +20,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
-import typing
 
 from .registry import registry
 
-__all__: typing.List[str] = []
+__all__: list[str] = []
 
 registry["ApSCS"] = json.loads(
     """
@@ -64,7 +63,14 @@ registry["ApSCS"] = json.loads(
               "additionalProperties": false
             },
             "status": {
-              "type": "string"
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": [
+                {
+                  "type": "string"
+                }
+              ]
             },
             "operationalMode": {
               "type": "string"

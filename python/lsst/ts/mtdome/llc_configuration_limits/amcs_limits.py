@@ -47,9 +47,7 @@ class AmcsLimits(CommonAmcsAndLwscsLimits):
         self.amax = math.radians(0.75)  # Maximum acceleration in rad/s^2
         self.vmax = math.radians(1.5)  # Maximum velocity in rad/s
 
-    def validate(
-        self, configuration_parameters: dict
-    ) -> typing.List[typing.Dict[str, typing.Any]]:
+    def validate(self, configuration_parameters: dict) -> list[dict[str, typing.Any]]:
         """Validate the data are against the configuration limits of the lower
         level component.
 

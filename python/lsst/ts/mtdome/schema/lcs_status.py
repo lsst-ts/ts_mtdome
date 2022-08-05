@@ -20,11 +20,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
-import typing
 
 from .registry import registry
 
-__all__: typing.List[str] = []
+__all__: list[str] = []
 
 registry["LCS"] = json.loads(
     """

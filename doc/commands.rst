@@ -16,6 +16,7 @@ The units are `AstroPy Units`_.
     :widths: 5, 5, 25, 5, 60
     :header: Command, Parameter, Type, Unit, Remarks
 
+    "calibrateAz"
     "closeLouvers"
     "closeShutter"
     "config", "| systemID
@@ -39,14 +40,17 @@ The units are `AstroPy Units`_.
     "moveEl", "position", "double", "rad", "0 <= position < ½π"
     "openShutter"
     "park"
+    "resetDrivesAz", "reset", "[int]", "unitless", "An array of 0 and 1 where 0 means do not reset and 1 means reset."
+    "resetDrivesShutter", "reset", "[int]", "unitless", "An array of 0 and 1 where 0 means do not reset and 1 means reset."
     "restore"
+    "searchZeroShutter"
     "setDegradedAz"
     "setDegradedEl"
     "setDegradedLouvers"
     "setDegradedMonitoring"
     "setDegradedShutter"
     "setDegradedthermal"
-    "setLouvers", "position", "[double]", "unitless", "An array of positions with one position for each louver given as a percentage where 0 means closedand 100 fully open."
+    "setLouvers", "position", "[double]", "unitless", "An array of positions with one position for each louver given as a percentage where 0 means closed and 100 fully open."
     "setNormalAz"
     "setNormalEl"
     "setNormalLouvers"
