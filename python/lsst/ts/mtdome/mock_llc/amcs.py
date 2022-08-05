@@ -26,9 +26,9 @@ import math
 
 import numpy as np
 
-from .base_mock_llc import BaseMockStatus
-from ..llc_configuration_limits.amcs_limits import AmcsLimits
 from ..enums import LlcMotionState, OnOff
+from ..llc_configuration_limits.amcs_limits import AmcsLimits
+from .base_mock_llc import BaseMockStatus
 from .mock_motion.azimuth_motion import AzimuthMotion
 
 _NUM_MOTORS = 5

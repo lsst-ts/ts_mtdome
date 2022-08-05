@@ -26,8 +26,7 @@ import logging
 import typing
 
 from lsst.ts import utils
-from lsst.ts.mtdome import encoding_tools
-from lsst.ts.mtdome import mock_llc
+from lsst.ts.mtdome import encoding_tools, mock_llc
 from lsst.ts.mtdome.enums import LlcName, ResponseCode
 
 

@@ -25,9 +25,10 @@ import logging
 import math
 import typing
 
-from .base_llc_motion import BaseLlcMotion
-from ...enums import LlcMotionState, IntermediateState
 from lsst.ts import utils
+
+from ...enums import IntermediateState, LlcMotionState
+from .base_llc_motion import BaseLlcMotion
 
 # The mocked duration of an intermediate state.
 INTERMEDIATE_STATE_DURATION = 0.5

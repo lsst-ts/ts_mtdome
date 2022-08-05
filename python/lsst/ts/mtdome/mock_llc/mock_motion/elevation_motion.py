@@ -25,9 +25,10 @@ import logging
 import math
 import typing
 
-from .base_llc_motion import BaseLlcMotion
-from ...enums import LlcMotionState
 from lsst.ts import utils
+
+from ...enums import LlcMotionState
+from .base_llc_motion import BaseLlcMotion
 
 
 class ElevationMotion(BaseLlcMotion):

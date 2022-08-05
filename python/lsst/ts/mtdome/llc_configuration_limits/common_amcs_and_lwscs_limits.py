@@ -21,9 +21,9 @@
 
 __all__ = ["CommonAmcsAndLwscsLimits"]
 
-from abc import abstractmethod
 import math
 import typing
+from abc import abstractmethod
 
 from .abstract_limits import AbstractLimits
 

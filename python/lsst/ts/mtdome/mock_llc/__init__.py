@@ -19,12 +19,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .base_mock_llc import *
 from .amcs import *
 from .apscs import *
+from .base_mock_llc import *
 from .lcs import *
 from .lwscs import *
+from .mock_motion import *
 from .moncs import *
 from .thcs import *
-
-from .mock_motion import *
