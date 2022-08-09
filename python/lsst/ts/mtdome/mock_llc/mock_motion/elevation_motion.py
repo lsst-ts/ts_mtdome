@@ -23,7 +23,6 @@ __all__ = ["ElevationMotion"]
 
 import logging
 import math
-import typing
 
 from lsst.ts import utils
 
@@ -46,9 +45,9 @@ class ElevationMotion(BaseLlcMotion):
     max_speed: `float`
         The maximum allowed speed [rad/s].
     start_tai: `float`
-        The current TAI time, unix seconds. To  model the real dome, this
-        should be the current time. However, for unit tests it can be
-        convenient to use other values.
+        The current TAI time, unix seconds. To model the real dome, this should
+        be the current time. However, for unit tests it can be convenient to
+        use other values.
 
     Notes
     -----
@@ -80,7 +79,7 @@ class ElevationMotion(BaseLlcMotion):
 
     def get_position_velocity_and_motion_state(
         self, tai: float
-    ) -> typing.Tuple[float, float, LlcMotionState]:
+    ) -> tuple[float, float, LlcMotionState]:
         """Computes the position and `LlcMotionState` for the given TAI time.
 
         Parameters
@@ -197,23 +196,6 @@ class ElevationMotion(BaseLlcMotion):
         self._crawl_velocity = 0.0
         self._commanded_motion_state = LlcMotionState.STATIONARY
         return 0.0
-
-    def park(self, start_tai: float) -> float:
-        """Not used for the elevation motion.
-
-        Parameters
-        ----------
-        start_tai: `float`
-            The TAI time, unix seconds, at which the command was issued. To
-            model the real dome, this should be the current time. However, for
-            unit tests it can be convenient to use other values.
-
-        Raises
-        ----------
-        NotImplementedError:
-            The Light and Wind Screen cannot be parked.
-        """
-        raise NotImplementedError("The Light and Wind Screen cannot be parked.")
 
     def exit_fault(self, start_tai: float) -> None:
         """Clear the fault state.

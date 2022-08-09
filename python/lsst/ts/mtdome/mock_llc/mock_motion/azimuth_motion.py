@@ -19,16 +19,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["AzimuthMotion"]
+__all__ = ["AzimuthMotion", "NUM_MOTORS"]
 
 import logging
 import math
-import typing
 
 from lsst.ts import utils
 
 from ...enums import IntermediateState, LlcMotionState
 from .base_llc_motion import BaseLlcMotion
+
+# The number of motors.
+NUM_MOTORS = 5
 
 # The mocked duration of an intermediate state.
 INTERMEDIATE_STATE_DURATION = 0.5
@@ -60,8 +62,8 @@ STATE_SEQUENCE_STOP_MOTORS = [
 # Dict of allowed motion state transitions and the intermediary states between
 # those motion states, if applicable.
 STATE_TRANSITIONS: dict[
-    typing.Tuple[LlcMotionState, LlcMotionState],
-    list[typing.Tuple[IntermediateState, float]],
+    tuple[LlcMotionState, LlcMotionState],
+    list[tuple[IntermediateState, float]],
 ] = {
     (LlcMotionState.PARKED, LlcMotionState.MOVING): STATE_SEQUENCE_START_MOTORS,
     (LlcMotionState.PARKED, LlcMotionState.CRAWLING): STATE_SEQUENCE_START_MOTORS,
@@ -128,7 +130,7 @@ class AzimuthMotion(BaseLlcMotion):
         # Keep track of being in error state or not.
         self.motion_state_in_error = False
         # Keep track of which drives are in error state.
-        self.drives_in_error_state = [False] * 5
+        self.drives_in_error_state = [False] * NUM_MOTORS
         # Keep track of when motion state went into ERROR
         self._error_start_tai = 0.0
         # Keep track of the additional duration needed for the dome to start
@@ -213,7 +215,7 @@ class AzimuthMotion(BaseLlcMotion):
 
     def get_position_velocity_and_motion_state(
         self, tai: float
-    ) -> typing.Tuple[float, float, LlcMotionState]:
+    ) -> tuple[float, float, LlcMotionState]:
         """Computes the position and `LlcMotionState` for the given TAI time.
 
         Parameters
