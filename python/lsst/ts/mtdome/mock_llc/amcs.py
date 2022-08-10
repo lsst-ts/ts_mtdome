@@ -19,7 +19,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["AmcsStatus", "PARK_POSITION"]
+__all__ = [
+    "AmcsStatus",
+    "PARK_POSITION",
+    "POWER_PER_MOTOR_CRAWLING",
+    "POWER_PER_MOTOR_MOVING",
+]
 
 import logging
 import math
@@ -29,12 +34,18 @@ import numpy as np
 from ..enums import LlcMotionState, OnOff
 from ..llc_configuration_limits.amcs_limits import AmcsLimits
 from .base_mock_llc import BaseMockStatus
-from .mock_motion.azimuth_motion import AzimuthMotion
+from .mock_motion.azimuth_motion import NUM_MOTORS, AzimuthMotion
 
-_NUM_MOTORS = 5
 _NUM_MOTOR_TEMPERATURES = 13
 _NUM_ENCODERS = 5
 _NUM_RESOLVERS = 3
+
+# TODO DM-35911: Assumed power consumption per motor when moving [kW]. The real
+#  value is still under investigation.
+POWER_PER_MOTOR_MOVING = 80
+# Assumed power consumption per motor when crawling [kW]. The real value is
+# still under investigation.
+POWER_PER_MOTOR_CRAWLING = 10
 
 PARK_POSITION = 0.0
 
@@ -78,9 +89,13 @@ class AmcsStatus(BaseMockStatus):
         self.seal_inflated = OnOff.OFF
         self.position_commanded = PARK_POSITION
         self.velocity_commanded = PARK_POSITION
-        self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_torque_commanded = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_current_actual = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_torque_actual = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_torque_commanded = np.zeros(NUM_MOTORS, dtype=float)
+        # TODO DM-35910: This variable and the corresponding status item should
+        #  be renamed to contain "power" instead of "current". This needs to be
+        #  discussed with the manufacturer first and will require a
+        #  modification to ts_xml.
+        self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
         self.drive_temperature = np.full(_NUM_MOTOR_TEMPERATURES, 20.0, dtype=float)
         self.encoder_head_raw = np.zeros(_NUM_ENCODERS, dtype=float)
         self.encoder_head_calibrated = np.zeros(_NUM_ENCODERS, dtype=float)
@@ -104,6 +119,18 @@ class AmcsStatus(BaseMockStatus):
             velocity,
             motion_state,
         ) = self.azimuth_motion.get_position_velocity_and_motion_state(tai=current_tai)
+        # Determine the current drawn by the azimuth motors. Here fixed current
+        # values are assumed while in reality they vary depending on the speed.
+        if motion_state == LlcMotionState.MOVING:
+            self.drive_current_actual = np.full(
+                NUM_MOTORS, POWER_PER_MOTOR_MOVING, dtype=float
+            )
+        elif motion_state == LlcMotionState.CRAWLING:
+            self.drive_current_actual = np.full(
+                NUM_MOTORS, POWER_PER_MOTOR_CRAWLING, dtype=float
+            )
+        else:
+            self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
         self.llc_status = {
             "status": {
                 "messages": self.messages,
@@ -153,6 +180,11 @@ class AmcsStatus(BaseMockStatus):
             The TAI time, unix seconds, when the command was issued. To model
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command [s].
         """
         self.log.debug(f"moveAz with position={position} and velocity={velocity}")
         self.position_commanded = position
@@ -361,17 +393,17 @@ class AmcsStatus(BaseMockStatus):
         long as the racks and pinions on the drives have not been installed yet
         to compensate for slippage of the drives.
 
-        Returns
-        -------
-        `float`
-            The expected duration of the command [s].
-
         Parameters
         ----------
         start_tai: `float`
             The TAI time, unix seconds, when the command was issued. To model
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command [s].
         """
         self.azimuth_motion.calibrate_az(start_tai)
         duration = 0.0
