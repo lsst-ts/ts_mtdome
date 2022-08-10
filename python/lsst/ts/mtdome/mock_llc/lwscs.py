@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["LwscsStatus"]
+__all__ = ["LwscsStatus", "NUM_MOTORS", "POWER_PER_MOTOR"]
 
 import logging
 import math
@@ -31,7 +31,13 @@ from ..llc_configuration_limits.lwscs_limits import LwscsLimits
 from .base_mock_llc import BaseMockStatus
 from .mock_motion.elevation_motion import ElevationMotion
 
-_NUM_MOTORS = 2
+NUM_MOTORS = 2
+
+# Total maximum power drawn by the Light Wind Screen [kW] as indicated by the
+# vendor. The power draw varies depending on the elevation of the screen.
+_TOTAL_POWER = 67.5
+# Power drawn per motor by the Light Wind Screen [kW].
+POWER_PER_MOTOR = _TOTAL_POWER / NUM_MOTORS
 
 
 class LwscsStatus(BaseMockStatus):
@@ -74,14 +80,18 @@ class LwscsStatus(BaseMockStatus):
         self.messages = [{"code": 0, "description": "No Errors"}]
         self.position_commanded = 0.0
         self.velocity_commanded = 0.0
-        self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_torque_commanded = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_current_actual = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_temperature = np.full(_NUM_MOTORS, 20.0, dtype=float)
-        self.encoder_head_raw = np.zeros(_NUM_MOTORS, dtype=float)
-        self.encoder_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
-        self.resolver_raw = np.zeros(_NUM_MOTORS, dtype=float)
-        self.resolver_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_torque_actual = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_torque_commanded = np.zeros(NUM_MOTORS, dtype=float)
+        # TODO DM-35910: This variable and the corresponding status item should
+        #  be renamed to contain "power" instead of "current". This needs to be
+        #  discussed with the manufacturer first and will require a
+        #  modification to ts_xml.
+        self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
+        self.drive_temperature = np.full(NUM_MOTORS, 20.0, dtype=float)
+        self.encoder_head_raw = np.zeros(NUM_MOTORS, dtype=float)
+        self.encoder_head_calibrated = np.zeros(NUM_MOTORS, dtype=float)
+        self.resolver_raw = np.zeros(NUM_MOTORS, dtype=float)
+        self.resolver_calibrated = np.zeros(NUM_MOTORS, dtype=float)
         self.power_draw = 0.0
 
     async def determine_status(self, current_tai: float) -> None:
@@ -102,6 +112,15 @@ class LwscsStatus(BaseMockStatus):
         ) = self.elevation_motion.get_position_velocity_and_motion_state(
             tai=current_tai
         )
+        # Determine the current drawn by the light wind screen motors. Here
+        # fixed current values are assumed while in reality they vary depending
+        # on the speed and the inclination of the light wind screen.
+        if motion_state in [LlcMotionState.CRAWLING, LlcMotionState.MOVING]:
+            self.drive_current_actual = np.full(
+                NUM_MOTORS, POWER_PER_MOTOR, dtype=float
+            )
+        else:
+            self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
         self.llc_status = {
             "status": {
                 "messages": self.messages,
@@ -167,9 +186,12 @@ class LwscsStatus(BaseMockStatus):
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
         """
-        self.position_commanded = math.pi
+        # If the velocity is positive then crawl toward the highest possible
+        # elevation, otherwise to the lowest.
+        self.position_commanded = math.pi / 2.0
         if velocity < 0:
             self.position_commanded = 0
+
         duration = self.elevation_motion.set_target_position_and_velocity(
             start_tai=start_tai,
             end_position=self.position_commanded,
