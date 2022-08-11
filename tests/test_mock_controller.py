@@ -29,6 +29,7 @@ import numpy as np
 import pytest
 from lsst.ts import mtdome
 from lsst.ts.idl.enums.MTDome import OperationalMode
+from lsst.ts.mtdome.mock_llc.apscs import NUM_SHUTTERS
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
@@ -889,19 +890,31 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         ] + [0.0] * (mtdome.mock_llc.NUM_LOUVERS - louver_id - 1)
 
     async def test_openShutter(self) -> None:
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = _CURRENT_TAI
+
         await self.write(command="openShutter", parameters={})
         self.data = await self.read()
         assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
+        # It takes 10 seconds to open the shutters.
+        assert self.data["timeout"] == 10.0
 
-        # Set the TAI time in the mock controller for easier control
-        self.mock_ctrl.current_tai = _CURRENT_TAI
-        # Set the mock device statuses TAI time to the mock controller time for
-        # easier control
-        self.mock_ctrl.apscs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai
         await self.validate_apscs(
-            status=mtdome.LlcMotionState.OPEN,
+            status=mtdome.LlcMotionState.MOVING,
+            position_actual=[0.0, 0.0],
+            position_commanded=100.0,
+        )
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 5.0
+        await self.validate_apscs(
+            status=mtdome.LlcMotionState.MOVING,
+            position_actual=[50.0, 50.0],
+            position_commanded=100.0,
+        )
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 10.0
+        await self.validate_apscs(
+            status=mtdome.LlcMotionState.STOPPED,
             position_actual=[100.0, 100.0],
             position_commanded=100.0,
         )
@@ -912,25 +925,24 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         position_actual: list[float] = None,
         position_commanded: float = None,
     ) -> None:
-        # Give some time to the mock device to open.
-        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
-
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
         apscs_status = self.data[mtdome.LlcName.APSCS.value]
         if status is not None:
             assert apscs_status["status"]["status"] == [status.name, status.name]
         if position_actual is not None:
-            assert apscs_status["positionActual"] == position_actual
+            assert apscs_status["positionActual"] == pytest.approx(position_actual)
         if position_commanded is not None:
-            assert apscs_status["positionCommanded"] == position_commanded
+            assert apscs_status["positionCommanded"] == pytest.approx(
+                position_commanded
+            )
 
     async def test_closeShutter(self) -> None:
         await self.write(command="closeShutter", parameters={})
         self.data = await self.read()
         assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
+        assert self.data["timeout"] == 0.0  # The shutters already are closed.
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -938,7 +950,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # easier control
         self.mock_ctrl.apscs.command_time_tai = self.mock_ctrl.current_tai
         await self.validate_apscs(
-            status=mtdome.LlcMotionState.CLOSED,
+            status=mtdome.LlcMotionState.STOPPED,
             position_actual=[0.0, 0.0],
             position_commanded=0.0,
         )
@@ -948,7 +960,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
+        expected_duration = 10.0  # The shutters move from closed to open.
+        assert self.data["timeout"] == expected_duration
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -961,7 +974,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="stopShutter", parameters={})
         self.data = await self.read()
         assert self.data["response"] == mtdome.ResponseCode.OK
-        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
+        assert self.data["timeout"] == 0.0  # stopping is instantaneous.
 
         await self.validate_apscs(
             status=mtdome.LlcMotionState.STOPPED,
@@ -1191,7 +1204,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         assert amcs_status["positionActual"] == 0
 
         await self.validate_apscs(
-            status=mtdome.LlcMotionState.CLOSED, position_actual=[0.0, 0.0]
+            status=mtdome.LlcMotionState.STOPPED, position_actual=[0.0, 0.0]
         )
 
         await self.write(command="statusLCS", parameters={})
@@ -1277,25 +1290,18 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is True
 
     async def test_shutter_reset_drives(self) -> None:
-        assert self.mock_ctrl.apscs.motion_state_in_error is False
+        for i in range(NUM_SHUTTERS):
+            assert self.mock_ctrl.apscs.shutter_motion[i].motion_state_in_error is False
 
-        drives_in_error = [1, 1, 0, 0]
-        expected_drive_error_state = [True, True, False, False]
-        await self.mock_ctrl.apscs.set_fault(drives_in_error=drives_in_error)
-        assert self.mock_ctrl.apscs.drives_in_error_state == expected_drive_error_state
-        assert self.mock_ctrl.apscs.motion_state_in_error is True
-
-        expected_drive_error_state = [False, True, False, False]
-        reset = [1, 0, 0, 0]
-        await self.mock_ctrl.reset_drives_shutter(reset=reset)
-        assert self.mock_ctrl.apscs.drives_in_error_state == expected_drive_error_state
-        assert self.mock_ctrl.apscs.motion_state_in_error is True
-
-        expected_drive_error_state = [False, False, False, False]
-        reset = [1, 1, 0, 0]
-        await self.mock_ctrl.reset_drives_shutter(reset=reset)
-        assert self.mock_ctrl.apscs.drives_in_error_state == expected_drive_error_state
-        assert self.mock_ctrl.apscs.motion_state_in_error is True
+        drives_in_error = [0, 1, 0, 1]
+        expected_drive_error_state = [False, True]
+        await self.mock_ctrl.apscs.set_fault(_CURRENT_TAI, drives_in_error)
+        for i in range(NUM_SHUTTERS):
+            assert (
+                self.mock_ctrl.apscs.shutter_motion[i].drives_in_error_state
+                == expected_drive_error_state
+            )
+            assert self.mock_ctrl.apscs.shutter_motion[i].motion_state_in_error is True
 
     async def test_az_exit_fault_and_reset_drives(self) -> None:
         """Test recovering AZ from an ERROR state."""
@@ -1358,11 +1364,15 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_shutter_exit_fault_and_reset_drives(self) -> None:
         """Test recovering the Aperture Shutter from an ERROR state."""
         # This sets the status of the state machine to ERROR.
-        drives_in_error = [1, 1, 0, 0]
-        expected_drive_error_state = [True, True, False, False]
-        await self.mock_ctrl.apscs.set_fault(drives_in_error)
-        assert self.mock_ctrl.apscs.drives_in_error_state == expected_drive_error_state
-        assert self.mock_ctrl.apscs.motion_state_in_error is True
+        drives_in_error = [0, 1, 0, 1]
+        expected_drive_error_state = [False, True]
+        await self.mock_ctrl.apscs.set_fault(_CURRENT_TAI, drives_in_error)
+        for i in range(NUM_SHUTTERS):
+            assert (
+                self.mock_ctrl.apscs.shutter_motion[i].drives_in_error_state
+                == expected_drive_error_state
+            )
+            assert self.mock_ctrl.apscs.shutter_motion[i].motion_state_in_error is True
         await self.validate_apscs(status=mtdome.LlcMotionState.ERROR)
 
         # Now call exit_fault. This will fail because there still are drives at
@@ -1372,10 +1382,14 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         assert self.data["response"] == mtdome.ResponseCode.COMMAND_REJECTED
         assert self.data["timeout"] == -1
 
-        expected_drive_error_state = [False, False, False, False]
-        reset = [1, 1, 0, 0]
+        expected_drive_error_state = [False, False]
+        reset = [0, 1, 0, 1]
         await self.mock_ctrl.reset_drives_shutter(reset=reset)
-        assert self.mock_ctrl.apscs.drives_in_error_state == expected_drive_error_state
+        for i in range(NUM_SHUTTERS):
+            assert (
+                self.mock_ctrl.apscs.shutter_motion[i].drives_in_error_state
+                == expected_drive_error_state
+            )
 
         # Now call exit_fault which will not fail because the drives have been
         # reset.
@@ -1426,7 +1440,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def test_search_zero_shutter(self) -> None:
         initial_position_actual = np.full(
-            mtdome.mock_llc.NUM_SHUTTERS, 5.0, dtype=float
+            mtdome.mock_llc.NUM_SHUTTERS, 0.0, dtype=float
         )
         self.mock_ctrl.apscs.position_actual = initial_position_actual
         await self.validate_apscs(
@@ -1436,7 +1450,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="searchZeroShutter", parameters={})
         self.data = await self.read()
         assert self.data["response"] == mtdome.ResponseCode.OK
-        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
+        assert self.data["timeout"] == 0.0
         await self.validate_apscs(
             position_actual=np.zeros(
                 mtdome.mock_llc.NUM_SHUTTERS, dtype=float
