@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["LcsStatus", "NUM_LOUVERS"]
+__all__ = ["LcsStatus", "NUM_LOUVERS", "NUM_MOTORS_PER_LOUVER", "POWER_PER_MOTOR"]
 
 import logging
 
@@ -30,7 +30,14 @@ from ..enums import LlcMotionState
 from .base_mock_llc import BaseMockStatus
 
 NUM_LOUVERS = 34
-_NUM_MOTORS = 68
+NUM_MOTORS_PER_LOUVER = 2
+
+# Total power drawn by the Louvers [kW] as indicated by the vendor.
+_TOTAL_POWER = 69.0
+# Power drawn per louver [kW].
+_POWER_PER_LOUVER = _TOTAL_POWER / NUM_LOUVERS
+# Power drawn per motor by the louvers [kW].
+POWER_PER_MOTOR = _POWER_PER_LOUVER / NUM_MOTORS_PER_LOUVER
 
 
 class LcsStatus(BaseMockStatus):
@@ -50,23 +57,45 @@ class LcsStatus(BaseMockStatus):
         self.messages = [{"code": 0, "description": "No Errors"}]
         self.position_actual = np.zeros(NUM_LOUVERS, dtype=float)
         self.position_commanded = np.zeros(NUM_LOUVERS, dtype=float)
-        self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_torque_commanded = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_current_actual = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_temperature = np.full(_NUM_MOTORS, 20.0, dtype=float)
-        self.encoder_head_raw = np.zeros(_NUM_MOTORS, dtype=float)
-        self.encoder_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_torque_actual = np.zeros(
+            NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, dtype=float
+        )
+        self.drive_torque_commanded = np.zeros(
+            NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, dtype=float
+        )
+        # TODO DM-35910: This variable and the corresponding status item should
+        #  be renamed to contain "power" instead of "current". This needs to be
+        #  discussed with the manufacturer first and will require a
+        #  modification to ts_xml.
+        self.drive_current_actual = np.zeros(
+            NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, dtype=float
+        )
+        self.drive_temperature = np.full(
+            NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, 20.0, dtype=float
+        )
+        self.encoder_head_raw = np.zeros(
+            NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, dtype=float
+        )
+        self.encoder_head_calibrated = np.zeros(
+            NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, dtype=float
+        )
         self.power_draw = 0.0
 
     async def determine_status(self, current_tai: float) -> None:
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
         """
-        time_diff = current_tai - self.command_time_tai
-        self.log.debug(
-            f"current_tai = {current_tai}, self.command_time_tai = {self.command_time_tai}, "
-            f"time_diff = {time_diff}"
-        )
+        # Determine the current drawn by the louvers.
+        for index, motion_state in enumerate(self.status):
+            # Louver motors come in pairs of two.
+            if motion_state == LlcMotionState.MOVING:
+                self.drive_current_actual[
+                    index * NUM_MOTORS_PER_LOUVER : (index + 1) * NUM_MOTORS_PER_LOUVER
+                ] = POWER_PER_MOTOR
+            else:
+                self.drive_current_actual[
+                    index * NUM_MOTORS_PER_LOUVER : (index + 1) * NUM_MOTORS_PER_LOUVER
+                ] = 0.0
         self.llc_status = {
             "status": {
                 "messages": self.messages,
