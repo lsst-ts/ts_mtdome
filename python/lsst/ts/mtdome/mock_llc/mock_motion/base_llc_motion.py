@@ -20,7 +20,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import math
-import typing
 from abc import ABC, abstractmethod
 
 from lsst.ts import utils
@@ -153,15 +152,5 @@ class BaseLlcMotion(ABC):
         return duration
 
     @abstractmethod
-    def get_position_velocity_and_motion_state(
-        self, tai: float
-    ) -> typing.Tuple[float, float, LlcMotionState]:
-        pass
-
-    @abstractmethod
     def stop(self, start_tai: float) -> float:
-        pass
-
-    @abstractmethod
-    def park(self, start_tai: float) -> float:
         pass

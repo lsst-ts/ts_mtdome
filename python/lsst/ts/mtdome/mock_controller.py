@@ -66,12 +66,12 @@ class MockMTDomeController:
 
     Known Limitations:
 
-    * Just a framework that needs to be implemented properly
+    * Just a framework that needs to be implemented properly.
     """
 
-    """A long sleep to mock a slow network [s]."""
+    # A long sleep to mock a slow network [s].
     SLOW_NETWORK_SLEEP = 10.0
-    """A long duration [s]. Used as a return value by commands."""
+    # A long duration [s]. Used as a return value by commands.
     LONG_DURATION = 20
 
     def __init__(
@@ -183,7 +183,7 @@ class MockMTDomeController:
 
         self.log.info("Starting LLCs")
         self.amcs = mock_llc.AmcsStatus(start_tai=self.current_tai)
-        self.apscs = mock_llc.ApscsStatus()
+        self.apscs = mock_llc.ApscsStatus(start_tai=self.current_tai)
         self.lcs = mock_llc.LcsStatus()
         self.lwscs = mock_llc.LwscsStatus(start_tai=self.current_tai)
         self.moncs = mock_llc.MoncsStatus()
@@ -476,20 +476,38 @@ class MockMTDomeController:
         assert self.lcs is not None
         await self.lcs.stopLouvers()
 
-    async def open_shutter(self) -> None:
-        """Open the shutter."""
-        assert self.apscs is not None
-        await self.apscs.openShutter()
+    async def open_shutter(self) -> float:
+        """Open the shutter.
 
-    async def close_shutter(self) -> None:
-        """Close the shutter."""
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+        """
         assert self.apscs is not None
-        await self.apscs.closeShutter()
+        return await self.apscs.openShutter(self.current_tai)
 
-    async def stop_shutter(self) -> None:
-        """Stop the motion of the shutter."""
+    async def close_shutter(self) -> float:
+        """Close the shutter.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+        """
         assert self.apscs is not None
-        await self.apscs.stopShutter()
+        return await self.apscs.closeShutter(self.current_tai)
+
+    async def stop_shutter(self) -> float:
+        """Stop the motion of the shutter.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+        """
+        assert self.apscs is not None
+        return await self.apscs.stopShutter(self.current_tai)
 
     async def config(self, system: str, settings: dict) -> None:
         """Configure the lower level components.
@@ -578,10 +596,16 @@ class MockMTDomeController:
         assert self.lwscs is not None
         return await self.lwscs.go_stationary(self.current_tai)
 
-    async def go_stationary_shutter(self) -> None:
-        """Stop shutter motion and engage the brakes."""
+    async def go_stationary_shutter(self) -> float:
+        """Stop shutter motion and engage the brakes.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+        """
         assert self.apscs is not None
-        await self.apscs.go_stationary()
+        return await self.apscs.go_stationary(self.current_tai)
 
     async def go_stationary_louvers(self) -> None:
         """Stop louvers motion and engage the brakes."""
@@ -668,7 +692,7 @@ class MockMTDomeController:
         assert self.amcs is not None
         await self.amcs.exit_fault(self.current_tai)
         assert self.apscs is not None
-        await self.apscs.exit_fault()
+        await self.apscs.exit_fault(self.current_tai)
         assert self.lcs is not None
         await self.lcs.exit_fault()
         assert self.lwscs is not None
@@ -739,7 +763,7 @@ class MockMTDomeController:
         The number of values in the reset parameter is not validated.
         """
         assert self.apscs is not None
-        await self.apscs.reset_drives_shutter(reset)
+        await self.apscs.reset_drives_shutter(self.current_tai, reset)
 
     async def calibrate_az(self) -> float:
         """Take the current position of the dome as zero. This is necessary as
@@ -754,14 +778,19 @@ class MockMTDomeController:
         assert self.amcs is not None
         return await self.amcs.calibrate_az(self.current_tai)
 
-    async def search_zero_shutter(self) -> None:
+    async def search_zero_shutter(self) -> float:
         """Search the zero position of the Aperture Shutter, which is the
         closed position. This is necessary in case the ApSCS (Aperture Shutter
         Control system) was shutdown with the Aperture Shutter not fully open
         or fully closed.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
         """
         assert self.apscs is not None
-        await self.apscs.search_zero_shutter()
+        return await self.apscs.search_zero_shutter(self.current_tai)
 
 
 async def main() -> None:

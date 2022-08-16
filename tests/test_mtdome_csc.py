@@ -753,8 +753,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusApSCS()
             apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
             assert apscs_status["status"]["status"] == [
-                MotionState.CLOSED.name,
-                MotionState.CLOSED.name,
+                MotionState.STOPPED.name,
+                MotionState.STOPPED.name,
             ]
             assert apscs_status["positionActual"] == [0.0, 0.0]
 
@@ -864,7 +864,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             az_drives_in_error = [1, 1, 0, 0, 0]
             await self.csc.mock_ctrl.amcs.set_fault(current_tai, az_drives_in_error)
             aps_drives_in_error = [1, 1, 0, 0]
-            await self.csc.mock_ctrl.apscs.set_fault(aps_drives_in_error)
+            await self.csc.mock_ctrl.apscs.set_fault(current_tai, aps_drives_in_error)
             self.csc.mock_ctrl.lcs.status[:] = MotionState.ERROR.name
             self.csc.mock_ctrl.lwscs.status = MotionState.ERROR
             self.csc.mock_ctrl.moncs.status = MotionState.ERROR
