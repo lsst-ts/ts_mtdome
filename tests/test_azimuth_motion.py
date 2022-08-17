@@ -1115,7 +1115,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         # Reset the drives.
         expected_drive_error_state = [False, False, False, False, False]
         reset = [1, 1, 0, 0, 0]
-        self.azimuth_motion.reset_drives_az(current_tai, reset)
+        self.azimuth_motion.reset_drives(current_tai, reset)
         assert self.azimuth_motion.drives_in_error_state == expected_drive_error_state
 
         # Now call exit_fault which will not fail because the drives have been

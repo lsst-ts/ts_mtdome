@@ -384,7 +384,7 @@ class AmcsStatus(BaseMockStatus):
         Degraded Mode since the drives don't reset themselves.
         The number of values in the reset parameter is not validated.
         """
-        duration = self.azimuth_motion.reset_drives_az(start_tai, reset)
+        duration = self.azimuth_motion.reset_drives(start_tai, reset)
         self.end_tai = start_tai + duration
         return duration
 

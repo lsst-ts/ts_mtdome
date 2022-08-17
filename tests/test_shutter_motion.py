@@ -274,7 +274,7 @@ class ShutterMotionTestCase(unittest.IsolatedAsyncioTestCase):
         # Reset the drives.
         expected_drive_error_state = [False, False]
         reset = [0, 1]
-        self.shutter_motion.reset_drives_shutter(current_tai, reset)
+        self.shutter_motion.reset_drives(current_tai, reset)
         assert self.shutter_motion.drives_in_error_state == expected_drive_error_state
 
         # Now call exit_fault which will not fail because the drives have been

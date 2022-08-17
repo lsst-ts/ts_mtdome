@@ -329,7 +329,7 @@ class ApscsStatus(BaseMockStatus):
         # TODO DM-35912: Discuss returning two durations with the
         #  manufacturer and implement if agreed.
         for i in range(NUM_SHUTTERS):
-            duration = self.shutter_motion[i].reset_drives_shutter(
+            duration = self.shutter_motion[i].reset_drives(
                 start_tai,
                 reset[i * NUM_SHUTTERS : i * NUM_SHUTTERS + NUM_MOTORS_PER_SHUTTER],
             )

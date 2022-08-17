@@ -31,7 +31,7 @@ import logging
 import math
 
 from ...enums import LlcMotionState
-from .base_llc_motion import BaseLlcMotion
+from .base_llc_motion_without_crawl import BaseLlcMotionWithoutCrawl
 
 # The number of motors per shutter.
 NUM_MOTORS_PER_SHUTTER = 2
@@ -45,7 +45,7 @@ OPEN_POSITION = 100.0
 SHUTTER_SPEED = 10.0
 
 
-class ShutterMotion(BaseLlcMotion):
+class ShutterMotion(BaseLlcMotionWithoutCrawl):
     """Simulator for one door (of two) of the aperture shutter motion of the
     MTDome.
 
@@ -72,41 +72,15 @@ class ShutterMotion(BaseLlcMotion):
             start_tai=start_tai,
         )
         self.log = logging.getLogger("ShutterMotion")
-        # Keep track of being in error state or not.
-        self.motion_state_in_error = False
         # Keep track of which drives are in error state.
         self.drives_in_error_state = [False] * NUM_MOTORS_PER_SHUTTER
-        # Keep track of when motion state went into ERROR
-        self._error_start_tai = 0.0
-        # Keep track of the position at the moment that ERROR state starts.
-        self._error_state_position = 0.0
 
     def _get_duration(self) -> float:
+        # This override is needed because the shutter doesn't use angles (in
+        # radians) but percentages.
         duration = math.fabs(
             (self._end_position - self._start_position) / SHUTTER_SPEED
         )
-        return duration
-
-    def set_target_position_and_velocity(
-        self,
-        start_tai: float,
-        end_position: float,
-        crawl_velocity: float = 0.0,
-        motion_state: LlcMotionState = LlcMotionState.MOVING,
-    ) -> float:
-        if crawl_velocity != 0.0:
-            raise ValueError(f"crawl_velocity={crawl_velocity} must be 0.0!")
-        if not self._min_position <= end_position <= self._max_position:
-            raise ValueError(
-                f"The target position {end_position} is outside of the "
-                f"range [{self._min_position, self._max_position}]"
-            )
-
-        self._commanded_motion_state = motion_state
-        self._start_tai = start_tai
-        self._end_position = end_position
-        duration = self._get_duration()
-        self._end_tai = self._start_tai + duration
         return duration
 
     def get_position_velocity_and_motion_state(
@@ -176,130 +150,3 @@ class ShutterMotion(BaseLlcMotion):
             motion_state = LlcMotionState.ERROR
 
         return position, velocity, motion_state
-
-    def stop(self, start_tai: float) -> float:
-        """Stops the current motion.
-
-        Parameters
-        ----------
-        start_tai: `float`
-            The TAI time, unix seconds, at which the command was issued. To
-            model the real dome, this should be the current time. However, for
-            unit tests it can be convenient to use other values.
-        """
-        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
-            tai=start_tai
-        )
-        self._start_tai = start_tai
-        self._start_position = position
-        self._end_position = position
-        self._commanded_motion_state = LlcMotionState.STOPPED
-        return 0.0
-
-    def go_stationary(self, start_tai: float) -> float:
-        """Go to stationary state.
-
-        Parameters
-        ----------
-        start_tai: `float`
-            The TAI time, unix seconds, at which the command was issued. To
-            model the real dome, this should be the current time. However, for
-            unit tests it can be convenient to use other values.
-        """
-        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
-            tai=start_tai
-        )
-        self._start_tai = start_tai
-        self._start_position = position
-        self._end_position = position
-        self._commanded_motion_state = LlcMotionState.STATIONARY
-        return 0.0
-
-    def exit_fault(self, start_tai: float) -> float:
-        """Clear the fault state.
-
-        Parameters
-        ----------
-        start_tai: `float`
-            The TAI time, unix seconds, at which the command was issued. To
-            model the real dome, this should be the current time. However, for
-            unit tests it can be convenient to use other values.
-
-        Returns
-        -------
-        `float`
-            The expected duration of the command.
-        """
-        if True in self.drives_in_error_state:
-            raise RuntimeError("Make sure to reset drives before exiting from fault.")
-
-        if self.motion_state_in_error:
-            (
-                position,
-                velocity,
-                motion_state,
-            ) = self.get_position_velocity_and_motion_state(tai=start_tai)
-            self._start_tai = start_tai
-            self._start_position = position
-            self._end_position = position
-            self.motion_state_in_error = False
-            self._commanded_motion_state = LlcMotionState.STATIONARY
-        return 0.0
-
-    def reset_drives_shutter(self, start_tai: float, reset: list[int]) -> float:
-        """Reset one or more Shutter drives.
-
-        Parameters
-        ----------
-        start_tai: `float`
-            The TAI time, unix seconds, at which the command was issued. To
-            model the real dome, this should be the current time. However, for
-            unit tests it can be convenient to use other values.
-        reset: array of int
-            Desired reset action to execute on each Shutter drive: 0 means
-            don't reset, 1 means reset.
-
-        Returns
-        -------
-        `float`
-            The expected duration of the command.
-
-        Notes
-        -----
-        This is necessary when exiting from FAULT state without going to
-        Degraded Mode since the drives don't reset themselves.
-        The number of values in the reset parameter is not validated.
-        """
-        for i, val in enumerate(reset):
-            if val == 1:
-                self.drives_in_error_state[i] = False
-        return 0.0
-
-    def set_fault(self, start_tai: float, drives_in_error: list[int]) -> None:
-        """Set the LlcMotionState of ApSCS to fault and set the drives in
-        drives_in_error to error.
-
-        Parameters
-        ----------
-        start_tai: `float`
-            The TAI time, unix seconds, at which the command was issued. To
-            model the real dome, this should be the current time. However, for
-            unit tests it can be convenient to use other values.
-        drives_in_error : array of int
-            Desired error action to execute on each Shutter drive: 0 means
-            don't set to error, 1 means set to error.
-
-        Notes
-        -----
-        This function is not mapped to a command that MockMTDomeController can
-        receive. It is intended to be set by unit test cases.
-        """
-        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
-            tai=start_tai
-        )
-        self._error_state_position = position
-        self.motion_state_in_error = True
-        self._error_start_tai = start_tai
-        for i, val in enumerate(drives_in_error):
-            if val == 1:
-                self.drives_in_error_state[i] = True

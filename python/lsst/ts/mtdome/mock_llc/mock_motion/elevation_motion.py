@@ -27,10 +27,10 @@ import math
 from lsst.ts import utils
 
 from ...enums import LlcMotionState
-from .base_llc_motion import BaseLlcMotion
+from .base_llc_motion_with_crawl import BaseLlcMotionWithCrawl
 
 
-class ElevationMotion(BaseLlcMotion):
+class ElevationMotion(BaseLlcMotionWithCrawl):
     """Simulator for the elevation motion of the light and wind screen of the
     MTDome.
 
@@ -157,47 +157,7 @@ class ElevationMotion(BaseLlcMotion):
         position = utils.angle_wrap_nonnegative(math.degrees(position)).rad
         return position, velocity, motion_state
 
-    def stop(self, start_tai: float) -> float:
-        """Stops the current motion.
-
-        Parameters
-        ----------
-        start_tai: `float`
-            The TAI time, unix seconds, at which the command was issued. To
-            model the real dome, this should be the current time. However, for
-            unit tests it can be convenient to use other values.
-        """
-        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
-            tai=start_tai
-        )
-        self._start_tai = start_tai
-        self._start_position = position
-        self._end_position = position
-        self._crawl_velocity = 0
-        self._commanded_motion_state = LlcMotionState.STOPPED
-        return 0.0
-
-    def go_stationary(self, start_tai: float) -> float:
-        """Go to stationary state.
-
-        Parameters
-        ----------
-        start_tai: `float`
-            The TAI time, unix seconds, at which the command was issued. To
-            model the real dome, this should be the current time. However, for
-            unit tests it can be convenient to use other values.
-        """
-        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
-            tai=start_tai
-        )
-        self._start_tai = start_tai
-        self._start_position = position
-        self._end_position = position
-        self._crawl_velocity = 0.0
-        self._commanded_motion_state = LlcMotionState.STATIONARY
-        return 0.0
-
-    def exit_fault(self, start_tai: float) -> None:
+    def exit_fault(self, start_tai: float) -> float:
         """Clear the fault state.
 
         Parameters
@@ -206,7 +166,15 @@ class ElevationMotion(BaseLlcMotion):
             The TAI time, unix seconds, at which the command was issued. To
             model the real dome, this should be the current time. However, for
             unit tests it can be convenient to use other values.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command.
         """
+        # For some reason, that I don't uderstand, one test case for the CSC
+        # fails if I remove this method. So I'll leave it here for now until
+        # the state machine gets implemented.
         position, velocity, motion_state = self.get_position_velocity_and_motion_state(
             tai=start_tai
         )
@@ -215,3 +183,8 @@ class ElevationMotion(BaseLlcMotion):
         self._end_position = position
         self._crawl_velocity = 0.0
         self._commanded_motion_state = LlcMotionState.STATIONARY
+        return 0.0
+
+    def set_fault(self, start_tai: float, drives_in_error: list[int]) -> None:
+        # There is no state machine for elevation yet.
+        raise NotImplementedError
