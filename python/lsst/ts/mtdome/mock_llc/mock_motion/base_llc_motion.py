@@ -48,6 +48,8 @@ class BaseLlcMotion(ABC):
         # This is not a constant but can be configured by the MTDome CSC, which
         # is why it is a parameter.
         self._max_speed = max_speed
+        # Keep track of the current motion state.
+        self._current_motion_state = LlcMotionState.PARKED
         # The commanded LlcMotionState, against which the computed
         # LlcMotionState will be compared. By default the elevation motion
         # starts in STOPPED state. The LlcMotionState only changes when a new
@@ -62,9 +64,69 @@ class BaseLlcMotion(ABC):
         # command. To model the real dome, this should be the current time.
         # However, for unit tests it can be convenient to use other values.
         self._end_tai = 0.0
-        # When a move or crawl command is received, it specifies the crawl
-        # crawl_velocity.
-        self._crawl_velocity = 0.0
+        # Keep track of being in error state or not.
+        self.motion_state_in_error = False
+        # Keep track of which drives are in error state. For this base class
+        # this is just a dummy value to make the code work. Each implementing
+        # subclass will have to define this properly itself.
+        self.drives_in_error_state = [False]
+        # Keep track of when motion state went into ERROR
+        self._error_start_tai = 0.0
+        # Keep track of the position at the moment that ERROR state starts.
+        self._error_state_position = 0.0
+
+    def base_set_target_position_and_velocity(
+        self,
+        start_tai: float,
+        end_position: float,
+        motion_state: LlcMotionState,
+    ) -> float:
+        """Sets the end_position and crawl_velocity and returns the duration of
+        the move.
+
+        No aceleration is taken into account.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
+        end_position: `float`
+            The target position.
+        motion_state: `LlcMotionState`
+            MOVING or CRAWLING. The value is not checked.
+
+        Returns
+        -------
+        duration: `float`
+            The duration of the move.
+
+        Raises
+        ------
+        ValueError
+            If the target position falls outside the range
+            [min position, max position] or if abs(crawl_velocity) > max_speed.
+
+        """
+        if motion_state not in [LlcMotionState.MOVING, LlcMotionState.CRAWLING]:
+            raise ValueError(f"{motion_state=!r} should be MOVING or CRAWLING.")
+
+        if (
+            motion_state == LlcMotionState.MOVING
+            and not self._min_position <= end_position <= self._max_position
+        ):
+            raise ValueError(
+                f"The target position {end_position} is outside of the "
+                f"range [{self._min_position, self._max_position}]"
+            )
+
+        self._commanded_motion_state = motion_state
+        self._start_tai = start_tai
+        self._end_position = end_position
+        duration = self._get_duration()
+        self._end_tai = self._start_tai + duration
+        return duration
 
     def _get_distance(self) -> float:
         """Determines the smallest distance [rad] between the initial and
@@ -74,6 +136,11 @@ class BaseLlcMotion(ABC):
         -------
         distance: `float`
             The smallest distance between the initial and target positions.
+
+        Notes
+        -----
+        If "_start_position" and "_end_position" are not in radians, this
+        method should be overridden.
         """
         distance = utils.angle_diff(
             math.degrees(self._end_position), math.degrees(self._start_position)
@@ -90,22 +157,16 @@ class BaseLlcMotion(ABC):
             The duration of the move, or zero in case of a crawl.
         """
         duration = math.fabs(self._get_distance()) / self._max_speed
-        if self._commanded_motion_state == LlcMotionState.CRAWLING:
-            # A crawl command is executed instantaneously.
-            duration = 0
         return duration
 
-    def set_target_position_and_velocity(
-        self,
-        start_tai: float,
-        end_position: float,
-        crawl_velocity: float,
-        motion_state: LlcMotionState,
-    ) -> float:
-        """Sets the end_position and crawl_velocity and returns the duration of
-        the move.
+    @abstractmethod
+    def get_position_velocity_and_motion_state(
+        self, tai: float
+    ) -> tuple[float, float, LlcMotionState]:
+        pass
 
-        No aceleration is taken into account.
+    def stop(self, start_tai: float) -> float:
+        """Stop the current motion.
 
         Parameters
         ----------
@@ -113,44 +174,126 @@ class BaseLlcMotion(ABC):
             The TAI time, unix seconds, at which the command was issued. To
             model the real dome, this should be the current time. However, for
             unit tests it can be convenient to use other values.
-        end_position: `float`
-            The target position.
-        crawl_velocity: `float`
-            The crawl_velocity.
-        motion_state: `LlcMotionState`
-            MOVING or CRAWLING. The value is not checked.
+        """
+        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
+            tai=start_tai
+        )
+        self._start_tai = start_tai
+        self._start_position = position
+        self._end_position = position
+        self._current_motion_state = motion_state
+        self._commanded_motion_state = LlcMotionState.STOPPED
+        self._end_tai = self._start_tai + self._get_duration()
+        return self._end_tai - start_tai
+
+    def go_stationary(self, start_tai: float) -> float:
+        """Go to stationary state.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
+        """
+        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
+            tai=start_tai
+        )
+        self._start_tai = start_tai
+        self._start_position = position
+        self._end_position = position
+        self._commanded_motion_state = LlcMotionState.STATIONARY
+        self._end_tai = self._start_tai + self._get_duration()
+        return self._end_tai - start_tai
+
+    def exit_fault(self, start_tai: float) -> float:
+        """Clear the fault state.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
 
         Returns
         -------
-        duration: `float`
-            The duration of the move.
-
-        Raises
-        ------
-        ValueError
-            If the target position falls outside the range
-            [min position, max position] or if abs(crawl_velocity) > max_speed.
-
+        `float`
+            The expected duration of the command.
         """
-        if not self._min_position <= end_position <= self._max_position:
-            raise ValueError(
-                f"The target position {end_position} is outside of the "
-                f"range [{self._min_position, self._max_position}]"
-            )
-        if math.fabs(crawl_velocity) > self._max_speed:
-            raise ValueError(
-                f"The target speed {math.fabs(crawl_velocity)} is larger than the "
-                f"max speed {self._max_speed}."
-            )
+        if True in self.drives_in_error_state:
+            raise RuntimeError("Make sure to reset drives before exiting from fault.")
 
-        self._commanded_motion_state = motion_state
-        self._start_tai = start_tai
-        self._end_position = end_position
-        self._crawl_velocity = crawl_velocity
-        duration = self._get_duration()
-        self._end_tai = self._start_tai + duration
-        return duration
+        if self.motion_state_in_error:
+            (
+                position,
+                velocity,
+                motion_state,
+            ) = self.get_position_velocity_and_motion_state(tai=start_tai)
+            self._start_tai = start_tai
+            self._start_position = self._error_state_position
+            self._end_position = self._error_state_position
+            self._current_motion_state = motion_state
+            self._commanded_motion_state = LlcMotionState.STATIONARY
+            self.motion_state_in_error = False
+            self._error_start_tai = 0.0
+            self._error_state_position = 0.0
+        return 0.0
 
-    @abstractmethod
-    def stop(self, start_tai: float) -> float:
-        pass
+    def set_fault(self, start_tai: float, drives_in_error: list[int]) -> None:
+        """Set the LlcMotionState of AMCS to fault and set the drives in
+        drives_in_error to error.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
+        drives_in_error : array of int
+            Desired error action to execute on each AZ drive: 0 means don't
+            set to error, 1 means set to error.
+
+        Notes
+        -----
+        This function is not mapped to a command that MockMTDomeController can
+        receive. It is intended to be set by unit test cases.
+        """
+        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
+            tai=start_tai
+        )
+        self._error_state_position = position
+        self.motion_state_in_error = True
+        self._error_start_tai = start_tai
+        for i, val in enumerate(drives_in_error):
+            if val == 1:
+                self.drives_in_error_state[i] = True
+
+    def reset_drives(self, start_tai: float, reset: list[int]) -> float:
+        """Reset one or more drives.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
+        reset: array of int
+            Desired reset action to execute on each drive: 0 means don't reset,
+            1 means reset.
+
+        Returns
+        -------
+        `float`
+            The expected duration of the command.
+
+        Notes
+        -----
+        This is necessary when exiting from FAULT state without going to
+        Degraded Mode since the drives don't reset themselves.
+        The number of values in the reset parameter is not validated.
+        """
+        for i, val in enumerate(reset):
+            if val == 1:
+                self.drives_in_error_state[i] = False
+        return 0.0
