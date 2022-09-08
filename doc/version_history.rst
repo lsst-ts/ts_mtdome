@@ -6,8 +6,19 @@
 Version History
 ###############
 
+v1.11.3
+=======
+* Refactor the other test cases to contain less duplicate code.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.1
+
 v1.11.2
-======
+=======
 * Refactor the AMCS test cases to contain less duplicate code.
 
 Requires:
@@ -18,7 +29,7 @@ Requires:
 * IDL file for MTDome from ts_xml 12.1
 
 v1.11.1
-======
+=======
 * Refactor the BaseLlcMotion class to have subclasses with and without crawl.
 
 Requires:
@@ -29,7 +40,7 @@ Requires:
 * IDL file for MTDome from ts_xml 12.1
 
 v1.11.0
-======
+=======
 * Restore black, flake8 and mypy pytest configuration options.
 * Add ShutterMotion class for mocking the Aperture Shutter state machine.
 * Add power consumption to AMCS, SpSCS, LCS and LWSCS.
@@ -42,7 +53,7 @@ Requires:
 * IDL file for MTDome from ts_xml 12.1
 
 v1.10.0
-======
+=======
 * Sort imports with isort.
 * Install new pre-commit hooks.
 
