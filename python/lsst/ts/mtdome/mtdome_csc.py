@@ -172,8 +172,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # XML 12.0.
         if support_command("resetDrivesShutter"):
             setattr(self, "do_resetDrivesShutter", self._do_resetDrivesShutter)
-        if support_command("searchZeroShutter"):
-            setattr(self, "do_searchZeroShutter", self._do_searchZeroShutter)
+        if support_command("home"):
+            setattr(self, "do_home", self._do_home)
 
         super().__init__(
             name="MTDome",
@@ -237,6 +237,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             #     OperationalMode.NORMAL.name: "setNormalThermal",
             #     OperationalMode.DEGRADED.name: "setDegradedThermal",
             # },
+        }
+
+        # Keep track of which command to send the home command on a lower level
+        # component.
+        self.set_home_command_dict = {
+            SubSystemId.APSCS: "searchZeroShutter",
         }
 
         self.log.info("DomeCsc constructed")
@@ -781,11 +787,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         await self.write_then_read_reply(command="calibrateAz")
 
-    async def _do_searchZeroShutter(self, data: SimpleNamespace) -> None:
-        """Search the zero position of the Aperture Shutter, which is the
-        closed position. This is necessary in case the ApSCS (Aperture Shutter
-        Control system) was shutdown with the Aperture Shutter not fully open
-        or fully closed.
+    async def _do_home(self, data: SimpleNamespace) -> None:
+        """Search the home position of the Aperture Shutter, which is the
+        closed position.
+
+        This is necessary in case the ApSCS (Aperture Shutter Control system)
+        was shutdown with the Aperture Shutter not fully open or fully closed.
 
         Parameters
         ----------
@@ -793,7 +800,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply(command="searchZeroShutter")
+        sub_system_ids: int = data.subSystemIds
+        for sub_system_id in SubSystemId:
+            if (
+                sub_system_id & sub_system_ids
+                and sub_system_id in self.set_home_command_dict
+            ):
+                command = self.set_home_command_dict[sub_system_id]
+                await self.write_then_read_reply(command=command)
 
     async def config_llcs(self, system: str, settings: dict[str, float]) -> None:
         """Config command not to be executed by SAL.
@@ -992,7 +1006,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             # The number of statuses has been validated by the JSON schema. So
             # here it is safe to loop over all statuses.
             for status in statuses:
-                if llc_status["status"] in motion_state_translations:
+                if status in motion_state_translations:
                     motion_state = motion_state_translations[llc_status["status"]]
                 else:
                     motion_state.append(MotionState[status])
@@ -1003,9 +1017,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         MotionState.STOPPED_BRAKED,
                     ]
                 )
-            await self.evt_shutterMotion.set_write(
-                state=motion_state, inPosition=in_position
-            )
+            if hasattr(self, "evt_shutterMotion"):
+                await self.evt_shutterMotion.set_write(
+                    state=motion_state, inPosition=in_position
+                )
 
     async def request_and_send_llc_status(
         self, llc_name: LlcName, topic: SimpleNamespace
