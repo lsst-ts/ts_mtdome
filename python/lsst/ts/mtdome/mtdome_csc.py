@@ -287,11 +287,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.cancel_status_tasks()
         for method, interval in (
             (self.statusAMCS, _AMCS_STATUS_PERIOD),
-            (self.statusApSCS, _APSCS_STATUS_PERIOD),
-            (self.statusLCS, _LCS_STATUS_PERIOD),
-            (self.statusLWSCS, _LWSCS_STATUS_PERIOD),
-            (self.statusMonCS, _MONCS_STATUS_PERIOD),
-            (self.statusThCS, _THCS_STATUS_PERIOD),
+            # TODO (DM-36186) Enbale the ApSCS again when the the control
+            #  software for it is working well. The others need to remain
+            #  disabled for the TMA Pointing Test.
+            # (self.statusApSCS, _APSCS_STATUS_PERIOD),
+            # (self.statusLCS, _LCS_STATUS_PERIOD),
+            # (self.statusLWSCS, _LWSCS_STATUS_PERIOD),
+            # (self.statusMonCS, _MONCS_STATUS_PERIOD),
+            # (self.statusThCS, _THCS_STATUS_PERIOD),
         ):
             self.status_tasks.append(
                 asyncio.create_task(self.one_status_loop(method, interval))
