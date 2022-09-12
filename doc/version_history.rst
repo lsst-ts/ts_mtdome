@@ -6,6 +6,18 @@
 Version History
 ###############
 
+v1.11.4
+=======
+* Disable polling the status of all subsystems except AMCS.
+* Introduce backward compatibility with XML 12.0 for the TMA Pointing Test.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.0
+
 v1.11.3
 =======
 * Refactor the other test cases to contain less duplicate code.
