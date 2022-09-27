@@ -120,9 +120,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         await self.assert_next_sample(
             topic=self.remote.evt_elEnabled, state=EnabledState.ENABLED
         )
-        await self.assert_next_sample(
-            topic=self.remote.evt_shutterEnabled, state=EnabledState.ENABLED
-        )
+        if mtdome.support_command("evt_shutterEnabled"):
+            await self.assert_next_sample(
+                topic=self.remote.evt_shutterEnabled, state=EnabledState.ENABLED
+            )
         await self.assert_next_sample(topic=self.remote.evt_brakesEngaged, brakes=0)
         await self.assert_next_sample(topic=self.remote.evt_interlocks, interlocks=0)
         await self.assert_next_sample(
@@ -270,6 +271,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
+    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
     async def test_do_stopEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -300,6 +302,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
+    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
     async def test_do_stop(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -750,44 +753,18 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
-            await self.csc.statusApSCS()
-            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
-            assert apscs_status["status"]["status"] == [
-                MotionState.STOPPED.name,
-                MotionState.STOPPED.name,
-            ]
-            assert apscs_status["positionActual"] == [0.0, 0.0]
-
-            await self.csc.statusLCS()
-            lcs_status = self.csc.lower_level_status[mtdome.LlcName.LCS.value]
-            assert (
-                lcs_status["status"]["status"]
-                == [MotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS
-            )
-            assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
-
-            await self.csc.statusLWSCS()
-            lwscs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
-            assert lwscs_status["status"]["status"] == MotionState.STOPPED.name
-            assert lwscs_status["positionActual"] == 0
-            await self.assert_next_sample(
-                topic=self.remote.evt_elMotion,
-                state=MotionState.STOPPED,
-                inPosition=True,
-            )
-
-            await self.csc.statusMonCS()
-            moncs_status = self.csc.lower_level_status[mtdome.LlcName.MONCS.value]
-            assert moncs_status["status"]["status"] == MotionState.CLOSED.name
-            assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
-
-            await self.csc.statusThCS()
-            thcs_status = self.csc.lower_level_status[mtdome.LlcName.THCS.value]
-            assert thcs_status["status"]["status"] == MotionState.CLOSED.name
-            assert (
-                thcs_status["temperature"]
-                == [0.0] * mtdome.mock_llc.thcs.NUM_THERMO_SENSORS
-            )
+            # TODO (DM-36186) Enbale the ApSCS again when the the control
+            #  software for it is working well. The others need to remain
+            #  disabled for the TMA Pointing Test.
+            # await self.csc.statusApSCS()
+            # apscs_status = self.csc.lower_level_status[
+            #     mtdome.LlcName.APSCS.value
+            # ]
+            # assert apscs_status["status"]["status"] == [
+            #     MotionState.STOPPED.name,
+            #     MotionState.STOPPED.name,
+            # ]
+            # assert apscs_status["positionActual"] == [0.0, 0.0]
 
     async def test_status_error(self) -> None:
         async with self.make_csc(
@@ -863,27 +840,35 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             current_tai = self.csc.mock_ctrl.current_tai + 0.1
             az_drives_in_error = [1, 1, 0, 0, 0]
             await self.csc.mock_ctrl.amcs.set_fault(current_tai, az_drives_in_error)
-            aps_drives_in_error = [1, 1, 0, 0]
-            await self.csc.mock_ctrl.apscs.set_fault(current_tai, aps_drives_in_error)
-            self.csc.mock_ctrl.lcs.status[:] = MotionState.ERROR.name
-            self.csc.mock_ctrl.lwscs.status = MotionState.ERROR
-            self.csc.mock_ctrl.moncs.status = MotionState.ERROR
-            self.csc.mock_ctrl.thcs.status = MotionState.ERROR
+            # TODO (DM-36186) Enbale the ApSCS again when the the control
+            #  software for it is working well. The others need to remain
+            #  disabled for the TMA Pointing Test.
+            # if mtdome.support_command("resetDrivesShutter"):
+            #     aps_drives_in_error = [1, 1, 0, 0]
+            #     await self.csc.mock_ctrl.apscs.set_fault(
+            #         current_tai, aps_drives_in_error
+            #     )
             self.csc.mock_ctrl.amcs._commanded_motion_state = MotionState.ERROR
-            self.csc.mock_ctrl.lwscs._commanded_motion_state = MotionState.ERROR
 
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == mtdome.LlcMotionState.ERROR.name
 
-            # Cannot exit_fault with drives in error.
-            with salobj.assertRaisesAckError():
-                await self.remote.cmd_exitFault.set_start()
+            # Because of backward compatibility with XML 12.0, the exitFault
+            # command will also reset the AZ and ApS drives so this next
+            # command will not fail.
+            await self.remote.cmd_exitFault.set_start()
 
             az_reset = [1, 1, 0, 0, 0]
             await self.remote.cmd_resetDrivesAz.set_start(reset=az_reset)
-            aps_reset = [1, 1, 0, 0]
-            await self.remote.cmd_resetDrivesShutter.set_start(reset=aps_reset)
+            # TODO (DM-36186) Enbale the ApSCS again when the the control
+            #  software for it is working well. The others need to remain
+            #  disabled for the TMA Pointing Test.
+            # if mtdome.support_command("resetDrivesShutter"):
+            #     aps_reset = [1, 1, 0, 0]
+            #     await self.remote.cmd_resetDrivesShutter.set_start(
+            #         reset=aps_reset
+            #     )
             await self.remote.cmd_exitFault.set_start()
 
             await self.csc.statusAMCS()
@@ -892,46 +877,18 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 amcs_status["status"]["status"] == mtdome.LlcMotionState.STATIONARY.name
             )
 
-            await self.csc.statusApSCS()
-            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
-            assert apscs_status["status"]["status"] == [
-                mtdome.LlcMotionState.STATIONARY.name,
-                mtdome.LlcMotionState.STATIONARY.name,
-            ]
-            assert apscs_status["positionActual"] == [0.0, 0.0]
-
-            await self.csc.statusLCS()
-            lcs_status = self.csc.lower_level_status[mtdome.LlcName.LCS.value]
-            assert (
-                lcs_status["status"]["status"]
-                == [mtdome.LlcMotionState.STATIONARY.name] * mtdome.mock_llc.NUM_LOUVERS
-            )
-            assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
-
-            await self.csc.statusLWSCS()
-            lwscs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
-            assert (
-                lwscs_status["status"]["status"]
-                == mtdome.LlcMotionState.STATIONARY.name
-            )
-            assert lwscs_status["positionActual"] == 0
-
-            await self.csc.statusMonCS()
-            moncs_status = self.csc.lower_level_status[mtdome.LlcName.MONCS.value]
-            assert (
-                moncs_status["status"]["status"]
-                == mtdome.LlcMotionState.STATIONARY.name
-            )
-            assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
-
-            await self.csc.statusThCS()
-            thcs_status = self.csc.lower_level_status[mtdome.LlcName.THCS.value]
-            assert (
-                thcs_status["status"]["status"] == mtdome.LlcMotionState.STATIONARY.name
-            )
-            assert (
-                thcs_status["temperature"] == [0.0] * mtdome.mock_llc.NUM_THERMO_SENSORS
-            )
+            # TODO (DM-36186) Enbale the ApSCS again when the the control
+            #  software for it is working well. The others need to remain
+            #  disabled for the TMA Pointing Test.
+            # await self.csc.statusApSCS()
+            # apscs_status = self.csc.lower_level_status[
+            #     mtdome.LlcName.APSCS.value
+            # ]
+            # assert apscs_status["status"]["status"] == [
+            #     mtdome.LlcMotionState.STATIONARY.name,
+            #     mtdome.LlcMotionState.STATIONARY.name,
+            # ]
+            # assert apscs_status["positionActual"] == [0.0, 0.0]
 
     async def test_setZeroAz(self) -> None:
         async with self.make_csc(
@@ -996,6 +953,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert amcs_status["positionActual"] == pytest.approx(0.0)
             assert amcs_status["status"]["status"] == MotionState.STOPPED.name
 
+    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
+    # TODO (DM-36186) Enbale the ApSCS again when the the control software for
+    #  it is working well. The others need to remain disabled for the TMA
+    #  Pointing Test.
     async def test_searchZeroShutter(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -1074,14 +1035,17 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             await self.set_csc_to_enabled()
 
-            # When the lower level components are enabled, events are sent to
-            # indicate their OperationalMode.
-            for i in range(len(list(SubSystemId))):
-                await self.assert_next_sample(
-                    topic=self.remote.evt_operationalMode,
-                    operationalMode=OperationalMode.NORMAL,
-                    timeout=STD_TIMEOUT,
-                )
+            # TODO (DM-36186) Enbale the ApSCS again when the the control
+            #  software for it is working well. The others need to remain
+            #  disabled for the TMA Pointing Test.
+            # # When the lower level components are enabled, events are sent to
+            # # indicate their OperationalMode.
+            # for i in range(len(list(SubSystemId))):
+            #     await self.assert_next_sample(
+            #         topic=self.remote.evt_operationalMode,
+            #         operationalMode=OperationalMode.NORMAL,
+            #         timeout=STD_TIMEOUT,
+            #     )
 
             # Test with one lower level component.
             operational_mode = OperationalMode.DEGRADED
