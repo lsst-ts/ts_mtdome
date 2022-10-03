@@ -19,7 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from ...enums import LlcMotionState
+from lsst.ts.idl.enums.MTDome import MotionState
+
 from .base_llc_motion import BaseLlcMotion
 
 
@@ -28,7 +29,7 @@ class BaseLlcMotionWithoutCrawl(BaseLlcMotion):
         self,
         start_tai: float,
         end_position: float,
-        motion_state: LlcMotionState,
+        motion_state: MotionState,
     ) -> float:
         return self.base_set_target_position_and_velocity(
             start_tai=start_tai,

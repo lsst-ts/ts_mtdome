@@ -38,7 +38,7 @@ from lsst.ts.idl.enums.MTDome import (
 from . import __version__, encoding_tools
 from .config_schema import CONFIG_SCHEMA
 from .csc_utils import support_command
-from .enums import LlcMotionState, LlcName, LlcNameDict, ResponseCode
+from .enums import LlcName, LlcNameDict, ResponseCode, motion_state_translations
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .mock_controller import MockMTDomeController
 
@@ -186,7 +186,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.lower_level_status: dict[str, typing.Any] = {}
         self.status_tasks: list[asyncio.Future] = []
         # Keep track of the AMCS state for logging one the console.
-        self.amcs_state: LlcMotionState | None = None
+        self.amcs_state: MotionState | None = None
         # Keep track of the AMCS status message for logging on the console.
         self.amcs_message: str = ""
 
@@ -907,10 +907,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 state=EnabledState.FAULT, faultCode=status_message
             )
         else:
-            if llc_status["status"] == "DISABLED":
-                motion_state = MotionState.ERROR
-            elif llc_status["status"] == LlcMotionState.STATIONARY.name:
-                motion_state = MotionState.STOPPED_BRAKED
+            if llc_status["status"] in motion_state_translations:
+                motion_state = motion_state_translations[llc_status["status"]]
             else:
                 motion_state = MotionState[llc_status["status"]]
             in_position = False
@@ -941,8 +939,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 state=EnabledState.FAULT, faultCode=fault_code
             )
         else:
-            if llc_status["status"] == LlcMotionState.STATIONARY.name:
-                motion_state = MotionState.STOPPED_BRAKED
+            if llc_status["status"] in motion_state_translations:
+                motion_state = motion_state_translations[llc_status["status"]]
             else:
                 motion_state = MotionState[llc_status["status"]]
             in_position = False
@@ -978,23 +976,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             # The number of statuses has been validated by the JSON schema. So
             # here it is safe to loop over all statuses.
             for status in statuses:
-                if status == LlcMotionState.STATIONARY.name:
-                    motion_state.append(MotionState.STOPPED_BRAKED)
-
-                # DM-35794: The next elifs are temporary workarounds to make
-                # the CSC work with the LabVIEW state machine, which still is
-                # under development.
-                # TODO remove these workarounds and make the CSC work with
-                #  the final state machine. DM-35795
-                elif status in [
-                    "CLOSING",
-                    "OPENING",
-                    "APPROACHING_END",
-                    "STOPPING",
-                ]:
-                    motion_state.append(MotionState.MOVING)
-                elif status in ["UNDETERMINED"]:
-                    motion_state.append(MotionState.CLOSED)
+                if llc_status["status"] in motion_state_translations:
+                    motion_state = motion_state_translations[llc_status["status"]]
                 else:
                     motion_state.append(MotionState[status])
                 in_position.append(

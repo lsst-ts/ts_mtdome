@@ -25,8 +25,9 @@ import logging
 
 import numpy as np
 from lsst.ts import utils
+from lsst.ts.idl.enums.MTDome import MotionState
 
-from ..enums import LlcMotionState
+from ..enums import InternalMotionState
 from .base_mock_llc import BaseMockStatus
 
 NUM_THERMO_SENSORS = 13
@@ -40,7 +41,7 @@ class ThcsStatus(BaseMockStatus):
     def __init__(self) -> None:
         super().__init__()
         self.log = logging.getLogger("MockThcsStatus")
-        self.status = LlcMotionState.CLOSED
+        self.status = MotionState.CLOSED
         self.messages = [{"code": 0, "description": "No Errors"}]
         self.temperature = np.zeros(NUM_THERMO_SENSORS, dtype=float)
 
@@ -76,9 +77,9 @@ class ThcsStatus(BaseMockStatus):
             the provided temperature is not checked against this range.
         """
         self.command_time_tai = utils.current_tai()
-        self.status = LlcMotionState.OPEN
+        self.status = MotionState.OPEN
         self.temperature[:] = temperature
 
     async def exit_fault(self) -> None:
         """Clear the fault state."""
-        self.status = LlcMotionState.STATIONARY
+        self.status = InternalMotionState.STATIONARY

@@ -26,6 +26,7 @@ import unittest
 import pytest
 from expected_state import ExpectedState
 from lsst.ts import mtdome
+from lsst.ts.idl.enums.MTDome import MotionState
 from lsst.ts.mtdome.mock_llc.amcs import (
     POWER_PER_MOTOR_CRAWLING,
     POWER_PER_MOTOR_MOVING,
@@ -71,7 +72,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         tai: float,
         expected_position: float,
         expected_velocity: float,
-        expected_motion_state: mtdome.LlcMotionState,
+        expected_motion_state: MotionState,
     ) -> None:
         """Verify the position of the AmcsStatus at the given TAI
         time.
@@ -96,9 +97,9 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         )
         assert expected_motion_state.name == self.amcs.llc_status["status"]["status"]
         expected_drive_current: list[float] = [0.0] * NUM_MOTORS
-        if expected_motion_state == mtdome.LlcMotionState.MOVING:
+        if expected_motion_state == MotionState.MOVING:
             expected_drive_current = [POWER_PER_MOTOR_MOVING] * NUM_MOTORS
-        elif expected_motion_state == mtdome.LlcMotionState.CRAWLING:
+        elif expected_motion_state == MotionState.CRAWLING:
             expected_drive_current = [POWER_PER_MOTOR_CRAWLING] * NUM_MOTORS
         assert expected_drive_current == self.amcs.llc_status["driveCurrentActual"]
 
@@ -192,10 +193,10 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             START_MOTORS_ADD_DURATION + (target_position - start_position) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 4.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.0, 8.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.5, 10.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(4.0, 10.15, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(2.0, 8.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(2.5, 10.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(4.0, 10.15, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="move",
@@ -220,10 +221,10 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             START_MOTORS_ADD_DURATION + (target_position - start_position) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 4.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.0, 8.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.5, 10.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(4.0, 9.85, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(2.0, 8.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(2.5, 10.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(4.0, 9.85, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="move",
@@ -248,10 +249,10 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             (target_position - start_position) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 6.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.0, 2.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.5, 0.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(4.0, 0.15, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 6.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(2.0, 2.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(2.5, 0.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(4.0, 0.15, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="move",
@@ -276,10 +277,10 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             (target_position - start_position) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 6.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.0, 2.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.5, 0.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(4.0, 359.85, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 6.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(2.0, 2.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(2.5, 0.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(4.0, 359.85, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="move",
@@ -304,11 +305,11 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             (target_position - start_position - 360.0) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 6.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.0, 2.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(3.0, 358.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(5.0, 350.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(6.0, 350.1, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 6.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(2.0, 2.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(3.0, 358.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(5.0, 350.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(6.0, 350.1, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="move",
@@ -333,11 +334,11 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             (target_position - start_position - 360.0) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 6.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.0, 2.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(3.0, 358.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(5.0, 350.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(6.0, 349.9, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 6.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(2.0, 2.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(3.0, 358.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(5.0, 350.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(6.0, 349.9, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="move",
@@ -363,11 +364,11 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             + (target_position - start_position + 360.0) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 354.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.0, 358.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(3.0, 2.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(5.0, 10.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(6.0, 10.1, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 354.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(2.0, 358.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(3.0, 2.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(5.0, 10.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(6.0, 10.1, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="move",
@@ -393,11 +394,11 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             + (target_position - start_position + 360.0) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 354.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.0, 358.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(3.0, 2.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(5.0, 10.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(6.0, 9.9, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 354.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(2.0, 358.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(3.0, 2.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(5.0, 10.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(6.0, 9.9, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="move",
@@ -420,12 +421,12 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         crawl_velocity = 1.0
         expected_duration = START_MOTORS_ADD_DURATION
         expected_states = [
-            ExpectedState(1.0, 351.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(2.0, 352.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(10.0, 0.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(11.0, 1.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(20.0, 10.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(21.0, 11.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 351.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(2.0, 352.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(10.0, 0.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(11.0, 1.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(20.0, 10.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(21.0, 11.0, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="crawl",
@@ -448,12 +449,12 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         crawl_velocity = -1.0
         expected_duration = START_MOTORS_ADD_DURATION
         expected_states = [
-            ExpectedState(1.0, 9.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(2.0, 8.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(10.0, 0.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(11.0, 359.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(20.0, 350.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(21.0, 349.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 9.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(2.0, 8.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(10.0, 0.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(11.0, 359.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(20.0, 350.0, crawl_velocity, MotionState.CRAWLING),
+            ExpectedState(21.0, 349.0, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="crawl",
@@ -478,7 +479,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             START_MOTORS_ADD_DURATION + (target_position - start_position) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 4.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
+            ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
         ]
         await self.verify_amcs(
             command="move",
@@ -491,7 +492,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
         )
         expected_states = [
-            ExpectedState(3.0, 8.0, 0.0, mtdome.LlcMotionState.STOPPED),
+            ExpectedState(3.0, 8.0, 0.0, MotionState.STOPPED),
         ]
         await self.verify_halt(
             start_tai=2.0,
@@ -511,8 +512,8 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             START_MOTORS_ADD_DURATION + (target_position - start_position) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 4.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(3.0, 10.05, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(3.0, 10.05, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="move",
@@ -525,7 +526,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
         )
         expected_states = [
-            ExpectedState(5.0, 10.15, 0.0, mtdome.LlcMotionState.STOPPED),
+            ExpectedState(5.0, 10.15, 0.0, MotionState.STOPPED),
         ]
         await self.verify_halt(
             start_tai=4.0,
@@ -542,7 +543,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         crawl_velocity = 1.0
         expected_duration = START_MOTORS_ADD_DURATION
         expected_states = [
-            ExpectedState(1.0, 11.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 11.0, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="crawl",
@@ -555,7 +556,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
         )
         expected_states = [
-            ExpectedState(5.0, 14.0, 0.0, mtdome.LlcMotionState.STOPPED),
+            ExpectedState(5.0, 14.0, 0.0, MotionState.STOPPED),
         ]
         await self.verify_halt(
             start_tai=4.0,
@@ -575,7 +576,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             START_MOTORS_ADD_DURATION + (target_position - start_position) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 4.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
+            ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
         ]
         await self.verify_amcs(
             command="move",
@@ -588,8 +589,8 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
         )
         expected_states = [
-            ExpectedState(1.0, 4.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(3.0, 0.0, 0.0, mtdome.LlcMotionState.PARKED),
+            ExpectedState(1.0, 4.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(3.0, 0.0, 0.0, MotionState.PARKED),
         ]
         await self.verify_halt(
             start_tai=1.0,
@@ -609,8 +610,8 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             START_MOTORS_ADD_DURATION + (target_position - start_position) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 4.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(3.0, 10.05, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(3.0, 10.05, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="move",
@@ -623,9 +624,9 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
         )
         expected_states = [
-            ExpectedState(5.0, 6.15, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(6.0, 2.15, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(7.0, 0.0, 0.0, mtdome.LlcMotionState.PARKED),
+            ExpectedState(5.0, 6.15, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(6.0, 2.15, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(7.0, 0.0, 0.0, MotionState.PARKED),
         ]
         await self.verify_halt(
             start_tai=4.0,
@@ -642,7 +643,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         crawl_velocity = 1.0
         expected_duration = START_MOTORS_ADD_DURATION
         expected_states = [
-            ExpectedState(1.0, 11.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 11.0, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="crawl",
@@ -655,10 +656,10 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
         )
         expected_states = [
-            ExpectedState(5.0, 10.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(6.0, 6.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(7.0, 2.0, -MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(8.0, 0.0, 0.0, mtdome.LlcMotionState.PARKED),
+            ExpectedState(5.0, 10.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(6.0, 6.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(7.0, 2.0, -MAX_SPEED, MotionState.MOVING),
+            ExpectedState(8.0, 0.0, 0.0, MotionState.PARKED),
         ]
         await self.verify_halt(
             start_tai=4.0,
@@ -678,7 +679,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             START_MOTORS_ADD_DURATION + (target_position - start_position) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 4.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
+            ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
         ]
         await self.verify_amcs(
             command="move",
@@ -691,7 +692,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
         )
         expected_states = [
-            ExpectedState(3.0, 8.0, 0.0, mtdome.LlcMotionState.STATIONARY),
+            ExpectedState(3.0, 8.0, 0.0, mtdome.InternalMotionState.STATIONARY),
         ]
         await self.verify_halt(
             start_tai=2.0,
@@ -711,8 +712,8 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             START_MOTORS_ADD_DURATION + (target_position - start_position) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 4.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
-            ExpectedState(3.0, 10.05, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(3.0, 10.05, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="move",
@@ -725,7 +726,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
         )
         expected_states = [
-            ExpectedState(5.0, 10.15, 0.0, mtdome.LlcMotionState.STATIONARY),
+            ExpectedState(5.0, 10.15, 0.0, mtdome.InternalMotionState.STATIONARY),
         ]
         await self.verify_halt(
             start_tai=4.0,
@@ -742,7 +743,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         crawl_velocity = 1.0
         expected_duration = START_MOTORS_ADD_DURATION
         expected_states = [
-            ExpectedState(1.0, 11.0, crawl_velocity, mtdome.LlcMotionState.CRAWLING),
+            ExpectedState(1.0, 11.0, crawl_velocity, MotionState.CRAWLING),
         ]
         await self.verify_amcs(
             command="crawl",
@@ -755,7 +756,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
         )
         expected_states = [
-            ExpectedState(5.0, 14.0, 0.0, mtdome.LlcMotionState.STATIONARY),
+            ExpectedState(5.0, 14.0, 0.0, mtdome.InternalMotionState.STATIONARY),
         ]
         await self.verify_halt(
             start_tai=4.0,
@@ -772,7 +773,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             START_MOTORS_ADD_DURATION + (target_position - start_position) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 4.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
+            ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
         ]
         await self.verify_amcs(
             command="move",
@@ -797,7 +798,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             tai=current_tai,
             expected_position=4.4,
             expected_velocity=0.0,
-            expected_motion_state=mtdome.LlcMotionState.ERROR,
+            expected_motion_state=MotionState.ERROR,
         )
 
         current_tai = START_TAI + START_MOTORS_ADD_DURATION + 2.0
@@ -822,7 +823,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             tai=current_tai,
             expected_position=4.4,
             expected_velocity=0.0,
-            expected_motion_state=mtdome.LlcMotionState.STATIONARY,
+            expected_motion_state=mtdome.InternalMotionState.STATIONARY,
         )
         assert (
             self.amcs.azimuth_motion.drives_in_error_state == expected_drive_error_state
@@ -838,7 +839,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             START_MOTORS_ADD_DURATION + (target_position - start_position) / MAX_SPEED
         )
         expected_states = [
-            ExpectedState(1.0, 4.0, MAX_SPEED, mtdome.LlcMotionState.MOVING),
+            ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
         ]
         await self.verify_amcs(
             command="move",
@@ -859,7 +860,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             tai=START_TAI + START_MOTORS_ADD_DURATION + 2.5,
             expected_position=10.0,
             expected_velocity=0.0,
-            expected_motion_state=mtdome.LlcMotionState.STOPPED,
+            expected_motion_state=MotionState.STOPPED,
         )
 
         current_tai = START_TAI + START_MOTORS_ADD_DURATION + 3.0
@@ -869,5 +870,5 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
             tai=current_tai,
             expected_position=0.0,
             expected_velocity=0.0,
-            expected_motion_state=mtdome.LlcMotionState.STOPPED,
+            expected_motion_state=MotionState.STOPPED,
         )

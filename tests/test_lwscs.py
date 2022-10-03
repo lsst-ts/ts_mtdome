@@ -26,6 +26,7 @@ import unittest
 import pytest
 from expected_state import ExpectedState
 from lsst.ts import mtdome
+from lsst.ts.idl.enums.MTDome import MotionState
 from lsst.ts.mtdome.mock_llc.lwscs import NUM_MOTORS, POWER_PER_MOTOR
 
 logging.basicConfig(
@@ -76,7 +77,7 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
         tai: float,
         expected_position: float,
         expected_velocity: float,
-        expected_motion_state: mtdome.LlcMotionState,
+        expected_motion_state: MotionState,
     ) -> None:
         """Verify the position of the AmcsStatus at the given TAI
         time.
@@ -102,8 +103,8 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
         assert expected_motion_state.name == self.lwscs.llc_status["status"]["status"]
         expected_drive_current: list[float] = [0.0] * NUM_MOTORS
         if expected_motion_state in [
-            mtdome.LlcMotionState.CRAWLING,
-            mtdome.LlcMotionState.MOVING,
+            MotionState.CRAWLING,
+            MotionState.MOVING,
         ]:
             expected_drive_current = [POWER_PER_MOTOR] * NUM_MOTORS
         assert expected_drive_current == self.lwscs.llc_status["driveCurrentActual"]
@@ -201,9 +202,9 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
         velocity = 3.5
         expected_duration = (target_position - start_position) / velocity
         expected_states = [
-            ExpectedState(1.0, 3.5, velocity, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.5, 8.75, velocity, mtdome.LlcMotionState.MOVING),
-            ExpectedState(3.0, 10.0, 0.0, mtdome.LlcMotionState.STOPPED),
+            ExpectedState(1.0, 3.5, velocity, MotionState.MOVING),
+            ExpectedState(2.5, 8.75, velocity, MotionState.MOVING),
+            ExpectedState(3.0, 10.0, 0.0, MotionState.STOPPED),
         ]
         await self.verify_lwscs(
             command="move",
@@ -231,9 +232,9 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
         velocity = -3.5
         expected_duration = (target_position - start_position) / velocity
         expected_states = [
-            ExpectedState(1.0, 6.5, velocity, mtdome.LlcMotionState.MOVING),
-            ExpectedState(2.5, 1.25, velocity, mtdome.LlcMotionState.MOVING),
-            ExpectedState(3.0, 0.0, 0.0, mtdome.LlcMotionState.STOPPED),
+            ExpectedState(1.0, 6.5, velocity, MotionState.MOVING),
+            ExpectedState(2.5, 1.25, velocity, MotionState.MOVING),
+            ExpectedState(3.0, 0.0, 0.0, MotionState.STOPPED),
         ]
         await self.verify_lwscs(
             command="move",
@@ -258,12 +259,12 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
         velocity = 1.0
         expected_duration = 0.0
         expected_states = [
-            ExpectedState(1.0, 1.0, velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(2.5, 2.5, velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(10.1, 10.1, velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(89.0, 89.0, velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(90.0, 90.0, 0.0, mtdome.LlcMotionState.STOPPED),
-            ExpectedState(91.0, 90.0, 0.0, mtdome.LlcMotionState.STOPPED),
+            ExpectedState(1.0, 1.0, velocity, MotionState.CRAWLING),
+            ExpectedState(2.5, 2.5, velocity, MotionState.CRAWLING),
+            ExpectedState(10.1, 10.1, velocity, MotionState.CRAWLING),
+            ExpectedState(89.0, 89.0, velocity, MotionState.CRAWLING),
+            ExpectedState(90.0, 90.0, 0.0, MotionState.STOPPED),
+            ExpectedState(91.0, 90.0, 0.0, MotionState.STOPPED),
         ]
         await self.verify_lwscs(
             command="crawl",
@@ -290,9 +291,9 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
         velocity = -1.0
         expected_duration = 0.0
         expected_states = [
-            ExpectedState(1.0, 9.0, velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(2.5, 7.5, velocity, mtdome.LlcMotionState.CRAWLING),
-            ExpectedState(10.1, 0.0, 0.0, mtdome.LlcMotionState.STOPPED),
+            ExpectedState(1.0, 9.0, velocity, MotionState.CRAWLING),
+            ExpectedState(2.5, 7.5, velocity, MotionState.CRAWLING),
+            ExpectedState(10.1, 0.0, 0.0, MotionState.STOPPED),
         ]
         await self.verify_lwscs(
             command="crawl",
@@ -320,7 +321,7 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
         velocity = 3.5
         expected_duration = (target_position - start_position) / velocity
         expected_states = [
-            ExpectedState(1.0, 3.5, velocity, mtdome.LlcMotionState.MOVING),
+            ExpectedState(1.0, 3.5, velocity, MotionState.MOVING),
         ]
         await self.verify_lwscs(
             command="move",
@@ -335,7 +336,7 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
         )
         expected_states = [
-            ExpectedState(3.0, 7.0, 0.0, mtdome.LlcMotionState.STOPPED),
+            ExpectedState(3.0, 7.0, 0.0, MotionState.STOPPED),
         ]
         await self.verify_halt(
             start_tai=2.0,
@@ -356,7 +357,7 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
         velocity = 3.5
         expected_duration = (target_position - start_position) / velocity
         expected_states = [
-            ExpectedState(1.0, 3.5, velocity, mtdome.LlcMotionState.MOVING),
+            ExpectedState(1.0, 3.5, velocity, MotionState.MOVING),
         ]
         await self.verify_lwscs(
             command="move",
@@ -371,7 +372,7 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
         )
         expected_states = [
-            ExpectedState(3.0, 7.0, 0.0, mtdome.LlcMotionState.STATIONARY),
+            ExpectedState(3.0, 7.0, 0.0, mtdome.InternalMotionState.STATIONARY),
         ]
         await self.verify_halt(
             start_tai=2.0,

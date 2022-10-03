@@ -602,7 +602,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert (
-                amcs_status["status"]["status"] == mtdome.LlcMotionState.STATIONARY.name
+                amcs_status["status"]["status"]
+                == mtdome.InternalMotionState.STATIONARY.name
             )
 
     async def test_do_setTemperature(self) -> None:
@@ -852,7 +853,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
-            assert amcs_status["status"]["status"] == mtdome.LlcMotionState.ERROR.name
+            assert amcs_status["status"]["status"] == MotionState.ERROR.name
 
             # Because of backward compatibility with XML 12.0, the exitFault
             # command will also reset the AZ and ApS drives so this next
@@ -874,7 +875,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert (
-                amcs_status["status"]["status"] == mtdome.LlcMotionState.STATIONARY.name
+                amcs_status["status"]["status"]
+                == mtdome.InternalMotionState.STATIONARY.name
             )
 
             # TODO (DM-36186) Enbale the ApSCS again when the the control
@@ -885,8 +887,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             #     mtdome.LlcName.APSCS.value
             # ]
             # assert apscs_status["status"]["status"] == [
-            #     mtdome.LlcMotionState.STATIONARY.name,
-            #     mtdome.LlcMotionState.STATIONARY.name,
+            #     mtdome.InternalMotionState.STATIONARY.name,
+            #     mtdome.InternalMotionState.STATIONARY.name,
             # ]
             # assert apscs_status["positionActual"] == [0.0, 0.0]
 

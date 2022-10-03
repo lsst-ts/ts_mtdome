@@ -23,8 +23,9 @@ import math
 from abc import ABC, abstractmethod
 
 from lsst.ts import utils
+from lsst.ts.idl.enums.MTDome import MotionState
 
-from ...enums import LlcMotionState
+from ...enums import InternalMotionState
 
 
 class BaseLlcMotion(ABC):
@@ -49,12 +50,12 @@ class BaseLlcMotion(ABC):
         # is why it is a parameter.
         self._max_speed = max_speed
         # Keep track of the current motion state.
-        self._current_motion_state = LlcMotionState.PARKED
-        # The commanded LlcMotionState, against which the computed
-        # LlcMotionState will be compared. By default the elevation motion
-        # starts in STOPPED state. The LlcMotionState only changes when a new
+        self._current_motion_state = MotionState.PARKED
+        # The commanded MotionState, against which the computed
+        # MotionState will be compared. By default the elevation motion
+        # starts in STOPPED state. The MotionState only changes when a new
         # command is received.
-        self._commanded_motion_state = LlcMotionState.STOPPED
+        self._commanded_motion_state = MotionState.STOPPED
         # This defines the TAI time, unix seconds, at which a move or crawl
         # will start. To model the real dome, this should be the current time.
         # However, for unit tests it can be convenient to use other values.
@@ -79,7 +80,7 @@ class BaseLlcMotion(ABC):
         self,
         start_tai: float,
         end_position: float,
-        motion_state: LlcMotionState,
+        motion_state: MotionState,
     ) -> float:
         """Sets the end_position and crawl_velocity and returns the duration of
         the move.
@@ -94,7 +95,7 @@ class BaseLlcMotion(ABC):
             unit tests it can be convenient to use other values.
         end_position: `float`
             The target position.
-        motion_state: `LlcMotionState`
+        motion_state: `MotionState`
             MOVING or CRAWLING. The value is not checked.
 
         Returns
@@ -109,11 +110,11 @@ class BaseLlcMotion(ABC):
             [min position, max position] or if abs(crawl_velocity) > max_speed.
 
         """
-        if motion_state not in [LlcMotionState.MOVING, LlcMotionState.CRAWLING]:
+        if motion_state not in [MotionState.MOVING, MotionState.CRAWLING]:
             raise ValueError(f"{motion_state=!r} should be MOVING or CRAWLING.")
 
         if (
-            motion_state == LlcMotionState.MOVING
+            motion_state == MotionState.MOVING
             and not self._min_position <= end_position <= self._max_position
         ):
             raise ValueError(
@@ -162,7 +163,7 @@ class BaseLlcMotion(ABC):
     @abstractmethod
     def get_position_velocity_and_motion_state(
         self, tai: float
-    ) -> tuple[float, float, LlcMotionState]:
+    ) -> tuple[float, float, MotionState]:
         pass
 
     def stop(self, start_tai: float) -> float:
@@ -182,7 +183,7 @@ class BaseLlcMotion(ABC):
         self._start_position = position
         self._end_position = position
         self._current_motion_state = motion_state
-        self._commanded_motion_state = LlcMotionState.STOPPED
+        self._commanded_motion_state = MotionState.STOPPED
         self._end_tai = self._start_tai + self._get_duration()
         return self._end_tai - start_tai
 
@@ -202,7 +203,7 @@ class BaseLlcMotion(ABC):
         self._start_tai = start_tai
         self._start_position = position
         self._end_position = position
-        self._commanded_motion_state = LlcMotionState.STATIONARY
+        self._commanded_motion_state = InternalMotionState.STATIONARY
         self._end_tai = self._start_tai + self._get_duration()
         return self._end_tai - start_tai
 
@@ -234,14 +235,14 @@ class BaseLlcMotion(ABC):
             self._start_position = self._error_state_position
             self._end_position = self._error_state_position
             self._current_motion_state = motion_state
-            self._commanded_motion_state = LlcMotionState.STATIONARY
+            self._commanded_motion_state = InternalMotionState.STATIONARY
             self.motion_state_in_error = False
             self._error_start_tai = 0.0
             self._error_state_position = 0.0
         return 0.0
 
     def set_fault(self, start_tai: float, drives_in_error: list[int]) -> None:
-        """Set the LlcMotionState of AMCS to fault and set the drives in
+        """Set the MotionState of AMCS to fault and set the drives in
         drives_in_error to error.
 
         Parameters

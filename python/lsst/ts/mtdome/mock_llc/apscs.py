@@ -24,8 +24,8 @@ __all__ = ["ApscsStatus", "NUM_SHUTTERS", "POWER_PER_MOTOR"]
 import logging
 
 import numpy as np
+from lsst.ts.idl.enums.MTDome import MotionState
 
-from ..enums import LlcMotionState
 from .base_mock_llc import BaseMockStatus
 from .mock_motion.shutter_motion import (
     CLOSED_POSITION,
@@ -68,7 +68,7 @@ class ApscsStatus(BaseMockStatus):
         self.end_tai = 0.0
 
         # Variables holding the status of the mock Aperture Shutter
-        self.status = np.full(NUM_SHUTTERS, LlcMotionState.CLOSED.name, dtype=object)
+        self.status = np.full(NUM_SHUTTERS, MotionState.CLOSED.name, dtype=object)
         self.messages = [{"code": 0, "description": "No Errors"}]
         self.position_actual = np.zeros(NUM_SHUTTERS, dtype=float)
         self.position_commanded = 0.0
@@ -113,7 +113,7 @@ class ApscsStatus(BaseMockStatus):
             self.status[index] = motion_state
 
             # Determine the current drawn by the aperture shutter.
-            if motion_state == LlcMotionState.MOVING:
+            if motion_state == MotionState.MOVING:
                 self.drive_current_actual[
                     index
                     * NUM_MOTORS_PER_SHUTTER : (index + 1)
@@ -167,7 +167,7 @@ class ApscsStatus(BaseMockStatus):
             duration = self.shutter_motion[i].set_target_position_and_velocity(
                 start_tai=start_tai,
                 end_position=self.position_commanded,
-                motion_state=LlcMotionState.MOVING,
+                motion_state=MotionState.MOVING,
             )
         return duration
 
@@ -194,7 +194,7 @@ class ApscsStatus(BaseMockStatus):
             duration = self.shutter_motion[i].set_target_position_and_velocity(
                 start_tai=start_tai,
                 end_position=self.position_commanded,
-                motion_state=LlcMotionState.MOVING,
+                motion_state=MotionState.MOVING,
             )
         return duration
 
@@ -337,7 +337,7 @@ class ApscsStatus(BaseMockStatus):
         return duration
 
     async def set_fault(self, start_tai: float, drives_in_error: list[int]) -> None:
-        """Set the LlcMotionState of ApSCS to fault and set the drives in
+        """Set the MotionState of ApSCS to fault and set the drives in
         drives_in_error to error.
 
         Parameters

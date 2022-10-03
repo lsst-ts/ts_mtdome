@@ -30,8 +30,9 @@ import logging
 import math
 
 import numpy as np
+from lsst.ts.idl.enums.MTDome import MotionState
 
-from ..enums import LlcMotionState, OnOff
+from ..enums import OnOff
 from ..llc_configuration_limits.amcs_limits import AmcsLimits
 from .base_mock_llc import BaseMockStatus
 from .mock_motion.azimuth_motion import NUM_MOTORS, AzimuthMotion
@@ -121,11 +122,11 @@ class AmcsStatus(BaseMockStatus):
         ) = self.azimuth_motion.get_position_velocity_and_motion_state(tai=current_tai)
         # Determine the current drawn by the azimuth motors. Here fixed current
         # values are assumed while in reality they vary depending on the speed.
-        if motion_state == LlcMotionState.MOVING:
+        if motion_state == MotionState.MOVING:
             self.drive_current_actual = np.full(
                 NUM_MOTORS, POWER_PER_MOTOR_MOVING, dtype=float
             )
-        elif motion_state == LlcMotionState.CRAWLING:
+        elif motion_state == MotionState.CRAWLING:
             self.drive_current_actual = np.full(
                 NUM_MOTORS, POWER_PER_MOTOR_CRAWLING, dtype=float
             )
@@ -192,7 +193,7 @@ class AmcsStatus(BaseMockStatus):
             start_tai=start_tai,
             end_position=position,
             crawl_velocity=velocity,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MotionState.MOVING,
         )
         self.end_tai = start_tai + duration
         return duration
@@ -225,7 +226,7 @@ class AmcsStatus(BaseMockStatus):
             start_tai=start_tai,
             end_position=self.position_commanded,
             crawl_velocity=velocity,
-            motion_state=LlcMotionState.CRAWLING,
+            motion_state=MotionState.CRAWLING,
         )
         self.end_tai = start_tai + duration
         return duration
@@ -411,7 +412,7 @@ class AmcsStatus(BaseMockStatus):
         return duration
 
     async def set_fault(self, start_tai: float, drives_in_error: list[int]) -> None:
-        """Set the LlcMotionState of AMCS to fault and set the drives in
+        """Set the MotionState of AMCS to fault and set the drives in
         drives_in_error to error.
 
         Parameters

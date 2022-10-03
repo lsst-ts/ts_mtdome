@@ -25,8 +25,9 @@ import logging
 import math
 
 from lsst.ts import utils
+from lsst.ts.idl.enums.MTDome import MotionState
 
-from ...enums import IntermediateState, LlcMotionState
+from ...enums import InternalMotionState
 from .base_llc_motion_with_crawl import BaseLlcMotionWithCrawl
 
 # The number of motors.
@@ -39,53 +40,53 @@ INTERMEDIATE_STATE_DURATION = 0.5
 INFLATABLE_SEAL_DURATION = 1.0
 
 STATE_SEQUENCE_START_MOTORS = [
-    (IntermediateState.DEFLATING, INFLATABLE_SEAL_DURATION),
-    (IntermediateState.DEFLATED, INFLATABLE_SEAL_DURATION),
-    (IntermediateState.STARTING_MOTOR_COOLING, INTERMEDIATE_STATE_DURATION),
-    (IntermediateState.MOTOR_COOLING_ON, INTERMEDIATE_STATE_DURATION),
-    (IntermediateState.ENABLING_MOTOR_POWER, INTERMEDIATE_STATE_DURATION),
-    (IntermediateState.MOTOR_POWER_ON, INTERMEDIATE_STATE_DURATION),
-    (IntermediateState.GO_NORMAL, INTERMEDIATE_STATE_DURATION),
-    (IntermediateState.DISENGAGING_BRAKES, INTERMEDIATE_STATE_DURATION),
-    (IntermediateState.BRAKES_DISENGAGED, INTERMEDIATE_STATE_DURATION),
+    (MotionState.DEFLATING, INFLATABLE_SEAL_DURATION),
+    (MotionState.DEFLATED, INFLATABLE_SEAL_DURATION),
+    (MotionState.STARTING_MOTOR_COOLING, INTERMEDIATE_STATE_DURATION),
+    (MotionState.MOTOR_COOLING_ON, INTERMEDIATE_STATE_DURATION),
+    (MotionState.ENABLING_MOTOR_POWER, INTERMEDIATE_STATE_DURATION),
+    (MotionState.MOTOR_POWER_ON, INTERMEDIATE_STATE_DURATION),
+    (MotionState.GO_NORMAL, INTERMEDIATE_STATE_DURATION),
+    (MotionState.DISENGAGING_BRAKES, INTERMEDIATE_STATE_DURATION),
+    (MotionState.BRAKES_DISENGAGED, INTERMEDIATE_STATE_DURATION),
 ]
 STATE_SEQUENCE_STOP_MOTORS = [
-    (IntermediateState.ENGAGING_BRAKES, INTERMEDIATE_STATE_DURATION),
-    (IntermediateState.BRAKES_ENGAGED, INTERMEDIATE_STATE_DURATION),
-    (IntermediateState.GO_STATIONARY, INTERMEDIATE_STATE_DURATION),
-    (IntermediateState.DISABLING_MOTOR_POWER, INTERMEDIATE_STATE_DURATION),
-    (IntermediateState.MOTOR_POWER_OFF, INTERMEDIATE_STATE_DURATION),
-    (IntermediateState.STOPPING_MOTOR_COOLING, INTERMEDIATE_STATE_DURATION),
-    (IntermediateState.MOTOR_COOLING_OFF, INTERMEDIATE_STATE_DURATION),
+    (MotionState.ENGAGING_BRAKES, INTERMEDIATE_STATE_DURATION),
+    (MotionState.BRAKES_ENGAGED, INTERMEDIATE_STATE_DURATION),
+    (MotionState.GO_STATIONARY, INTERMEDIATE_STATE_DURATION),
+    (MotionState.DISABLING_MOTOR_POWER, INTERMEDIATE_STATE_DURATION),
+    (MotionState.MOTOR_POWER_OFF, INTERMEDIATE_STATE_DURATION),
+    (MotionState.STOPPING_MOTOR_COOLING, INTERMEDIATE_STATE_DURATION),
+    (MotionState.MOTOR_COOLING_OFF, INTERMEDIATE_STATE_DURATION),
 ]
 
 # Dict of allowed motion state transitions and the intermediary states between
 # those motion states, if applicable.
 STATE_TRANSITIONS: dict[
-    tuple[LlcMotionState, LlcMotionState],
-    list[tuple[IntermediateState, float]],
+    tuple[MotionState, MotionState],
+    list[tuple[MotionState, float]],
 ] = {
-    (LlcMotionState.PARKED, LlcMotionState.MOVING): STATE_SEQUENCE_START_MOTORS,
-    (LlcMotionState.PARKED, LlcMotionState.CRAWLING): STATE_SEQUENCE_START_MOTORS,
-    (LlcMotionState.MOVING, LlcMotionState.CRAWLING): [],
-    (LlcMotionState.CRAWLING, LlcMotionState.MOVING): [],
-    (LlcMotionState.CRAWLING, LlcMotionState.STOPPED): [],
-    (LlcMotionState.MOVING, LlcMotionState.CRAWLING): [],
-    (LlcMotionState.MOVING, LlcMotionState.STOPPED): [],
-    (LlcMotionState.CRAWLING, LlcMotionState.MOVING): [],
-    (LlcMotionState.MOVING, LlcMotionState.PARKED): STATE_SEQUENCE_STOP_MOTORS,
-    (LlcMotionState.CRAWLING, LlcMotionState.PARKED): STATE_SEQUENCE_STOP_MOTORS,
-    (LlcMotionState.STOPPED, LlcMotionState.PARKED): STATE_SEQUENCE_STOP_MOTORS,
-    (LlcMotionState.MOVING, LlcMotionState.STATIONARY): STATE_SEQUENCE_STOP_MOTORS,
-    (LlcMotionState.CRAWLING, LlcMotionState.STATIONARY): STATE_SEQUENCE_STOP_MOTORS,
-    (LlcMotionState.STOPPED, LlcMotionState.STATIONARY): STATE_SEQUENCE_STOP_MOTORS,
-    (LlcMotionState.STOPPED, LlcMotionState.MOVING): [],
+    (MotionState.PARKED, MotionState.MOVING): STATE_SEQUENCE_START_MOTORS,
+    (MotionState.PARKED, MotionState.CRAWLING): STATE_SEQUENCE_START_MOTORS,
+    (MotionState.MOVING, MotionState.CRAWLING): [],
+    (MotionState.CRAWLING, MotionState.MOVING): [],
+    (MotionState.CRAWLING, MotionState.STOPPED): [],
+    (MotionState.MOVING, MotionState.CRAWLING): [],
+    (MotionState.MOVING, MotionState.STOPPED): [],
+    (MotionState.CRAWLING, MotionState.MOVING): [],
+    (MotionState.MOVING, MotionState.PARKED): STATE_SEQUENCE_STOP_MOTORS,
+    (MotionState.CRAWLING, MotionState.PARKED): STATE_SEQUENCE_STOP_MOTORS,
+    (MotionState.STOPPED, MotionState.PARKED): STATE_SEQUENCE_STOP_MOTORS,
+    (MotionState.MOVING, InternalMotionState.STATIONARY): STATE_SEQUENCE_STOP_MOTORS,
+    (MotionState.CRAWLING, InternalMotionState.STATIONARY): STATE_SEQUENCE_STOP_MOTORS,
+    (MotionState.STOPPED, InternalMotionState.STATIONARY): STATE_SEQUENCE_STOP_MOTORS,
+    (MotionState.STOPPED, MotionState.MOVING): [],
 }
 
 CALIBRATE_AZ_ALLOWED_STATES = [
-    LlcMotionState.PARKED,
-    LlcMotionState.STATIONARY,
-    LlcMotionState.STOPPED,
+    MotionState.PARKED,
+    InternalMotionState.STATIONARY,
+    MotionState.STOPPED,
 ]
 
 
@@ -124,7 +125,7 @@ class AzimuthMotion(BaseLlcMotionWithCrawl):
         )
         self.log = logging.getLogger("AzimuthMotion")
         # The azimuth motion always starts in PARKED state.
-        self._commanded_motion_state = LlcMotionState.PARKED
+        self._commanded_motion_state = MotionState.PARKED
         # Keep track of which drives are in error state.
         self.drives_in_error_state = [False] * NUM_MOTORS
         # Keep track of the additional duration needed for the dome to start
@@ -134,7 +135,7 @@ class AzimuthMotion(BaseLlcMotionWithCrawl):
 
     def _get_additional_duration(self) -> float:
         if (
-            self._current_motion_state == LlcMotionState.ERROR
+            self._current_motion_state == MotionState.ERROR
             or self._current_motion_state == self._commanded_motion_state
         ):
             return 0.0
@@ -152,8 +153,8 @@ class AzimuthMotion(BaseLlcMotionWithCrawl):
 
     def get_position_velocity_and_motion_state(
         self, tai: float
-    ) -> tuple[float, float, LlcMotionState]:
-        """Computes the position and `LlcMotionState` for the given TAI time.
+    ) -> tuple[float, float, MotionState]:
+        """Computes the position and `MotionState` for the given TAI time.
 
         Parameters
         ----------
@@ -169,8 +170,8 @@ class AzimuthMotion(BaseLlcMotionWithCrawl):
             (optional) and crawl velocities into account.
         velocity: `float`
             The velocity [rad/s] at the given TAI time.
-        motion_state: `LlcMotionState`
-            The LlcMotionState at the given TAI time.
+        motion_state: `MotionState`
+            The MotionState at the given TAI time.
         """
 
         if self.motion_state_in_error:
@@ -180,46 +181,46 @@ class AzimuthMotion(BaseLlcMotionWithCrawl):
         distance = self._get_distance()
         end_tai = self._end_tai
         if self._current_motion_state in [
-            LlcMotionState.MOVING,
-            LlcMotionState.CRAWLING,
-            LlcMotionState.STOPPED,
+            MotionState.MOVING,
+            MotionState.CRAWLING,
+            MotionState.STOPPED,
         ] and self._commanded_motion_state in [
-            LlcMotionState.PARKED,
-            LlcMotionState.STATIONARY,
+            MotionState.PARKED,
+            InternalMotionState.STATIONARY,
         ]:
             end_tai = self._end_tai - additional_duration
         if tai >= end_tai:
-            if self._commanded_motion_state == LlcMotionState.PARKED:
-                motion_state = LlcMotionState.PARKED
+            if self._commanded_motion_state == MotionState.PARKED:
+                motion_state = MotionState.PARKED
                 position = self._end_position
                 velocity = 0.0
-            elif self._commanded_motion_state == LlcMotionState.STOPPED:
-                motion_state = LlcMotionState.STOPPED
+            elif self._commanded_motion_state == MotionState.STOPPED:
+                motion_state = MotionState.STOPPED
                 position = self._end_position
                 velocity = 0.0
-            elif self._commanded_motion_state == LlcMotionState.STATIONARY:
-                motion_state = LlcMotionState.STATIONARY
+            elif self._commanded_motion_state == InternalMotionState.STATIONARY:
+                motion_state = InternalMotionState.STATIONARY
                 position = self._end_position
                 velocity = 0.0
             else:
                 diff_since_crawl_started = tai - end_tai
                 calculation_position = self._end_position
-                if self._commanded_motion_state == LlcMotionState.CRAWLING:
+                if self._commanded_motion_state == MotionState.CRAWLING:
                     calculation_position = self._start_position
                 position = (
                     calculation_position
                     + self._crawl_velocity * diff_since_crawl_started
                 )
-                motion_state = LlcMotionState.CRAWLING
+                motion_state = MotionState.CRAWLING
                 velocity = self._crawl_velocity
                 if self._crawl_velocity == 0.0:
                     if self._commanded_motion_state in [
-                        LlcMotionState.STOPPED,
-                        LlcMotionState.MOVING,
+                        MotionState.STOPPED,
+                        MotionState.MOVING,
                     ]:
-                        motion_state = LlcMotionState.STOPPED
-                    elif self._commanded_motion_state == LlcMotionState.STATIONARY:
-                        motion_state = LlcMotionState.STATIONARY
+                        motion_state = MotionState.STOPPED
+                    elif self._commanded_motion_state == InternalMotionState.STATIONARY:
+                        motion_state = InternalMotionState.STATIONARY
                     velocity = 0.0
         elif tai < self._start_tai:
             raise ValueError(
@@ -227,34 +228,34 @@ class AzimuthMotion(BaseLlcMotionWithCrawl):
             )
         else:
             if self._current_motion_state in [
-                LlcMotionState.MOVING,
-                LlcMotionState.CRAWLING,
-                LlcMotionState.STOPPED,
+                MotionState.MOVING,
+                MotionState.CRAWLING,
+                MotionState.STOPPED,
             ] and self._commanded_motion_state in [
-                LlcMotionState.PARKED,
-                LlcMotionState.STATIONARY,
+                MotionState.PARKED,
+                InternalMotionState.STATIONARY,
             ]:
                 frac_time = (tai - self._start_tai) / (
                     self._end_tai - self._start_tai - additional_duration
                 )
             elif self._current_motion_state in [
-                LlcMotionState.PARKED,
-                LlcMotionState.STATIONARY,
+                MotionState.PARKED,
+                InternalMotionState.STATIONARY,
             ] and self._commanded_motion_state in [
-                LlcMotionState.MOVING,
-                LlcMotionState.CRAWLING,
-                LlcMotionState.STOPPED,
+                MotionState.MOVING,
+                MotionState.CRAWLING,
+                MotionState.STOPPED,
             ]:
                 frac_time = (tai - self._start_tai - additional_duration) / (
                     self._end_tai - self._start_tai - additional_duration
                 )
                 self._computed_additional_duration = additional_duration
             elif self._current_motion_state in [
-                LlcMotionState.MOVING,
-                LlcMotionState.CRAWLING,
+                MotionState.MOVING,
+                MotionState.CRAWLING,
             ] and self._commanded_motion_state in [
-                LlcMotionState.MOVING,
-                LlcMotionState.CRAWLING,
+                MotionState.MOVING,
+                MotionState.CRAWLING,
             ]:
                 frac_time = (
                     tai - self._start_tai - self._computed_additional_duration
@@ -268,20 +269,20 @@ class AzimuthMotion(BaseLlcMotionWithCrawl):
             velocity = self._max_speed
             if distance < 0.0:
                 velocity = -self._max_speed
-            if self._commanded_motion_state == LlcMotionState.STOPPED:
-                motion_state = LlcMotionState.STOPPED
+            if self._commanded_motion_state == MotionState.STOPPED:
+                motion_state = MotionState.STOPPED
                 velocity = 0.0
-            elif self._commanded_motion_state == LlcMotionState.STATIONARY:
-                motion_state = LlcMotionState.STATIONARY
+            elif self._commanded_motion_state == InternalMotionState.STATIONARY:
+                motion_state = InternalMotionState.STATIONARY
                 velocity = 0.0
             else:
-                motion_state = LlcMotionState.MOVING
+                motion_state = MotionState.MOVING
 
         position = utils.angle_wrap_nonnegative(math.degrees(position)).rad
 
         if self.motion_state_in_error:
             velocity = 0.0
-            motion_state = LlcMotionState.ERROR
+            motion_state = MotionState.ERROR
 
         self._current_motion_state = motion_state
         return position, velocity, motion_state
@@ -309,7 +310,7 @@ class AzimuthMotion(BaseLlcMotionWithCrawl):
         self._start_position = position
         self._end_position = 0.0
         self._crawl_velocity = 0.0
-        self._commanded_motion_state = LlcMotionState.PARKED
+        self._commanded_motion_state = MotionState.PARKED
         self._current_motion_state = motion_state
         self._end_tai = self._start_tai + self._get_duration()
         return self._end_tai - start_tai

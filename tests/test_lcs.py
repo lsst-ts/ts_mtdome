@@ -24,6 +24,7 @@ import unittest
 
 import numpy as np
 from lsst.ts import mtdome
+from lsst.ts.idl.enums.MTDome import MotionState
 from lsst.ts.mtdome.mock_llc.lcs import (
     NUM_LOUVERS,
     NUM_MOTORS_PER_LOUVER,
@@ -63,11 +64,11 @@ class LcsTestCase(unittest.IsolatedAsyncioTestCase):
         for index, status in enumerate(lcs_status["status"]["status"]):
             if index in expected_positions:
                 if expected_positions[index] > 0:
-                    assert mtdome.LlcMotionState.OPEN.name == status
+                    assert MotionState.OPEN.name == status
                 else:
-                    assert mtdome.LlcMotionState.CLOSED.name == status
+                    assert MotionState.CLOSED.name == status
             else:
-                assert mtdome.LlcMotionState.CLOSED.name == status
+                assert MotionState.CLOSED.name == status
         for index, positionActual in enumerate(lcs_status["positionActual"]):
             if index in expected_positions:
                 assert expected_positions[index] == positionActual
@@ -86,10 +87,7 @@ class LcsTestCase(unittest.IsolatedAsyncioTestCase):
                 index * NUM_MOTORS_PER_LOUVER + 1
             ]
             if index in expected_positions:
-                if (
-                    lcs_status["status"]["status"][index]
-                    == mtdome.LlcMotionState.MOVING
-                ):
+                if lcs_status["status"]["status"][index] == MotionState.MOVING:
                     assert driveCurrentActualMotor1 == POWER_PER_MOTOR
                     assert driveCurrentActualMotor2 == POWER_PER_MOTOR
             else:
