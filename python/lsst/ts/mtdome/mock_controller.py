@@ -77,6 +77,7 @@ class MockMTDomeController:
         self.port = port
         self._server: typing.Optional[asyncio.AbstractServer] = None
         self._writer: typing.Optional[asyncio.StreamWriter] = None
+        self._reader: typing.Optional[asyncio.StreamReader] = None
         self.log = logging.getLogger("MockMTDomeController")
         # Dict of command: (has_argument, function).
         # The function is called with:
@@ -137,6 +138,7 @@ class MockMTDomeController:
         # Mock a network interruption (True) or not (False). To be set by unit
         # tests only.
         self.enable_network_interruption = False
+        self.read_task: asyncio.Future | None = None
 
         # Variables for the lower level components.
         self.amcs: typing.Optional[mock_llc.AmcsStatus] = None
@@ -188,10 +190,15 @@ class MockMTDomeController:
         if self._server is None:
             return
 
+        self.log.info("Closing server")
+        if self.read_task is not None:
+            self.read_task.cancel()
         server = self._server
         self._server = None
-        self.log.info("Closing server")
         server.close()
+        await server.wait_closed()
+        self._writer = None
+        self._reader = None
         self.log.info("Done closing")
 
     async def write(self, **data: typing.Any) -> None:
@@ -222,14 +229,19 @@ class MockMTDomeController:
         """
         self.log.info("The cmd_loop begins")
         self._writer = writer
+        self._reader = reader
+        self.read_task = asyncio.create_task(self.read_in_loop())
+
+    async def read_in_loop(self) -> None:
         while True:
             self.log.debug("Waiting for next command.")
 
             try:
-                byte_line = await reader.readuntil(b"\r\n")
+                assert self._reader is not None
+                byte_line = await self._reader.readuntil(b"\r\n")
                 line = byte_line.decode().strip()
                 self.log.debug(f"Read command line: {line!r}")
-            except asyncio.IncompleteReadError:
+            except (asyncio.IncompleteReadError, AssertionError):
                 return
             if line:
                 # some housekeeping for sending a response
