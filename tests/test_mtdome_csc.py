@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
 import math
 import pathlib
@@ -1177,6 +1178,36 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 await salobj.set_summary_state(
                     remote=self.remote, state=salobj.State.DISABLED
                 )
+            await self.assert_next_summary_state(salobj.State.FAULT)
+
+    async def test_connection_lost(self) -> None:
+        port = 0
+        mock_ctrl = mtdome.MockMTDomeController(port=port)
+        mock_ctrl.determine_current_tai = self.determine_current_tai
+        asyncio.create_task(mock_ctrl.start())
+        await asyncio.sleep(1)
+        # Request the assigned port from the mock controller.
+        port = mock_ctrl.port
+
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER.value,
+            mock_port=port,
+        ):
+            await self.assert_next_summary_state(salobj.State.STANDBY)
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.DISABLED
+            )
+            await self.assert_next_summary_state(salobj.State.DISABLED)
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.assert_next_summary_state(salobj.State.ENABLED)
+
+            # Now stop the MockController and verify that the CSC goes to FAULT
+            # state.
+            await mock_ctrl.stop()
             await self.assert_next_summary_state(salobj.State.FAULT)
 
     async def test_bin_script(self) -> None:

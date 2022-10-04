@@ -444,7 +444,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     read_bytes = await asyncio.wait_for(
                         self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
                     )
-                except (asyncio.exceptions.TimeoutError, AssertionError) as e:
+                except (
+                    asyncio.exceptions.IncompleteReadError,
+                    asyncio.exceptions.TimeoutError,
+                    AssertionError,
+                ) as e:
                     await self.fault(
                         code=3, report=f"Error reading reply to command {st}: {e}"
                     )
