@@ -37,10 +37,6 @@ class MockMTDomeController:
     ----------
     port : `int`
         TCP/IP port
-    refuse_connections : `bool`, optional
-        Refuse connections if True by immediately stopping after having started
-        up. This ensures that a port get allocated to avoid breaking code that
-        relies on that. To be set by unit tests only. Defaults to False.
 
     Notes
     -----
@@ -77,7 +73,6 @@ class MockMTDomeController:
     def __init__(
         self,
         port: int,
-        refuse_connections: bool = False,
     ) -> None:
         self.port = port
         self._server: typing.Optional[asyncio.AbstractServer] = None
@@ -142,10 +137,6 @@ class MockMTDomeController:
         # Mock a network interruption (True) or not (False). To be set by unit
         # tests only.
         self.enable_network_interruption = False
-        # Refuse connections by immediately stopping after having started up.
-        # This ensures that a port get allocated to avoid breaking code that
-        # relies on that.
-        self.refuse_connections = refuse_connections
 
         # Variables for the lower level components.
         self.amcs: typing.Optional[mock_llc.AmcsStatus] = None
@@ -189,9 +180,7 @@ class MockMTDomeController:
         self.moncs = mock_llc.MoncsStatus()
         self.thcs = mock_llc.ThcsStatus()
 
-        if self.refuse_connections:
-            await self.stop()
-        elif keep_running:
+        if keep_running:
             await self._server.serve_forever()
 
     async def stop(self) -> None:
