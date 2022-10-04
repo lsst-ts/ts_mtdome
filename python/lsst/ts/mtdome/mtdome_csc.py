@@ -38,7 +38,13 @@ from lsst.ts.idl.enums.MTDome import (
 from . import __version__, encoding_tools
 from .config_schema import CONFIG_SCHEMA
 from .csc_utils import support_command
-from .enums import LlcName, LlcNameDict, ResponseCode, motion_state_translations
+from .enums import (
+    LlcName,
+    LlcNameDict,
+    ResponseCode,
+    ValidSimulationMode,
+    motion_state_translations,
+)
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .mock_controller import MockMTDomeController
 
@@ -142,14 +148,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     """
 
     enable_cmdline_state = True
-    valid_simulation_modes = (0, 1)
+    valid_simulation_modes = set([v.value for v in ValidSimulationMode])
     version = __version__
 
     def __init__(
         self,
         config_dir: typing.Optional[str] = None,
         initial_state: salobj.State = salobj.State.STANDBY,
-        simulation_mode: int = 0,
+        simulation_mode: int = ValidSimulationMode.NORMAL_OPERATIONS,
         override: str = "",
         mock_port: typing.Optional[int] = None,
     ) -> None:
@@ -161,9 +167,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             MockMTDomeController
         ] = None  # mock controller, or None if not constructed
         self.mock_port = mock_port  # mock port, or None if not used
-        # Make the mock_ctrl refuse connections. Default to False but unit
-        # tests may set it to True.
-        self.mock_ctrl_refuse_connections = False
 
         # Check supported commands to make sure of backward compatibility with
         # XML 12.0.
@@ -250,11 +253,18 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             raise RuntimeError("Not yet configured")
         if self.connected:
             raise RuntimeError("Already connected")
-        if self.simulation_mode == 1:
+        if self.simulation_mode == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER:
             await self.start_mock_ctrl()
             host = _LOCAL_HOST
             assert self.mock_ctrl is not None
             port = self.mock_ctrl.port
+        elif (
+            self.simulation_mode
+            == ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER
+        ):
+            host = _LOCAL_HOST
+            assert self.mock_port is not None
+            port = self.mock_port
         else:
             host = self.config.host
             port = self.config.port
@@ -328,7 +338,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         writer = self.writer
         self.reader = None
         self.writer = None
-        await self.stop_mock_ctrl()
+        if self.simulation_mode == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER:
+            await self.stop_mock_ctrl()
         if writer:
             try:
                 writer.write_eof()
@@ -343,15 +354,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.info("start_mock_ctrl")
         try:
-            assert self.simulation_mode == 1
+            assert (
+                self.simulation_mode
+                == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value
+            )
             if self.mock_port is not None:
                 port = self.mock_port
             else:
                 assert self.config is not None
                 port = self.config.port
-            self.mock_ctrl = MockMTDomeController(
-                port, refuse_connections=self.mock_ctrl_refuse_connections
-            )
+            self.mock_ctrl = MockMTDomeController(port)
             await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
 
         except Exception as e:
@@ -432,7 +444,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     read_bytes = await asyncio.wait_for(
                         self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
                     )
-                except (asyncio.exceptions.TimeoutError, AssertionError) as e:
+                except (
+                    asyncio.exceptions.IncompleteReadError,
+                    asyncio.exceptions.TimeoutError,
+                    AssertionError,
+                ) as e:
                     await self.fault(
                         code=3, report=f"Error reading reply to command {st}: {e}"
                     )

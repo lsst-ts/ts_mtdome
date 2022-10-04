@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
 import math
 import pathlib
@@ -53,18 +54,21 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         simulation_mode: int,
         **kwargs: typing.Any,
     ) -> None:
+        mock_port = 0
+        if "mock_port" in kwargs:
+            mock_port = kwargs["mock_port"]
         return mtdome.MTDomeCsc(
             initial_state=initial_state,
             config_dir=config_dir,
             simulation_mode=simulation_mode,
-            mock_port=0,
+            mock_port=mock_port,
         )
 
     async def test_standard_state_transitions(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.check_standard_state_transitions(
                 enabled_commands=(
@@ -101,7 +105,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.assert_next_sample(
                 self.remote.evt_softwareVersions,
@@ -140,7 +144,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -188,7 +192,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -226,7 +230,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -276,7 +280,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stop.set_start(
@@ -307,7 +311,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -370,7 +374,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -417,7 +421,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -459,7 +463,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             louver_id = 5
@@ -475,7 +479,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_closeLouvers.set_start()
@@ -484,7 +488,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stop.set_start(
@@ -495,7 +499,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_openShutter.set_start()
@@ -504,7 +508,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_closeShutter.set_start()
@@ -513,7 +517,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stop.set_start(
@@ -524,7 +528,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -553,7 +557,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -610,7 +614,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             desired_temperature = 10.0
@@ -623,7 +627,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -680,7 +684,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -708,7 +712,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -736,7 +740,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             # It should be possible to always execute the status command but
             # the connection with the lower level components only gets made in
@@ -771,7 +775,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -803,7 +807,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -896,7 +900,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -963,7 +967,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -1033,7 +1037,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -1132,7 +1136,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             self.csc.mock_ctrl.enable_slow_network = True
@@ -1154,7 +1158,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.DISABLED,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.assert_next_summary_state(salobj.State.DISABLED)
             await self.set_csc_to_enabled()
@@ -1166,14 +1170,44 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER.value,
+            mock_port=5000,
         ):
             await self.assert_next_summary_state(salobj.State.STANDBY)
-            self.csc.mock_ctrl_refuse_connections = True
             with pytest.raises(RuntimeError):
                 await salobj.set_summary_state(
                     remote=self.remote, state=salobj.State.DISABLED
                 )
+            await self.assert_next_summary_state(salobj.State.FAULT)
+
+    async def test_connection_lost(self) -> None:
+        port = 0
+        mock_ctrl = mtdome.MockMTDomeController(port=port)
+        mock_ctrl.determine_current_tai = self.determine_current_tai
+        asyncio.create_task(mock_ctrl.start())
+        await asyncio.sleep(1)
+        # Request the assigned port from the mock controller.
+        port = mock_ctrl.port
+
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER.value,
+            mock_port=port,
+        ):
+            await self.assert_next_summary_state(salobj.State.STANDBY)
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.DISABLED
+            )
+            await self.assert_next_summary_state(salobj.State.DISABLED)
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.assert_next_summary_state(salobj.State.ENABLED)
+
+            # Now stop the MockController and verify that the CSC goes to FAULT
+            # state.
+            await mock_ctrl.stop()
             await self.assert_next_summary_state(salobj.State.FAULT)
 
     async def test_bin_script(self) -> None:

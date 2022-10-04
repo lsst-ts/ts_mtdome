@@ -25,6 +25,7 @@ __all__ = [
     "LlcNameDict",
     "OnOff",
     "ResponseCode",
+    "ValidSimulationMode",
     "motion_state_translations",
 ]
 
@@ -75,6 +76,14 @@ class ResponseCode(enum.IntEnum):
     OK = 0
     UNSUPPORTED_COMMAND = 2
     COMMAND_REJECTED = 3
+
+
+class ValidSimulationMode(enum.IntEnum):
+    """Valid values for the simulation_mode attribute of the CSC."""
+
+    NORMAL_OPERATIONS = 0
+    SIMULATION_WITH_MOCK_CONTROLLER = 1
+    SIMULATION_WITHOUT_MOCK_CONTROLLER = 2
 
 
 # Dictionary to look up which LlcName is associated with which sub-system.
