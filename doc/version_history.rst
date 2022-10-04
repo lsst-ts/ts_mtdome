@@ -11,6 +11,9 @@ v1.11.4
 * Disable polling the status of all subsystems except AMCS.
 * Introduce backward compatibility with XML 12.0 for the TMA Pointing Test.
 * Replace MTDome control software states with the ones from IDL.
+* Introduce a new simulation mode, where the MockController doesn't get started by the CSC, for test purposes.
+* Improve starting and stopping of MockController.
+* Improve error handling of the CSC 'write then read' loop.
 
 Requires:
 
