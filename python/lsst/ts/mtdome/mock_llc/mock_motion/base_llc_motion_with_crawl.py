@@ -21,7 +21,8 @@
 
 import math
 
-from ...enums import LlcMotionState
+from lsst.ts.idl.enums.MTDome import MotionState
+
 from .base_llc_motion import BaseLlcMotion
 
 
@@ -59,7 +60,7 @@ class BaseLlcMotionWithCrawl(BaseLlcMotion):
         # is for MOVING.
         duration = super()._get_duration()
         # Next check if CRAWLING.
-        if self._commanded_motion_state == LlcMotionState.CRAWLING:
+        if self._commanded_motion_state == MotionState.CRAWLING:
             # A crawl command is executed instantaneously.
             duration = 0
         return duration
@@ -69,7 +70,7 @@ class BaseLlcMotionWithCrawl(BaseLlcMotion):
         start_tai: float,
         end_position: float,
         crawl_velocity: float,
-        motion_state: LlcMotionState,
+        motion_state: MotionState,
     ) -> float:
         """Sets the end_position and crawl_velocity and returns the duration of
         the move.
@@ -86,7 +87,7 @@ class BaseLlcMotionWithCrawl(BaseLlcMotion):
             The target position.
         crawl_velocity: `float`
             The crawl_velocity.
-        motion_state: `LlcMotionState`
+        motion_state: `MotionState`
             MOVING or CRAWLING. The value is not checked.
 
         Returns

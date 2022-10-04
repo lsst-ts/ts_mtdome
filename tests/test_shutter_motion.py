@@ -24,6 +24,7 @@ import unittest
 
 import pytest
 from lsst.ts import mtdome
+from lsst.ts.idl.enums.MTDome import MotionState
 from lsst.ts.mtdome.mock_llc.mock_motion.shutter_motion import (
     CLOSED_POSITION,
     OPEN_POSITION,
@@ -60,7 +61,7 @@ class ShutterMotionTestCase(unittest.IsolatedAsyncioTestCase):
         start_tai: float,
         target_position: float,
         expected_duration: float,
-        motion_state: mtdome.LlcMotionState,
+        motion_state: MotionState,
     ) -> None:
         """Verify that the ShutterMotion computes the correct
         duration.
@@ -73,8 +74,8 @@ class ShutterMotionTestCase(unittest.IsolatedAsyncioTestCase):
             The target position.
         expected_duration: `float`
             The expected duration.
-        motion_state: `mtdome.LlcMotionState`
-            The commanded mtdome.LlcMotionState.
+        motion_state: `MotionState`
+            The commanded MotionState.
         """
         duration = self.shutter_motion.set_target_position_and_velocity(
             start_tai=start_tai,
@@ -88,7 +89,7 @@ class ShutterMotionTestCase(unittest.IsolatedAsyncioTestCase):
         tai: float,
         expected_position: float,
         expected_velocity: float,
-        expected_motion_state: mtdome.LlcMotionState,
+        expected_motion_state: MotionState,
     ) -> None:
         """Verify the position of the ShutterMotion at the given TAI time.
 
@@ -125,20 +126,20 @@ class ShutterMotionTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
             target_position=target_position,
             expected_duration=expected_duration,
-            motion_state=mtdome.LlcMotionState.MOVING,
+            motion_state=MotionState.MOVING,
         )
         for i in range(10):
             await self.verify_motion(
                 tai=start_tai + i,
                 expected_position=SHUTTER_SPEED * i,
                 expected_velocity=SHUTTER_SPEED,
-                expected_motion_state=mtdome.LlcMotionState.MOVING,
+                expected_motion_state=MotionState.MOVING,
             )
         await self.verify_motion(
             tai=start_tai + 10,
             expected_position=OPEN_POSITION,
             expected_velocity=0.0,
-            expected_motion_state=mtdome.LlcMotionState.STOPPED,
+            expected_motion_state=MotionState.STOPPED,
         )
 
     async def test_close_shutter(self) -> None:
@@ -154,20 +155,20 @@ class ShutterMotionTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
             target_position=target_position,
             expected_duration=expected_duration,
-            motion_state=mtdome.LlcMotionState.MOVING,
+            motion_state=MotionState.MOVING,
         )
         for i in range(10):
             await self.verify_motion(
                 tai=start_tai + i,
                 expected_position=OPEN_POSITION - SHUTTER_SPEED * i,
                 expected_velocity=-SHUTTER_SPEED,
-                expected_motion_state=mtdome.LlcMotionState.MOVING,
+                expected_motion_state=MotionState.MOVING,
             )
         await self.verify_motion(
             tai=start_tai + 10,
             expected_position=CLOSED_POSITION,
             expected_velocity=0.0,
-            expected_motion_state=mtdome.LlcMotionState.STOPPED,
+            expected_motion_state=MotionState.STOPPED,
         )
 
     async def test_stop_shutter(self) -> None:
@@ -183,21 +184,21 @@ class ShutterMotionTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
             target_position=target_position,
             expected_duration=expected_duration,
-            motion_state=mtdome.LlcMotionState.MOVING,
+            motion_state=MotionState.MOVING,
         )
         for i in range(6):
             await self.verify_motion(
                 tai=start_tai + i,
                 expected_position=SHUTTER_SPEED * i,
                 expected_velocity=SHUTTER_SPEED,
-                expected_motion_state=mtdome.LlcMotionState.MOVING,
+                expected_motion_state=MotionState.MOVING,
             )
         self.shutter_motion.stop(start_tai=start_tai + 7)
         await self.verify_motion(
             tai=start_tai + 7.1,
             expected_position=70.0,
             expected_velocity=0.0,
-            expected_motion_state=mtdome.LlcMotionState.STOPPED,
+            expected_motion_state=MotionState.STOPPED,
         )
 
     async def test_go_stationary_shutter(self) -> None:
@@ -213,21 +214,21 @@ class ShutterMotionTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=start_tai,
             target_position=target_position,
             expected_duration=expected_duration,
-            motion_state=mtdome.LlcMotionState.MOVING,
+            motion_state=MotionState.MOVING,
         )
         for i in range(6):
             await self.verify_motion(
                 tai=start_tai + i,
                 expected_position=SHUTTER_SPEED * i,
                 expected_velocity=SHUTTER_SPEED,
-                expected_motion_state=mtdome.LlcMotionState.MOVING,
+                expected_motion_state=MotionState.MOVING,
             )
         self.shutter_motion.go_stationary(start_tai=start_tai + 7)
         await self.verify_motion(
             tai=start_tai + 7.1,
             expected_position=70.0,
             expected_velocity=0.0,
-            expected_motion_state=mtdome.LlcMotionState.STATIONARY,
+            expected_motion_state=mtdome.InternalMotionState.STATIONARY,
         )
 
     async def test_exit_fault(self) -> None:
@@ -242,13 +243,13 @@ class ShutterMotionTestCase(unittest.IsolatedAsyncioTestCase):
             start_tai=START_TAI,
             target_position=target_position,
             expected_duration=expected_duration,
-            motion_state=mtdome.LlcMotionState.MOVING,
+            motion_state=MotionState.MOVING,
         )
         await self.verify_motion(
             tai=START_TAI + 1.0,
             expected_position=10.0,
             expected_velocity=SHUTTER_SPEED,
-            expected_motion_state=mtdome.LlcMotionState.MOVING,
+            expected_motion_state=MotionState.MOVING,
         )
 
         # This sets the status of the state machine to ERROR.
@@ -261,7 +262,7 @@ class ShutterMotionTestCase(unittest.IsolatedAsyncioTestCase):
             tai=current_tai,
             expected_position=11.0,
             expected_velocity=0.0,
-            expected_motion_state=mtdome.LlcMotionState.ERROR,
+            expected_motion_state=MotionState.ERROR,
         )
 
         current_tai = START_TAI + 2.0
@@ -284,7 +285,7 @@ class ShutterMotionTestCase(unittest.IsolatedAsyncioTestCase):
             tai=current_tai,
             expected_position=11.0,
             expected_velocity=0.0,
-            expected_motion_state=mtdome.LlcMotionState.STATIONARY,
+            expected_motion_state=mtdome.InternalMotionState.STATIONARY,
         )
         assert self.shutter_motion.drives_in_error_state == expected_drive_error_state
         assert self.shutter_motion.motion_state_in_error is False

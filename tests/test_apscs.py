@@ -24,6 +24,7 @@ import unittest
 
 import pytest
 from lsst.ts import mtdome
+from lsst.ts.idl.enums.MTDome import MotionState
 from lsst.ts.mtdome.mock_llc.apscs import NUM_SHUTTERS, POWER_PER_MOTOR
 from lsst.ts.mtdome.mock_llc.mock_motion.shutter_motion import (
     CLOSED_POSITION,
@@ -65,7 +66,7 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
         self,
         tai: float,
         expected_position: float,
-        expected_motion_state: mtdome.LlcMotionState,
+        expected_motion_state: MotionState,
     ) -> None:
         """Verify the position of the ApSCS at the given TAI time.
 
@@ -89,8 +90,8 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
             [0.0] * NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER
         )
         if expected_motion_state in [
-            mtdome.LlcMotionState.CRAWLING,
-            mtdome.LlcMotionState.MOVING,
+            MotionState.CRAWLING,
+            MotionState.MOVING,
         ]:
             expected_drive_current = (
                 [POWER_PER_MOTOR] * NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER
@@ -110,12 +111,12 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
             await self.verify_apscs(
                 tai=start_tai + i,
                 expected_position=SHUTTER_SPEED * i,
-                expected_motion_state=mtdome.LlcMotionState.MOVING,
+                expected_motion_state=MotionState.MOVING,
             )
         await self.verify_apscs(
             tai=start_tai + 10,
             expected_position=OPEN_POSITION,
-            expected_motion_state=mtdome.LlcMotionState.STOPPED,
+            expected_motion_state=MotionState.STOPPED,
         )
 
     async def test_close_shutter(self) -> None:
@@ -131,12 +132,12 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
             await self.verify_apscs(
                 tai=start_tai + i,
                 expected_position=OPEN_POSITION - SHUTTER_SPEED * i,
-                expected_motion_state=mtdome.LlcMotionState.MOVING,
+                expected_motion_state=MotionState.MOVING,
             )
         await self.verify_apscs(
             tai=start_tai + 10,
             expected_position=CLOSED_POSITION,
-            expected_motion_state=mtdome.LlcMotionState.STOPPED,
+            expected_motion_state=MotionState.STOPPED,
         )
 
     async def test_stop_shutter(self) -> None:
@@ -152,13 +153,13 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
             await self.verify_apscs(
                 tai=start_tai + i,
                 expected_position=SHUTTER_SPEED * i,
-                expected_motion_state=mtdome.LlcMotionState.MOVING,
+                expected_motion_state=MotionState.MOVING,
             )
         await self.apscs.stopShutter(start_tai=start_tai + 7)
         await self.verify_apscs(
             tai=start_tai + 7.1,
             expected_position=70.0,
-            expected_motion_state=mtdome.LlcMotionState.STOPPED,
+            expected_motion_state=MotionState.STOPPED,
         )
 
     async def test_go_stationary_shutter(self) -> None:
@@ -174,13 +175,13 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
             await self.verify_apscs(
                 tai=start_tai + i,
                 expected_position=SHUTTER_SPEED * i,
-                expected_motion_state=mtdome.LlcMotionState.MOVING,
+                expected_motion_state=MotionState.MOVING,
             )
         await self.apscs.go_stationary(start_tai=start_tai + 7)
         await self.verify_apscs(
             tai=start_tai + 7.1,
             expected_position=70.0,
-            expected_motion_state=mtdome.LlcMotionState.STATIONARY,
+            expected_motion_state=mtdome.InternalMotionState.STATIONARY,
         )
 
     async def test_exit_fault(self) -> None:
@@ -195,7 +196,7 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_apscs(
             tai=START_TAI + 1.0,
             expected_position=10.0,
-            expected_motion_state=mtdome.LlcMotionState.MOVING,
+            expected_motion_state=MotionState.MOVING,
         )
 
         # This sets the status of the state machine to ERROR.
@@ -211,7 +212,7 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_apscs(
             tai=current_tai,
             expected_position=11.0,
-            expected_motion_state=mtdome.LlcMotionState.ERROR,
+            expected_motion_state=MotionState.ERROR,
         )
 
         current_tai = START_TAI + 2.0
@@ -237,7 +238,7 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_apscs(
             tai=current_tai,
             expected_position=11.0,
-            expected_motion_state=mtdome.LlcMotionState.STATIONARY,
+            expected_motion_state=mtdome.InternalMotionState.STATIONARY,
         )
         for i in range(NUM_SHUTTERS):
             assert (

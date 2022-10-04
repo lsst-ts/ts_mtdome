@@ -30,7 +30,9 @@ __all__ = [
 import logging
 import math
 
-from ...enums import LlcMotionState
+from lsst.ts.idl.enums.MTDome import MotionState
+
+from ...enums import InternalMotionState
 from .base_llc_motion_without_crawl import BaseLlcMotionWithoutCrawl
 
 # The number of motors per shutter.
@@ -85,8 +87,8 @@ class ShutterMotion(BaseLlcMotionWithoutCrawl):
 
     def get_position_velocity_and_motion_state(
         self, tai: float
-    ) -> tuple[float, float, LlcMotionState]:
-        """Computes the position and `LlcMotionState` for the given TAI time.
+    ) -> tuple[float, float, MotionState]:
+        """Computes the position and `MotionState` for the given TAI time.
 
         Parameters
         ----------
@@ -102,8 +104,8 @@ class ShutterMotion(BaseLlcMotionWithoutCrawl):
             into account.
         velocity: `float`
             The velocity [%/s] at the given TAI time.
-        motion_state: `LlcMotionState`
-            The LlcMotionState of the shutter door at the given TAI time.
+        motion_state: `MotionState`
+            The MotionState of the shutter door at the given TAI time.
         """
 
         if self.motion_state_in_error:
@@ -111,14 +113,14 @@ class ShutterMotion(BaseLlcMotionWithoutCrawl):
 
         if tai >= self._end_tai:
             if self._commanded_motion_state in [
-                LlcMotionState.STOPPED,
-                LlcMotionState.MOVING,
+                MotionState.STOPPED,
+                MotionState.MOVING,
             ]:
-                motion_state = LlcMotionState.STOPPED
+                motion_state = MotionState.STOPPED
                 position = self._end_position
                 velocity = 0.0
-            elif self._commanded_motion_state == LlcMotionState.STATIONARY:
-                motion_state = LlcMotionState.STATIONARY
+            elif self._commanded_motion_state == InternalMotionState.STATIONARY:
+                motion_state = InternalMotionState.STATIONARY
                 position = self._end_position
                 velocity = 0.0
             else:
@@ -136,17 +138,17 @@ class ShutterMotion(BaseLlcMotionWithoutCrawl):
             velocity = SHUTTER_SPEED
             if distance < 0.0:
                 velocity = -SHUTTER_SPEED
-            if self._commanded_motion_state == LlcMotionState.STOPPED:
-                motion_state = LlcMotionState.STOPPED
+            if self._commanded_motion_state == MotionState.STOPPED:
+                motion_state = MotionState.STOPPED
                 velocity = 0.0
-            elif self._commanded_motion_state == LlcMotionState.STATIONARY:
-                motion_state = LlcMotionState.STATIONARY
+            elif self._commanded_motion_state == InternalMotionState.STATIONARY:
+                motion_state = InternalMotionState.STATIONARY
                 velocity = 0.0
             else:
-                motion_state = LlcMotionState.MOVING
+                motion_state = MotionState.MOVING
 
         if self.motion_state_in_error:
             velocity = 0.0
-            motion_state = LlcMotionState.ERROR
+            motion_state = MotionState.ERROR
 
         return position, velocity, motion_state

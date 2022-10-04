@@ -25,8 +25,8 @@ import logging
 import math
 
 import numpy as np
+from lsst.ts.idl.enums.MTDome import MotionState
 
-from ..enums import LlcMotionState
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
 from .base_mock_llc import BaseMockStatus
 from .mock_motion.elevation_motion import ElevationMotion
@@ -76,7 +76,7 @@ class LwscsStatus(BaseMockStatus):
         self.end_tai = 0.0
 
         # Variables holding the status of the mock EL motion
-        self.status = LlcMotionState.STOPPED
+        self.status = MotionState.STOPPED
         self.messages = [{"code": 0, "description": "No Errors"}]
         self.position_commanded = 0.0
         self.velocity_commanded = 0.0
@@ -115,7 +115,7 @@ class LwscsStatus(BaseMockStatus):
         # Determine the current drawn by the light wind screen motors. Here
         # fixed current values are assumed while in reality they vary depending
         # on the speed and the inclination of the light wind screen.
-        if motion_state in [LlcMotionState.CRAWLING, LlcMotionState.MOVING]:
+        if motion_state in [MotionState.CRAWLING, MotionState.MOVING]:
             self.drive_current_actual = np.full(
                 NUM_MOTORS, POWER_PER_MOTOR, dtype=float
             )
@@ -167,7 +167,7 @@ class LwscsStatus(BaseMockStatus):
             start_tai=start_tai,
             end_position=position,
             crawl_velocity=0,
-            motion_state=LlcMotionState.MOVING,
+            motion_state=MotionState.MOVING,
         )
         self.end_tai = start_tai + duration
         return duration
@@ -196,7 +196,7 @@ class LwscsStatus(BaseMockStatus):
             start_tai=start_tai,
             end_position=self.position_commanded,
             crawl_velocity=velocity,
-            motion_state=LlcMotionState.CRAWLING,
+            motion_state=MotionState.CRAWLING,
         )
         self.end_tai = start_tai + duration
         return duration

@@ -10,6 +10,7 @@ v1.11.4
 =======
 * Disable polling the status of all subsystems except AMCS.
 * Introduce backward compatibility with XML 12.0 for the TMA Pointing Test.
+* Replace MTDome control software states with the ones from IDL.
 
 Requires:
 

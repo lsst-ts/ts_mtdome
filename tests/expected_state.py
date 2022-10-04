@@ -21,7 +21,7 @@
 
 import dataclasses
 
-from lsst.ts import mtdome
+from lsst.ts.idl.enums.MTDome import MotionState
 
 
 @dataclasses.dataclass
@@ -29,4 +29,4 @@ class ExpectedState:
     tai: float
     position: float
     velocity: float
-    motion_state: mtdome.LlcMotionState
+    motion_state: MotionState
