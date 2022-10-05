@@ -97,7 +97,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     "resetDrivesAz",
                     "setZeroAz",
                     "resetDrivesShutter",
-                    "searchZeroShutter",
+                    "home",
                 ),
             )
 
@@ -959,11 +959,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert amcs_status["positionActual"] == pytest.approx(0.0)
             assert amcs_status["status"]["status"] == MotionState.STOPPED.name
 
-    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
-    # TODO (DM-36186) Enbale the ApSCS again when the the control software for
-    #  it is working well. The others need to remain disabled for the TMA
-    #  Pointing Test.
-    async def test_searchZeroShutter(self) -> None:
+    async def test_homeShutter(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
@@ -983,7 +979,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
             assert status["positionActual"] == initial_position_actual.tolist()
 
-            await self.remote.cmd_searchZeroShutter.set_start()
+            sub_system_ids = SubSystemId.APSCS
+            await self.remote.cmd_home.set_start(subSystemIds=sub_system_ids)
 
             self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
             await self.csc.statusApSCS()

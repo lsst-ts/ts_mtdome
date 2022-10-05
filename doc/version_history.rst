@@ -6,7 +6,7 @@
 Version History
 ###############
 
-v1.11.4
+v1.12.0
 =======
 * Disable polling the status of all subsystems except AMCS.
 * Introduce backward compatibility with XML 12.0 for the TMA Pointing Test.
@@ -25,6 +25,7 @@ Requires:
 v1.11.3
 =======
 * Refactor the other test cases to contain less duplicate code.
+* Rename the 'searchZeroShutter' command to 'home' and make it apply to all subsystems.
 
 Requires:
 
