@@ -28,8 +28,8 @@ from expected_state import ExpectedState
 from lsst.ts import mtdome
 from lsst.ts.idl.enums.MTDome import MotionState
 from lsst.ts.mtdome.mock_llc.amcs import (
-    POWER_PER_MOTOR_CRAWLING,
-    POWER_PER_MOTOR_MOVING,
+    CURRENT_PER_MOTOR_CRAWLING,
+    CURRENT_PER_MOTOR_MOVING,
 )
 from lsst.ts.mtdome.mock_llc.mock_motion.azimuth_motion import NUM_MOTORS
 
@@ -98,9 +98,9 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         assert expected_motion_state.name == self.amcs.llc_status["status"]["status"]
         expected_drive_current: list[float] = [0.0] * NUM_MOTORS
         if expected_motion_state == MotionState.MOVING:
-            expected_drive_current = [POWER_PER_MOTOR_MOVING] * NUM_MOTORS
+            expected_drive_current = [CURRENT_PER_MOTOR_MOVING] * NUM_MOTORS
         elif expected_motion_state == MotionState.CRAWLING:
-            expected_drive_current = [POWER_PER_MOTOR_CRAWLING] * NUM_MOTORS
+            expected_drive_current = [CURRENT_PER_MOTOR_CRAWLING] * NUM_MOTORS
         assert expected_drive_current == self.amcs.llc_status["driveCurrentActual"]
 
     async def verify_move_duration(
