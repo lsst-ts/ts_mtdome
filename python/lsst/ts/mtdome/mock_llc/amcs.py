@@ -22,8 +22,8 @@
 __all__ = [
     "AmcsStatus",
     "PARK_POSITION",
-    "POWER_PER_MOTOR_CRAWLING",
-    "POWER_PER_MOTOR_MOVING",
+    "CURRENT_PER_MOTOR_CRAWLING",
+    "CURRENT_PER_MOTOR_MOVING",
 ]
 
 import logging
@@ -41,12 +41,11 @@ _NUM_MOTOR_TEMPERATURES = 13
 _NUM_ENCODERS = 5
 _NUM_RESOLVERS = 3
 
-# TODO DM-35911: Assumed power consumption per motor when moving [kW]. The real
-#  value is still under investigation.
-POWER_PER_MOTOR_MOVING = 80
-# Assumed power consumption per motor when crawling [kW]. The real value is
-# still under investigation.
-POWER_PER_MOTOR_CRAWLING = 10
+# Current consumption per motor when moving [A], assuming no acceleration and
+# no wind gust, which is good enough for this simulator, since it ignores both.
+CURRENT_PER_MOTOR_MOVING = 40.0
+# Current consumption per motor when crawling [A].
+CURRENT_PER_MOTOR_CRAWLING = 4.1
 
 PARK_POSITION = 0.0
 
@@ -92,10 +91,6 @@ class AmcsStatus(BaseMockStatus):
         self.velocity_commanded = PARK_POSITION
         self.drive_torque_actual = np.zeros(NUM_MOTORS, dtype=float)
         self.drive_torque_commanded = np.zeros(NUM_MOTORS, dtype=float)
-        # TODO DM-35910: This variable and the corresponding status item should
-        #  be renamed to contain "power" instead of "current". This needs to be
-        #  discussed with the manufacturer first and will require a
-        #  modification to ts_xml.
         self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
         self.drive_temperature = np.full(_NUM_MOTOR_TEMPERATURES, 20.0, dtype=float)
         self.encoder_head_raw = np.zeros(_NUM_ENCODERS, dtype=float)
@@ -124,11 +119,11 @@ class AmcsStatus(BaseMockStatus):
         # values are assumed while in reality they vary depending on the speed.
         if motion_state == MotionState.MOVING:
             self.drive_current_actual = np.full(
-                NUM_MOTORS, POWER_PER_MOTOR_MOVING, dtype=float
+                NUM_MOTORS, CURRENT_PER_MOTOR_MOVING, dtype=float
             )
         elif motion_state == MotionState.CRAWLING:
             self.drive_current_actual = np.full(
-                NUM_MOTORS, POWER_PER_MOTOR_CRAWLING, dtype=float
+                NUM_MOTORS, CURRENT_PER_MOTOR_CRAWLING, dtype=float
             )
         else:
             self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)

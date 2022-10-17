@@ -453,6 +453,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 except (
                     asyncio.exceptions.IncompleteReadError,
                     asyncio.exceptions.TimeoutError,
+                    ConnectionResetError,
                     AssertionError,
                 ) as e:
                     await self.fault(
