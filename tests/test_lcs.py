@@ -26,9 +26,10 @@ import numpy as np
 from lsst.ts import mtdome
 from lsst.ts.idl.enums.MTDome import MotionState
 from lsst.ts.mtdome.mock_llc.lcs import (
+    CURRENT_PER_MOTOR,
     NUM_LOUVERS,
     NUM_MOTORS_PER_LOUVER,
-    POWER_PER_MOTOR,
+    TOTAL_POWER,
 )
 
 logging.basicConfig(
@@ -88,11 +89,13 @@ class LcsTestCase(unittest.IsolatedAsyncioTestCase):
             ]
             if index in expected_positions:
                 if lcs_status["status"]["status"][index] == MotionState.MOVING:
-                    assert driveCurrentActualMotor1 == POWER_PER_MOTOR
-                    assert driveCurrentActualMotor2 == POWER_PER_MOTOR
+                    assert driveCurrentActualMotor1 == CURRENT_PER_MOTOR
+                    assert driveCurrentActualMotor2 == CURRENT_PER_MOTOR
+                    assert lcs_status["powerDraw"] == TOTAL_POWER
             else:
                 assert driveCurrentActualMotor1 == 0.0
                 assert driveCurrentActualMotor2 == 0.0
+                assert lcs_status["powerDraw"] == 0.0
 
     async def test_set_louvers(self) -> None:
         """Test setting the louvers from to the indicated position."""

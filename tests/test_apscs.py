@@ -25,7 +25,7 @@ import unittest
 import pytest
 from lsst.ts import mtdome
 from lsst.ts.idl.enums.MTDome import MotionState
-from lsst.ts.mtdome.mock_llc.apscs import NUM_SHUTTERS, POWER_PER_MOTOR
+from lsst.ts.mtdome.mock_llc.apscs import CURRENT_PER_MOTOR, NUM_SHUTTERS, TOTAL_POWER
 from lsst.ts.mtdome.mock_llc.mock_motion.shutter_motion import (
     CLOSED_POSITION,
     NUM_MOTORS_PER_SHUTTER,
@@ -89,14 +89,17 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
         expected_drive_current: list[float] = (
             [0.0] * NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER
         )
+        expected_power_draw = 0.0
         if expected_motion_state in [
             MotionState.CRAWLING,
             MotionState.MOVING,
         ]:
             expected_drive_current = (
-                [POWER_PER_MOTOR] * NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER
+                [CURRENT_PER_MOTOR] * NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER
             )
+            expected_power_draw = TOTAL_POWER
         assert expected_drive_current == self.apscs.llc_status["driveCurrentActual"]
+        assert expected_power_draw == self.apscs.llc_status["powerDraw"]
 
     async def test_open_shutter(self) -> None:
         """Test opening the shutter from a closed position."""
