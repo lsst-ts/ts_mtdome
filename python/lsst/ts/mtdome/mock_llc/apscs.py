@@ -160,16 +160,16 @@ class ApscsStatus(BaseMockStatus):
             The expected duration of the command [s].
         """
         self.position_commanded = OPEN_POSITION
-        duration = 0.0
+        durations = []
         for i in range(NUM_SHUTTERS):
-            # TODO DM-35912: Discuss returning two durations with the
-            #  manufacturer and implement if agreed.
-            duration = self.shutter_motion[i].set_target_position_and_velocity(
-                start_tai=start_tai,
-                end_position=self.position_commanded,
-                motion_state=MotionState.MOVING,
+            durations.append(
+                self.shutter_motion[i].set_target_position_and_velocity(
+                    start_tai=start_tai,
+                    end_position=self.position_commanded,
+                    motion_state=MotionState.MOVING,
+                )
             )
-        return duration
+        return max(durations)
 
     async def closeShutter(self, start_tai: float) -> float:
         """Close the shutter.
@@ -187,16 +187,16 @@ class ApscsStatus(BaseMockStatus):
             The expected duration of the command [s].
         """
         self.position_commanded = CLOSED_POSITION
-        duration = 0.0
+        durations = []
         for i in range(NUM_SHUTTERS):
-            # TODO DM-35912: Discuss returning two durations with the
-            #  manufacturer and implement if agreed.
-            duration = self.shutter_motion[i].set_target_position_and_velocity(
-                start_tai=start_tai,
-                end_position=self.position_commanded,
-                motion_state=MotionState.MOVING,
+            durations.append(
+                self.shutter_motion[i].set_target_position_and_velocity(
+                    start_tai=start_tai,
+                    end_position=self.position_commanded,
+                    motion_state=MotionState.MOVING,
+                )
             )
-        return duration
+        return max(durations)
 
     async def stopShutter(self, start_tai: float) -> float:
         """Stop all motion of the shutter.
@@ -213,11 +213,10 @@ class ApscsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        duration = 0.0
+        durations = []
         for i in range(NUM_SHUTTERS):
-            # TODO DM-35912: Discuss returning two durations with the
-            #  manufacturer and implement if agreed.
-            duration = self.shutter_motion[i].stop(start_tai)
+            durations.append(self.shutter_motion[i].stop(start_tai))
+        duration = max(durations)
         self.end_tai = start_tai + duration
         return duration
 
@@ -236,11 +235,10 @@ class ApscsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        duration = 0.0
+        durations = []
         for i in range(NUM_SHUTTERS):
-            # TODO DM-35912: Discuss returning two durations with the
-            #  manufacturer and implement if agreed.
-            duration = self.shutter_motion[i].go_stationary(start_tai)
+            durations.append(self.shutter_motion[i].go_stationary(start_tai))
+        duration = max(durations)
         self.end_tai = start_tai + duration
         return duration
 
@@ -263,8 +261,6 @@ class ApscsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        # TODO DM-35912: Discuss returning two durations with the
-        #  manufacturer and implement if agreed.
         duration = await self.closeShutter(start_tai)
         return duration
 
@@ -283,11 +279,10 @@ class ApscsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        duration = 0.0
+        durations = []
         for i in range(NUM_SHUTTERS):
-            # TODO DM-35912: Discuss returning two durations with the
-            #  manufacturer and implement if agreed.
-            duration = self.shutter_motion[i].exit_fault(start_tai)
+            durations.append(self.shutter_motion[i].exit_fault(start_tai))
+        duration = max(durations)
         self.end_tai = start_tai + duration
         return duration
 
@@ -325,14 +320,15 @@ class ApscsStatus(BaseMockStatus):
                 f"The length of 'reset' should be {NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER} "
                 f"but is {len(reset)}."
             )
-        duration = 0.0
-        # TODO DM-35912: Discuss returning two durations with the
-        #  manufacturer and implement if agreed.
+        durations = []
         for i in range(NUM_SHUTTERS):
-            duration = self.shutter_motion[i].reset_drives(
-                start_tai,
-                reset[i * NUM_SHUTTERS : i * NUM_SHUTTERS + NUM_MOTORS_PER_SHUTTER],
+            durations.append(
+                self.shutter_motion[i].reset_drives(
+                    start_tai,
+                    reset[i * NUM_SHUTTERS : i * NUM_SHUTTERS + NUM_MOTORS_PER_SHUTTER],
+                )
             )
+        duration = max(durations)
         self.end_tai = start_tai + duration
         return duration
 
