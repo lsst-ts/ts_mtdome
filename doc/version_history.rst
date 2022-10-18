@@ -14,7 +14,8 @@ v1.12.0
 * Introduce a new simulation mode, where the MockController doesn't get started by the CSC, for test purposes.
 * Improve starting and stopping of MockController.
 * Improve error handling of the CSC 'write then read' loop.
-* The mock AMCS now uses the true current consumption.
+* The mock controllers now report the true current and power consumptions.
+* The mock ApSCS controller now reports the maximum duration in case there are multiple.
 
 Requires:
 
