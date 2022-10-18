@@ -27,7 +27,7 @@ import pytest
 from expected_state import ExpectedState
 from lsst.ts import mtdome
 from lsst.ts.idl.enums.MTDome import MotionState
-from lsst.ts.mtdome.mock_llc.lwscs import NUM_MOTORS, POWER_PER_MOTOR
+from lsst.ts.mtdome.mock_llc.lwscs import CURRENT_PER_MOTOR, NUM_MOTORS, TOTAL_POWER
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
@@ -102,12 +102,15 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
         )
         assert expected_motion_state.name == self.lwscs.llc_status["status"]["status"]
         expected_drive_current: list[float] = [0.0] * NUM_MOTORS
+        expected_power_draw = 0.0
         if expected_motion_state in [
             MotionState.CRAWLING,
             MotionState.MOVING,
         ]:
-            expected_drive_current = [POWER_PER_MOTOR] * NUM_MOTORS
+            expected_drive_current = [CURRENT_PER_MOTOR] * NUM_MOTORS
+            expected_power_draw = TOTAL_POWER
         assert expected_drive_current == self.lwscs.llc_status["driveCurrentActual"]
+        assert expected_power_draw == self.lwscs.llc_status["powerDraw"]
 
     async def verify_move_duration(
         self,

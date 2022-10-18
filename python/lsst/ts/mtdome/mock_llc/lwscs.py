@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["LwscsStatus", "NUM_MOTORS", "POWER_PER_MOTOR"]
+__all__ = ["LwscsStatus", "CURRENT_PER_MOTOR", "NUM_MOTORS", "TOTAL_POWER"]
 
 import logging
 import math
@@ -28,16 +28,16 @@ import numpy as np
 from lsst.ts.idl.enums.MTDome import MotionState
 
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
-from .base_mock_llc import BaseMockStatus
+from .base_mock_llc import DOME_VOLTAGE, BaseMockStatus
 from .mock_motion.elevation_motion import ElevationMotion
 
 NUM_MOTORS = 2
 
-# Total maximum power drawn by the Light Wind Screen [kW] as indicated by the
+# Total maximum power drawn by the Light Wind Screen [W] as indicated by the
 # vendor. The power draw varies depending on the elevation of the screen.
-_TOTAL_POWER = 67.5
-# Power drawn per motor by the Light Wind Screen [kW].
-POWER_PER_MOTOR = _TOTAL_POWER / NUM_MOTORS
+TOTAL_POWER = 67500.0
+# Current drawn per motor by the Light Wind Screen [A].
+CURRENT_PER_MOTOR = TOTAL_POWER / NUM_MOTORS / DOME_VOLTAGE
 
 
 class LwscsStatus(BaseMockStatus):
@@ -82,10 +82,6 @@ class LwscsStatus(BaseMockStatus):
         self.velocity_commanded = 0.0
         self.drive_torque_actual = np.zeros(NUM_MOTORS, dtype=float)
         self.drive_torque_commanded = np.zeros(NUM_MOTORS, dtype=float)
-        # TODO DM-35910: This variable and the corresponding status item should
-        #  be renamed to contain "power" instead of "current". This needs to be
-        #  discussed with the manufacturer first and will require a
-        #  modification to ts_xml.
         self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
         self.drive_temperature = np.full(NUM_MOTORS, 20.0, dtype=float)
         self.encoder_head_raw = np.zeros(NUM_MOTORS, dtype=float)
@@ -117,10 +113,12 @@ class LwscsStatus(BaseMockStatus):
         # on the speed and the inclination of the light wind screen.
         if motion_state in [MotionState.CRAWLING, MotionState.MOVING]:
             self.drive_current_actual = np.full(
-                NUM_MOTORS, POWER_PER_MOTOR, dtype=float
+                NUM_MOTORS, CURRENT_PER_MOTOR, dtype=float
             )
+            self.power_draw = TOTAL_POWER
         else:
             self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
+            self.power_draw = 0.0
         self.llc_status = {
             "status": {
                 "messages": self.messages,

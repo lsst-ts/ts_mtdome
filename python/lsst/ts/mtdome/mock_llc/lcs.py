@@ -19,7 +19,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["LcsStatus", "NUM_LOUVERS", "NUM_MOTORS_PER_LOUVER", "POWER_PER_MOTOR"]
+__all__ = [
+    "LcsStatus",
+    "CURRENT_PER_MOTOR",
+    "NUM_LOUVERS",
+    "NUM_MOTORS_PER_LOUVER",
+    "TOTAL_POWER",
+]
 
 import logging
 
@@ -28,17 +34,17 @@ from lsst.ts import utils
 from lsst.ts.idl.enums.MTDome import MotionState
 
 from ..enums import InternalMotionState
-from .base_mock_llc import BaseMockStatus
+from .base_mock_llc import DOME_VOLTAGE, BaseMockStatus
 
 NUM_LOUVERS = 34
 NUM_MOTORS_PER_LOUVER = 2
 
-# Total power drawn by the Louvers [kW] as indicated by the vendor.
-_TOTAL_POWER = 69.0
-# Power drawn per louver [kW].
-_POWER_PER_LOUVER = _TOTAL_POWER / NUM_LOUVERS
-# Power drawn per motor by the louvers [kW].
-POWER_PER_MOTOR = _POWER_PER_LOUVER / NUM_MOTORS_PER_LOUVER
+# Total power drawn by the Louvers [W] as indicated by the vendor.
+TOTAL_POWER = 69000.0
+# Current drawn per louver [A].
+_CURRENT_PER_LOUVER = TOTAL_POWER / NUM_LOUVERS / DOME_VOLTAGE
+# Current drawn per motor by the louvers [A].
+CURRENT_PER_MOTOR = _CURRENT_PER_LOUVER / NUM_MOTORS_PER_LOUVER
 
 
 class LcsStatus(BaseMockStatus):
@@ -64,10 +70,6 @@ class LcsStatus(BaseMockStatus):
         self.drive_torque_commanded = np.zeros(
             NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, dtype=float
         )
-        # TODO DM-35910: This variable and the corresponding status item should
-        #  be renamed to contain "power" instead of "current". This needs to be
-        #  discussed with the manufacturer first and will require a
-        #  modification to ts_xml.
         self.drive_current_actual = np.zeros(
             NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, dtype=float
         )
@@ -92,11 +94,13 @@ class LcsStatus(BaseMockStatus):
             if motion_state == MotionState.MOVING:
                 self.drive_current_actual[
                     index * NUM_MOTORS_PER_LOUVER : (index + 1) * NUM_MOTORS_PER_LOUVER
-                ] = POWER_PER_MOTOR
+                ] = CURRENT_PER_MOTOR
+                self.power_draw = TOTAL_POWER
             else:
                 self.drive_current_actual[
                     index * NUM_MOTORS_PER_LOUVER : (index + 1) * NUM_MOTORS_PER_LOUVER
                 ] = 0.0
+                self.power_draw = 0.0
         self.llc_status = {
             "status": {
                 "messages": self.messages,

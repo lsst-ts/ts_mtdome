@@ -19,13 +19,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["BaseMockStatus"]
+__all__ = ["BaseMockStatus", "DOME_VOLTAGE"]
 
 import logging
 import typing
 from abc import ABC, abstractmethod
 
 from lsst.ts.idl.enums.MTDome import OperationalMode
+
+# The voltage used in the dome.
+DOME_VOLTAGE = 220.0
 
 
 class BaseMockStatus(ABC):

@@ -19,14 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["ApscsStatus", "NUM_SHUTTERS", "POWER_PER_MOTOR"]
+__all__ = ["ApscsStatus", "CURRENT_PER_MOTOR", "NUM_SHUTTERS", "TOTAL_POWER"]
 
 import logging
 
 import numpy as np
 from lsst.ts.idl.enums.MTDome import MotionState
 
-from .base_mock_llc import BaseMockStatus
+from .base_mock_llc import DOME_VOLTAGE, BaseMockStatus
 from .mock_motion.shutter_motion import (
     CLOSED_POSITION,
     NUM_MOTORS_PER_SHUTTER,
@@ -36,10 +36,10 @@ from .mock_motion.shutter_motion import (
 
 NUM_SHUTTERS = 2
 
-# Total power drawn by the Aperture Shutter [kW] as indicated by the vendor.
-_TOTAL_POWER = 5.6
-# Power drawn per motor by the Aperture Shutter [kW].
-POWER_PER_MOTOR = _TOTAL_POWER / NUM_SHUTTERS / NUM_MOTORS_PER_SHUTTER
+# Total power drawn by the Aperture Shutter [W] as indicated by the vendor.
+TOTAL_POWER = 5600.0
+# Current per motor drawn by the Aperture Shutter [A].
+CURRENT_PER_MOTOR = TOTAL_POWER / NUM_SHUTTERS / NUM_MOTORS_PER_SHUTTER / DOME_VOLTAGE
 
 
 class ApscsStatus(BaseMockStatus):
@@ -78,10 +78,6 @@ class ApscsStatus(BaseMockStatus):
         self.drive_torque_commanded = np.zeros(
             NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER, dtype=float
         )
-        # TODO DM-35910: This variable and the corresponding status item should
-        #  be renamed to contain "power" instead of "current". This needs to be
-        #  discussed with the manufacturer first and will require a
-        #  modification to ts_xml.
         self.drive_current_actual = np.zeros(
             NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER, dtype=float
         )
@@ -118,13 +114,15 @@ class ApscsStatus(BaseMockStatus):
                     index
                     * NUM_MOTORS_PER_SHUTTER : (index + 1)
                     * NUM_MOTORS_PER_SHUTTER
-                ] = POWER_PER_MOTOR
+                ] = CURRENT_PER_MOTOR
+                self.power_draw = TOTAL_POWER
             else:
                 self.drive_current_actual[
                     index
                     * NUM_MOTORS_PER_SHUTTER : (index + 1)
                     * NUM_MOTORS_PER_SHUTTER
                 ] = 0.0
+                self.power_draw = 0.0
         self.llc_status = {
             "status": {
                 "messages": self.messages,
