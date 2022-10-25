@@ -19,21 +19,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import typing
+from lsst.ts.idl.enums.MTDome import MotionState
 
-# For an explanation why these next lines are so complicated, see
-# https://confluence.lsstcorp.org/pages/viewpage.action?spaceKey=LTS&title=Enabling+Mypy+in+Pytest
-if typing.TYPE_CHECKING:
-    __version__ = "?"
-else:
-    try:
-        from .version import *
-    except ImportError:
-        __version__ = "?"
+from .base_llc_motion import BaseLlcMotion
 
-from . import llc_configuration_limits, mock_llc, schema
-from .config_schema import CONFIG_SCHEMA
-from .csc_utils import *
-from .enums import *
-from .mock_controller import *
-from .mtdome_csc import *
+
+class BaseLlcMotionWithoutCrawl(BaseLlcMotion):
+    def set_target_position_and_velocity(
+        self,
+        start_tai: float,
+        end_position: float,
+        motion_state: MotionState,
+    ) -> float:
+        return self.base_set_target_position_and_velocity(
+            start_tai=start_tai,
+            end_position=end_position,
+            motion_state=motion_state,
+        )

@@ -37,10 +37,6 @@ class MockMTDomeController:
     ----------
     port : `int`
         TCP/IP port
-    refuse_connections : `bool`, optional
-        Refuse connections if True by immediately stopping after having started
-        up. This ensures that a port get allocated to avoid breaking code that
-        relies on that. To be set by unit tests only. Defaults to False.
 
     Notes
     -----
@@ -66,22 +62,22 @@ class MockMTDomeController:
 
     Known Limitations:
 
-    * Just a framework that needs to be implemented properly
+    * Just a framework that needs to be implemented properly.
     """
 
-    """A long sleep to mock a slow network [s]."""
+    # A long sleep to mock a slow network [s].
     SLOW_NETWORK_SLEEP = 10.0
-    """A long duration [s]. Used as a return value by commands."""
+    # A long duration [s]. Used as a return value by commands.
     LONG_DURATION = 20
 
     def __init__(
         self,
         port: int,
-        refuse_connections: bool = False,
     ) -> None:
         self.port = port
         self._server: typing.Optional[asyncio.AbstractServer] = None
         self._writer: typing.Optional[asyncio.StreamWriter] = None
+        self._reader: typing.Optional[asyncio.StreamReader] = None
         self.log = logging.getLogger("MockMTDomeController")
         # Dict of command: (has_argument, function).
         # The function is called with:
@@ -142,10 +138,7 @@ class MockMTDomeController:
         # Mock a network interruption (True) or not (False). To be set by unit
         # tests only.
         self.enable_network_interruption = False
-        # Refuse connections by immediately stopping after having started up.
-        # This ensures that a port get allocated to avoid breaking code that
-        # relies on that.
-        self.refuse_connections = refuse_connections
+        self.read_task: asyncio.Future | None = None
 
         # Variables for the lower level components.
         self.amcs: typing.Optional[mock_llc.AmcsStatus] = None
@@ -183,15 +176,13 @@ class MockMTDomeController:
 
         self.log.info("Starting LLCs")
         self.amcs = mock_llc.AmcsStatus(start_tai=self.current_tai)
-        self.apscs = mock_llc.ApscsStatus()
+        self.apscs = mock_llc.ApscsStatus(start_tai=self.current_tai)
         self.lcs = mock_llc.LcsStatus()
         self.lwscs = mock_llc.LwscsStatus(start_tai=self.current_tai)
         self.moncs = mock_llc.MoncsStatus()
         self.thcs = mock_llc.ThcsStatus()
 
-        if self.refuse_connections:
-            await self.stop()
-        elif keep_running:
+        if keep_running:
             await self._server.serve_forever()
 
     async def stop(self) -> None:
@@ -199,10 +190,15 @@ class MockMTDomeController:
         if self._server is None:
             return
 
+        self.log.info("Closing server")
+        if self.read_task is not None:
+            self.read_task.cancel()
         server = self._server
         self._server = None
-        self.log.info("Closing server")
         server.close()
+        await server.wait_closed()
+        self._writer = None
+        self._reader = None
         self.log.info("Done closing")
 
     async def write(self, **data: typing.Any) -> None:
@@ -233,14 +229,19 @@ class MockMTDomeController:
         """
         self.log.info("The cmd_loop begins")
         self._writer = writer
+        self._reader = reader
+        self.read_task = asyncio.create_task(self.read_in_loop())
+
+    async def read_in_loop(self) -> None:
         while True:
             self.log.debug("Waiting for next command.")
 
             try:
-                byte_line = await reader.readuntil(b"\r\n")
+                assert self._reader is not None
+                byte_line = await self._reader.readuntil(b"\r\n")
                 line = byte_line.decode().strip()
                 self.log.debug(f"Read command line: {line!r}")
-            except asyncio.IncompleteReadError:
+            except (asyncio.IncompleteReadError, AssertionError):
                 return
             if line:
                 # some housekeeping for sending a response
@@ -476,20 +477,38 @@ class MockMTDomeController:
         assert self.lcs is not None
         await self.lcs.stopLouvers()
 
-    async def open_shutter(self) -> None:
-        """Open the shutter."""
-        assert self.apscs is not None
-        await self.apscs.openShutter()
+    async def open_shutter(self) -> float:
+        """Open the shutter.
 
-    async def close_shutter(self) -> None:
-        """Close the shutter."""
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+        """
         assert self.apscs is not None
-        await self.apscs.closeShutter()
+        return await self.apscs.openShutter(self.current_tai)
 
-    async def stop_shutter(self) -> None:
-        """Stop the motion of the shutter."""
+    async def close_shutter(self) -> float:
+        """Close the shutter.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+        """
         assert self.apscs is not None
-        await self.apscs.stopShutter()
+        return await self.apscs.closeShutter(self.current_tai)
+
+    async def stop_shutter(self) -> float:
+        """Stop the motion of the shutter.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+        """
+        assert self.apscs is not None
+        return await self.apscs.stopShutter(self.current_tai)
 
     async def config(self, system: str, settings: dict) -> None:
         """Configure the lower level components.
@@ -578,10 +597,16 @@ class MockMTDomeController:
         assert self.lwscs is not None
         return await self.lwscs.go_stationary(self.current_tai)
 
-    async def go_stationary_shutter(self) -> None:
-        """Stop shutter motion and engage the brakes."""
+    async def go_stationary_shutter(self) -> float:
+        """Stop shutter motion and engage the brakes.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
+        """
         assert self.apscs is not None
-        await self.apscs.go_stationary()
+        return await self.apscs.go_stationary(self.current_tai)
 
     async def go_stationary_louvers(self) -> None:
         """Stop louvers motion and engage the brakes."""
@@ -668,7 +693,7 @@ class MockMTDomeController:
         assert self.amcs is not None
         await self.amcs.exit_fault(self.current_tai)
         assert self.apscs is not None
-        await self.apscs.exit_fault()
+        await self.apscs.exit_fault(self.current_tai)
         assert self.lcs is not None
         await self.lcs.exit_fault()
         assert self.lwscs is not None
@@ -739,7 +764,7 @@ class MockMTDomeController:
         The number of values in the reset parameter is not validated.
         """
         assert self.apscs is not None
-        await self.apscs.reset_drives_shutter(reset)
+        await self.apscs.reset_drives_shutter(self.current_tai, reset)
 
     async def calibrate_az(self) -> float:
         """Take the current position of the dome as zero. This is necessary as
@@ -754,14 +779,19 @@ class MockMTDomeController:
         assert self.amcs is not None
         return await self.amcs.calibrate_az(self.current_tai)
 
-    async def search_zero_shutter(self) -> None:
+    async def search_zero_shutter(self) -> float:
         """Search the zero position of the Aperture Shutter, which is the
         closed position. This is necessary in case the ApSCS (Aperture Shutter
         Control system) was shutdown with the Aperture Shutter not fully open
         or fully closed.
+
+        Returns
+        -------
+        `float`
+            The estimated duration of the execution of the command.
         """
         assert self.apscs is not None
-        await self.apscs.search_zero_shutter()
+        return await self.apscs.search_zero_shutter(self.current_tai)
 
 
 async def main() -> None:

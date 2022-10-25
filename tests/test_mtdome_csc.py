@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import asyncio
 import logging
 import math
 import pathlib
@@ -53,18 +54,21 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         simulation_mode: int,
         **kwargs: typing.Any,
     ) -> None:
+        mock_port = 0
+        if "mock_port" in kwargs:
+            mock_port = kwargs["mock_port"]
         return mtdome.MTDomeCsc(
             initial_state=initial_state,
             config_dir=config_dir,
             simulation_mode=simulation_mode,
-            mock_port=0,
+            mock_port=mock_port,
         )
 
     async def test_standard_state_transitions(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.check_standard_state_transitions(
                 enabled_commands=(
@@ -93,7 +97,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     "resetDrivesAz",
                     "setZeroAz",
                     "resetDrivesShutter",
-                    "searchZeroShutter",
+                    "home",
                 ),
             )
 
@@ -101,7 +105,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.assert_next_sample(
                 self.remote.evt_softwareVersions,
@@ -120,9 +124,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         await self.assert_next_sample(
             topic=self.remote.evt_elEnabled, state=EnabledState.ENABLED
         )
-        await self.assert_next_sample(
-            topic=self.remote.evt_shutterEnabled, state=EnabledState.ENABLED
-        )
+        if mtdome.support_command("evt_shutterEnabled"):
+            await self.assert_next_sample(
+                topic=self.remote.evt_shutterEnabled, state=EnabledState.ENABLED
+            )
         await self.assert_next_sample(topic=self.remote.evt_brakesEngaged, brakes=0)
         await self.assert_next_sample(topic=self.remote.evt_interlocks, interlocks=0)
         await self.assert_next_sample(
@@ -139,7 +144,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -187,7 +192,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -225,7 +230,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -270,11 +275,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
+    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
     async def test_do_stopEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stop.set_start(
@@ -300,11 +306,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
+    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
     async def test_do_stop(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -367,7 +374,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -414,7 +421,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -456,7 +463,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             louver_id = 5
@@ -472,7 +479,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_closeLouvers.set_start()
@@ -481,7 +488,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stop.set_start(
@@ -492,7 +499,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_openShutter.set_start()
@@ -501,7 +508,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_closeShutter.set_start()
@@ -510,7 +517,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stop.set_start(
@@ -521,7 +528,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -550,7 +557,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -599,14 +606,15 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert (
-                amcs_status["status"]["status"] == mtdome.LlcMotionState.STATIONARY.name
+                amcs_status["status"]["status"]
+                == mtdome.InternalMotionState.STATIONARY.name
             )
 
     async def test_do_setTemperature(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             desired_temperature = 10.0
@@ -619,7 +627,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -676,7 +684,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -704,7 +712,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -732,7 +740,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             # It should be possible to always execute the status command but
             # the connection with the lower level components only gets made in
@@ -750,50 +758,24 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
-            await self.csc.statusApSCS()
-            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
-            assert apscs_status["status"]["status"] == [
-                MotionState.CLOSED.name,
-                MotionState.CLOSED.name,
-            ]
-            assert apscs_status["positionActual"] == [0.0, 0.0]
-
-            await self.csc.statusLCS()
-            lcs_status = self.csc.lower_level_status[mtdome.LlcName.LCS.value]
-            assert (
-                lcs_status["status"]["status"]
-                == [MotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS
-            )
-            assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
-
-            await self.csc.statusLWSCS()
-            lwscs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
-            assert lwscs_status["status"]["status"] == MotionState.STOPPED.name
-            assert lwscs_status["positionActual"] == 0
-            await self.assert_next_sample(
-                topic=self.remote.evt_elMotion,
-                state=MotionState.STOPPED,
-                inPosition=True,
-            )
-
-            await self.csc.statusMonCS()
-            moncs_status = self.csc.lower_level_status[mtdome.LlcName.MONCS.value]
-            assert moncs_status["status"]["status"] == MotionState.CLOSED.name
-            assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
-
-            await self.csc.statusThCS()
-            thcs_status = self.csc.lower_level_status[mtdome.LlcName.THCS.value]
-            assert thcs_status["status"]["status"] == MotionState.CLOSED.name
-            assert (
-                thcs_status["temperature"]
-                == [0.0] * mtdome.mock_llc.thcs.NUM_THERMO_SENSORS
-            )
+            # TODO (DM-36186) Enbale the ApSCS again when the the control
+            #  software for it is working well. The others need to remain
+            #  disabled for the TMA Pointing Test.
+            # await self.csc.statusApSCS()
+            # apscs_status = self.csc.lower_level_status[
+            #     mtdome.LlcName.APSCS.value
+            # ]
+            # assert apscs_status["status"]["status"] == [
+            #     MotionState.STOPPED.name,
+            #     MotionState.STOPPED.name,
+            # ]
+            # assert apscs_status["positionActual"] == [0.0, 0.0]
 
     async def test_status_error(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -825,7 +807,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -863,81 +845,62 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             current_tai = self.csc.mock_ctrl.current_tai + 0.1
             az_drives_in_error = [1, 1, 0, 0, 0]
             await self.csc.mock_ctrl.amcs.set_fault(current_tai, az_drives_in_error)
-            aps_drives_in_error = [1, 1, 0, 0]
-            await self.csc.mock_ctrl.apscs.set_fault(aps_drives_in_error)
-            self.csc.mock_ctrl.lcs.status[:] = MotionState.ERROR.name
-            self.csc.mock_ctrl.lwscs.status = MotionState.ERROR
-            self.csc.mock_ctrl.moncs.status = MotionState.ERROR
-            self.csc.mock_ctrl.thcs.status = MotionState.ERROR
+            # TODO (DM-36186) Enbale the ApSCS again when the the control
+            #  software for it is working well. The others need to remain
+            #  disabled for the TMA Pointing Test.
+            # if mtdome.support_command("resetDrivesShutter"):
+            #     aps_drives_in_error = [1, 1, 0, 0]
+            #     await self.csc.mock_ctrl.apscs.set_fault(
+            #         current_tai, aps_drives_in_error
+            #     )
             self.csc.mock_ctrl.amcs._commanded_motion_state = MotionState.ERROR
-            self.csc.mock_ctrl.lwscs._commanded_motion_state = MotionState.ERROR
 
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
-            assert amcs_status["status"]["status"] == mtdome.LlcMotionState.ERROR.name
+            assert amcs_status["status"]["status"] == MotionState.ERROR.name
 
-            # Cannot exit_fault with drives in error.
-            with salobj.assertRaisesAckError():
-                await self.remote.cmd_exitFault.set_start()
+            # Because of backward compatibility with XML 12.0, the exitFault
+            # command will also reset the AZ and ApS drives so this next
+            # command will not fail.
+            await self.remote.cmd_exitFault.set_start()
 
             az_reset = [1, 1, 0, 0, 0]
             await self.remote.cmd_resetDrivesAz.set_start(reset=az_reset)
-            aps_reset = [1, 1, 0, 0]
-            await self.remote.cmd_resetDrivesShutter.set_start(reset=aps_reset)
+            # TODO (DM-36186) Enbale the ApSCS again when the the control
+            #  software for it is working well. The others need to remain
+            #  disabled for the TMA Pointing Test.
+            # if mtdome.support_command("resetDrivesShutter"):
+            #     aps_reset = [1, 1, 0, 0]
+            #     await self.remote.cmd_resetDrivesShutter.set_start(
+            #         reset=aps_reset
+            #     )
             await self.remote.cmd_exitFault.set_start()
 
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert (
-                amcs_status["status"]["status"] == mtdome.LlcMotionState.STATIONARY.name
+                amcs_status["status"]["status"]
+                == mtdome.InternalMotionState.STATIONARY.name
             )
 
-            await self.csc.statusApSCS()
-            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
-            assert apscs_status["status"]["status"] == [
-                mtdome.LlcMotionState.STATIONARY.name,
-                mtdome.LlcMotionState.STATIONARY.name,
-            ]
-            assert apscs_status["positionActual"] == [0.0, 0.0]
-
-            await self.csc.statusLCS()
-            lcs_status = self.csc.lower_level_status[mtdome.LlcName.LCS.value]
-            assert (
-                lcs_status["status"]["status"]
-                == [mtdome.LlcMotionState.STATIONARY.name] * mtdome.mock_llc.NUM_LOUVERS
-            )
-            assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
-
-            await self.csc.statusLWSCS()
-            lwscs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
-            assert (
-                lwscs_status["status"]["status"]
-                == mtdome.LlcMotionState.STATIONARY.name
-            )
-            assert lwscs_status["positionActual"] == 0
-
-            await self.csc.statusMonCS()
-            moncs_status = self.csc.lower_level_status[mtdome.LlcName.MONCS.value]
-            assert (
-                moncs_status["status"]["status"]
-                == mtdome.LlcMotionState.STATIONARY.name
-            )
-            assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
-
-            await self.csc.statusThCS()
-            thcs_status = self.csc.lower_level_status[mtdome.LlcName.THCS.value]
-            assert (
-                thcs_status["status"]["status"] == mtdome.LlcMotionState.STATIONARY.name
-            )
-            assert (
-                thcs_status["temperature"] == [0.0] * mtdome.mock_llc.NUM_THERMO_SENSORS
-            )
+            # TODO (DM-36186) Enbale the ApSCS again when the the control
+            #  software for it is working well. The others need to remain
+            #  disabled for the TMA Pointing Test.
+            # await self.csc.statusApSCS()
+            # apscs_status = self.csc.lower_level_status[
+            #     mtdome.LlcName.APSCS.value
+            # ]
+            # assert apscs_status["status"]["status"] == [
+            #     mtdome.InternalMotionState.STATIONARY.name,
+            #     mtdome.InternalMotionState.STATIONARY.name,
+            # ]
+            # assert apscs_status["positionActual"] == [0.0, 0.0]
 
     async def test_setZeroAz(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -996,11 +959,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert amcs_status["positionActual"] == pytest.approx(0.0)
             assert amcs_status["status"]["status"] == MotionState.STOPPED.name
 
-    async def test_searchZeroShutter(self) -> None:
+    async def test_homeShutter(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
@@ -1016,7 +979,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
             assert status["positionActual"] == initial_position_actual.tolist()
 
-            await self.remote.cmd_searchZeroShutter.set_start()
+            sub_system_ids = SubSystemId.APSCS
+            await self.remote.cmd_home.set_start(subSystemIds=sub_system_ids)
 
             self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
             await self.csc.statusApSCS()
@@ -1070,18 +1034,21 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
 
-            # When the lower level components are enabled, events are sent to
-            # indicate their OperationalMode.
-            for i in range(len(list(SubSystemId))):
-                await self.assert_next_sample(
-                    topic=self.remote.evt_operationalMode,
-                    operationalMode=OperationalMode.NORMAL,
-                    timeout=STD_TIMEOUT,
-                )
+            # TODO (DM-36186) Enbale the ApSCS again when the the control
+            #  software for it is working well. The others need to remain
+            #  disabled for the TMA Pointing Test.
+            # # When the lower level components are enabled, events are sent to
+            # # indicate their OperationalMode.
+            # for i in range(len(list(SubSystemId))):
+            #     await self.assert_next_sample(
+            #         topic=self.remote.evt_operationalMode,
+            #         operationalMode=OperationalMode.NORMAL,
+            #         timeout=STD_TIMEOUT,
+            #     )
 
             # Test with one lower level component.
             operational_mode = OperationalMode.DEGRADED
@@ -1166,7 +1133,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.set_csc_to_enabled()
             self.csc.mock_ctrl.enable_slow_network = True
@@ -1188,7 +1155,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.DISABLED,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
         ):
             await self.assert_next_summary_state(salobj.State.DISABLED)
             await self.set_csc_to_enabled()
@@ -1200,14 +1167,44 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=1,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER.value,
+            mock_port=5000,
         ):
             await self.assert_next_summary_state(salobj.State.STANDBY)
-            self.csc.mock_ctrl_refuse_connections = True
             with pytest.raises(RuntimeError):
                 await salobj.set_summary_state(
                     remote=self.remote, state=salobj.State.DISABLED
                 )
+            await self.assert_next_summary_state(salobj.State.FAULT)
+
+    async def test_connection_lost(self) -> None:
+        port = 0
+        mock_ctrl = mtdome.MockMTDomeController(port=port)
+        mock_ctrl.determine_current_tai = self.determine_current_tai
+        asyncio.create_task(mock_ctrl.start())
+        await asyncio.sleep(1)
+        # Request the assigned port from the mock controller.
+        port = mock_ctrl.port
+
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER.value,
+            mock_port=port,
+        ):
+            await self.assert_next_summary_state(salobj.State.STANDBY)
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.DISABLED
+            )
+            await self.assert_next_summary_state(salobj.State.DISABLED)
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.assert_next_summary_state(salobj.State.ENABLED)
+
+            # Now stop the MockController and verify that the CSC goes to FAULT
+            # state.
+            await mock_ctrl.stop()
             await self.assert_next_summary_state(salobj.State.FAULT)
 
     async def test_bin_script(self) -> None:

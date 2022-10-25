@@ -19,21 +19,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import typing
+__all__ = ["support_command"]
 
-# For an explanation why these next lines are so complicated, see
-# https://confluence.lsstcorp.org/pages/viewpage.action?spaceKey=LTS&title=Enabling+Mypy+in+Pytest
-if typing.TYPE_CHECKING:
-    __version__ = "?"
-else:
-    try:
-        from .version import *
-    except ImportError:
-        __version__ = "?"
+from lsst.ts import idl, salobj
 
-from . import llc_configuration_limits, mock_llc, schema
-from .config_schema import CONFIG_SCHEMA
-from .csc_utils import *
-from .enums import *
-from .mock_controller import *
-from .mtdome_csc import *
+
+def support_command(command_name: str) -> bool:
+    """Check if the CSC supports a particular command.
+
+    This is used to provide backward compatibility for new commands being
+    added to the CSC.
+
+    Returns
+    -------
+    `bool`
+        True if the CSC interface defines the command, False otherwise.
+    """
+    idl_metadata = salobj.parse_idl(
+        "MTDome", idl.get_idl_dir() / "sal_revCoded_MTDome.idl"
+    )
+    return f"command_{command_name}" in idl_metadata.topic_info

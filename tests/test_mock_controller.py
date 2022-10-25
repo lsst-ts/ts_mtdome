@@ -28,7 +28,8 @@ import unittest
 import numpy as np
 import pytest
 from lsst.ts import mtdome
-from lsst.ts.idl.enums.MTDome import OperationalMode
+from lsst.ts.idl.enums.MTDome import MotionState, OperationalMode
+from lsst.ts.mtdome.mock_llc.apscs import NUM_SHUTTERS
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
@@ -163,7 +164,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
     async def verify_amcs_move(
         self,
         time_diff: float,
-        expected_status: mtdome.LlcMotionState,
+        expected_status: MotionState,
         expected_position: float,
         crawl_velocity: float = 0.0,
     ) -> None:
@@ -179,7 +180,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         ----------
         time_diff: `float`
             The time difference since the previous status check in seconds.
-        expected_status: `mtdome.LlcMotionState`
+        expected_status: `MotionState`
             The expected status.
         expected_position: `float`
             The expected position in radians.
@@ -213,15 +214,13 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # specified times
         await self.verify_amcs_move(
             START_MOTORS_ADD_DURATION + 1.0,
-            mtdome.LlcMotionState.MOVING,
+            MotionState.MOVING,
             math.radians(1.5),
         )
-        await self.verify_amcs_move(
-            1.0, mtdome.LlcMotionState.MOVING, math.radians(3.0)
-        )
+        await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(3.0))
         await self.verify_amcs_move(
             5.0,
-            mtdome.LlcMotionState.CRAWLING,
+            MotionState.CRAWLING,
             math.radians(10.03),
             crawl_velocity=target_velocity,
         )
@@ -242,15 +241,13 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # specified times
         await self.verify_amcs_move(
             START_MOTORS_ADD_DURATION + 1.0,
-            mtdome.LlcMotionState.MOVING,
+            MotionState.MOVING,
             math.radians(1.5),
         )
-        await self.verify_amcs_move(
-            1.0, mtdome.LlcMotionState.MOVING, math.radians(3.0)
-        )
+        await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(3.0))
         await self.verify_amcs_move(
             5.0,
-            mtdome.LlcMotionState.CRAWLING,
+            MotionState.CRAWLING,
             math.radians(9.97),
             crawl_velocity=target_velocity,
         )
@@ -271,15 +268,13 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # specified times
         await self.verify_amcs_move(
             START_MOTORS_ADD_DURATION + 1.0,
-            mtdome.LlcMotionState.MOVING,
+            MotionState.MOVING,
             math.radians(1.5),
         )
-        await self.verify_amcs_move(
-            1.0, mtdome.LlcMotionState.MOVING, math.radians(3.0)
-        )
+        await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(3.0))
         await self.verify_amcs_move(
             5.0,
-            mtdome.LlcMotionState.STOPPED,
+            MotionState.STOPPED,
             math.radians(10.0),
             crawl_velocity=target_velocity,
         )
@@ -300,15 +295,13 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # specified times
         await self.verify_amcs_move(
             START_MOTORS_ADD_DURATION + 1.0,
-            mtdome.LlcMotionState.MOVING,
+            MotionState.MOVING,
             math.radians(18.5),
         )
-        await self.verify_amcs_move(
-            1.0, mtdome.LlcMotionState.MOVING, math.radians(17.0)
-        )
+        await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(17.0))
         await self.verify_amcs_move(
             5.0,
-            mtdome.LlcMotionState.CRAWLING,
+            MotionState.CRAWLING,
             math.radians(10.03),
             crawl_velocity=target_velocity,
         )
@@ -329,15 +322,13 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # specified times
         await self.verify_amcs_move(
             START_MOTORS_ADD_DURATION + 1.0,
-            mtdome.LlcMotionState.MOVING,
+            MotionState.MOVING,
             math.radians(18.5),
         )
-        await self.verify_amcs_move(
-            1.0, mtdome.LlcMotionState.MOVING, math.radians(17.0)
-        )
+        await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(17.0))
         await self.verify_amcs_move(
             5.0,
-            mtdome.LlcMotionState.CRAWLING,
+            MotionState.CRAWLING,
             math.radians(9.97),
             crawl_velocity=target_velocity,
         )
@@ -357,15 +348,13 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # specified times
         await self.verify_amcs_move(
             START_MOTORS_ADD_DURATION + 1.0,
-            mtdome.LlcMotionState.MOVING,
+            MotionState.MOVING,
             math.radians(18.5),
         )
-        await self.verify_amcs_move(
-            1.0, mtdome.LlcMotionState.MOVING, math.radians(17.0)
-        )
+        await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(17.0))
         await self.verify_amcs_move(
             5.0,
-            mtdome.LlcMotionState.STOPPED,
+            MotionState.STOPPED,
             math.radians(10.0),
             crawl_velocity=target_velocity,
         )
@@ -421,7 +410,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        assert amcs_status["status"]["status"] == mtdome.LlcMotionState.CRAWLING.name
+        assert amcs_status["status"]["status"] == MotionState.CRAWLING.name
         assert amcs_status["positionActual"] >= math.radians(0.05)
         assert amcs_status["positionActual"] <= math.radians(0.15)
 
@@ -437,7 +426,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.verify_amcs_move(
             START_MOTORS_ADD_DURATION + 1.0,
-            mtdome.LlcMotionState.MOVING,
+            MotionState.MOVING,
             math.radians(1.5),
         )
 
@@ -452,7 +441,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        assert amcs_status["status"]["status"] == mtdome.LlcMotionState.STOPPED.name
+        assert amcs_status["status"]["status"] == MotionState.STOPPED.name
         assert amcs_status["positionActual"] >= math.radians(1.7)
         assert amcs_status["positionActual"] <= math.radians(1.9)
 
@@ -487,7 +476,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
     async def verify_lwscs_move(
         self,
         time_diff: float,
-        expected_status: mtdome.LlcMotionState,
+        expected_status: MotionState,
         expected_position: float,
     ) -> None:
         """Verify the expected status and position after the given time
@@ -497,7 +486,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         ----------
         time_diff: `float`
             The time difference since the previous status check in seconds.
-        expected_status: `mtdome.LlcMotionState`
+        expected_status: `MotionState`
             The expected status.
         expected_position: `float`
             The expected position in radians.
@@ -522,17 +511,17 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Move EL and check the position.
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=mtdome.LlcMotionState.MOVING,
+            expected_status=MotionState.MOVING,
             expected_position=math.radians(1.75),
         )
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=mtdome.LlcMotionState.MOVING,
+            expected_status=MotionState.MOVING,
             expected_position=math.radians(3.5),
         )
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=mtdome.LlcMotionState.STOPPED,
+            expected_status=MotionState.STOPPED,
             expected_position=math.radians(5.0),
         )
 
@@ -547,17 +536,17 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Move EL and check the position.
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=mtdome.LlcMotionState.MOVING,
+            expected_status=MotionState.MOVING,
             expected_position=math.radians(3.25),
         )
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=mtdome.LlcMotionState.MOVING,
+            expected_status=MotionState.MOVING,
             expected_position=math.radians(1.5),
         )
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=mtdome.LlcMotionState.STOPPED,
+            expected_status=MotionState.STOPPED,
             expected_position=math.radians(0),
         )
 
@@ -586,7 +575,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Move EL and check the position and status.
         await self.verify_lwscs_move(
             time_diff=1.0,
-            expected_status=mtdome.LlcMotionState.MOVING,
+            expected_status=MotionState.MOVING,
             expected_position=math.radians(1.75),
         )
 
@@ -598,7 +587,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
         lwscs_status = self.data[mtdome.LlcName.LWSCS.value]
-        assert lwscs_status["status"]["status"] == mtdome.LlcMotionState.STOPPED.name
+        assert lwscs_status["status"]["status"] == MotionState.STOPPED.name
         assert lwscs_status["positionActual"] >= math.radians(1.7)
         assert lwscs_status["positionActual"] <= math.radians(1.9)
 
@@ -683,7 +672,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
     async def verify_lwscs_crawl(
         self,
         time_diff: float,
-        expected_status: mtdome.LlcMotionState,
+        expected_status: MotionState,
         expected_position: float,
     ) -> None:
         """Verify the expected status and position after the given time
@@ -693,7 +682,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         ----------
         time_diff: `float`
             The time difference since the previous status check in seconds.
-        expected_status: `mtdome.LlcMotionState`
+        expected_status: `MotionState`
             The expected status.
         expected_position: `float`
             The expected position in radians.
@@ -715,12 +704,12 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Let EL crawl a little and check the position
         await self.verify_lwscs_crawl(
             time_diff=1.0,
-            expected_status=mtdome.LlcMotionState.CRAWLING,
+            expected_status=MotionState.CRAWLING,
             expected_position=math.radians(0.1),
         )
         await self.verify_lwscs_crawl(
             time_diff=1.0,
-            expected_status=mtdome.LlcMotionState.CRAWLING,
+            expected_status=MotionState.CRAWLING,
             expected_position=math.radians(0.2),
         )
 
@@ -789,11 +778,11 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         for index, status in enumerate(lcs_status["status"]["status"]):
             if index in louver_ids:
                 if target_positions[louver_ids.index(index)] > 0:
-                    assert mtdome.LlcMotionState.OPEN.name == status
+                    assert MotionState.OPEN.name == status
                 else:
-                    assert mtdome.LlcMotionState.CLOSED.name == status
+                    assert MotionState.CLOSED.name == status
             else:
-                assert mtdome.LlcMotionState.CLOSED.name == status
+                assert MotionState.CLOSED.name == status
         for index, positionActual in enumerate(lcs_status["positionActual"]):
             if index in louver_ids:
                 assert target_positions[louver_ids.index(index)] == positionActual
@@ -839,7 +828,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         lcs_status = self.data[mtdome.LlcName.LCS.value]
         assert (
             lcs_status["status"]["status"]
-            == [mtdome.LlcMotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS
+            == [MotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS
         )
         assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
         assert lcs_status["positionCommanded"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
@@ -879,7 +868,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         lcs_status = self.data[mtdome.LlcName.LCS.value]
         assert (
             lcs_status["status"]["status"]
-            == [mtdome.LlcMotionState.STOPPED.name] * mtdome.mock_llc.NUM_LOUVERS
+            == [MotionState.STOPPED.name] * mtdome.mock_llc.NUM_LOUVERS
         )
         assert lcs_status["positionActual"] == [0.0] * louver_id + [target_position] + [
             0.0
@@ -889,48 +878,59 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         ] + [0.0] * (mtdome.mock_llc.NUM_LOUVERS - louver_id - 1)
 
     async def test_openShutter(self) -> None:
+        # Set the TAI time in the mock controller for easier control
+        self.mock_ctrl.current_tai = _CURRENT_TAI
+
         await self.write(command="openShutter", parameters={})
         self.data = await self.read()
         assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
+        # It takes 10 seconds to open the shutters.
+        assert self.data["timeout"] == 10.0
 
-        # Set the TAI time in the mock controller for easier control
-        self.mock_ctrl.current_tai = _CURRENT_TAI
-        # Set the mock device statuses TAI time to the mock controller time for
-        # easier control
-        self.mock_ctrl.apscs.command_time_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai
         await self.validate_apscs(
-            status=mtdome.LlcMotionState.OPEN,
+            status=MotionState.MOVING,
+            position_actual=[0.0, 0.0],
+            position_commanded=100.0,
+        )
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 5.0
+        await self.validate_apscs(
+            status=MotionState.MOVING,
+            position_actual=[50.0, 50.0],
+            position_commanded=100.0,
+        )
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 10.0
+        await self.validate_apscs(
+            status=MotionState.STOPPED,
             position_actual=[100.0, 100.0],
             position_commanded=100.0,
         )
 
     async def validate_apscs(
         self,
-        status: mtdome.LlcMotionState = None,
+        status: MotionState = None,
         position_actual: list[float] = None,
         position_commanded: float = None,
     ) -> None:
-        # Give some time to the mock device to open.
-        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
-
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
         apscs_status = self.data[mtdome.LlcName.APSCS.value]
         if status is not None:
             assert apscs_status["status"]["status"] == [status.name, status.name]
         if position_actual is not None:
-            assert apscs_status["positionActual"] == position_actual
+            assert apscs_status["positionActual"] == pytest.approx(position_actual)
         if position_commanded is not None:
-            assert apscs_status["positionCommanded"] == position_commanded
+            assert apscs_status["positionCommanded"] == pytest.approx(
+                position_commanded
+            )
 
     async def test_closeShutter(self) -> None:
         await self.write(command="closeShutter", parameters={})
         self.data = await self.read()
         assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
+        assert self.data["timeout"] == 0.0  # The shutters already are closed.
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -938,7 +938,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # easier control
         self.mock_ctrl.apscs.command_time_tai = self.mock_ctrl.current_tai
         await self.validate_apscs(
-            status=mtdome.LlcMotionState.CLOSED,
+            status=MotionState.STOPPED,
             position_actual=[0.0, 0.0],
             position_commanded=0.0,
         )
@@ -948,7 +948,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         self.data = await self.read()
         assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
-        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
+        expected_duration = 10.0  # The shutters move from closed to open.
+        assert self.data["timeout"] == expected_duration
 
         # Set the TAI time in the mock controller for easier control
         self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -961,10 +962,10 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="stopShutter", parameters={})
         self.data = await self.read()
         assert self.data["response"] == mtdome.ResponseCode.OK
-        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
+        assert self.data["timeout"] == 0.0  # stopping is instantaneous.
 
         await self.validate_apscs(
-            status=mtdome.LlcMotionState.STOPPED,
+            status=MotionState.STOPPED,
             position_actual=[100.0, 100.0],
             position_commanded=100.0,
         )
@@ -1102,7 +1103,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        assert amcs_status["status"]["status"] == mtdome.LlcMotionState.PARKED.name
+        assert amcs_status["status"]["status"] == MotionState.PARKED.name
         assert amcs_status["positionActual"] == mtdome.mock_llc.PARK_POSITION
         assert amcs_status["positionCommanded"] == mtdome.mock_llc.PARK_POSITION
 
@@ -1127,7 +1128,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusThCS", parameters={})
         self.data = await self.read()
         thcs_status = self.data[mtdome.LlcName.THCS.value]
-        assert thcs_status["status"]["status"] == mtdome.LlcMotionState.OPEN.name
+        assert thcs_status["status"]["status"] == MotionState.OPEN.name
         assert (
             thcs_status["temperature"]
             == [temperature] * mtdome.mock_llc.thcs.NUM_THERMO_SENSORS
@@ -1187,11 +1188,11 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="statusAMCS", parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        assert amcs_status["status"]["status"] == mtdome.LlcMotionState.PARKED.name
+        assert amcs_status["status"]["status"] == MotionState.PARKED.name
         assert amcs_status["positionActual"] == 0
 
         await self.validate_apscs(
-            status=mtdome.LlcMotionState.CLOSED, position_actual=[0.0, 0.0]
+            status=MotionState.STOPPED, position_actual=[0.0, 0.0]
         )
 
         await self.write(command="statusLCS", parameters={})
@@ -1199,26 +1200,26 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         lcs_status = self.data[mtdome.LlcName.LCS.value]
         assert (
             lcs_status["status"]["status"]
-            == [mtdome.LlcMotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS
+            == [MotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS
         )
         assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
 
         await self.write(command="statusLWSCS", parameters={})
         self.data = await self.read()
         lwscs_status = self.data[mtdome.LlcName.LWSCS.value]
-        assert lwscs_status["status"]["status"] == mtdome.LlcMotionState.STOPPED.name
+        assert lwscs_status["status"]["status"] == MotionState.STOPPED.name
         assert lwscs_status["positionActual"] == 0
 
         await self.write(command="statusMonCS", parameters={})
         self.data = await self.read()
         moncs_status = self.data[mtdome.LlcName.MONCS.value]
-        assert moncs_status["status"]["status"] == mtdome.LlcMotionState.CLOSED.name
+        assert moncs_status["status"]["status"] == MotionState.CLOSED.name
         assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
 
         await self.write(command="statusThCS", parameters={})
         self.data = await self.read()
         thcs_status = self.data[mtdome.LlcName.THCS.value]
-        assert thcs_status["status"]["status"] == mtdome.LlcMotionState.CLOSED.name
+        assert thcs_status["status"]["status"] == MotionState.CLOSED.name
         assert thcs_status["temperature"] == [0.0] * mtdome.mock_llc.NUM_THERMO_SENSORS
 
     async def test_slow_network(self) -> None:
@@ -1231,7 +1232,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Waiting longer should eventually result in a successful read.
         self.data = await self.read(timeout=SLOW_NETWORK_TIMEOUT)
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
-        assert amcs_status["status"]["status"] == mtdome.LlcMotionState.PARKED.name
+        assert amcs_status["status"]["status"] == MotionState.PARKED.name
         assert amcs_status["positionActual"] == 0
 
     async def test_network_interruption(self) -> None:
@@ -1277,25 +1278,18 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is True
 
     async def test_shutter_reset_drives(self) -> None:
-        assert self.mock_ctrl.apscs.motion_state_in_error is False
+        for i in range(NUM_SHUTTERS):
+            assert self.mock_ctrl.apscs.shutter_motion[i].motion_state_in_error is False
 
-        drives_in_error = [1, 1, 0, 0]
-        expected_drive_error_state = [True, True, False, False]
-        await self.mock_ctrl.apscs.set_fault(drives_in_error=drives_in_error)
-        assert self.mock_ctrl.apscs.drives_in_error_state == expected_drive_error_state
-        assert self.mock_ctrl.apscs.motion_state_in_error is True
-
-        expected_drive_error_state = [False, True, False, False]
-        reset = [1, 0, 0, 0]
-        await self.mock_ctrl.reset_drives_shutter(reset=reset)
-        assert self.mock_ctrl.apscs.drives_in_error_state == expected_drive_error_state
-        assert self.mock_ctrl.apscs.motion_state_in_error is True
-
-        expected_drive_error_state = [False, False, False, False]
-        reset = [1, 1, 0, 0]
-        await self.mock_ctrl.reset_drives_shutter(reset=reset)
-        assert self.mock_ctrl.apscs.drives_in_error_state == expected_drive_error_state
-        assert self.mock_ctrl.apscs.motion_state_in_error is True
+        drives_in_error = [0, 1, 0, 1]
+        expected_drive_error_state = [False, True]
+        await self.mock_ctrl.apscs.set_fault(_CURRENT_TAI, drives_in_error)
+        for i in range(NUM_SHUTTERS):
+            assert (
+                self.mock_ctrl.apscs.shutter_motion[i].drives_in_error_state
+                == expected_drive_error_state
+            )
+            assert self.mock_ctrl.apscs.shutter_motion[i].motion_state_in_error is True
 
     async def test_az_exit_fault_and_reset_drives(self) -> None:
         """Test recovering AZ from an ERROR state."""
@@ -1312,12 +1306,10 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # specified times
         await self.verify_amcs_move(
             START_MOTORS_ADD_DURATION + 1.0,
-            mtdome.LlcMotionState.MOVING,
+            MotionState.MOVING,
             math.radians(1.5),
         )
-        await self.verify_amcs_move(
-            0.5, mtdome.LlcMotionState.MOVING, math.radians(2.25)
-        )
+        await self.verify_amcs_move(0.5, MotionState.MOVING, math.radians(2.25))
 
         # This sets the status of the AZ state machine to ERROR.
         drives_in_error = [1, 1, 0, 0, 0]
@@ -1329,9 +1321,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             == expected_drive_error_state
         )
         assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is True
-        await self.verify_amcs_move(
-            0.5, mtdome.LlcMotionState.ERROR, math.radians(2.40)
-        )
+        await self.verify_amcs_move(0.5, MotionState.ERROR, math.radians(2.40))
 
         # Now call exit_fault. This will fail because there still are drives at
         # fault.
@@ -1352,18 +1342,22 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # reset.
         await self.mock_ctrl.exit_fault()
         await self.verify_amcs_move(
-            0.0, mtdome.LlcMotionState.STATIONARY, math.radians(2.40)
+            0.0, mtdome.InternalMotionState.STATIONARY, math.radians(2.40)
         )
 
     async def test_shutter_exit_fault_and_reset_drives(self) -> None:
         """Test recovering the Aperture Shutter from an ERROR state."""
         # This sets the status of the state machine to ERROR.
-        drives_in_error = [1, 1, 0, 0]
-        expected_drive_error_state = [True, True, False, False]
-        await self.mock_ctrl.apscs.set_fault(drives_in_error)
-        assert self.mock_ctrl.apscs.drives_in_error_state == expected_drive_error_state
-        assert self.mock_ctrl.apscs.motion_state_in_error is True
-        await self.validate_apscs(status=mtdome.LlcMotionState.ERROR)
+        drives_in_error = [0, 1, 0, 1]
+        expected_drive_error_state = [False, True]
+        await self.mock_ctrl.apscs.set_fault(_CURRENT_TAI, drives_in_error)
+        for i in range(NUM_SHUTTERS):
+            assert (
+                self.mock_ctrl.apscs.shutter_motion[i].drives_in_error_state
+                == expected_drive_error_state
+            )
+            assert self.mock_ctrl.apscs.shutter_motion[i].motion_state_in_error is True
+        await self.validate_apscs(status=MotionState.ERROR)
 
         # Now call exit_fault. This will fail because there still are drives at
         # fault.
@@ -1372,15 +1366,19 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         assert self.data["response"] == mtdome.ResponseCode.COMMAND_REJECTED
         assert self.data["timeout"] == -1
 
-        expected_drive_error_state = [False, False, False, False]
-        reset = [1, 1, 0, 0]
+        expected_drive_error_state = [False, False]
+        reset = [0, 1, 0, 1]
         await self.mock_ctrl.reset_drives_shutter(reset=reset)
-        assert self.mock_ctrl.apscs.drives_in_error_state == expected_drive_error_state
+        for i in range(NUM_SHUTTERS):
+            assert (
+                self.mock_ctrl.apscs.shutter_motion[i].drives_in_error_state
+                == expected_drive_error_state
+            )
 
         # Now call exit_fault which will not fail because the drives have been
         # reset.
         await self.mock_ctrl.exit_fault()
-        await self.validate_apscs(status=mtdome.LlcMotionState.STATIONARY)
+        await self.validate_apscs(status=mtdome.InternalMotionState.STATIONARY)
 
     async def test_calibrate_az(self) -> None:
         start_position = 0
@@ -1396,7 +1394,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # specified times
         await self.verify_amcs_move(
             START_MOTORS_ADD_DURATION + 1.0,
-            mtdome.LlcMotionState.MOVING,
+            MotionState.MOVING,
             math.radians(1.5),
         )
 
@@ -1408,7 +1406,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.verify_amcs_move(
             6.0,
-            mtdome.LlcMotionState.STOPPED,
+            MotionState.STOPPED,
             math.radians(10.0),
         )
 
@@ -1420,13 +1418,13 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         await self.verify_amcs_move(
             7.0,
-            mtdome.LlcMotionState.STOPPED,
+            MotionState.STOPPED,
             math.radians(0.0),
         )
 
     async def test_search_zero_shutter(self) -> None:
         initial_position_actual = np.full(
-            mtdome.mock_llc.NUM_SHUTTERS, 5.0, dtype=float
+            mtdome.mock_llc.NUM_SHUTTERS, 0.0, dtype=float
         )
         self.mock_ctrl.apscs.position_actual = initial_position_actual
         await self.validate_apscs(
@@ -1436,7 +1434,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         await self.write(command="searchZeroShutter", parameters={})
         self.data = await self.read()
         assert self.data["response"] == mtdome.ResponseCode.OK
-        assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
+        assert self.data["timeout"] == 0.0
         await self.validate_apscs(
             position_actual=np.zeros(
                 mtdome.mock_llc.NUM_SHUTTERS, dtype=float

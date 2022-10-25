@@ -27,6 +27,11 @@ import pytest
 from expected_state import ExpectedState
 from lsst.ts import mtdome
 from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.mtdome.mock_llc.amcs import (
+    CURRENT_PER_MOTOR_CRAWLING,
+    CURRENT_PER_MOTOR_MOVING,
+)
+from lsst.ts.mtdome.mock_llc.mock_motion.azimuth_motion import NUM_MOTORS
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
@@ -35,31 +40,34 @@ logging.basicConfig(
 # The maximum AZ rotation speed (deg/s)
 MAX_SPEED = 4.0
 START_TAI = 10001.0
+# The amount of time needed before the motors of the AZ rotation begin moving.
 START_MOTORS_ADD_DURATION = 5.5
 
 
-class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
-    async def prepare_azimuth_motion(
+class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
+    async def prepare_amcs(
         self, start_position: float, max_speed: float, start_tai: float
     ) -> None:
-        """Prepare the AzimuthMotion for future commands.
+        """Prepare the AmcsStatus for future commands.
 
         Parameters
         ----------
         start_position: `float`
-            The start position of the azimuth motion.
+            The start position of the azimuth motion [deg].
         max_speed: `float`
-            The maximum allowed speed.
+            The maximum allowed speed [deg/s].
         start_tai: `float`
             The start TAI time.
         """
-        self.azimuth_motion = mtdome.mock_llc.AzimuthMotion(
+        self.amcs = mtdome.mock_llc.AmcsStatus(start_tai=start_tai)
+        azimuth_motion = mtdome.mock_llc.AzimuthMotion(
             start_position=math.radians(start_position),
             max_speed=math.radians(max_speed),
             start_tai=start_tai,
         )
+        self.amcs.azimuth_motion = azimuth_motion
 
-    async def verify_azimuth_state(
+    async def verify_amcs_state(
         self,
         tai: float,
         expected_position: float,
@@ -80,28 +88,44 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         expected_motion_state: `float`
             The expected motion state at the given TAI time.
         """
-        (
-            position,
-            velocity,
-            motion_state,
-        ) = self.azimuth_motion.get_position_velocity_and_motion_state(tai)
-        assert pytest.approx(math.degrees(position)) == expected_position
-        assert pytest.approx(math.degrees(velocity)) == expected_velocity
-        assert motion_state == expected_motion_state
+        await self.amcs.determine_status(current_tai=tai)
+        assert math.degrees(self.amcs.llc_status["positionActual"]) == pytest.approx(
+            expected_position
+        )
+        assert math.degrees(self.amcs.llc_status["velocityActual"]) == pytest.approx(
+            expected_velocity
+        )
+        assert expected_motion_state.name == self.amcs.llc_status["status"]["status"]
+        expected_drive_current: list[float] = [0.0] * NUM_MOTORS
+        if expected_motion_state == MotionState.MOVING:
+            expected_drive_current = [CURRENT_PER_MOTOR_MOVING] * NUM_MOTORS
+        elif expected_motion_state == MotionState.CRAWLING:
+            expected_drive_current = [CURRENT_PER_MOTOR_CRAWLING] * NUM_MOTORS
+        assert expected_drive_current == self.amcs.llc_status["driveCurrentActual"]
 
-    async def verify_duration(
+    async def verify_move_duration(
         self,
         target_position: float,
         crawl_velocity: float,
         start_tai: float,
-        motion_state: MotionState,
         expected_duration: float,
     ) -> None:
-        duration = self.azimuth_motion.set_target_position_and_velocity(
+        duration = await self.amcs.moveAz(
+            position=math.radians(target_position),
+            velocity=math.radians(crawl_velocity),
             start_tai=start_tai,
-            end_position=math.radians(target_position),
-            crawl_velocity=math.radians(crawl_velocity),
-            motion_state=motion_state,
+        )
+        assert pytest.approx(duration) == expected_duration
+
+    async def verify_crawl_duration(
+        self,
+        crawl_velocity: float,
+        start_tai: float,
+        expected_duration: float,
+    ) -> None:
+        duration = await self.amcs.crawlAz(
+            velocity=math.radians(crawl_velocity),
+            start_tai=start_tai,
         )
         assert pytest.approx(duration) == expected_duration
 
@@ -111,20 +135,20 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         expected_states: list[ExpectedState],
         command: str,
     ) -> None:
-        func = getattr(self.azimuth_motion, command)
-        func(start_tai=START_TAI + START_MOTORS_ADD_DURATION + start_tai)
+        func = getattr(self.amcs, command)
+        await func(start_tai=START_TAI + START_MOTORS_ADD_DURATION + start_tai)
         for expected_state in expected_states:
             tai = expected_state.tai
-            await self.verify_azimuth_state(
+            await self.verify_amcs_state(
                 tai=START_TAI + START_MOTORS_ADD_DURATION + tai,
                 expected_position=expected_state.position,
                 expected_velocity=expected_state.velocity,
                 expected_motion_state=expected_state.motion_state,
             )
 
-    async def verify_azimuth(
+    async def verify_amcs(
         self,
-        commanded_state: MotionState,
+        command: str,
         start_position: float,
         target_position: float,
         max_speed: float,
@@ -133,21 +157,24 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         expected_states: list[ExpectedState],
         start_tai: float,
     ) -> None:
-        await self.prepare_azimuth_motion(
+        await self.prepare_amcs(
             start_position=start_position,
             max_speed=max_speed,
             start_tai=start_tai,
         )
-        await self.verify_duration(
-            target_position,
-            crawl_velocity,
-            start_tai,
-            commanded_state,
-            expected_duration,
-        )
+        if command == "move":
+            await self.verify_move_duration(
+                target_position, crawl_velocity, start_tai, expected_duration
+            )
+        elif command == "crawl":
+            await self.verify_crawl_duration(
+                crawl_velocity, start_tai, expected_duration
+            )
+        else:
+            self.fail(f"Unsupported {command!r} received.")
         for expected_state in expected_states:
             tai = expected_state.tai
-            await self.verify_azimuth_state(
+            await self.verify_amcs_state(
                 tai=START_TAI + START_MOTORS_ADD_DURATION + tai,
                 expected_position=expected_state.position,
                 expected_velocity=expected_state.velocity,
@@ -155,7 +182,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             )
 
     async def test_move_zero_ten_pos(self) -> None:
-        """Test the AzimuthMotion when moving from position 0 to
+        """Test the AmcsStatus when moving from position 0 to
         position 10 degrees and then crawl in positive direction.
         """
         start_position = 0.0
@@ -171,8 +198,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             ExpectedState(2.5, 10.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(4.0, 10.15, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -183,7 +210,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_move_zero_ten_neg(self) -> None:
-        """Test the AzimuthMotion when moving from position 0 to
+        """Test the AmcsStatus when moving from position 0 to
         position 10 degrees and then crawl in negative direction.
         """
         start_position = 0.0
@@ -199,8 +226,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             ExpectedState(2.5, 10.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(4.0, 9.85, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -211,7 +238,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_move_ten_zero_pos(self) -> None:
-        """Test the AzimuthMotion when moving from position 10 to
+        """Test the AmcsStatus when moving from position 10 to
         position 0 degrees and then crawl in positive direction.
         """
         start_position = 10.0
@@ -227,8 +254,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             ExpectedState(2.5, 0.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(4.0, 0.15, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -239,7 +266,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_move_ten_zero_neg(self) -> None:
-        """Test the AzimuthMotion when moving from position 10 to
+        """Test the AmcsStatus when moving from position 10 to
         position 0 degrees and then crawl in negative direction.
         """
         start_position = 10.0
@@ -255,8 +282,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             ExpectedState(2.5, 0.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(4.0, 359.85, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -267,7 +294,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_move_ten_threefifty_pos(self) -> None:
-        """Test the AzimuthMotion when moving from position 10 to
+        """Test the AmcsStatus when moving from position 10 to
         position 350 degrees then crawl in positive direction.
         """
         start_position = 10.0
@@ -284,8 +311,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             ExpectedState(5.0, 350.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(6.0, 350.1, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -296,7 +323,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_move_ten_threefifty_neg(self) -> None:
-        """Test the AzimuthMotion when moving from position 10 to
+        """Test the AmcsStatus when moving from position 10 to
         position 350 degrees then crawl in negative direction.
         """
         start_position = 10.0
@@ -313,8 +340,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             ExpectedState(5.0, 350.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(6.0, 349.9, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -325,7 +352,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_move_threefifty_ten_pos(self) -> None:
-        """Test the AzimuthMotion when moving from position 10 to
+        """Test the AmcsStatus when moving from position 10 to
         position 350 degrees then crawl in positive direction.
         """
         start_position = 350.0
@@ -343,8 +370,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             ExpectedState(5.0, 10.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(6.0, 10.1, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -355,7 +382,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_move_threefifty_ten_neg(self) -> None:
-        """Test the AzimuthMotion when moving from position 10 to
+        """Test the AmcsStatus when moving from position 10 to
         position 350 degrees then crawl in negative direction.
         """
         start_position = 350.0
@@ -373,8 +400,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             ExpectedState(5.0, 10.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(6.0, 9.9, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -385,7 +412,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_crawl_pos(self) -> None:
-        """Test the AzimuthMotion when crawling in a positive
+        """Test the AmcsStatus when crawling in a positive
         direction while crossing the 0/360 boundary. It should pass the
         target position and keep on crawling
         """
@@ -401,8 +428,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             ExpectedState(20.0, 10.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(21.0, 11.0, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.CRAWLING,
+        await self.verify_amcs(
+            command="crawl",
             start_position=start_position,
             target_position=math.inf,
             max_speed=MAX_SPEED,
@@ -413,7 +440,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_crawl_neg(self) -> None:
-        """Test the AzimuthMotion when crawling in a positive
+        """Test the AmcsStatus when crawling in a positive
         direction while crossing the 0/360 boundary. It should pass the
         target position and keep on crawling
         """
@@ -429,8 +456,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             ExpectedState(20.0, 350.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(21.0, 349.0, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.CRAWLING,
+        await self.verify_amcs(
+            command="crawl",
             start_position=start_position,
             target_position=math.inf,
             max_speed=MAX_SPEED,
@@ -441,7 +468,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_stop_from_moving(self) -> None:
-        """Test the AzimuthMotion when moving from position 0 to
+        """Test the AmcsStatus when moving from position 0 to
         position 10 and getting stopped while moving.
         """
         start_position = 0.0
@@ -454,8 +481,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         expected_states = [
             ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -470,11 +497,11 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=2.0,
             expected_states=expected_states,
-            command="stop",
+            command="stopAz",
         )
 
     async def test_stop_from_crawling_after_moving(self) -> None:
-        """Test the AzimuthMotion when moving from position 0 to
+        """Test the AmcsStatus when moving from position 0 to
         position 10, start crawling and then getting stopped while crawling.
         """
         start_position = 0.0
@@ -488,8 +515,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
             ExpectedState(3.0, 10.05, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -504,11 +531,11 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="stop",
+            command="stopAz",
         )
 
     async def test_stop_from_crawling(self) -> None:
-        """Test the AzimuthMotion when crawling and then getting
+        """Test the AmcsStatus when crawling and then getting
         stopped.
         """
         start_position = 10.0
@@ -518,8 +545,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         expected_states = [
             ExpectedState(1.0, 11.0, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.CRAWLING,
+        await self.verify_amcs(
+            command="crawl",
             start_position=start_position,
             target_position=math.inf,
             max_speed=MAX_SPEED,
@@ -534,11 +561,11 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="stop",
+            command="stopAz",
         )
 
     async def test_park_from_moving(self) -> None:
-        """Test the AzimuthMotion when moving from position 0 to
+        """Test the AmcsStatus when moving from position 0 to
         position 10 and getting parked while moving.
         """
         start_position = 0.0
@@ -551,8 +578,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         expected_states = [
             ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -572,7 +599,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_park_from_crawling_after_moving(self) -> None:
-        """Test the AzimuthMotion when moving from position 0 to
+        """Test the AmcsStatus when moving from position 0 to
         position 10, start crawling and then getting parked while crawling.
         """
         start_position = 0.0
@@ -586,8 +613,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
             ExpectedState(3.0, 10.05, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -608,7 +635,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_park_from_crawling(self) -> None:
-        """Test the AzimuthMotion when crawling and then getting
+        """Test the AmcsStatus when crawling and then getting
         parked.
         """
         start_position = 10.0
@@ -618,8 +645,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         expected_states = [
             ExpectedState(1.0, 11.0, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.CRAWLING,
+        await self.verify_amcs(
+            command="crawl",
             start_position=start_position,
             target_position=math.inf,
             max_speed=MAX_SPEED,
@@ -641,7 +668,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_stationary_from_moving(self) -> None:
-        """Test the AzimuthMotion when moving from position 0 to
+        """Test the AmcsStatus when moving from position 0 to
         position 10 and getting set to STOPPING_BRAKING while moving.
         """
         start_position = 0.0
@@ -654,8 +681,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         expected_states = [
             ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -674,7 +701,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_stationary_from_crawling_after_moving(self) -> None:
-        """Test the AzimuthMotion when moving from position 0 to
+        """Test the AmcsStatus when moving from position 0 to
         position 10, start crawling and then getting stopped while crawling.
         """
         start_position = 0.0
@@ -688,8 +715,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
             ExpectedState(3.0, 10.05, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -708,7 +735,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_stationary_from_crawling(self) -> None:
-        """Test the AzimuthMotion when crawling and then getting
+        """Test the AmcsStatus when crawling and then getting
         stopped.
         """
         start_position = 10.0
@@ -718,8 +745,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         expected_states = [
             ExpectedState(1.0, 11.0, crawl_velocity, MotionState.CRAWLING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.CRAWLING,
+        await self.verify_amcs(
+            command="crawl",
             start_position=start_position,
             target_position=math.inf,
             max_speed=MAX_SPEED,
@@ -737,32 +764,6 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             command="go_stationary",
         )
 
-    async def test_too_high(self) -> None:
-        """Test the AzimuthMotion when trying to crawl at a too high
-        speed.
-        """
-        start_position = 10.0
-        start_tai = START_TAI
-        target_position = 11.0
-        crawl_velocity = 5.0
-        expected_duration = 0.0
-        await self.prepare_azimuth_motion(
-            start_position=start_position,
-            max_speed=MAX_SPEED,
-            start_tai=start_tai,
-        )
-        try:
-            await self.verify_duration(
-                start_tai=start_tai,
-                target_position=target_position,
-                crawl_velocity=crawl_velocity,
-                expected_duration=expected_duration,
-                motion_state=MotionState.MOVING,
-            )
-            self.fail("Expected a ValueError.")
-        except ValueError:
-            pass
-
     async def test_exit_fault(self) -> None:
         start_position = 0.0
         start_tai = START_TAI
@@ -774,8 +775,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         expected_states = [
             ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -789,9 +790,11 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         drives_in_error = [1, 1, 0, 0, 0]
         expected_drive_error_state = [True, True, False, False, False]
         current_tai = START_TAI + START_MOTORS_ADD_DURATION + 1.1
-        self.azimuth_motion.set_fault(current_tai, drives_in_error)
-        assert self.azimuth_motion.drives_in_error_state == expected_drive_error_state
-        await self.verify_azimuth_state(
+        await self.amcs.set_fault(current_tai, drives_in_error)
+        assert (
+            self.amcs.azimuth_motion.drives_in_error_state == expected_drive_error_state
+        )
+        await self.verify_amcs_state(
             tai=current_tai,
             expected_position=4.4,
             expected_velocity=0.0,
@@ -803,25 +806,29 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         # Now call exit_fault. This will fail because there still are drives at
         # fault.
         with pytest.raises(RuntimeError):
-            self.azimuth_motion.exit_fault(current_tai)
+            await self.amcs.exit_fault(current_tai)
 
         # Reset the drives.
         expected_drive_error_state = [False, False, False, False, False]
         reset = [1, 1, 0, 0, 0]
-        self.azimuth_motion.reset_drives(current_tai, reset)
-        assert self.azimuth_motion.drives_in_error_state == expected_drive_error_state
+        await self.amcs.reset_drives_az(current_tai, reset)
+        assert (
+            self.amcs.azimuth_motion.drives_in_error_state == expected_drive_error_state
+        )
 
         # Now call exit_fault which will not fail because the drives have been
         # reset.
-        self.azimuth_motion.exit_fault(current_tai)
-        await self.verify_azimuth_state(
+        await self.amcs.exit_fault(current_tai)
+        await self.verify_amcs_state(
             tai=current_tai,
             expected_position=4.4,
             expected_velocity=0.0,
             expected_motion_state=mtdome.InternalMotionState.STATIONARY,
         )
-        assert self.azimuth_motion.drives_in_error_state == expected_drive_error_state
-        assert self.azimuth_motion.motion_state_in_error is False
+        assert (
+            self.amcs.azimuth_motion.drives_in_error_state == expected_drive_error_state
+        )
+        assert self.amcs.azimuth_motion.motion_state_in_error is False
 
     async def test_calibrate_az(self) -> None:
         start_position = 0.0
@@ -834,8 +841,8 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         expected_states = [
             ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
         ]
-        await self.verify_azimuth(
-            commanded_state=MotionState.MOVING,
+        await self.verify_amcs(
+            command="move",
             start_position=start_position,
             target_position=target_position,
             max_speed=MAX_SPEED,
@@ -847,9 +854,9 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
 
         current_tai = START_TAI + START_MOTORS_ADD_DURATION + 1.1
         with pytest.raises(RuntimeError):
-            self.azimuth_motion.calibrate_az(current_tai)
+            await self.amcs.calibrate_az(current_tai)
 
-        await self.verify_azimuth_state(
+        await self.verify_amcs_state(
             tai=START_TAI + START_MOTORS_ADD_DURATION + 2.5,
             expected_position=10.0,
             expected_velocity=0.0,
@@ -857,9 +864,9 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
         current_tai = START_TAI + START_MOTORS_ADD_DURATION + 3.0
-        self.azimuth_motion.calibrate_az(current_tai)
+        await self.amcs.calibrate_az(current_tai)
 
-        await self.verify_azimuth_state(
+        await self.verify_amcs_state(
             tai=current_tai,
             expected_position=0.0,
             expected_velocity=0.0,

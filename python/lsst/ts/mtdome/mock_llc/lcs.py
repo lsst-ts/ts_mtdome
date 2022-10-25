@@ -19,18 +19,32 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["LcsStatus", "NUM_LOUVERS"]
+__all__ = [
+    "LcsStatus",
+    "CURRENT_PER_MOTOR",
+    "NUM_LOUVERS",
+    "NUM_MOTORS_PER_LOUVER",
+    "TOTAL_POWER",
+]
 
 import logging
 
 import numpy as np
 from lsst.ts import utils
+from lsst.ts.idl.enums.MTDome import MotionState
 
-from ..enums import LlcMotionState
-from .base_mock_llc import BaseMockStatus
+from ..enums import InternalMotionState
+from .base_mock_llc import DOME_VOLTAGE, BaseMockStatus
 
 NUM_LOUVERS = 34
-_NUM_MOTORS = 68
+NUM_MOTORS_PER_LOUVER = 2
+
+# Total power drawn by the Louvers [W] as indicated by the vendor.
+TOTAL_POWER = 69000.0
+# Current drawn per louver [A].
+_CURRENT_PER_LOUVER = TOTAL_POWER / NUM_LOUVERS / DOME_VOLTAGE
+# Current drawn per motor by the louvers [A].
+CURRENT_PER_MOTOR = _CURRENT_PER_LOUVER / NUM_MOTORS_PER_LOUVER
 
 
 class LcsStatus(BaseMockStatus):
@@ -46,27 +60,47 @@ class LcsStatus(BaseMockStatus):
         self.log = logging.getLogger("MockLcsStatus")
 
         # Variables holding the status of the mock Louvres
-        self.status = np.full(NUM_LOUVERS, LlcMotionState.CLOSED.name, dtype=object)
+        self.status = np.full(NUM_LOUVERS, MotionState.CLOSED.name, dtype=object)
         self.messages = [{"code": 0, "description": "No Errors"}]
         self.position_actual = np.zeros(NUM_LOUVERS, dtype=float)
         self.position_commanded = np.zeros(NUM_LOUVERS, dtype=float)
-        self.drive_torque_actual = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_torque_commanded = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_current_actual = np.zeros(_NUM_MOTORS, dtype=float)
-        self.drive_temperature = np.full(_NUM_MOTORS, 20.0, dtype=float)
-        self.encoder_head_raw = np.zeros(_NUM_MOTORS, dtype=float)
-        self.encoder_head_calibrated = np.zeros(_NUM_MOTORS, dtype=float)
+        self.drive_torque_actual = np.zeros(
+            NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, dtype=float
+        )
+        self.drive_torque_commanded = np.zeros(
+            NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, dtype=float
+        )
+        self.drive_current_actual = np.zeros(
+            NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, dtype=float
+        )
+        self.drive_temperature = np.full(
+            NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, 20.0, dtype=float
+        )
+        self.encoder_head_raw = np.zeros(
+            NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, dtype=float
+        )
+        self.encoder_head_calibrated = np.zeros(
+            NUM_LOUVERS * NUM_MOTORS_PER_LOUVER, dtype=float
+        )
         self.power_draw = 0.0
 
     async def determine_status(self, current_tai: float) -> None:
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
         """
-        time_diff = current_tai - self.command_time_tai
-        self.log.debug(
-            f"current_tai = {current_tai}, self.command_time_tai = {self.command_time_tai}, "
-            f"time_diff = {time_diff}"
-        )
+        # Determine the current drawn by the louvers.
+        for index, motion_state in enumerate(self.status):
+            # Louver motors come in pairs of two.
+            if motion_state == MotionState.MOVING:
+                self.drive_current_actual[
+                    index * NUM_MOTORS_PER_LOUVER : (index + 1) * NUM_MOTORS_PER_LOUVER
+                ] = CURRENT_PER_MOTOR
+                self.power_draw = TOTAL_POWER
+            else:
+                self.drive_current_actual[
+                    index * NUM_MOTORS_PER_LOUVER : (index + 1) * NUM_MOTORS_PER_LOUVER
+                ] = 0.0
+                self.power_draw = 0.0
         self.llc_status = {
             "status": {
                 "messages": self.messages,
@@ -101,29 +135,29 @@ class LcsStatus(BaseMockStatus):
         for louver_id, pos in enumerate(position):
             if pos >= 0:
                 if pos > 0:
-                    self.status[louver_id] = LlcMotionState.OPEN.name
+                    self.status[louver_id] = MotionState.OPEN.name
                 else:
-                    self.status[louver_id] = LlcMotionState.CLOSED.name
+                    self.status[louver_id] = MotionState.CLOSED.name
                 self.position_actual[louver_id] = pos
                 self.position_commanded[louver_id] = pos
 
     async def closeLouvers(self) -> None:
         """Close all louvers."""
         self.command_time_tai = utils.current_tai()
-        self.status[:] = LlcMotionState.CLOSED.name
+        self.status[:] = MotionState.CLOSED.name
         self.position_actual[:] = 0.0
         self.position_commanded[:] = 0.0
 
     async def stopLouvers(self) -> None:
         """Stop all motion of all louvers."""
         self.command_time_tai = utils.current_tai()
-        self.status[:] = LlcMotionState.STOPPED.name
+        self.status[:] = MotionState.STOPPED.name
 
     async def go_stationary(self) -> None:
         """Stop louvers motion and engage the brakes."""
         self.command_time_tai = utils.current_tai()
-        self.status[:] = LlcMotionState.STATIONARY.name
+        self.status[:] = InternalMotionState.STATIONARY.name
 
     async def exit_fault(self) -> None:
         """Clear the fault state."""
-        self.status[:] = LlcMotionState.STATIONARY.name
+        self.status[:] = InternalMotionState.STATIONARY.name

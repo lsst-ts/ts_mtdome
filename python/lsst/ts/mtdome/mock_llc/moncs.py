@@ -24,8 +24,9 @@ __all__ = ["MoncsStatus", "NUM_MON_SENSORS"]
 import logging
 
 import numpy as np
+from lsst.ts.idl.enums.MTDome import MotionState
 
-from ..enums import LlcMotionState
+from ..enums import InternalMotionState
 from .base_mock_llc import BaseMockStatus
 
 NUM_MON_SENSORS = 16
@@ -39,7 +40,7 @@ class MoncsStatus(BaseMockStatus):
     def __init__(self) -> None:
         super().__init__()
         self.log = logging.getLogger("MockMoncsStatus")
-        self.status = LlcMotionState.CLOSED
+        self.status = MotionState.CLOSED
         self.messages = [{"code": 0, "description": "No Errors"}]
         self.data = np.zeros(NUM_MON_SENSORS, dtype=float)
 
@@ -65,4 +66,4 @@ class MoncsStatus(BaseMockStatus):
 
     async def exit_fault(self) -> None:
         """Clear the fault state."""
-        self.status = LlcMotionState.STATIONARY
+        self.status = InternalMotionState.STATIONARY

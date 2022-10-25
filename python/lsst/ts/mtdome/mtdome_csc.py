@@ -37,7 +37,14 @@ from lsst.ts.idl.enums.MTDome import (
 
 from . import __version__, encoding_tools
 from .config_schema import CONFIG_SCHEMA
-from .enums import LlcMotionState, LlcName, LlcNameDict, ResponseCode
+from .csc_utils import support_command
+from .enums import (
+    LlcName,
+    LlcNameDict,
+    ResponseCode,
+    ValidSimulationMode,
+    motion_state_translations,
+)
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .mock_controller import MockMTDomeController
 
@@ -141,14 +148,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     """
 
     enable_cmdline_state = True
-    valid_simulation_modes = (0, 1)
+    valid_simulation_modes = set([v.value for v in ValidSimulationMode])
     version = __version__
 
     def __init__(
         self,
         config_dir: typing.Optional[str] = None,
         initial_state: salobj.State = salobj.State.STANDBY,
-        simulation_mode: int = 0,
+        simulation_mode: int = ValidSimulationMode.NORMAL_OPERATIONS,
         override: str = "",
         mock_port: typing.Optional[int] = None,
     ) -> None:
@@ -160,9 +167,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             MockMTDomeController
         ] = None  # mock controller, or None if not constructed
         self.mock_port = mock_port  # mock port, or None if not used
-        # Make the mock_ctrl refuse connections. Default to False but unit
-        # tests may set it to True.
-        self.mock_ctrl_refuse_connections = False
+
+        # Check supported commands to make sure of backward compatibility with
+        # XML 12.0.
+        if support_command("resetDrivesShutter"):
+            setattr(self, "do_resetDrivesShutter", self._do_resetDrivesShutter)
+        if support_command("home"):
+            setattr(self, "do_home", self._do_home)
 
         super().__init__(
             name="MTDome",
@@ -177,6 +188,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # Keep the lower level statuses in memory for unit tests.
         self.lower_level_status: dict[str, typing.Any] = {}
         self.status_tasks: list[asyncio.Future] = []
+        # Keep track of the AMCS state for logging one the console.
+        self.amcs_state: MotionState | None = None
+        # Keep track of the AMCS status message for logging on the console.
+        self.amcs_message: str = ""
 
         # Keep a lock so only one remote command can be executed at a time.
         self.communication_lock = asyncio.Lock()
@@ -224,6 +239,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             # },
         }
 
+        # Keep track of which command to send the home command on a lower level
+        # component.
+        self.set_home_command_dict = {
+            SubSystemId.APSCS: "searchZeroShutter",
+        }
+
         self.log.info("DomeCsc constructed")
 
     async def connect(self) -> None:
@@ -238,11 +259,18 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             raise RuntimeError("Not yet configured")
         if self.connected:
             raise RuntimeError("Already connected")
-        if self.simulation_mode == 1:
+        if self.simulation_mode == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER:
             await self.start_mock_ctrl()
             host = _LOCAL_HOST
             assert self.mock_ctrl is not None
             port = self.mock_ctrl.port
+        elif (
+            self.simulation_mode
+            == ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER
+        ):
+            host = _LOCAL_HOST
+            assert self.mock_port is not None
+            port = self.mock_port
         else:
             host = self.config.host
             port = self.config.port
@@ -261,7 +289,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # DM-35794: Also send enabled event for Aperture Shutter.
         await self.evt_azEnabled.set_write(state=EnabledState.ENABLED)
         await self.evt_elEnabled.set_write(state=EnabledState.ENABLED)
-        await self.evt_shutterEnabled.set_write(state=EnabledState.ENABLED)
+        # Check supported event to make sure of backward compatibility with
+        # XML 12.0.
+        if hasattr(self, "evt_shutterEnabled"):
+            await self.evt_shutterEnabled.set_write(state=EnabledState.ENABLED)
 
         # DM-26374: Send events for the brakes, interlocks and locking pins
         # with a default value of 0 (meaning nothing engaged) until the
@@ -287,11 +318,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.cancel_status_tasks()
         for method, interval in (
             (self.statusAMCS, _AMCS_STATUS_PERIOD),
-            (self.statusApSCS, _APSCS_STATUS_PERIOD),
-            (self.statusLCS, _LCS_STATUS_PERIOD),
-            (self.statusLWSCS, _LWSCS_STATUS_PERIOD),
-            (self.statusMonCS, _MONCS_STATUS_PERIOD),
-            (self.statusThCS, _THCS_STATUS_PERIOD),
+            # TODO (DM-36186) Enbale the ApSCS again when the the control
+            #  software for it is working well. The others need to remain
+            #  disabled for the TMA Pointing Test.
+            # (self.statusApSCS, _APSCS_STATUS_PERIOD),
+            # (self.statusLCS, _LCS_STATUS_PERIOD),
+            # (self.statusLWSCS, _LWSCS_STATUS_PERIOD),
+            # (self.statusMonCS, _MONCS_STATUS_PERIOD),
+            # (self.statusThCS, _THCS_STATUS_PERIOD),
         ):
             self.status_tasks.append(
                 asyncio.create_task(self.one_status_loop(method, interval))
@@ -310,7 +344,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         writer = self.writer
         self.reader = None
         self.writer = None
-        await self.stop_mock_ctrl()
+        if self.simulation_mode == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER:
+            await self.stop_mock_ctrl()
         if writer:
             try:
                 writer.write_eof()
@@ -325,15 +360,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.info("start_mock_ctrl")
         try:
-            assert self.simulation_mode == 1
+            assert (
+                self.simulation_mode
+                == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value
+            )
             if self.mock_port is not None:
                 port = self.mock_port
             else:
                 assert self.config is not None
                 port = self.config.port
-            self.mock_ctrl = MockMTDomeController(
-                port, refuse_connections=self.mock_ctrl_refuse_connections
-            )
+            self.mock_ctrl = MockMTDomeController(port)
             await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
 
         except Exception as e:
@@ -359,6 +395,24 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 await self.connect()
         else:
             await self.disconnect()
+
+    async def end_enable(self, data: salobj.BaseDdsDataType) -> None:
+        """End do_enable; called after state changes
+        but before command acknowledged.
+
+        Parameters
+        ----------
+        data : `salobj.BaseDdsDataType`
+            Command data
+        """
+        await super().end_enable(data)
+
+        # TODO (DM-36186) Enbale the ApSCS again when the the control
+        #  software for it is working well. The others need to remain
+        #  disabled for the TMA Pointing Test.
+        # For backward compatibility with XML 12.0, we always send the
+        # searchZeroShutter command.
+        # await self.write_then_read_reply(command="searchZeroShutter")
 
     async def write_then_read_reply(
         self, command: str, **params: typing.Any
@@ -396,7 +450,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     read_bytes = await asyncio.wait_for(
                         self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
                     )
-                except (asyncio.exceptions.TimeoutError, AssertionError) as e:
+                except (
+                    asyncio.exceptions.IncompleteReadError,
+                    asyncio.exceptions.TimeoutError,
+                    ConnectionResetError,
+                    AssertionError,
+                ) as e:
                     await self.fault(
                         code=3, report=f"Error reading reply to command {st}: {e}"
                     )
@@ -646,6 +705,18 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
+
+        # For backward compatibility with XML 12.0, we always send resetDrives
+        # commands.
+        az_reset = [1, 1, 1, 1, 1]
+        await self.write_then_read_reply(command="resetDrivesAz", reset=az_reset)
+        # TODO (DM-36186) Enbale the ApSCS again when the the control
+        #  software for it is working well. The others need to remain
+        #  disabled for the TMA Pointing Test.
+        # aps_reset = [1, 1, 1, 1]
+        # await self.write_then_read_reply(
+        #     command="resetDrivesShutter", reset=aps_reset
+        # )
         await self.write_then_read_reply(command="exitFault")
 
     async def do_setOperationalMode(self, data: SimpleNamespace) -> None:
@@ -690,7 +761,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         reset_ints = [int(value) for value in data.reset]
         await self.write_then_read_reply(command="resetDrivesAz", reset=reset_ints)
 
-    async def do_resetDrivesShutter(self, data: SimpleNamespace) -> None:
+    async def _do_resetDrivesShutter(self, data: SimpleNamespace) -> None:
         """Reset one or more Aperture Shutter drives. This is necessary when
         exiting from FAULT state without going to Degraded Mode since the
         drives don't reset themselves.
@@ -717,11 +788,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         await self.write_then_read_reply(command="calibrateAz")
 
-    async def do_searchZeroShutter(self, data: SimpleNamespace) -> None:
-        """Search the zero position of the Aperture Shutter, which is the
-        closed position. This is necessary in case the ApSCS (Aperture Shutter
-        Control system) was shutdown with the Aperture Shutter not fully open
-        or fully closed.
+    async def _do_home(self, data: SimpleNamespace) -> None:
+        """Search the home position of the Aperture Shutter, which is the
+        closed position.
+
+        This is necessary in case the ApSCS (Aperture Shutter Control system)
+        was shutdown with the Aperture Shutter not fully open or fully closed.
 
         Parameters
         ----------
@@ -729,7 +801,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        await self.write_then_read_reply(command="searchZeroShutter")
+        sub_system_ids: int = data.subSystemIds
+        for sub_system_id in SubSystemId:
+            if (
+                sub_system_id & sub_system_ids
+                and sub_system_id in self.set_home_command_dict
+            ):
+                command = self.set_home_command_dict[sub_system_id]
+                await self.write_then_read_reply(command=command)
 
     async def config_llcs(self, system: str, settings: dict[str, float]) -> None:
         """Config command not to be executed by SAL.
@@ -845,16 +924,22 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     ) -> None:
         messages = llc_status["messages"]
         codes = [message["code"] for message in messages]
+        status_message = ", ".join(
+            [f"{message['code']}={message['description']}" for message in messages]
+        )
+        if self.amcs_state != llc_status["status"]:
+            self.amcs_state = llc_status["status"]
+            self.log.info(f"AMCS state now is {self.amcs_state}")
+        if self.amcs_message != status_message:
+            self.amcs_message = status_message
+            self.log.info(f"AMCS status message now is {self.amcs_message}")
         if len(messages) != 1 or codes[0] != 0:
-            fault_code = ", ".join(
-                [f"{message['code']}={message['description']}" for message in messages]
-            )
             await self.evt_azEnabled.set_write(
-                state=EnabledState.FAULT, faultCode=fault_code
+                state=EnabledState.FAULT, faultCode=status_message
             )
         else:
-            if llc_status["status"] == LlcMotionState.STATIONARY.name:
-                motion_state = MotionState.STOPPED_BRAKED
+            if llc_status["status"] in motion_state_translations:
+                motion_state = motion_state_translations[llc_status["status"]]
             else:
                 motion_state = MotionState[llc_status["status"]]
             in_position = False
@@ -885,8 +970,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 state=EnabledState.FAULT, faultCode=fault_code
             )
         else:
-            if llc_status["status"] == LlcMotionState.STATIONARY.name:
-                motion_state = MotionState.STOPPED_BRAKED
+            if llc_status["status"] in motion_state_translations:
+                motion_state = motion_state_translations[llc_status["status"]]
             else:
                 motion_state = MotionState[llc_status["status"]]
             in_position = False
@@ -909,9 +994,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             fault_code = ", ".join(
                 [f"{message['code']}={message['description']}" for message in messages]
             )
-            await self.evt_shutterEnabled.set_write(
-                state=EnabledState.FAULT, faultCode=fault_code
-            )
+            # Check supported event to make sure of backward compatibility with
+            # XML 12.0.
+            if hasattr(self, "evt_shutterEnabled"):
+                await self.evt_shutterEnabled.set_write(
+                    state=EnabledState.FAULT, faultCode=fault_code
+                )
         else:
             statuses = llc_status["status"]
             motion_state: list[str] = []
@@ -919,23 +1007,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             # The number of statuses has been validated by the JSON schema. So
             # here it is safe to loop over all statuses.
             for status in statuses:
-                if status == LlcMotionState.STATIONARY.name:
-                    motion_state.append(MotionState.STOPPED_BRAKED)
-
-                # DM-35794: The next elifs are temporary workarounds to make
-                # the CSC work with the LabVIEW state machine, which still is
-                # under development.
-                # TODO remove these workarounds and make the CSC work with
-                #  the final state machine. DM-35795
-                elif status in [
-                    "CLOSING",
-                    "OPENING",
-                    "APPROACHING_END",
-                    "STOPPING",
-                ]:
-                    motion_state.append(MotionState.MOVING)
-                elif status in ["UNDETERMINED"]:
-                    motion_state.append(MotionState.CLOSED)
+                if status in motion_state_translations:
+                    motion_state = motion_state_translations[llc_status["status"]]
                 else:
                     motion_state.append(MotionState[status])
                 in_position.append(
@@ -945,9 +1018,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         MotionState.STOPPED_BRAKED,
                     ]
                 )
-            await self.evt_shutterMotion.set_write(
-                state=motion_state, inPosition=in_position
-            )
+            if hasattr(self, "evt_shutterMotion"):
+                await self.evt_shutterMotion.set_write(
+                    state=motion_state, inPosition=in_position
+                )
 
     async def request_and_send_llc_status(
         self, llc_name: LlcName, topic: SimpleNamespace

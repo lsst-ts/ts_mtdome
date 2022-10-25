@@ -20,56 +20,36 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = [
-    "IntermediateState",
-    "LlcMotionState",
+    "InternalMotionState",
     "LlcName",
+    "LlcNameDict",
     "OnOff",
     "ResponseCode",
-    "LlcNameDict",
+    "ValidSimulationMode",
+    "motion_state_translations",
 ]
 
 import enum
 
-from lsst.ts.idl.enums.MTDome import SubSystemId
+from lsst.ts.idl.enums.MTDome import MotionState, SubSystemId
 
 
-class IntermediateState(enum.IntEnum):
-    BRAKES_DISENGAGED = enum.auto()
-    BRAKES_ENGAGED = enum.auto()
-    DEFLATED = enum.auto()
-    DEFLATING = enum.auto()
-    DISABLING_MOTOR_POWER = enum.auto()
-    DISENGAGING_BRAKES = enum.auto()
-    ENABLING_MOTOR_POWER = enum.auto()
-    ENGAGING_BRAKES = enum.auto()
-    GO_DEGRADED = enum.auto()
-    GO_NORMAL = enum.auto()
-    GO_STATIONARY = enum.auto()
-    INFLATED = enum.auto()
-    INFLATING = enum.auto()
-    LP_DISENGAGED = enum.auto()
-    LP_DISENGAGING = enum.auto()
-    LP_ENGAGED = enum.auto()
-    LP_ENGAGING = enum.auto()
-    MOTOR_COOLING_OFF = enum.auto()
-    MOTOR_COOLING_ON = enum.auto()
-    MOTOR_POWER_OFF = enum.auto()
-    MOTOR_POWER_ON = enum.auto()
-    STARTING_MOTOR_COOLING = enum.auto()
-    STOPPING_MOTOR_COOLING = enum.auto()
+class InternalMotionState(enum.IntEnum):
+    """Internal Motion states.
 
+    These get translated into IDL MotionState instances by the CSC.
+    """
 
-class LlcMotionState(enum.IntEnum):
-    """Motion states."""
-
-    CLOSED = enum.auto()
-    CRAWLING = enum.auto()
-    ERROR = enum.auto()
-    MOVING = enum.auto()
-    OPEN = enum.auto()
-    PARKED = enum.auto()
+    DISABLED = enum.auto()
     STATIONARY = enum.auto()
-    STOPPED = enum.auto()
+
+
+# Dict holding translations from motion states, that the lower level
+# controllers can have, to MotionState.
+motion_state_translations = {
+    "DISABLED": MotionState.ERROR,
+    "STATIONARY": MotionState.STOPPED_BRAKED,
+}
 
 
 class LlcName(str, enum.Enum):
@@ -96,6 +76,14 @@ class ResponseCode(enum.IntEnum):
     OK = 0
     UNSUPPORTED_COMMAND = 2
     COMMAND_REJECTED = 3
+
+
+class ValidSimulationMode(enum.IntEnum):
+    """Valid values for the simulation_mode attribute of the CSC."""
+
+    NORMAL_OPERATIONS = 0
+    SIMULATION_WITH_MOCK_CONTROLLER = 1
+    SIMULATION_WITHOUT_MOCK_CONTROLLER = 2
 
 
 # Dictionary to look up which LlcName is associated with which sub-system.

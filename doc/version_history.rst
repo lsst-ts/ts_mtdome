@@ -6,8 +6,73 @@
 Version History
 ###############
 
+v1.12.0
+=======
+* Disable polling the status of all subsystems except AMCS.
+* Introduce backward compatibility with XML 12.0 for the TMA Pointing Test.
+* Replace MTDome control software states with the ones from IDL.
+* Introduce a new simulation mode, where the MockController doesn't get started by the CSC, for test purposes.
+* Improve starting and stopping of MockController.
+* Improve error handling of the CSC 'write then read' loop.
+* The mock controllers now report the true current and power consumptions.
+* The mock ApSCS controller now reports the maximum duration in case there are multiple.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.0
+
+v1.11.3
+=======
+* Refactor the other test cases to contain less duplicate code.
+* Rename the 'searchZeroShutter' command to 'home' and make it apply to all subsystems.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.1
+
+v1.11.2
+=======
+* Refactor the AMCS test cases to contain less duplicate code.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.1
+
+v1.11.1
+=======
+* Refactor the BaseLlcMotion class to have subclasses with and without crawl.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.1
+
+v1.11.0
+=======
+* Restore black, flake8 and mypy pytest configuration options.
+* Add ShutterMotion class for mocking the Aperture Shutter state machine.
+* Add power consumption to AMCS, SpSCS, LCS and LWSCS.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.1
+
 v1.10.0
-======
+=======
 * Sort imports with isort.
 * Install new pre-commit hooks.
 
