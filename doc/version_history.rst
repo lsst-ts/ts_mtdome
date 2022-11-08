@@ -6,6 +6,21 @@
 Version History
 ###############
 
+v1.12.1
+=======
+* Document the simulation modes.
+* Switch from py.test to pytest.
+* Enable all commands in simulation mode and only some in operation mode.
+* Send Enabled events when the lower level components exit from FAULT state.
+* Correct the MTDome zero point offset implementation.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.0
+
 v1.12.0
 =======
 * Disable polling the status of all subsystems except AMCS.

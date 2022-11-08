@@ -26,7 +26,12 @@ import logging
 import numpy as np
 from lsst.ts.idl.enums.MTDome import MotionState
 
-from .base_mock_llc import DOME_VOLTAGE, BaseMockStatus
+from .base_mock_llc import (
+    DEFAULT_MESSAGES,
+    DOME_VOLTAGE,
+    FAULT_MESSAGES,
+    BaseMockStatus,
+)
 from .mock_motion.shutter_motion import (
     CLOSED_POSITION,
     NUM_MOTORS_PER_SHUTTER,
@@ -69,7 +74,7 @@ class ApscsStatus(BaseMockStatus):
 
         # Variables holding the status of the mock Aperture Shutter
         self.status = np.full(NUM_SHUTTERS, MotionState.CLOSED.name, dtype=object)
-        self.messages = [{"code": 0, "description": "No Errors"}]
+        self.messages = DEFAULT_MESSAGES
         self.position_actual = np.zeros(NUM_SHUTTERS, dtype=float)
         self.position_commanded = 0.0
         self.drive_torque_actual = np.zeros(
@@ -282,6 +287,7 @@ class ApscsStatus(BaseMockStatus):
             durations.append(self.shutter_motion[i].exit_fault(start_tai))
         duration = max(durations)
         self.end_tai = start_tai + duration
+        self.messages = DEFAULT_MESSAGES
         return duration
 
     async def reset_drives_shutter(self, start_tai: float, reset: list[int]) -> float:
@@ -367,3 +373,4 @@ class ApscsStatus(BaseMockStatus):
                     i * NUM_SHUTTERS : i * NUM_SHUTTERS + NUM_MOTORS_PER_SHUTTER
                 ],
             )
+        self.messages = FAULT_MESSAGES
