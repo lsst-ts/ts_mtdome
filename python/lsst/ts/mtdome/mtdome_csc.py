@@ -127,10 +127,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     initial_state : `salobj.State`
         The initial state of the CSC
     simulation_mode : `int`
-        Simulation mode. Allowed values:
-
-        * 0: regular operation.
-        * 1: simulation: use a mock low level HVAC controller.
+        Simulation mode.
     override : `str`, optional
         Override of settings if ``initial_state`` is `State.DISABLED`
         or `State.ENABLED`.
@@ -144,7 +141,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     Supported simulation modes:
 
     * 0: regular operation
-    * 1: simulation mode: start a mock TCP/IP Dome controller and talk to it
+    * 1: simulation mode: start a mock TCP/IP MTDome controller and talk to it
+    * 2: simulation mode: talk to a running TCP/IP MTDome controller
+
+    In simulation mode 0, the site specific configuration will be sent to the
+    MTDome controller. In both simulation modes 1 and 2, a configuration with
+    mock devices will be sent to the MTDome controller. This allows for testing
+    and/or debugging the MTDome CSC.
     """
 
     enable_cmdline_state = True
