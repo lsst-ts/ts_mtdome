@@ -90,12 +90,12 @@ _LWSCS_STATUS_PERIOD = 2.0
 _MONCS_STATUS_PERIOD = 2.0
 _THCS_STATUS_PERIOD = 2.0
 
-# These next commands are temporarily disabled because they will be issued
-# during the upcoming TMA pointing test and the EIE LabVIEW code doesn't handle
-# them yet, which will result in an error. As soon as the TMA pointing test is
-# done, they will be reenabled. The name reflects the fact that there probably
-# will be more situations during commissioning in which commands need to be
-# disabled.
+# These next commands are temporarily disabled in simulation mode 0 because
+# they will be issued during the upcoming TMA pointing test and the EIE LabVIEW
+# code doesn't handle them yet, which will result in an error. As soon as the
+# TMA pointing test is done, they will be reenabled. The name reflects the fact
+# that there probably will be more situations during commissioning in which
+# commands need to be disabled.
 COMMANDS_DISABLED_FOR_COMMISSIONING = {
     "closeLouvers",
     "crawlEl",
@@ -110,6 +110,57 @@ COMMANDS_DISABLED_FOR_COMMISSIONING = {
     "stopLouvers",
 }
 REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
+
+# All status methods and the intervals at which they are executed.
+ALL_METHODS_AND_INTERVALS = {
+    ("statusAMCS", _AMCS_STATUS_PERIOD),
+    ("statusApSCS", _APSCS_STATUS_PERIOD),
+    ("statusLCS", _LCS_STATUS_PERIOD),
+    ("statusLWSCS", _LWSCS_STATUS_PERIOD),
+    ("statusMonCS", _MONCS_STATUS_PERIOD),
+    ("statusThCS", _THCS_STATUS_PERIOD),
+}
+
+# The status methods and the intervals at which they are executed to be used
+# during commissioning. Not all can be used because the LabVIEW code of EIE
+# doesn't support all of them yet.
+METHODS_AND_INTERVALS_FOR_COMMISSIONING = {
+    ("statusAMCS", _AMCS_STATUS_PERIOD),
+}
+
+ALL_OPERATIONAL_MODE_COMMANDS = {
+    SubSystemId.AMCS: {
+        OperationalMode.NORMAL.name: "setNormalAz",
+        OperationalMode.DEGRADED.name: "setDegradedAz",
+    },
+    SubSystemId.LWSCS: {
+        OperationalMode.NORMAL.name: "setNormalEl",
+        OperationalMode.DEGRADED.name: "setDegradedEl",
+    },
+    SubSystemId.APSCS: {
+        OperationalMode.NORMAL.name: "setNormalShutter",
+        OperationalMode.DEGRADED.name: "setDegradedShutter",
+    },
+    SubSystemId.LCS: {
+        OperationalMode.NORMAL.name: "setNormalLouvers",
+        OperationalMode.DEGRADED.name: "setDegradedLouvers",
+    },
+    SubSystemId.MONCS: {
+        OperationalMode.NORMAL.name: "setNormalMonitoring",
+        OperationalMode.DEGRADED.name: "setDegradedMonitoring",
+    },
+    SubSystemId.THCS: {
+        OperationalMode.NORMAL.name: "setNormalThermal",
+        OperationalMode.DEGRADED.name: "setDegradedThermal",
+    },
+}
+
+OPERATIONAL_MODE_COMMANDS_FOR_COMMISSIONING = {
+    SubSystemId.AMCS: {
+        OperationalMode.NORMAL.name: "setNormalAz",
+        OperationalMode.DEGRADED.name: "setDegradedAz",
+    },
+}
 
 
 def run_mtdome() -> None:
@@ -212,35 +263,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # Keep track of which command to send to set the operational mode on a
         # lower level component.
-        self.set_operational_mode_command_dict = {
-            SubSystemId.AMCS: {
-                OperationalMode.NORMAL.name: "setNormalAz",
-                OperationalMode.DEGRADED.name: "setDegradedAz",
-            },
-            # The next lines have been commented out because the systems
-            # concerned are not available at the summit yet. As soon as they
-            # are made available, the corresponding lines will be uncommented.
-            # SubSystemId.LWSCS: {
-            #     OperationalMode.NORMAL.name: "setNormalEl",
-            #     OperationalMode.DEGRADED.name: "setDegradedEl",
-            # },
-            # SubSystemId.APSCS: {
-            #     OperationalMode.NORMAL.name: "setNormalShutter",
-            #     OperationalMode.DEGRADED.name: "setDegradedShutter",
-            # },
-            # SubSystemId.LCS: {
-            #     OperationalMode.NORMAL.name: "setNormalLouvers",
-            #     OperationalMode.DEGRADED.name: "setDegradedLouvers",
-            # },
-            # SubSystemId.MONCS: {
-            #     OperationalMode.NORMAL.name: "setNormalMonitoring",
-            #     OperationalMode.DEGRADED.name: "setDegradedMonitoring",
-            # },
-            # SubSystemId.THCS: {
-            #     OperationalMode.NORMAL.name: "setNormalThermal",
-            #     OperationalMode.DEGRADED.name: "setDegradedThermal",
-            # },
-        }
+        self.operational_mode_command_dict = ALL_OPERATIONAL_MODE_COMMANDS
+        if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
+            self.operational_mode_command_dict = (
+                OPERATIONAL_MODE_COMMANDS_FOR_COMMISSIONING
+            )
 
         # Keep track of which command to send the home command on a lower level
         # component.
@@ -319,19 +346,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def start_status_tasks(self) -> None:
         """Start all status tasks."""
         await self.cancel_status_tasks()
-        for method, interval in (
-            (self.statusAMCS, _AMCS_STATUS_PERIOD),
-            # TODO (DM-36186) Enbale the ApSCS again when the the control
-            #  software for it is working well. The others need to remain
-            #  disabled for the TMA Pointing Test.
-            # (self.statusApSCS, _APSCS_STATUS_PERIOD),
-            # (self.statusLCS, _LCS_STATUS_PERIOD),
-            # (self.statusLWSCS, _LWSCS_STATUS_PERIOD),
-            # (self.statusMonCS, _MONCS_STATUS_PERIOD),
-            # (self.statusThCS, _THCS_STATUS_PERIOD),
-        ):
+        methods_and_intervals = ALL_METHODS_AND_INTERVALS
+        if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
+            methods_and_intervals = METHODS_AND_INTERVALS_FOR_COMMISSIONING
+        for method, interval in methods_and_intervals:
+            func = getattr(self, method)
             self.status_tasks.append(
-                asyncio.create_task(self.one_status_loop(method, interval))
+                asyncio.create_task(self.one_status_loop(func, interval))
             )
 
     async def disconnect(self) -> None:
@@ -410,12 +431,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await super().end_enable(data)
 
-        # TODO (DM-36186) Enbale the ApSCS again when the the control
-        #  software for it is working well. The others need to remain
-        #  disabled for the TMA Pointing Test.
-        # For backward compatibility with XML 12.0, we always send the
-        # searchZeroShutter command.
-        # await self.write_then_read_reply(command="searchZeroShutter")
+        if self.simulation_mode != ValidSimulationMode.NORMAL_OPERATIONS:
+            # For backward compatibility with XML 12.0, we always send the
+            # searchZeroShutter command.
+            await self.write_then_read_reply(command="searchZeroShutter")
 
     async def write_then_read_reply(
         self, command: str, **params: typing.Any
@@ -445,7 +464,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 await self.fault(code=3, report=f"Error writing command {st}: {e}")
                 raise
 
-            if command not in COMMANDS_DISABLED_FOR_COMMISSIONING:
+            disabled_commands: set[str] = set()
+            if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
+                disabled_commands = COMMANDS_DISABLED_FOR_COMMISSIONING
+
+            if command not in disabled_commands:
                 self.writer.write(st.encode() + b"\r\n")
                 await self.writer.drain()
                 try:
@@ -713,13 +736,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # commands.
         az_reset = [1, 1, 1, 1, 1]
         await self.write_then_read_reply(command="resetDrivesAz", reset=az_reset)
-        # TODO (DM-36186) Enbale the ApSCS again when the the control
-        #  software for it is working well. The others need to remain
-        #  disabled for the TMA Pointing Test.
-        # aps_reset = [1, 1, 1, 1]
-        # await self.write_then_read_reply(
-        #     command="resetDrivesShutter", reset=aps_reset
-        # )
+        if self.simulation_mode != ValidSimulationMode.NORMAL_OPERATIONS:
+            aps_reset = [1, 1, 1, 1]
+            await self.write_then_read_reply(
+                command="resetDrivesShutter", reset=aps_reset
+            )
         await self.write_then_read_reply(command="exitFault")
 
     async def do_setOperationalMode(self, data: SimpleNamespace) -> None:
@@ -737,11 +758,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         for sub_system_id in SubSystemId:
             if (
                 sub_system_id & sub_system_ids
-                and sub_system_id in self.set_operational_mode_command_dict
+                and sub_system_id in self.operational_mode_command_dict
                 and operational_mode.name
-                in self.set_operational_mode_command_dict[sub_system_id]
+                in self.operational_mode_command_dict[sub_system_id]
             ):
-                command = self.set_operational_mode_command_dict[sub_system_id][
+                command = self.operational_mode_command_dict[sub_system_id][
                     operational_mode.name
                 ]
                 await self.write_then_read_reply(command=command)
@@ -941,6 +962,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 state=EnabledState.FAULT, faultCode=status_message
             )
         else:
+            await self.evt_azEnabled.set_write(state=EnabledState.ENABLED)
             if llc_status["status"] in motion_state_translations:
                 motion_state = motion_state_translations[llc_status["status"]]
             else:
@@ -973,6 +995,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 state=EnabledState.FAULT, faultCode=fault_code
             )
         else:
+            await self.evt_elEnabled.set_write(state=EnabledState.ENABLED)
             if llc_status["status"] in motion_state_translations:
                 motion_state = motion_state_translations[llc_status["status"]]
             else:
@@ -1004,6 +1027,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     state=EnabledState.FAULT, faultCode=fault_code
                 )
         else:
+            # Check supported event to make sure of backward compatibility with
+            # XML 12.0.
+            if hasattr(self, "evt_shutterEnabled"):
+                await self.evt_shutterEnabled.set_write(state=EnabledState.ENABLED)
             statuses = llc_status["status"]
             motion_state: list[str] = []
             in_position: list[bool] = []
@@ -1011,7 +1038,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             # here it is safe to loop over all statuses.
             for status in statuses:
                 if status in motion_state_translations:
-                    motion_state = motion_state_translations[llc_status["status"]]
+                    motion_state.append(motion_state_translations[status])
                 else:
                     motion_state.append(MotionState[status])
                 in_position.append(

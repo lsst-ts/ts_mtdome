@@ -134,7 +134,14 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             topic=self.remote.evt_lockingPinsEngaged, engaged=0
         )
         self.csc.mock_ctrl.determine_current_tai = self.determine_current_tai
-        sub_system_ids = SubSystemId.AMCS
+        sub_system_ids = (
+            SubSystemId.AMCS
+            | SubSystemId.LWSCS
+            | SubSystemId.APSCS
+            | SubSystemId.LCS
+            | SubSystemId.THCS
+            | SubSystemId.MONCS
+        )
         await self.validate_operational_mode(
             operational_mode=OperationalMode.NORMAL, sub_system_ids=sub_system_ids
         )
@@ -187,7 +194,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=False,
             )
 
-    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
     async def test_do_moveEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -275,7 +281,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
-    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
     async def test_do_stopEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -306,7 +311,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
-    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
     async def test_do_stop(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -416,7 +420,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
-    @pytest.mark.skip(reason="Temporarily disabled because of the TMA pointing test.")
     async def test_do_crawlEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -704,9 +707,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
-            # The "fans" command has been disabled so the status doesn't
-            # change.
-            assert amcs_status["status"]["fans"] == mtdome.OnOff.OFF.value
+            assert amcs_status["status"]["fans"] == mtdome.OnOff.ON.value
 
     async def test_inflate(self) -> None:
         async with self.make_csc(
@@ -732,9 +733,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
-            # The "inflate" command has been disabled so the status doesn't
-            # change.
-            assert amcs_status["status"]["inflate"] == mtdome.OnOff.OFF.value
+            assert amcs_status["status"]["inflate"] == mtdome.OnOff.ON.value
 
     async def test_status(self) -> None:
         async with self.make_csc(
@@ -758,18 +757,44 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=True,
             )
 
-            # TODO (DM-36186) Enbale the ApSCS again when the the control
-            #  software for it is working well. The others need to remain
-            #  disabled for the TMA Pointing Test.
-            # await self.csc.statusApSCS()
-            # apscs_status = self.csc.lower_level_status[
-            #     mtdome.LlcName.APSCS.value
-            # ]
-            # assert apscs_status["status"]["status"] == [
-            #     MotionState.STOPPED.name,
-            #     MotionState.STOPPED.name,
-            # ]
-            # assert apscs_status["positionActual"] == [0.0, 0.0]
+            await self.csc.statusApSCS()
+            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            assert apscs_status["status"]["status"] == [
+                MotionState.STOPPED.name,
+                MotionState.STOPPED.name,
+            ]
+            assert apscs_status["positionActual"] == [0.0, 0.0]
+
+            await self.csc.statusLCS()
+            lcs_status = self.csc.lower_level_status[mtdome.LlcName.LCS.value]
+            assert (
+                lcs_status["status"]["status"]
+                == [MotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS
+            )
+            assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
+
+            await self.csc.statusLWSCS()
+            lwscs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
+            assert lwscs_status["status"]["status"] == MotionState.STOPPED.name
+            assert lwscs_status["positionActual"] == 0
+            await self.assert_next_sample(
+                topic=self.remote.evt_elMotion,
+                state=MotionState.STOPPED,
+                inPosition=True,
+            )
+
+            await self.csc.statusMonCS()
+            moncs_status = self.csc.lower_level_status[mtdome.LlcName.MONCS.value]
+            assert moncs_status["status"]["status"] == MotionState.CLOSED.name
+            assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
+
+            await self.csc.statusThCS()
+            thcs_status = self.csc.lower_level_status[mtdome.LlcName.THCS.value]
+            assert thcs_status["status"]["status"] == MotionState.CLOSED.name
+            assert (
+                thcs_status["temperature"]
+                == [0.0] * mtdome.mock_llc.thcs.NUM_THERMO_SENSORS
+            )
 
     async def test_status_error(self) -> None:
         async with self.make_csc(
@@ -845,14 +870,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             current_tai = self.csc.mock_ctrl.current_tai + 0.1
             az_drives_in_error = [1, 1, 0, 0, 0]
             await self.csc.mock_ctrl.amcs.set_fault(current_tai, az_drives_in_error)
-            # TODO (DM-36186) Enbale the ApSCS again when the the control
-            #  software for it is working well. The others need to remain
-            #  disabled for the TMA Pointing Test.
-            # if mtdome.support_command("resetDrivesShutter"):
-            #     aps_drives_in_error = [1, 1, 0, 0]
-            #     await self.csc.mock_ctrl.apscs.set_fault(
-            #         current_tai, aps_drives_in_error
-            #     )
+            if mtdome.support_command("resetDrivesShutter"):
+                aps_drives_in_error = [1, 1, 0, 0]
+                await self.csc.mock_ctrl.apscs.set_fault(
+                    current_tai, aps_drives_in_error
+                )
             self.csc.mock_ctrl.amcs._commanded_motion_state = MotionState.ERROR
 
             await self.csc.statusAMCS()
@@ -866,14 +888,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             az_reset = [1, 1, 0, 0, 0]
             await self.remote.cmd_resetDrivesAz.set_start(reset=az_reset)
-            # TODO (DM-36186) Enbale the ApSCS again when the the control
-            #  software for it is working well. The others need to remain
-            #  disabled for the TMA Pointing Test.
-            # if mtdome.support_command("resetDrivesShutter"):
-            #     aps_reset = [1, 1, 0, 0]
-            #     await self.remote.cmd_resetDrivesShutter.set_start(
-            #         reset=aps_reset
-            #     )
+            if mtdome.support_command("resetDrivesShutter"):
+                aps_reset = [1, 1, 0, 0]
+                await self.remote.cmd_resetDrivesShutter.set_start(reset=aps_reset)
             await self.remote.cmd_exitFault.set_start()
 
             await self.csc.statusAMCS()
@@ -883,18 +900,48 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 == mtdome.InternalMotionState.STATIONARY.name
             )
 
-            # TODO (DM-36186) Enbale the ApSCS again when the the control
-            #  software for it is working well. The others need to remain
-            #  disabled for the TMA Pointing Test.
-            # await self.csc.statusApSCS()
-            # apscs_status = self.csc.lower_level_status[
-            #     mtdome.LlcName.APSCS.value
-            # ]
-            # assert apscs_status["status"]["status"] == [
-            #     mtdome.InternalMotionState.STATIONARY.name,
-            #     mtdome.InternalMotionState.STATIONARY.name,
-            # ]
-            # assert apscs_status["positionActual"] == [0.0, 0.0]
+            await self.csc.statusApSCS()
+            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            assert apscs_status["status"]["status"] == [
+                mtdome.InternalMotionState.STATIONARY.name,
+                mtdome.InternalMotionState.STATIONARY.name,
+            ]
+            assert apscs_status["positionActual"] == [0.0, 0.0]
+
+            await self.csc.statusLCS()
+            lcs_status = self.csc.lower_level_status[mtdome.LlcName.LCS.value]
+            assert (
+                lcs_status["status"]["status"]
+                == [mtdome.InternalMotionState.STATIONARY.name]
+                * mtdome.mock_llc.NUM_LOUVERS
+            )
+            assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
+
+            await self.csc.statusLWSCS()
+            lwscs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
+            assert (
+                lwscs_status["status"]["status"]
+                == mtdome.InternalMotionState.STATIONARY.name
+            )
+            assert lwscs_status["positionActual"] == 0
+
+            await self.csc.statusMonCS()
+            moncs_status = self.csc.lower_level_status[mtdome.LlcName.MONCS.value]
+            assert (
+                moncs_status["status"]["status"]
+                == mtdome.InternalMotionState.STATIONARY.name
+            )
+            assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
+
+            await self.csc.statusThCS()
+            thcs_status = self.csc.lower_level_status[mtdome.LlcName.THCS.value]
+            assert (
+                thcs_status["status"]["status"]
+                == mtdome.InternalMotionState.STATIONARY.name
+            )
+            assert (
+                thcs_status["temperature"] == [0.0] * mtdome.mock_llc.NUM_THERMO_SENSORS
+            )
 
     async def test_setZeroAz(self) -> None:
         async with self.make_csc(
@@ -1003,12 +1050,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             SubSystemId.MONCS: self.csc.statusMonCS,
             SubSystemId.THCS: self.csc.statusThCS,
         }
-
-        await self.remote.cmd_setOperationalMode.set_start(
-            operationalMode=operational_mode,
-            subSystemIds=sub_system_ids,
-        )
-
         events_to_check = []
         for sub_system_id in SubSystemId:
             if sub_system_id & sub_system_ids:
@@ -1017,7 +1058,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 await func()
                 status = self.csc.lower_level_status[name]
                 assert status["status"]["operationalMode"] == operational_mode.name
-                events_to_check.append(sub_system_id)
+                events_to_check.append(sub_system_id.value)
 
         events_recevied = []
         for i in range(len(events_to_check)):
@@ -1028,7 +1069,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             events_recevied.append(data.subSystemId)
 
-        assert events_to_check == events_recevied
+        assert sorted(events_to_check) == sorted(events_recevied)
 
     async def test_do_setOperationalMode(self) -> None:
         async with self.make_csc(
@@ -1038,21 +1079,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             await self.set_csc_to_enabled()
 
-            # TODO (DM-36186) Enbale the ApSCS again when the the control
-            #  software for it is working well. The others need to remain
-            #  disabled for the TMA Pointing Test.
-            # # When the lower level components are enabled, events are sent to
-            # # indicate their OperationalMode.
-            # for i in range(len(list(SubSystemId))):
-            #     await self.assert_next_sample(
-            #         topic=self.remote.evt_operationalMode,
-            #         operationalMode=OperationalMode.NORMAL,
-            #         timeout=STD_TIMEOUT,
-            #     )
-
             # Test with one lower level component.
             operational_mode = OperationalMode.DEGRADED
             sub_system_ids = SubSystemId.AMCS
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=sub_system_ids,
+            )
             await self.validate_operational_mode(
                 operational_mode=operational_mode, sub_system_ids=sub_system_ids
             )
@@ -1060,74 +1093,95 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # Set to NORMAL again.
             operational_mode = OperationalMode.NORMAL
             sub_system_ids = SubSystemId.AMCS
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=sub_system_ids,
+            )
             await self.validate_operational_mode(
                 operational_mode=operational_mode, sub_system_ids=sub_system_ids
             )
 
-            # Disabled until all sub-systems get enabled at the summit.
-            # # Set another lower level component to degraded.
-            # operational_mode = OperationalMode.DEGRADED
-            # sub_system_ids = SubSystemId.MONCS
-            # await self.validate_operational_mode(
-            #     operational_mode=operational_mode,
-            #       sub_system_ids=sub_system_ids
-            # )
-            #
-            # # Set the same, first, lower level component to degraded again.
-            # # This should not raise an exception.
-            # operational_mode = OperationalMode.DEGRADED
-            # sub_system_ids = SubSystemId.AMCS
-            # await self.validate_operational_mode(
-            #     operational_mode=operational_mode,
-            #       sub_system_ids=sub_system_ids
-            # )
-            #
-            # # Set two lower level components to normal.
-            # operational_mode = OperationalMode.NORMAL
-            # sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
-            # await self.validate_operational_mode(
-            #     operational_mode=operational_mode,
-            #       sub_system_ids=sub_system_ids
-            # )
-            #
-            # # Set two lower level components to normal again. This should not
-            # # raise an exception.
-            # operational_mode = OperationalMode.NORMAL
-            # sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
-            # await self.validate_operational_mode(
-            #     operational_mode=operational_mode,
-            #       sub_system_ids=sub_system_ids
-            # )
-            #
-            # # Set all to degraded
-            # operational_mode = OperationalMode.DEGRADED
-            # sub_system_ids = (
-            #     SubSystemId.AMCS
-            #     | SubSystemId.APSCS
-            #     | SubSystemId.LCS
-            #     | SubSystemId.LWSCS
-            #     | SubSystemId.MONCS
-            #     | SubSystemId.THCS
-            # )
-            # await self.validate_operational_mode(
-            #     operational_mode=operational_mode,
-            #       sub_system_ids=sub_system_ids
-            # )
-            #
-            # # Set all back to normal
-            # operational_mode = OperationalMode.NORMAL
-            # sub_system_ids = (
-            #     SubSystemId.AMCS
-            #     | SubSystemId.APSCS
-            #     | SubSystemId.LCS
-            #     | SubSystemId.LWSCS
-            #     | SubSystemId.MONCS
-            #     | SubSystemId.THCS
-            # )
-            # await self.validate_operational_mode(
-            #     operational_mode=operational_mode,
-            #       sub_system_ids=sub_system_ids
-            # )
+            # Set another lower level component to degraded.
+            operational_mode = OperationalMode.DEGRADED
+            sub_system_ids = SubSystemId.MONCS
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=sub_system_ids,
+            )
+            await self.validate_operational_mode(
+                operational_mode=operational_mode, sub_system_ids=sub_system_ids
+            )
+
+            # Set the same, first, lower level component to degraded again.
+            # This should not raise an exception.
+            operational_mode = OperationalMode.DEGRADED
+            sub_system_ids = SubSystemId.AMCS
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=sub_system_ids,
+            )
+            await self.validate_operational_mode(
+                operational_mode=operational_mode, sub_system_ids=sub_system_ids
+            )
+
+            # Set two lower level components to normal.
+            operational_mode = OperationalMode.NORMAL
+            sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=sub_system_ids,
+            )
+            await self.validate_operational_mode(
+                operational_mode=operational_mode, sub_system_ids=sub_system_ids
+            )
+
+            # Set two lower level components to normal again. This should not
+            # raise an exception.
+            operational_mode = OperationalMode.NORMAL
+            sub_system_ids = SubSystemId.AMCS | SubSystemId.MONCS
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=sub_system_ids,
+            )
+            await self.validate_operational_mode(
+                operational_mode=operational_mode, sub_system_ids=sub_system_ids
+            )
+
+            # Set all to degraded
+            operational_mode = OperationalMode.DEGRADED
+            sub_system_ids = (
+                SubSystemId.AMCS
+                | SubSystemId.APSCS
+                | SubSystemId.LCS
+                | SubSystemId.LWSCS
+                | SubSystemId.MONCS
+                | SubSystemId.THCS
+            )
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=sub_system_ids,
+            )
+            await self.validate_operational_mode(
+                operational_mode=operational_mode, sub_system_ids=sub_system_ids
+            )
+
+            # Set all back to normal
+            operational_mode = OperationalMode.NORMAL
+            sub_system_ids = (
+                SubSystemId.AMCS
+                | SubSystemId.APSCS
+                | SubSystemId.LCS
+                | SubSystemId.LWSCS
+                | SubSystemId.MONCS
+                | SubSystemId.THCS
+            )
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=sub_system_ids,
+            )
+            await self.validate_operational_mode(
+                operational_mode=operational_mode, sub_system_ids=sub_system_ids
+            )
 
     async def test_slow_network(self) -> None:
         async with self.make_csc(
