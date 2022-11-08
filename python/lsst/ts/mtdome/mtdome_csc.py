@@ -76,11 +76,9 @@ _KEYS_IN_RADIANS = {
 _APSCS_LIST_KEYS_IN_RADIANS = {"positionActual"}
 
 # The offset of the dome rotation zero point with respect to azimuth 0º (true
-# north) is 32º west and the aperture lies at the opposite side of the dome.
-# Therefore the dome azimuth offset is 180º - 32º = 148º and this needs to be
-# subtracted when commanding the azimuth position, or added when sending the
-# azimuth telemetry.
-DOME_AZIMUTH_OFFSET = 148.0
+# north) is 32º west and this needs to be added when commanding the azimuth
+# position, or subtracted when sending the azimuth telemetry.
+DOME_AZIMUTH_OFFSET = 32.0
 
 # Polling periods [sec] for the lower level components.
 _AMCS_STATUS_PERIOD = 0.2
@@ -514,7 +512,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         # Compensate for the dome azimuth offset.
         position = utils.angle_wrap_nonnegative(
-            data.position - DOME_AZIMUTH_OFFSET
+            data.position + DOME_AZIMUTH_OFFSET
         ).degree
         await self.write_then_read_reply(
             command="moveAz",
@@ -1109,7 +1107,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 # of code.
                 if key in _AMCS_KEYS_OFFSET and llc_name == LlcName.AMCS:
                     offset_value = utils.angle_wrap_nonnegative(
-                        telemetry_in_degrees[key] + DOME_AZIMUTH_OFFSET
+                        telemetry_in_degrees[key] - DOME_AZIMUTH_OFFSET
                     ).degree
                     telemetry_in_degrees[key] = offset_value
             elif key in _APSCS_LIST_KEYS_IN_RADIANS and llc_name == LlcName.APSCS:

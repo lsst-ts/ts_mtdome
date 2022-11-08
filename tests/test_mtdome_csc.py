@@ -983,7 +983,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Compensate for the dome azimuth offset.
             desired_position = utils.angle_wrap_nonnegative(
-                2.0 + mtdome.DOME_AZIMUTH_OFFSET
+                2.0 - mtdome.DOME_AZIMUTH_OFFSET
             ).degree
             desired_velocity = 0.0
             await self.remote.cmd_moveAz.set_start(
