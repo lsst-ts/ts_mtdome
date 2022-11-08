@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["BaseMockStatus", "DOME_VOLTAGE"]
+__all__ = ["BaseMockStatus", "DOME_VOLTAGE", "DEFAULT_MESSAGES", "FAULT_MESSAGES"]
 
 import logging
 import typing
@@ -29,6 +29,10 @@ from lsst.ts.idl.enums.MTDome import OperationalMode
 
 # The voltage used in the dome.
 DOME_VOLTAGE = 220.0
+
+# Status messages.
+DEFAULT_MESSAGES = [{"code": 0, "description": "No Errors"}]
+FAULT_MESSAGES = [{"code": 1, "description": "Motors in error state."}]
 
 
 class BaseMockStatus(ABC):
