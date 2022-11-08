@@ -34,7 +34,7 @@ from lsst.ts.idl.enums.MTDome import MotionState
 
 from ..enums import OnOff
 from ..llc_configuration_limits.amcs_limits import AmcsLimits
-from .base_mock_llc import BaseMockStatus
+from .base_mock_llc import DEFAULT_MESSAGES, FAULT_MESSAGES, BaseMockStatus
 from .mock_motion.azimuth_motion import NUM_MOTORS, AzimuthMotion
 
 _NUM_MOTOR_TEMPERATURES = 13
@@ -84,7 +84,7 @@ class AmcsStatus(BaseMockStatus):
         # Variables holding the status of the mock AZ motion.
         # For now the value of 'messages' is kept as is since the error codes
         # and descriptions still are being discussed.
-        self.messages = [{"code": 0, "description": "No Errors"}]
+        self.messages = DEFAULT_MESSAGES
         self.fans_enabled = OnOff.OFF
         self.seal_inflated = OnOff.OFF
         self.position_commanded = PARK_POSITION
@@ -354,6 +354,7 @@ class AmcsStatus(BaseMockStatus):
         """
         duration = self.azimuth_motion.exit_fault(start_tai)
         self.end_tai = start_tai + duration
+        self.messages = DEFAULT_MESSAGES
         return duration
 
     async def reset_drives_az(self, start_tai: float, reset: list[int]) -> float:
@@ -426,3 +427,4 @@ class AmcsStatus(BaseMockStatus):
         receive. It is intended to be set by unit test cases.
         """
         self.azimuth_motion.set_fault(start_tai, drives_in_error)
+        self.messages = FAULT_MESSAGES
