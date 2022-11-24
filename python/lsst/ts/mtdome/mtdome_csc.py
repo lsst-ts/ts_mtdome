@@ -315,12 +315,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # DM-26374: Send enabled events for az and el since they are always
         # enabled.
         # DM-35794: Also send enabled event for Aperture Shutter.
-        await self.evt_azEnabled.set_write(state=EnabledState.ENABLED)
-        await self.evt_elEnabled.set_write(state=EnabledState.ENABLED)
+        await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+        await self.evt_elEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
         # Check supported event to make sure of backward compatibility with
         # XML 12.0.
         if hasattr(self, "evt_shutterEnabled"):
-            await self.evt_shutterEnabled.set_write(state=EnabledState.ENABLED)
+            await self.evt_shutterEnabled.set_write(
+                state=EnabledState.ENABLED, faultCode=""
+            )
 
         # DM-26374: Send events for the brakes, interlocks and locking pins
         # with a default value of 0 (meaning nothing engaged) until the
@@ -960,7 +962,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 state=EnabledState.FAULT, faultCode=status_message
             )
         else:
-            await self.evt_azEnabled.set_write(state=EnabledState.ENABLED)
+            await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
             if llc_status["status"] in motion_state_translations:
                 motion_state = motion_state_translations[llc_status["status"]]
             else:
@@ -993,7 +995,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 state=EnabledState.FAULT, faultCode=fault_code
             )
         else:
-            await self.evt_elEnabled.set_write(state=EnabledState.ENABLED)
+            await self.evt_elEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
             if llc_status["status"] in motion_state_translations:
                 motion_state = motion_state_translations[llc_status["status"]]
             else:
@@ -1028,7 +1030,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             # Check supported event to make sure of backward compatibility with
             # XML 12.0.
             if hasattr(self, "evt_shutterEnabled"):
-                await self.evt_shutterEnabled.set_write(state=EnabledState.ENABLED)
+                await self.evt_shutterEnabled.set_write(
+                    state=EnabledState.ENABLED, faultCode=""
+                )
             statuses = llc_status["status"]
             motion_state: list[str] = []
             in_position: list[bool] = []
