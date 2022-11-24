@@ -6,6 +6,17 @@
 Version History
 ###############
 
+v1.12.2
+=======
+* Clear the Enabled event faultCode when necessary.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.0
+
 v1.12.1
 =======
 * Document the simulation modes.
