@@ -706,7 +706,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         await self.write_then_read_reply(command="park")
-        await self.evt_azTarget.set_write(position=0, velocity=0)
+        await self.evt_azTarget.set_write(
+            position=360.0 - DOME_AZIMUTH_OFFSET, velocity=0
+        )
 
     async def do_setTemperature(self, data: SimpleNamespace) -> None:
         """Set Temperature.
