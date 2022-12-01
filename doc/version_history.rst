@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v1.12.3
+=======
+* Correct azTarget event in case of a park command.
+* Add debug log statements for the commands received.
+* Add workaround for IDLE state.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.0
+
 v1.12.2
 =======
 * Clear the Enabled event faultCode when necessary.
