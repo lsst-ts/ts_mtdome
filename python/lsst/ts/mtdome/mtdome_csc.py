@@ -273,6 +273,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             SubSystemId.APSCS: "searchZeroShutter",
         }
 
+        # TODO DM-37170: Remove as soon as the IDLE state is not used anymore
+        #  by the AMCS.
+        self.previous_state = MotionState.PARKED
+
         self.log.info("DomeCsc constructed")
 
     async def connect(self) -> None:
@@ -986,6 +990,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             )
         else:
             await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+
+            # TODO DM-37170: Remove as soon as the IDLE state is not used
+            #  anymore by the AMCS.
+            if llc_status["status"] == "IDLE":
+                motion_state = self.previous_state
+
             if llc_status["status"] in motion_state_translations:
                 motion_state = motion_state_translations[llc_status["status"]]
             else:
@@ -1004,6 +1014,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_azMotion.set_write(
                 state=motion_state, inPosition=in_position
             )
+
+            # TODO DM-37170: Remove as soon as the IDLE state is not used
+            #  anymore by the AMCS.
+            self.previous_state = motion_state
 
     async def _check_errors_and_send_events_el(
         self, llc_status: dict[str, typing.Any]
