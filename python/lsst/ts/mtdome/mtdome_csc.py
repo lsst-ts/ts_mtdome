@@ -273,6 +273,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             SubSystemId.APSCS: "searchZeroShutter",
         }
 
+        # TODO DM-37170: Remove as soon as the IDLE state is not used anymore
+        #  by the AMCS.
+        self.previous_state = MotionState.PARKED
+
         self.log.info("DomeCsc constructed")
 
     async def connect(self) -> None:
@@ -509,9 +513,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        self.log.debug(
-            f"Moving Dome to azimuth {data.position} and then start crawling at azRate {data.velocity}"
-        )
+        self.log.debug(f"do_moveAz: {data.position=!s}, {data.velocity=!s}")
         # Compensate for the dome azimuth offset.
         position = utils.angle_wrap_nonnegative(
             data.position + DOME_AZIMUTH_OFFSET
@@ -534,7 +536,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        self.log.debug(f"Moving LWS to elevation {data.position}")
+        self.log.debug(f"do_moveEl: {data.position=!s}")
         await self.write_then_read_reply(
             command="moveEl", position=math.radians(data.position)
         )
@@ -549,6 +551,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         engage_brakes : bool
             Engage the brakes (true) or not (false).
         """
+        self.log.debug(f"stop_az: {engage_brakes=!s}")
         self.assert_enabled()
         if engage_brakes:
             await self.write_then_read_reply(command="goStationaryAz")
@@ -564,6 +567,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         engage_brakes : bool
             Engage the brakes (true) or not (false).
         """
+        self.log.debug(f"stop_el: {engage_brakes=!s}")
         self.assert_enabled()
         if engage_brakes:
             await self.write_then_read_reply(command="goStationaryEl")
@@ -579,6 +583,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         engage_brakes : bool
             Engage the brakes (true) or not (false).
         """
+        self.log.debug(f"stop_louvers: {engage_brakes=!s}")
         self.assert_enabled()
         if engage_brakes:
             await self.write_then_read_reply(command="goStationaryLouvers")
@@ -594,6 +599,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         engage_brakes : bool
             Engage the brakes (true) or not (false).
         """
+        self.log.debug(f"stop_shutter: {engage_brakes=!s}")
         self.assert_enabled()
         if engage_brakes:
             await self.write_then_read_reply(command="goStationaryShutter")
@@ -631,6 +637,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
+        self.log.debug(f"do_crawlAz: {data.velocity=!s}")
         self.assert_enabled()
         await self.write_then_read_reply(
             command="crawlAz", velocity=math.radians(data.velocity)
@@ -645,6 +652,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
+        self.log.debug(f"do_crawlEl: {data.velocity=!s}")
         self.assert_enabled()
         await self.write_then_read_reply(
             command="crawlEl", velocity=math.radians(data.velocity)
@@ -659,6 +667,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
+        self.log.debug(f"do_setLouvers: {data.position=!s}")
         self.assert_enabled()
         await self.write_then_read_reply(command="setLouvers", position=data.position)
 
@@ -670,6 +679,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
+        self.log.debug("do_closeLouvers")
         self.assert_enabled()
         await self.write_then_read_reply(command="closeLouvers")
 
@@ -681,6 +691,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
+        self.log.debug("do_openShutter")
         self.assert_enabled()
         await self.write_then_read_reply(command="openShutter")
 
@@ -692,6 +703,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
+        self.log.debug("do_closeShutter")
         self.assert_enabled()
         await self.write_then_read_reply(command="closeShutter")
 
@@ -704,9 +716,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
+        self.log.debug("do_park")
         self.assert_enabled()
         await self.write_then_read_reply(command="park")
-        await self.evt_azTarget.set_write(position=0, velocity=0)
+        await self.evt_azTarget.set_write(
+            position=360.0 - DOME_AZIMUTH_OFFSET, velocity=0
+        )
 
     async def do_setTemperature(self, data: SimpleNamespace) -> None:
         """Set Temperature.
@@ -716,6 +731,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
+        self.log.debug(f"do_setTemperature: {data.temperature=!s}")
         self.assert_enabled()
         await self.write_then_read_reply(
             command="setTemperature", temperature=data.temperature
@@ -735,12 +751,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # For backward compatibility with XML 12.0, we always send resetDrives
         # commands.
         az_reset = [1, 1, 1, 1, 1]
+        self.log.debug(f"resetDrivesAz: {az_reset=!s}")
         await self.write_then_read_reply(command="resetDrivesAz", reset=az_reset)
         if self.simulation_mode != ValidSimulationMode.NORMAL_OPERATIONS:
             aps_reset = [1, 1, 1, 1]
+            self.log.debug(f"resetDrivesShutter: {aps_reset=!s}")
             await self.write_then_read_reply(
                 command="resetDrivesShutter", reset=aps_reset
             )
+        self.log.debug("do_exitFault")
         await self.write_then_read_reply(command="exitFault")
 
     async def do_setOperationalMode(self, data: SimpleNamespace) -> None:
@@ -762,6 +781,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 and operational_mode.name
                 in self.operational_mode_command_dict[sub_system_id]
             ):
+                self.log.debug(
+                    f"do_setOperationalMode: sub_system_id={sub_system_id.name}"
+                )
                 command = self.operational_mode_command_dict[sub_system_id][
                     operational_mode.name
                 ]
@@ -783,6 +805,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         reset_ints = [int(value) for value in data.reset]
+        self.log.debug(f"do_resetDrivesAz: reset={reset_ints}")
         await self.write_then_read_reply(command="resetDrivesAz", reset=reset_ints)
 
     async def _do_resetDrivesShutter(self, data: SimpleNamespace) -> None:
@@ -797,6 +820,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         reset_ints = [int(value) for value in data.reset]
+        self.log.debug(f"do_resetDrivesShutter: reset={reset_ints}")
         await self.write_then_read_reply(command="resetDrivesShutter", reset=reset_ints)
 
     async def do_setZeroAz(self, data: SimpleNamespace) -> None:
@@ -809,6 +833,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         data : A SALOBJ data object
             Contains the data as defined in the SAL XML file.
         """
+        self.log.debug("do_setZeroAz")
         self.assert_enabled()
         await self.write_then_read_reply(command="calibrateAz")
 
@@ -827,6 +852,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         sub_system_ids: int = data.subSystemIds
         for sub_system_id in SubSystemId:
+            self.log.debug(f"do_home: sub_system_id={sub_system_id.name}")
             if (
                 sub_system_id & sub_system_ids
                 and sub_system_id in self.set_home_command_dict
@@ -853,6 +879,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 "vmax"
 
         """
+        self.log.debug("config_llcs")
         self.log.info(f"Settings before validation {settings}")
         if system == LlcName.AMCS:
             self.amcs_limits.validate(settings)
@@ -963,6 +990,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             )
         else:
             await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+
+            # TODO DM-37170: Remove as soon as the IDLE state is not used
+            #  anymore by the AMCS.
+            if llc_status["status"] == "IDLE":
+                motion_state = self.previous_state
+
             if llc_status["status"] in motion_state_translations:
                 motion_state = motion_state_translations[llc_status["status"]]
             else:
@@ -981,6 +1014,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_azMotion.set_write(
                 state=motion_state, inPosition=in_position
             )
+
+            # TODO DM-37170: Remove as soon as the IDLE state is not used
+            #  anymore by the AMCS.
+            self.previous_state = motion_state
 
     async def _check_errors_and_send_events_el(
         self, llc_status: dict[str, typing.Any]

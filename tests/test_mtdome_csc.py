@@ -550,7 +550,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.remote.cmd_park.set_start()
             await self.assert_next_sample(
-                topic=self.remote.evt_azTarget, position=0, velocity=0
+                topic=self.remote.evt_azTarget,
+                position=360.0 - mtdome.DOME_AZIMUTH_OFFSET,
+                velocity=0,
             )
 
             # No new azMotion event gets emitted since the PARKED event already
