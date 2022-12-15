@@ -6,6 +6,18 @@
 Version History
 ###############
 
+v1.12.4
+=======
+* Update the pre-commit configuration.
+* Fix a mypy issue.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.0
+
 v1.12.3
 =======
 * Correct azTarget event in case of a park command.
