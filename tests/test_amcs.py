@@ -421,6 +421,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         crawl_velocity = 1.0
         expected_duration = START_MOTORS_ADD_DURATION
         expected_states = [
+            ExpectedState(0.0, 350.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(1.0, 351.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(2.0, 352.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(10.0, 0.0, crawl_velocity, MotionState.CRAWLING),
@@ -449,6 +450,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         crawl_velocity = -1.0
         expected_duration = START_MOTORS_ADD_DURATION
         expected_states = [
+            ExpectedState(0.0, 10.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(1.0, 9.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(2.0, 8.0, crawl_velocity, MotionState.CRAWLING),
             ExpectedState(10.0, 0.0, crawl_velocity, MotionState.CRAWLING),
