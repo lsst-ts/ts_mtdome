@@ -234,7 +234,7 @@ class BaseLlcMotion(ABC):
             self._start_tai = start_tai
             self._start_position = self._error_state_position
             self._end_position = self._error_state_position
-            self._current_motion_state = motion_state
+            self._current_motion_state = InternalMotionState.STATIONARY
             self._commanded_motion_state = InternalMotionState.STATIONARY
             self.motion_state_in_error = False
             self._error_start_tai = 0.0

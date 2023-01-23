@@ -910,8 +910,8 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
     async def validate_apscs(
         self,
         status: MotionState = None,
-        position_actual: list[float] = None,
-        position_commanded: float = None,
+        position_actual: list[float] | None = None,
+        position_commanded: float | None = None,
     ) -> None:
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
