@@ -226,6 +226,18 @@ class AzimuthMotion(BaseLlcMotionWithCrawl):
             raise ValueError(
                 f"Encountered TAI {tai} which is smaller than start TAI {self._start_tai}"
             )
+        elif tai == self._start_tai:
+            position = self._start_position
+            velocity = self._max_speed
+            if distance < 0.0:
+                velocity = -self._max_speed
+            motion_state = self._current_motion_state
+            if self._current_motion_state in [
+                MotionState.PARKED,
+                MotionState.STOPPED,
+                InternalMotionState.STATIONARY,
+            ]:
+                velocity = 0.0
         else:
             if self._current_motion_state in [
                 MotionState.MOVING,
