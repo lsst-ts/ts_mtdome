@@ -25,6 +25,7 @@ import math
 import typing
 from abc import abstractmethod
 
+from ..enums import MaxValuesConfigType
 from .abstract_limits import AbstractLimits
 
 
@@ -34,12 +35,14 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
     """
 
     @abstractmethod
-    def validate(self, configuration_parameters: dict) -> list[dict[str, typing.Any]]:
+    def validate(
+        self, configuration_parameters: MaxValuesConfigType
+    ) -> list[dict[str, typing.Any]]:
         pass
 
     def validate_common_parameters(
         self,
-        configuration_parameters: dict,
+        configuration_parameters: MaxValuesConfigType,
         common_limits: dict,
     ) -> list[dict[str, typing.Any]]:
         """Validate the data are against the configuration limits of the lower
@@ -82,6 +85,7 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
             validated_keys.add(key)
             for v in value:
                 # Validate the provided value against the limit.
+                assert isinstance(v, float)
                 if 0 <= math.radians(v) <= common_limits[key]:
                     converted_value.append(math.radians(v))
                 else:
@@ -108,7 +112,7 @@ class CommonAmcsAndLwscsLimits(AbstractLimits):
         if extra_keys:
             # If yes then raise a KeyError.
             raise KeyError(
-                f"Found these unknown configuration parameters: {configuration_parameters.keys()}."
+                f"Found these unknown configuration parameters: {extra_keys}."
             )
 
         # All configuration values fall within their limits and no unknown

@@ -23,6 +23,8 @@ __all__ = [
     "InternalMotionState",
     "LlcName",
     "LlcNameDict",
+    "MaxValueConfigType",
+    "MaxValuesConfigType",
     "OnOff",
     "ResponseCode",
     "ValidSimulationMode",
@@ -88,3 +90,7 @@ class ValidSimulationMode(enum.IntEnum):
 
 # Dictionary to look up which LlcName is associated with which sub-system.
 LlcNameDict = {getattr(SubSystemId, enum.name): enum.value for enum in LlcName}
+
+# Custom types used for configurable maximum values.
+MaxValueConfigType = dict[str, str | list[float]]
+MaxValuesConfigType = list[MaxValueConfigType]

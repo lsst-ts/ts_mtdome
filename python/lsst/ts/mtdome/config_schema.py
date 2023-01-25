@@ -27,25 +27,40 @@ CONFIG_SCHEMA = yaml.safe_load(
     """
     $schema: http://json-schema.org/draft-07/schema#
     $id: https://github.com/lsst-ts/ts_mtdome/blob/main/python/lsst/ts/mtdome/config_schema.py
-    title: MTDome v2
-    description: Schema for MTDome configuration files
+    title: MTDome v3
+    description: Schema for MTDome configuration files.
     type: object
     properties:
       host:
-        description: IP address of the TCP/IP interface
+        description: IP address of the TCP/IP interface.
         type: string
         format: hostname
       port:
-        description: Port number of the TCP/IP interface
+        description: Port number of the TCP/IP interface.
         type: integer
       connection_timeout:
-        description: Time limit for connecting to the TCP/IP interface (sec)
+        description: Time limit for connecting to the TCP/IP interface (sec).
         type: number
         exclusiveMinimum: 0
       read_timeout:
-        description: Time limit for reading data from the TCP/IP interface (sec)
+        description: Time limit for reading data from the TCP/IP interface (sec).
         type: number
         exclusiveMinimum: 0
+      amcs_vmax:
+        description: >-
+          The maximum velocity for the Azimuth Motion Control System (deg/sec).
+          Set to -1 to indicate that this value shouldn't be set.
+        type: number
+      amcs_amax:
+        description: >-
+          The maximum acceleration for the Azimuth Motion Control System (deg/sec2).
+          Set to -1 to indicate that this value shouldn't be set.
+        type: number
+      amcs_jmax:
+        description: >-
+          The maximum jerk for the Azimuth Motion Control System (deg/sec3).
+          Set to -1 to indicate that this value shouldn't be set.
+        type: number
     required:
       - host
       - port
