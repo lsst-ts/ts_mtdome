@@ -542,7 +542,7 @@ class MockMTDomeController:
                     # these cases we need to extract the only value in the
                     # array.
                     assert self.amcs is not None
-                    setattr(self.amcs.amcs_limits, field["target"], field["setting"][0])
+                    setattr(self.amcs, field["target"], field["setting"][0])
         elif system == LlcName.LWSCS:
             for field in settings:
                 if field["target"] in ("jmax", "amax", "vmax"):
@@ -550,9 +550,7 @@ class MockMTDomeController:
                     # these cases we need to extract the only value in the
                     # array.
                     assert self.lwscs is not None
-                    setattr(
-                        self.lwscs.lwscs_limits, field["target"], field["setting"][0]
-                    )
+                    setattr(self.lwscs, field["target"], field["setting"][0])
         else:
             raise KeyError(f"Unknown system {system}.")
 

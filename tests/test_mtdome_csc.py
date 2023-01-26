@@ -28,6 +28,7 @@ import unittest
 
 import numpy as np
 import pytest
+import yaml
 from lsst.ts import mtdome, salobj, utils
 from lsst.ts.idl.enums.MTDome import (
     EnabledState,
@@ -52,6 +53,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         initial_state: salobj.State,
         config_dir: str,
         simulation_mode: int,
+        override: str = "",
         **kwargs: typing.Any,
     ) -> None:
         mock_port = 0
@@ -61,6 +63,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=initial_state,
             config_dir=config_dir,
             simulation_mode=simulation_mode,
+            override=override,
             mock_port=mock_port,
         )
 
@@ -684,6 +687,75 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             ]
             with pytest.raises(KeyError):
                 await self.csc.config_llcs(system, settings)
+
+    async def validate_configuration_values(self, config_file: str) -> None:
+        if config_file == "_init.yaml":
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+        else:
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED, override=config_file
+            )
+
+        config_jmax = math.degrees(self.csc.mock_ctrl.amcs.jmax)
+        config_amax = math.degrees(self.csc.mock_ctrl.amcs.amax)
+        config_vmax = math.degrees(self.csc.mock_ctrl.amcs.vmax)
+
+        data = await self.assert_next_sample(
+            topic=self.remote.evt_azConfigurationApplied
+        )
+        with open(CONFIG_DIR / config_file) as config_file:  # type: ignore
+            config_data = yaml.safe_load(config_file)
+            if (
+                config_data["amcs_vmax"] == -1
+                or config_data["amcs_amax"] == -1
+                or config_data["amcs_jmax"] == -1
+            ):
+                expected_jmax = math.degrees(
+                    mtdome.llc_configuration_limits.AmcsLimits.jmax
+                )
+                expected_amax = math.degrees(
+                    mtdome.llc_configuration_limits.AmcsLimits.amax
+                )
+                expected_vmax = math.degrees(
+                    mtdome.llc_configuration_limits.AmcsLimits.vmax
+                )
+            else:
+                expected_jmax = config_data["amcs_jmax"]
+                expected_amax = config_data["amcs_amax"]
+                expected_vmax = config_data["amcs_vmax"]
+
+            assert config_jmax == pytest.approx(expected_jmax)
+            assert config_amax == pytest.approx(expected_amax)
+            assert config_vmax == pytest.approx(expected_vmax)
+
+            if data.jmax != pytest.approx(expected_jmax):
+                # Due to the status task, the azConfigurationApplied event can
+                # be sent before the config values have been applied. In that
+                # case a second azConfigurationApplied event will be emitted.
+                data = await self.assert_next_sample(
+                    topic=self.remote.evt_azConfigurationApplied
+                )
+            assert data.jmax == pytest.approx(expected_jmax)
+            assert data.amax == pytest.approx(expected_amax)
+            assert data.vmax == pytest.approx(expected_vmax)
+
+        await salobj.set_summary_state(remote=self.remote, state=salobj.State.STANDBY)
+
+    async def test_configure(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
+        ):
+            await self.validate_configuration_values(config_file="_init.yaml")
+            await self.validate_configuration_values(
+                config_file="config_for_friction_drive_system.yaml"
+            )
+            await self.validate_configuration_values(
+                config_file="config_for_friction_drive_system_with_four_motors.yaml"
+            )
 
     async def test_fans(self) -> None:
         async with self.make_csc(

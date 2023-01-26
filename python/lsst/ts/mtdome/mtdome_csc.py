@@ -41,6 +41,8 @@ from .csc_utils import support_command
 from .enums import (
     LlcName,
     LlcNameDict,
+    MaxValueConfigType,
+    MaxValuesConfigType,
     ResponseCode,
     ValidSimulationMode,
     motion_state_translations,
@@ -342,6 +344,20 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         self.log.info("connected")
 
+    async def _set_maximum_motion_values(self) -> None:
+        assert self.config is not None
+        vmax = self.config.amcs_vmax
+        amax = self.config.amcs_amax
+        jmax = self.config.amcs_jmax
+        self.log.info(f"Setting AMCS maximum velocity to {vmax}")
+        vmax_dict: MaxValueConfigType = {"target": "vmax", "setting": [vmax]}
+        self.log.info(f"Setting AMCS maximum acceleration to {amax}")
+        amax_dict: MaxValueConfigType = {"target": "amax", "setting": [amax]}
+        self.log.info(f"Setting AMCS maximum jerk to {jmax}")
+        jmax_dict: MaxValueConfigType = {"target": "jmax", "setting": [jmax]}
+        settings = [vmax_dict, amax_dict, jmax_dict]
+        await self.config_llcs(system=LlcName.AMCS, settings=settings)
+
     async def cancel_status_tasks(self) -> None:
         """Cancel all status tasks."""
         while self.status_tasks:
@@ -439,6 +455,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             # For backward compatibility with XML 12.0, we always send the
             # searchZeroShutter command.
             await self.write_then_read_reply(command="searchZeroShutter")
+
+        assert self.config is not None
+        if (
+            self.config.amcs_vmax > 0
+            and self.config.amcs_amax > 0
+            and self.config.amcs_jmax > 0
+        ):
+            await self._set_maximum_motion_values()
+        else:
+            self.log.info("Not setting AMCS maximum velocity, acceleration and jerk.")
 
     async def write_then_read_reply(
         self, command: str, **params: typing.Any
@@ -860,7 +886,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 command = self.set_home_command_dict[sub_system_id]
                 await self.write_then_read_reply(command=command)
 
-    async def config_llcs(self, system: str, settings: dict[str, float]) -> None:
+    async def config_llcs(self, system: str, settings: MaxValuesConfigType) -> None:
         """Config command not to be executed by SAL.
 
         This command will be used to send the values of one or more parameters
@@ -880,15 +906,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         """
         self.log.debug("config_llcs")
-        self.log.info(f"Settings before validation {settings}")
         if system == LlcName.AMCS:
-            self.amcs_limits.validate(settings)
+            converted_settings = self.amcs_limits.validate(settings)
         elif system == LlcName.LWSCS:
-            self.lwscs_limits.validate(settings)
-        self.log.info(f"Settings after validation {settings}")
+            converted_settings = self.lwscs_limits.validate(settings)
+        else:
+            raise ValueError(f"Encountered unsupported {system=!s}")
 
         await self.write_then_read_reply(
-            command="config", system=system, settings=settings
+            command="config", system=system, settings=converted_settings
         )
 
     async def restore_llcs(self) -> None:
@@ -1123,15 +1149,19 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 subSystemId=sub_system_id,
             )
 
-            # DM-34664: Send appliedConfiguration event as well, if present.
-            if "appliedConfiguration" in status[llc_name]:
-                applied_configuration = status[llc_name]["appliedConfiguration"]
-                jmax = applied_configuration["jmax"]
-                amax = applied_configuration["amax"]
-                vmax = applied_configuration["vmax"]
-                await self.evt_azConfigurationApplied.set_write(
-                    jmax=jmax, amax=amax, vmax=vmax
-                )
+        # Send appliedConfiguration event for AMCS. This needs to be sent every
+        # time the status is read because it can be modified by issuing the
+        # config_llcs command. Fortunately salobj only sends events if the
+        # values have changed so it is safe to do this without overflowing the
+        # EFD with events.
+        if llc_name == LlcName.AMCS:
+            applied_configuration = status[llc_name]["appliedConfiguration"]
+            jmax = math.degrees(applied_configuration["jmax"])
+            amax = math.degrees(applied_configuration["amax"])
+            vmax = math.degrees(applied_configuration["vmax"])
+            await self.evt_azConfigurationApplied.set_write(
+                jmax=jmax, amax=amax, vmax=vmax
+            )
 
         # Store the status for reference.
         self.lower_level_status[llc_name] = status[llc_name]

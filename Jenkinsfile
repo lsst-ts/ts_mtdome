@@ -65,8 +65,9 @@ pipeline {
                         /home/saluser/.checkout_repo.sh ${WORK_BRANCHES}
                         git pull
 
-                        # Update additional required packages
-                        # FIXME: add additional packages here, if any
+                        cd /home/saluser/repos/ts_config_mttcs
+                        /home/saluser/.checkout_repo.sh ${WORK_BRANCHES}
+                        git pull
 
                         # Make IDL files
                         make_idl_files.py ${env.IDL_NAMES}

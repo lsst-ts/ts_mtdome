@@ -1037,9 +1037,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
-        assert self.mock_ctrl.amcs.amcs_limits.jmax == amcs_jmax
-        assert self.mock_ctrl.amcs.amcs_limits.amax == amcs_amax
-        assert self.mock_ctrl.amcs.amcs_limits.vmax == amcs_vmax
+        assert self.mock_ctrl.amcs.jmax == amcs_jmax
+        assert self.mock_ctrl.amcs.amax == amcs_amax
+        assert self.mock_ctrl.amcs.vmax == amcs_vmax
 
         # All LWSCS values within the limits.
         lwscs_jmax = math.radians(2.5)
@@ -1059,9 +1059,9 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
 
-        assert self.mock_ctrl.lwscs.lwscs_limits.jmax == lwscs_jmax
-        assert self.mock_ctrl.lwscs.lwscs_limits.amax == lwscs_amax
-        assert self.mock_ctrl.lwscs.lwscs_limits.vmax == lwscs_vmax
+        assert self.mock_ctrl.lwscs.jmax == lwscs_jmax
+        assert self.mock_ctrl.lwscs.amax == lwscs_amax
+        assert self.mock_ctrl.lwscs.vmax == lwscs_vmax
 
     async def test_park(self) -> None:
         # Set the TAI time in the mock controller for easier control

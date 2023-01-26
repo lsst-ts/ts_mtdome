@@ -24,6 +24,7 @@ __all__ = ["AmcsLimits"]
 import math
 import typing
 
+from ..enums import MaxValuesConfigType
 from .common_amcs_and_lwscs_limits import CommonAmcsAndLwscsLimits
 
 
@@ -42,12 +43,18 @@ class AmcsLimits(CommonAmcsAndLwscsLimits):
         Maximum velocity, in deg/s
     """
 
-    def __init__(self) -> None:
-        self.jmax = math.radians(3.0)  # Maximum jerk in rad/s^3
-        self.amax = math.radians(0.75)  # Maximum acceleration in rad/s^2
-        self.vmax = math.radians(1.5)  # Maximum velocity in rad/s
+    jmax = math.radians(3.0)  # Maximum jerk in rad/s^3
+    amax = math.radians(0.75)  # Maximum acceleration in rad/s^2
+    vmax = math.radians(1.5)  # Maximum velocity in rad/s
 
-    def validate(self, configuration_parameters: dict) -> list[dict[str, typing.Any]]:
+    def __init__(self) -> None:
+        self.jmax = AmcsLimits.jmax
+        self.amax = AmcsLimits.amax
+        self.vmax = AmcsLimits.vmax
+
+    def validate(
+        self, configuration_parameters: MaxValuesConfigType
+    ) -> list[dict[str, typing.Any]]:
         """Validate the data are against the configuration limits of the lower
         level component.
 
