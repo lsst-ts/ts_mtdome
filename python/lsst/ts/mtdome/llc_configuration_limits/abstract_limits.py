@@ -24,6 +24,8 @@ __all__ = ["AbstractLimits"]
 import typing
 from abc import ABC, abstractmethod
 
+from ..enums import MaxValuesConfigType
+
 
 class AbstractLimits(ABC):
     """An abstract base class for holding the configuration limits for the
@@ -33,5 +35,7 @@ class AbstractLimits(ABC):
     """
 
     @abstractmethod
-    def validate(self, configuration_parameters: dict) -> list[dict[str, typing.Any]]:
+    def validate(
+        self, configuration_parameters: MaxValuesConfigType
+    ) -> list[dict[str, typing.Any]]:
         pass

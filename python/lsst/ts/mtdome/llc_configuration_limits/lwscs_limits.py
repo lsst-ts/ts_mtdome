@@ -24,6 +24,7 @@ __all__ = ["LwscsLimits"]
 import math
 import typing
 
+from ..enums import MaxValuesConfigType
 from .common_amcs_and_lwscs_limits import CommonAmcsAndLwscsLimits
 
 
@@ -47,7 +48,9 @@ class LwscsLimits(CommonAmcsAndLwscsLimits):
         self.amax = math.radians(0.875)  # Maximum acceleration in rad/s^2
         self.vmax = math.radians(1.75)  # Maximum velocity in rad/s
 
-    def validate(self, configuration_parameters: dict) -> list[dict[str, typing.Any]]:
+    def validate(
+        self, configuration_parameters: MaxValuesConfigType
+    ) -> list[dict[str, typing.Any]]:
         """Validate the data are against the configuration limits of the lower
         level component.
 

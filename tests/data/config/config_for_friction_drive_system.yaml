@@ -1,0 +1,3 @@
+amcs_vmax: 0.6 # The value for the friction wheel system as provided by EIE in January 2023.
+amcs_amax: 0.08 # The value for the firction wheel system as provided by EIE in January 2023.
+amcs_jmax: 0.28647889756541160438 # The value for the friction wheel system of 0.005 rad/s3 as provided by EIE in January 2023.
