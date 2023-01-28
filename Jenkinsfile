@@ -19,7 +19,7 @@ pipeline {
         docker {
             alwaysPull true
             image 'lsstts/develop-env:develop'
-            args "-u root --entrypoint=''"
+            args "--entrypoint=''"
         }
     }
     environment {
@@ -38,7 +38,7 @@ pipeline {
     stages {
         stage ('Update branches of required packages') {
             steps {
-                // When using the docker container, we need to change the HOME path
+                // When using the docker container, we need to change the WHOME path
                 // to WORKSPACE to have the authority to install the packages.
                 withEnv(["WHOME=${env.WORKSPACE}"]) {
                     sh """
@@ -65,7 +65,12 @@ pipeline {
                         /home/saluser/.checkout_repo.sh ${WORK_BRANCHES}
                         git pull
 
+                        # Update additional required packages
                         cd /home/saluser/repos/ts_config_mttcs
+                        /home/saluser/.checkout_repo.sh ${WORK_BRANCHES}
+                        git pull
+
+                        cd /home/saluser/repos/ts_tcpip
                         /home/saluser/.checkout_repo.sh ${WORK_BRANCHES}
                         git pull
 
@@ -114,11 +119,6 @@ pipeline {
     }
     post {
         always {
-            // Change ownership of the workspace to Jenkins for clean up.
-            withEnv(["WHOME=${env.WORKSPACE}"]) {
-                sh 'chown -R 1003:1003 ${WHOME}/'
-            }
-
             // The path of xml needed by JUnit is relative to the workspace.
             junit 'jenkinsReport/*.xml'
 
