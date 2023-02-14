@@ -817,7 +817,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             # It should be possible to always execute the status command but
             # the connection with the lower level components only gets made in
-            # DISABLED and ENABLED state  so that's why the state gets set to
+            # DISABLED and ENABLED state so that's why the state gets set to
             # ENABLED here.
             await self.set_csc_to_enabled()
 

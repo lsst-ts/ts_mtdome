@@ -42,14 +42,12 @@ class InternalMotionState(enum.IntEnum):
     These get translated into IDL MotionState instances by the CSC.
     """
 
-    DISABLED = enum.auto()
     STATIONARY = enum.auto()
 
 
 # Dict holding translations from motion states, that the lower level
 # controllers can have, to MotionState.
 motion_state_translations = {
-    "DISABLED": MotionState.ERROR,
     "STATIONARY": MotionState.STOPPED_BRAKED,
 }
 
