@@ -20,6 +20,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = [
+    "POSITION_TOLERANCE",
+    "ZERO_VELOCITY_TOLERANCE",
     "InternalMotionState",
     "LlcName",
     "LlcNameDict",
@@ -42,14 +44,12 @@ class InternalMotionState(enum.IntEnum):
     These get translated into IDL MotionState instances by the CSC.
     """
 
-    DISABLED = enum.auto()
     STATIONARY = enum.auto()
 
 
 # Dict holding translations from motion states, that the lower level
 # controllers can have, to MotionState.
 motion_state_translations = {
-    "DISABLED": MotionState.ERROR,
     "STATIONARY": MotionState.STOPPED_BRAKED,
 }
 
@@ -94,3 +94,7 @@ LlcNameDict = {getattr(SubSystemId, enum.name): enum.value for enum in LlcName}
 # Custom types used for configurable maximum values.
 MaxValueConfigType = dict[str, str | list[float]]
 MaxValuesConfigType = list[MaxValueConfigType]
+
+# Tolerances for the azimuth motion. The position tolerance is from LTS-97.
+ZERO_VELOCITY_TOLERANCE = 1e-7  # deg /sec
+POSITION_TOLERANCE = 0.25  # deg

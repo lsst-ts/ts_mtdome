@@ -116,6 +116,41 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 subsystemVersions="",
             )
 
+    async def test_is_moveAz_same_as_current(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value,
+        ):
+            # The first call always returns False since the reference position
+            # and velocity are initialized to math.nan.
+            assert not self.csc.is_moveAz_same_as_current(
+                position=360.0 - mtdome.DOME_AZIMUTH_OFFSET, velocity=0.0
+            )
+            assert self.csc.is_moveAz_same_as_current(
+                position=360.0 - mtdome.DOME_AZIMUTH_OFFSET, velocity=0.0
+            )
+            assert self.csc.is_moveAz_same_as_current(
+                position=360.0 - mtdome.DOME_AZIMUTH_OFFSET - 0.2, velocity=0.0
+            )
+            assert self.csc.is_moveAz_same_as_current(
+                position=360.0 - mtdome.DOME_AZIMUTH_OFFSET,
+                velocity=mtdome.ZERO_VELOCITY_TOLERANCE / 10.0,
+            )
+            for position, velocity in [
+                (360.0 - mtdome.DOME_AZIMUTH_OFFSET, 0.1),
+                (360.0 - mtdome.DOME_AZIMUTH_OFFSET - 0.3, 0.0),
+                (
+                    360.0 - mtdome.DOME_AZIMUTH_OFFSET,
+                    mtdome.ZERO_VELOCITY_TOLERANCE * 10.0,
+                ),
+                (0.0, 0.0),
+                (0.0, 0.1),
+            ]:
+                assert not self.csc.is_moveAz_same_as_current(
+                    position=position, velocity=velocity
+                )
+
     async def determine_current_tai(self) -> None:
         pass
 
@@ -817,7 +852,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             # It should be possible to always execute the status command but
             # the connection with the lower level components only gets made in
-            # DISABLED and ENABLED state  so that's why the state gets set to
+            # DISABLED and ENABLED state so that's why the state gets set to
             # ENABLED here.
             await self.set_csc_to_enabled()
 

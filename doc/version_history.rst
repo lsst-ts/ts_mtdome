@@ -6,6 +6,30 @@
 Version History
 ###############
 
+v1.12.8
+=======
+* Switch to using ts_pre_commit_conf.
+* Silently ignore repeated moveAz commands for the same position and velocity == 0.0.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.0
+
+v1.12.7
+=======
+* Update pre-commit hook versions.
+* Remove DISABLED Motion State translation.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 12.0
+
 v1.12.6
 =======
 * Enable the possibility to set the maximum velocity, acceleration and jerk for the azimuth rotation via the configuration.
