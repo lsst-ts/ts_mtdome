@@ -21,7 +21,6 @@ test:
     - python
     - bin
     - tests
-    - setup.cfg
     - pyproject.toml
   commands:
     - pytest
