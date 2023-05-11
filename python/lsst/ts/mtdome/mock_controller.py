@@ -23,11 +23,14 @@ __all__ = ["MockMTDomeController"]
 
 import asyncio
 import logging
+import re
 import typing
 
 from lsst.ts import utils
 from lsst.ts.mtdome import encoding_tools, mock_llc
 from lsst.ts.mtdome.enums import LlcName, ResponseCode
+
+COMMAND_ID_PATTERN = re.compile(r'"commandId": (.*?),')
 
 
 class MockMTDomeController:
@@ -140,6 +143,9 @@ class MockMTDomeController:
         self.enable_network_interruption = False
         self.read_task: asyncio.Future | None = None
 
+        # Keep track of the command ID.
+        self._command_id = -1
+
         # Variables for the lower level components.
         self.amcs: typing.Optional[mock_llc.AmcsStatus] = None
         self.apscs: typing.Optional[mock_llc.ApscsStatus] = None
@@ -209,7 +215,7 @@ class MockMTDomeController:
         data:
             The data to write.
         """
-        st = encoding_tools.encode(**data)
+        st = encoding_tools.encode(commandId=self._command_id, **data)
         assert self._writer is not None
         self._writer.write(st.encode() + b"\r\n")
         self.log.debug(st)
@@ -248,8 +254,23 @@ class MockMTDomeController:
                 send_response = True
                 response = ResponseCode.OK
                 try:
-                    # demarshall the line into a dict of Python objects.
+                    # First the line needs to be parsed to get the commandId.
+                    # This is necessary because deconding the line with the
+                    # encoding tools may result in a ValidationError and then
+                    # the commandId cannot be retrieved from the decoded items.
+                    command_id_search = COMMAND_ID_PATTERN.search(line)
+                    if command_id_search:
+                        # The group containing the commandId value needs to be
+                        # retrieved, which is why group == 1 is used here.
+                        command_id_string = command_id_search.group(1)
+                        if command_id_string.isdigit():
+                            self._command_id = int(command_id_search.group(1))
+                        else:
+                            raise ValueError(f"commandId is not an int in {line=}")
+
+                    # Now demarshall the line into a dict of Python objects.
                     items = encoding_tools.decode(line)
+
                     cmd = items["command"]
                     self.log.debug(f"Trying to execute cmd {cmd}")
                     if cmd not in self.dispatch_dict:

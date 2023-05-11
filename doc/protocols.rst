@@ -15,14 +15,17 @@ Using JSON, this is how the command string should be constructed:
 
 * The various components are grouped in key, value pairs.
 * Any value may be another collection of key, value pairs.
-* For any command, the the string "command" is a key and the name of the command the value.
+* For any command, the string "command" is a key and the name of the command the value.
+  There also is the non-zero, non-negative "commandId" key with a unique, increasing value.
+  Each time any command is sent, the value of "commandId" is increased, even if the same command is repeated.
   This will be followed by a "parameters" key and the value will be the command parameters as a collection of key, value pairs.
   If a command doesn't take any parameters then the value will be empty.
   In that case, the parameters key may also be omitted.
 * Any command will immediately result in a reply.
-  The reply will always contain two key, value pairs.
+  The reply will always contain three key, value pairs.
   One key will be "response" with a numeric response code as value.
-  The other key will be "timeout" with the timeout as numeric value.
+  The second key will be "commandId" with the value copied from the command for which the response is sent.
+  The third key will be "timeout" with the timeout as a non-negative numeric value, with 0 meaning "the command is already done".
   The list of response codes and their meaning can be found here: `Software Response Codes`_.
 
   * If the reply is 0 (meaning OK) then it should be accompanied by a timeout value indicating how long it will take to execute the command.
@@ -38,15 +41,17 @@ Using JSON, this is how the command string should be constructed:
 
 .. _Software Response Codes: ./response_codes.html
 
-For example, commands should be constructed like this:
+For example, commands should be constructed like this (the commandId values are arbitrary):
 
 .. code-block:: json
 
    {
+     "commandId": 1,
      "command": "openShutter",
      "parameters": {}
    }
    {
+     "commandId": 2,
      "command": "moveAz",
      "parameters": {
        "azimuth": 1.3962634015954636,
@@ -54,28 +59,32 @@ For example, commands should be constructed like this:
      }
    }
 
-Replies should be formatted like this
+Replies should be formatted like this (the values are arbitrary, but representative):
 
 .. code-block:: json
 
     {
+     "commandId": 32,
       "response": 0,
       "timeout": 20
     }
     {
+     "commandId": 47,
       "response": 2,
       "timeout": -1
     }
 
-Status commands, similarly, look like this
+Status commands, similarly, look like this (the commandId values are arbitrary):
 
 .. code-block:: json
 
     {
+     "commandId": 8,
       "command": "statusAMCS",
       "parameters": {}
     }
     {
+     "commandId": 14,
       "command": "statusLCS",
       "parameters": {}
     }
@@ -98,6 +107,7 @@ So this means that the protocol will be of the form
 .. code-block:: json
 
    {
+     "commandId": 27,
      "command": "config",
      "parameters": {
        "system": "SYSTEM_ID",
@@ -186,4 +196,3 @@ This is the ThCS status schema.
 
 .. literalinclude:: ../python/lsst/ts/mtdome/schema/thcs_status.py
    :language: python
-

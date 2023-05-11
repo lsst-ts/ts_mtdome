@@ -27,7 +27,7 @@ import unittest
 
 import numpy as np
 import pytest
-from lsst.ts import mtdome
+from lsst.ts import mtdome, utils
 from lsst.ts.idl.enums.MTDome import MotionState, OperationalMode
 from lsst.ts.mtdome.mock_llc.apscs import NUM_SHUTTERS
 
@@ -43,12 +43,15 @@ DEFAULT_TIMEOUT = 1.0
 # Long timeout in case of a mock network issue
 SLOW_NETWORK_TIMEOUT = mtdome.MockMTDomeController.SLOW_NETWORK_SLEEP + 1.0
 
+INDEX_ITER = utils.index_generator()
+
 
 class MockTestCase(unittest.IsolatedAsyncioTestCase):
     async def determine_current_tai(self) -> None:
         pass
 
     async def asyncSetUp(self) -> None:
+        self.command_id: typing.Any = -1
         self.ctrl = None
         self.writer = None
         port = 0
@@ -72,13 +75,17 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
 
         self.log = logging.getLogger("MockTestCase")
 
-    async def read(self, timeout: float = DEFAULT_TIMEOUT) -> dict:
+    async def read(
+        self, timeout: float = DEFAULT_TIMEOUT, assert_command_id: bool = True
+    ) -> dict:
         """Utility function to read a string from the reader and unmarshal it.
 
         Parameters
         ----------
-        timeout : float, optional
+        timeout : `float`, optional
             The timeout to use; default to 1 [s].
+        assert_command_id : `bool`, optional
+            Assert the commandId in the read data or not; default True.
 
         Returns
         -------
@@ -89,17 +96,27 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             self.reader.readuntil(b"\r\n"), timeout=timeout
         )
         data = mtdome.encoding_tools.decode(read_bytes.decode())
+        if assert_command_id:
+            assert data["commandId"] == self.command_id
         return data
 
-    async def write(self, **data: typing.Any) -> None:
+    async def write(
+        self, command_id_to_use: typing.Any = None, **data: typing.Any
+    ) -> None:
         """Utility function to write data to the writer.
 
         Parameters
         ----------
-        data:
+        command_id_to_use : `any`
+            The command_id to use instead of generating one.
+        data : `any`
             The data to go write.
         """
-        st = mtdome.encoding_tools.encode(**data)
+        if command_id_to_use:
+            self.command_id = command_id_to_use
+        else:
+            self.command_id = next(INDEX_ITER)
+        st = mtdome.encoding_tools.encode(commandId=self.command_id, **data)
         assert self.writer is not None
         self.writer.write(st.encode() + b"\r\n")
         await self.writer.drain()
@@ -1440,3 +1457,17 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
                 mtdome.mock_llc.NUM_SHUTTERS, dtype=float
             ).tolist(),
         )
+
+    async def test_invalid_command_id(self) -> None:
+        # Temporarily disable validation exceptions for the unit test.
+        # Validation of the commands should be done by the client and the
+        # simulator has such validation built in.
+        mtdome.encoding_tools.validation_raises_exception = False
+        await self.write(
+            command_id_to_use="1.1",
+            command="moveAz",
+            parameters={"position": 0.1, "velocity": 0.1},
+        )
+        self.data = await self.read(assert_command_id=False)
+        assert self.data["response"] == mtdome.ResponseCode.COMMAND_REJECTED
+        assert self.data["timeout"] == -1

@@ -6,6 +6,17 @@
 Version History
 ###############
 
+v1.12.9
+=======
+* Add a 'commandId' to all commands and replies and handle commands with no replies after a certain time limit.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 16.0
+
 v1.12.8
 =======
 * Switch to using ts_pre_commit_conf.
@@ -16,7 +27,7 @@ Requires:
 * ts_salobj 7.0
 * ts_idl
 * ts_utils 1.0
-* IDL file for MTDome from ts_xml 12.0
+* IDL file for MTDome from ts_xml 16.0
 
 v1.12.7
 =======

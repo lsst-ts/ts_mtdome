@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["MTDomeCsc", "DOME_AZIMUTH_OFFSET", "run_mtdome"]
+__all__ = ["MTDomeCsc", "DOME_AZIMUTH_OFFSET", "CommandTime", "run_mtdome"]
 
 import asyncio
 import math
@@ -93,6 +93,10 @@ _LWSCS_STATUS_PERIOD = 2.0
 _MONCS_STATUS_PERIOD = 2.0
 _THCS_STATUS_PERIOD = 2.0
 
+# Polling period [sec] for the task that checks if all commands have been
+# replied to.
+_COMMANDS_REPLIED_PERIOD = 600
+
 # These next commands are temporarily disabled in simulation mode 0 because
 # they will be issued during the upcoming TMA pointing test and the EIE LabVIEW
 # code doesn't handle them yet, which will result in an error. As soon as the
@@ -122,6 +126,7 @@ ALL_METHODS_AND_INTERVALS = {
     ("statusLWSCS", _LWSCS_STATUS_PERIOD),
     ("statusMonCS", _MONCS_STATUS_PERIOD),
     ("statusThCS", _THCS_STATUS_PERIOD),
+    ("check_all_commands_have_replies", _COMMANDS_REPLIED_PERIOD),
 }
 
 # The status methods and the intervals at which they are executed to be used
@@ -129,6 +134,7 @@ ALL_METHODS_AND_INTERVALS = {
 # doesn't support all of them yet.
 METHODS_AND_INTERVALS_FOR_COMMISSIONING = {
     ("statusAMCS", _AMCS_STATUS_PERIOD),
+    ("check_all_commands_have_replies", _COMMANDS_REPLIED_PERIOD),
 }
 
 ALL_OPERATIONAL_MODE_COMMANDS = {
@@ -186,6 +192,23 @@ class MoveAzCommandData:
     velocity: float = math.nan
 
 
+@dataclass
+class CommandTime:
+    """Class representing the TAI time at which a command was issued.
+
+    Attributes
+    ----------
+    command : `str`
+        The command issued.
+    tai : `float`
+        TAI time as unix seconds, e.g. the time returned by CLOCK_TAI
+        on linux systems.
+    """
+
+    command: str
+    tai: float
+
+
 class MTDomeCsc(salobj.ConfigurableCsc):
     """Upper level Commandable SAL Component to interface with the Simonyi
     Survey Telescope Dome lower level components.
@@ -220,6 +243,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     and/or debugging the MTDome CSC.
     """
 
+    _index_iter = utils.index_generator()
     enable_cmdline_state = True
     valid_simulation_modes = set([v.value for v in ValidSimulationMode])
     version = __version__
@@ -260,7 +284,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # Keep the lower level statuses in memory for unit tests.
         self.lower_level_status: dict[str, typing.Any] = {}
-        self.status_tasks: list[asyncio.Future] = []
+        # List of periodic tasks to start.
+        self.periodic_tasks: list[asyncio.Future] = []
         # Keep track of the AMCS state for logging one the console.
         self.amcs_state: MotionState | None = None
         # Keep track of the AMCS status message for logging on the console.
@@ -303,6 +328,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # case the dome repeatedly is instructed to move to the same position
         # with velocity == 0.0 since that may introduce large oscillations.
         self.current_moveAz_command = MoveAzCommandData()
+
+        # Keep track of the commands that have been sent and that haven't been
+        # replied to yet.
+        self.commands_without_reply: dict[int, CommandTime] = {}
 
         self.log.info("DomeCsc constructed")
 
@@ -365,7 +394,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # Start polling for the status of the lower level components
         # periodically.
-        await self.start_status_tasks()
+        await self.start_periodic_tasks()
 
         self.log.info("connected")
 
@@ -383,22 +412,40 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         settings = [vmax_dict, amax_dict, jmax_dict]
         await self.config_llcs(system=LlcName.AMCS, settings=settings)
 
-    async def cancel_status_tasks(self) -> None:
-        """Cancel all status tasks."""
-        while self.status_tasks:
-            self.status_tasks.pop().cancel()
+    async def cancel_periodic_tasks(self) -> None:
+        """Cancel all periodic tasks."""
+        while self.periodic_tasks:
+            self.periodic_tasks.pop().cancel()
 
-    async def start_status_tasks(self) -> None:
-        """Start all status tasks."""
-        await self.cancel_status_tasks()
+    async def start_periodic_tasks(self) -> None:
+        """Start all periodic tasks."""
+        await self.cancel_periodic_tasks()
         methods_and_intervals = ALL_METHODS_AND_INTERVALS
         if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
             methods_and_intervals = METHODS_AND_INTERVALS_FOR_COMMISSIONING
         for method, interval in methods_and_intervals:
             func = getattr(self, method)
-            self.status_tasks.append(
-                asyncio.create_task(self.one_status_loop(func, interval))
+            self.periodic_tasks.append(
+                asyncio.create_task(self.one_periodic_task(func, interval))
             )
+
+    async def one_periodic_task(self, method: typing.Callable, interval: float) -> None:
+        """Run one method forever at the specified interval.
+
+        Parameters
+        ----------
+        method: coro
+            The periodic method to run.
+        interval: `float`
+            The interval (sec) at which to run the status method.
+
+        """
+        try:
+            while True:
+                await method()
+                await asyncio.sleep(interval)
+        except Exception:
+            self.log.exception(f"one_periodic_task({method}) failed")
 
     async def disconnect(self) -> None:
         """Disconnect from the TCP/IP controller, if connected, and stop the
@@ -406,9 +453,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.info("disconnect")
 
-        # Stop polling for the status of the lower level components
-        # periodically.
-        await self.cancel_status_tasks()
+        # Stop all periodic tasks, including polling for the status of the
+        # lower level components.
+        await self.cancel_periodic_tasks()
 
         writer = self.writer
         self.reader = None
@@ -511,7 +558,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             TimeoutValue} where "response" can be zero for "OK" or non-zero
             for "ERROR".
         """
-        command_dict = dict(command=command, parameters=params)
+        command_id = next(self._index_iter)
+        self.commands_without_reply[command_id] = CommandTime(
+            command=command, tai=utils.current_tai()
+        )
+        command_dict = dict(commandId=command_id, command=command, parameters=params)
         st = encoding_tools.encode(**command_dict)
         async with self.communication_lock:
             try:
@@ -543,6 +594,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     )
                     raise
                 data = encoding_tools.decode(read_bytes.decode())
+                received_command_id = data["commandId"]
+                if received_command_id in self.commands_without_reply:
+                    self.commands_without_reply.pop(received_command_id)
+                else:
+                    self.log.warning(
+                        f"Ignoring unknown commandId {received_command_id}."
+                    )
             else:
                 data = REPLY_DATA_FOR_DISABLED_COMMANDS
             response = data["response"]
@@ -1329,23 +1387,33 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def configure(self, config: SimpleNamespace) -> None:
         self.config = config
 
-    async def one_status_loop(self, method: typing.Callable, interval: float) -> None:
-        """Run one status method forever at the specified interval.
+    async def check_all_commands_have_replies(self) -> None:
+        """Check if all commands have received a reply.
 
-        Parameters
-        ----------
-        method: coro
-            The status method to run
-        interval: `float`
-            The interval (sec) at which to run the status method.
+        If a command hasn't received a reply after at least
+        _COMMANDS_REPLIED_PERIOD seconds, a warning is logged.
 
+        If a command hasn't received a reply after at least 2 *
+        _COMMANDS_REPLIED_PERIOD seconds, an error is logged and the command
+        is removed from the waiting list.
         """
-        try:
-            while True:
-                await method()
-                await asyncio.sleep(interval)
-        except Exception:
-            self.log.exception(f"one_status_loop({method}) failed")
+        current_tai = utils.current_tai()
+        commands_to_remove: set[int] = set()
+        for command_id in self.commands_without_reply:
+            command_time = self.commands_without_reply[command_id]
+            if current_tai - command_time.tai >= 2.0 * _COMMANDS_REPLIED_PERIOD:
+                self.log.error(
+                    f"Command {command_time.command} with {command_id=} has not received a "
+                    f"reply during at least {2 * _COMMANDS_REPLIED_PERIOD} seconds. Removing."
+                )
+                commands_to_remove.add(command_id)
+            elif current_tai - command_time.tai >= _COMMANDS_REPLIED_PERIOD:
+                self.log.warning(
+                    f"Command {command_time.command} with {command_id=} has not received a "
+                    f"reply during at least {_COMMANDS_REPLIED_PERIOD} seconds. Still waiting."
+                )
+        for command_id in commands_to_remove:
+            self.commands_without_reply.pop(command_id)
 
     @property
     def connected(self) -> bool:
