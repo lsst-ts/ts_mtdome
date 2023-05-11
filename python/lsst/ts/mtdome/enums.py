@@ -77,7 +77,9 @@ class ResponseCode(enum.IntEnum):
 
     OK = 0
     UNSUPPORTED_COMMAND = 2
-    COMMAND_REJECTED = 3
+    INCORRECT_PARAMETERS = 3
+    INCORRECT_SOURCE = 4
+    INCORRECT_STATE = 5
 
 
 class ValidSimulationMode(enum.IntEnum):

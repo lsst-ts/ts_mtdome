@@ -607,10 +607,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
             if response != ResponseCode.OK:
                 self.log.error(f"Received ERROR {data}.")
-                if response == ResponseCode.COMMAND_REJECTED:
-                    raise ValueError(f"The command {command} was rejected.")
-                elif response == ResponseCode.UNSUPPORTED_COMMAND:
-                    raise KeyError(f"The command {command} is unsupported.")
+                match response:
+                    case ResponseCode.INCORRECT_PARAMETERS:
+                        error_message = f"{command=} has incorrect parameters."
+                    case ResponseCode.INCORRECT_SOURCE:
+                        error_message = f"{command=} was sent from an incorrect source."
+                    case ResponseCode.INCORRECT_STATE:
+                        error_message = f"{command=} was sent for an incorrect state."
+                    case _:
+                        error_message = f"{command=} is not supported."
+                raise ValueError(error_message)
 
             return data
 

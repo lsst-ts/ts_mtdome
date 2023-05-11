@@ -305,7 +305,7 @@ class MockMTDomeController:
                     # Command rejected: a message explaining why needs to be
                     # added at some point but we haven't discussed that yet
                     # with the vendor.
-                    response = ResponseCode.COMMAND_REJECTED
+                    response = ResponseCode.INCORRECT_PARAMETERS
                     duration = -1
                 if send_response:
                     if duration is None:

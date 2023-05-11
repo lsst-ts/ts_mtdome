@@ -9,6 +9,7 @@ Version History
 v1.12.9
 =======
 * Add a 'commandId' to all commands and replies and handle commands with no replies after a certain time limit.
+* Add two more ResponseCodes.
 
 Requires:
 

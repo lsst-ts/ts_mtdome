@@ -137,7 +137,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": 0.1, "velocity": 0.1, "acceleration": 0.1},
         )
         self.data = await self.read()
-        assert self.data["response"] == mtdome.ResponseCode.COMMAND_REJECTED
+        assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
         assert self.data["timeout"] == -1
 
     async def prepare_amcs_move(
@@ -1344,7 +1344,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # fault.
         await self.write(command="exitFault", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == mtdome.ResponseCode.COMMAND_REJECTED
+        assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
         assert self.data["timeout"] == -1
 
         expected_drive_error_state = [False, False, False, False, False]
@@ -1380,7 +1380,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # fault.
         await self.write(command="exitFault", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == mtdome.ResponseCode.COMMAND_REJECTED
+        assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
         assert self.data["timeout"] == -1
 
         expected_drive_error_state = [False, False]
@@ -1418,7 +1418,7 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
         # Cannot calibrate while AMCS is MOVING
         await self.write(command="calibrateAz", parameters={})
         self.data = await self.read()
-        assert self.data["response"] == mtdome.ResponseCode.COMMAND_REJECTED
+        assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
         assert self.data["timeout"] == -1
 
         await self.verify_amcs_move(
@@ -1469,5 +1469,5 @@ class MockTestCase(unittest.IsolatedAsyncioTestCase):
             parameters={"position": 0.1, "velocity": 0.1},
         )
         self.data = await self.read(assert_command_id=False)
-        assert self.data["response"] == mtdome.ResponseCode.COMMAND_REJECTED
+        assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
         assert self.data["timeout"] == -1
