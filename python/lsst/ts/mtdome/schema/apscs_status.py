@@ -23,8 +23,6 @@ import json
 
 from .registry import registry
 
-__all__: list[str] = []
-
 registry["ApSCS"] = json.loads(
     """
 {

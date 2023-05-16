@@ -19,12 +19,4 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .amcs_status import *
-from .apscs_status import *
-from .command import *
-from .lcs_status import *
-from .lwscs_status import *
-from .moncs_status import *
 from .registry import *
-from .response import *
-from .thcs_status import *
