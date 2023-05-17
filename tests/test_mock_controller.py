@@ -30,10 +30,6 @@ from lsst.ts import mtdome, tcpip, utils
 from lsst.ts.idl.enums.MTDome import MotionState, OperationalMode
 from lsst.ts.mtdome.mock_llc.apscs import NUM_SHUTTERS
 
-logging.basicConfig(
-    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
-)
-
 _CURRENT_TAI = 100001
 START_MOTORS_ADD_DURATION = 5.5
 

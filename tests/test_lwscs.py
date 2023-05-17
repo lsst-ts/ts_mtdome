@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import logging
 import math
 import unittest
 
@@ -28,10 +27,6 @@ from expected_state import ExpectedState
 from lsst.ts import mtdome
 from lsst.ts.idl.enums.MTDome import MotionState
 from lsst.ts.mtdome.mock_llc.lwscs import CURRENT_PER_MOTOR, NUM_MOTORS, TOTAL_POWER
-
-logging.basicConfig(
-    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
-)
 
 START_TAI = 10001.0
 MIN_POSITION = 0
