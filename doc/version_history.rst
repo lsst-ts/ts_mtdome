@@ -10,11 +10,18 @@ v1.12.9
 =======
 * Add a 'commandId' to all commands and replies and handle commands with no replies after a certain time limit.
 * Add two more ResponseCodes.
+* Fix dunder and imports order.
+* Make MockMTDomeController a subclass of tcpip.OneClientReadLoopServer.
+  This requires ts_tcpip 1.1.
+* Use tcpip.Client in the CSC.
+  This requires ts_tcpip 1.1.
+* Remove support for scons.
 
 Requires:
 
 * ts_salobj 7.0
 * ts_idl
+* ts_tcpip 1.1
 * ts_utils 1.0
 * IDL file for MTDome from ts_xml 16.0
 
