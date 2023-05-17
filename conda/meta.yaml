@@ -17,6 +17,8 @@ test:
     - ts-conda-build =0.3
     - ts-idl {{ idl_version }}
     - ts-salobj {{ salobj_version }}
+    - ts-tcpip
+    - ts-utils
   source_files:
     - python
     - bin
@@ -36,9 +38,13 @@ requirements:
     - setuptools_scm
     - setuptools
     - ts-conda-build =0.3
+    - ts-tcpip
+    - ts-utils
   run:
     - python {{ python }}
     - setuptools
     - setuptools_scm
     - ts-idl {{ idl_version }}
     - ts-salobj {{ salobj_version }}
+    - ts-tcpip
+    - ts-utils

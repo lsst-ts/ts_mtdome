@@ -26,14 +26,14 @@ import logging
 import re
 import typing
 
-from lsst.ts import utils
+from lsst.ts import tcpip, utils
 from lsst.ts.mtdome import encoding_tools, mock_llc
 from lsst.ts.mtdome.enums import LlcName, ResponseCode
 
 COMMAND_ID_PATTERN = re.compile(r'"commandId": (.*?),')
 
 
-class MockMTDomeController:
+class MockMTDomeController(tcpip.OneClientReadLoopServer):
     """Mock MTDome Controller that talks over TCP/IP.
 
     Parameters
@@ -75,13 +75,20 @@ class MockMTDomeController:
 
     def __init__(
         self,
+        host: None | str,
         port: int,
+        log: logging.Logger,
+        connect_callback: None | tcpip.ConnectCallbackType = None,
+        name: str = "",
     ) -> None:
-        self.port = port
-        self._server: typing.Optional[asyncio.AbstractServer] = None
-        self._writer: typing.Optional[asyncio.StreamWriter] = None
-        self._reader: typing.Optional[asyncio.StreamReader] = None
-        self.log = logging.getLogger("MockMTDomeController")
+        super().__init__(
+            host=host,
+            port=port,
+            log=log,
+            connect_callback=connect_callback,
+            name=name,
+        )
+
         # Dict of command: (has_argument, function).
         # The function is called with:
         # * No arguments, if `has_argument` False.
@@ -154,29 +161,17 @@ class MockMTDomeController:
         self.moncs: typing.Optional[mock_llc.MoncsStatus] = None
         self.thcs: typing.Optional[mock_llc.ThcsStatus] = None
 
-    async def start(self, keep_running: bool = False) -> None:
+    async def start(self, **kwargs: typing.Any) -> None:
         """Start the TCP/IP server.
-
-        Start the command loop and make sure to keep running when instructed to
-         do so.
 
         Parameters
         ----------
-        keep_running : `bool`
-            Used for command line testing and should generally be left to
-            False.
+        **kwargs : `dict` [`str`, `typing.Any`]
+            Additional keyword arguments for `asyncio.start_server`,
+            beyond host and port.
         """
         self.log.info("Start called")
-        self._server = await asyncio.start_server(
-            self.cmd_loop, host="127.0.0.1", port=self.port
-        )
-        # Request the assigned port from the server so the code starting the
-        # mock controller can use it to connect.
-        if self.port == 0:
-            assert self._server.sockets is not None
-            num_sockets = len(self._server.sockets)
-            if self.port == 0 and num_sockets >= 1:
-                self.port = self._server.sockets[0].getsockname()[1]
+        await super().start(**kwargs)
 
         await self.determine_current_tai()
 
@@ -188,26 +183,7 @@ class MockMTDomeController:
         self.moncs = mock_llc.MoncsStatus()
         self.thcs = mock_llc.ThcsStatus()
 
-        if keep_running:
-            await self._server.serve_forever()
-
-    async def stop(self) -> None:
-        """Stop the mock lower level components and the TCP/IP server."""
-        if self._server is None:
-            return
-
-        self.log.info("Closing server")
-        if self.read_task is not None:
-            self.read_task.cancel()
-        server = self._server
-        self._server = None
-        server.close()
-        await server.wait_closed()
-        self._writer = None
-        self._reader = None
-        self.log.info("Done closing")
-
-    async def write(self, **data: typing.Any) -> None:
+    async def write_with_command_id(self, **data: typing.Any) -> None:
         """Write the data appended with a newline character.
 
         Parameters
@@ -215,105 +191,82 @@ class MockMTDomeController:
         data:
             The data to write.
         """
-        st = encoding_tools.encode(commandId=self._command_id, **data)
-        assert self._writer is not None
-        self._writer.write(st.encode() + b"\r\n")
-        self.log.debug(st)
-        await self._writer.drain()
+        await self.write_json({"commandId": self._command_id, **data})
 
-    async def cmd_loop(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ) -> None:
-        """Execute commands and output replies.
-
-        Parameters
-        ----------
-        reader: `asyncio.StreamReader`
-            The stream reader to read from.
-        writer: `asyncio.StreamWriter`
-            The stream writer to write to.
-        """
-        self.log.info("The cmd_loop begins")
-        self._writer = writer
-        self._reader = reader
-        self.read_task = asyncio.create_task(self.read_in_loop())
-
-    async def read_in_loop(self) -> None:
-        while True:
-            self.log.debug("Waiting for next command.")
-
+    async def read_and_dispatch(self) -> None:
+        try:
+            # Don't use ``self.read_json`` here. Further down first the string
+            # will be parsed to see if ``commandId`` is present. Only if yes,
+            # the string will be JSON decoded.
+            line = await self.read_str()
+            self.log.debug(f"Read command line: {line!r}")
+        except (asyncio.IncompleteReadError, AssertionError):
+            return
+        if line:
+            # some housekeeping for sending a response
+            send_response = True
+            response = ResponseCode.OK
             try:
-                assert self._reader is not None
-                byte_line = await self._reader.readuntil(b"\r\n")
-                line = byte_line.decode().strip()
-                self.log.debug(f"Read command line: {line!r}")
-            except (asyncio.IncompleteReadError, AssertionError):
-                return
-            if line:
-                # some housekeeping for sending a response
-                send_response = True
-                response = ResponseCode.OK
-                try:
-                    # First the line needs to be parsed to get the commandId.
-                    # This is necessary because deconding the line with the
-                    # encoding tools may result in a ValidationError and then
-                    # the commandId cannot be retrieved from the decoded items.
-                    command_id_search = COMMAND_ID_PATTERN.search(line)
-                    if command_id_search:
-                        # The group containing the commandId value needs to be
-                        # retrieved, which is why group == 1 is used here.
-                        command_id_string = command_id_search.group(1)
-                        if command_id_string.isdigit():
-                            self._command_id = int(command_id_search.group(1))
-                        else:
-                            raise ValueError(f"commandId is not an int in {line=}")
-
-                    # Now demarshall the line into a dict of Python objects.
-                    items = encoding_tools.decode(line)
-
-                    cmd = items["command"]
-                    self.log.debug(f"Trying to execute cmd {cmd}")
-                    if cmd not in self.dispatch_dict:
-                        self.log.error(f"Command '{line}' unknown")
-                        # CODE=2 in this case means "Unsupported command."
-                        response = ResponseCode.UNSUPPORTED_COMMAND
-                        duration = -1
+                # First the line needs to be parsed to get the commandId.
+                # This is necessary because deconding the line with the
+                # encoding tools may result in a ValidationError and then
+                # the commandId cannot be retrieved from the decoded items.
+                command_id_search = COMMAND_ID_PATTERN.search(line)
+                if command_id_search:
+                    # The group containing the commandId value needs to be
+                    # retrieved, which is why group == 1 is used here.
+                    command_id_string = command_id_search.group(1)
+                    if command_id_string.isdigit():
+                        self._command_id = int(command_id_search.group(1))
                     else:
-                        if self.enable_network_interruption:
-                            # Mock a network interruption: it doesn't matter if
-                            # the command never is received or the reply never
-                            # sent.
-                            continue
+                        raise ValueError(f"commandId is not an int in {line=}")
 
-                        func = self.dispatch_dict[cmd]
-                        kwargs = items["parameters"]
-                        if cmd.startswith("status"):
-                            # The status commands take care of sending a reply
-                            # themselves.
-                            send_response = False
+                # Now demarshall the line into a dict of Python objects.
+                items = encoding_tools.decode(line)
 
-                        if self.enable_slow_network:
-                            # Mock a slow network.
-                            await asyncio.sleep(MockMTDomeController.SLOW_NETWORK_SLEEP)
-
-                        duration = await func(**kwargs)
-                except asyncio.CancelledError:
-                    self.log.debug("cmd_loop ends")
+                cmd = items["command"]
+                self.log.debug(f"Trying to execute cmd {cmd}")
+                if cmd not in self.dispatch_dict:
+                    self.log.error(f"Command '{line}' unknown")
+                    # CODE=2 in this case means "Unsupported command."
+                    response = ResponseCode.UNSUPPORTED_COMMAND
                     duration = -1
-                except Exception:
-                    self.log.exception(f"Command '{line}' failed")
-                    # Command rejected: a message explaining why needs to be
-                    # added at some point but we haven't discussed that yet
-                    # with the vendor.
-                    response = ResponseCode.INCORRECT_PARAMETERS
-                    duration = -1
-                if send_response:
-                    if duration is None:
-                        duration = MockMTDomeController.LONG_DURATION
-                    # DM-25189: timeout should be renamed duration and this
-                    # needs to be discussed with EIE. As soon as this is done
-                    # and agreed upon, I will open another issue to fix this.
-                    await self.write(response=response, timeout=duration)
+                else:
+                    if self.enable_network_interruption:
+                        # Mock a network interruption: it doesn't matter if
+                        # the command never is received or the reply never
+                        # sent.
+                        return
+
+                    func = self.dispatch_dict[cmd]
+                    kwargs = items["parameters"]
+                    if cmd.startswith("status"):
+                        # The status commands take care of sending a reply
+                        # themselves.
+                        send_response = False
+
+                    if self.enable_slow_network:
+                        # Mock a slow network.
+                        await asyncio.sleep(MockMTDomeController.SLOW_NETWORK_SLEEP)
+
+                    duration = await func(**kwargs)
+            except asyncio.CancelledError:
+                self.log.debug("cmd_loop ends")
+                duration = -1
+            except Exception:
+                self.log.exception(f"Command '{line}' failed")
+                # Command rejected: a message explaining why needs to be
+                # added at some point but we haven't discussed that yet
+                # with the vendor.
+                response = ResponseCode.INCORRECT_PARAMETERS
+                duration = -1
+            if send_response:
+                if duration is None:
+                    duration = MockMTDomeController.LONG_DURATION
+                # DM-25189: timeout should be renamed duration and this
+                # needs to be discussed with EIE. As soon as this is done
+                # and agreed upon, I will open another issue to fix this.
+                await self.write_with_command_id(response=response, timeout=duration)
 
     async def status_amcs(self) -> None:
         """Request the status from the AMCS lower level component and write it
@@ -369,7 +322,7 @@ class MockMTDomeController:
         self.log.debug(f"Requesting status for LLC {llc_name}")
         await llc.determine_status(self.current_tai)
         state = {llc_name: llc.llc_status}
-        await self.write(response=ResponseCode.OK, **state)
+        await self.write_with_command_id(response=ResponseCode.OK, **state)
 
     async def determine_current_tai(self) -> None:
         """Determine the current TAI time.
@@ -815,12 +768,13 @@ class MockMTDomeController:
 
 async def main() -> None:
     """Main method that gets executed in stand alone mode."""
-    logging.info("main method")
+    log = logging.getLogger("MockMTDomeController")
+    log.info("main method")
     # An arbitrarily chosen port. Nothing special about it.
     port = 5000
-    logging.info("Constructing mock controller.")
-    mock_ctrl = MockMTDomeController(port=port)
-    logging.info("Starting mock MTDome controller.")
+    log.info("Constructing mock controller.")
+    mock_ctrl = MockMTDomeController(host=tcpip.DEFAULT_LOCALHOST, port=port, log=log)
+    log.info("Starting mock MTDome controller.")
     await mock_ctrl.start(keep_running=True)
 
 

@@ -4,6 +4,8 @@
 #   the "sconsUtils" package.
 setupRequired(sconsUtils)
 setupRequired(ts_salobj)
+setupRequired(ts_tcpip)
+setupRequired(ts_utils)
 setupRequired(ts_config_mttcs)
 
 envPrepend(PATH, ${PRODUCT_DIR}/bin)
