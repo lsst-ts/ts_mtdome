@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 
 import numpy as np
-from lsst.ts import salobj, utils
+from lsst.ts import salobj, tcpip, utils
 from lsst.ts.idl.enums.MTDome import (
     EnabledState,
     MotionState,
@@ -36,7 +36,7 @@ from lsst.ts.idl.enums.MTDome import (
     SubSystemId,
 )
 
-from . import __version__, encoding_tools
+from . import __version__
 from .config_schema import CONFIG_SCHEMA
 from .csc_utils import support_command
 from .enums import (
@@ -53,8 +53,7 @@ from .enums import (
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .mock_controller import MockMTDomeController
 
-_LOCAL_HOST = "127.0.0.1"
-_TIMEOUT = 20  # timeout [sec] to be used by this module
+_TIMEOUT = 20  # timeout [sec] to be used by this module.
 _KEYS_TO_REMOVE = {
     "status",
     "operationalMode",  # Remove because gets emitted as an event
@@ -256,8 +255,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         override: str = "",
         mock_port: typing.Optional[int] = None,
     ) -> None:
-        self.reader: typing.Optional[asyncio.StreamReader] = None
-        self.writer: typing.Optional[asyncio.StreamWriter] = None
+        self.client: tcpip.Client | None = None
         self.config: typing.Optional[SimpleNamespace] = None
 
         self.mock_ctrl: typing.Optional[
@@ -333,7 +331,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # replied to yet.
         self.commands_without_reply: dict[int, CommandTime] = {}
 
-        self.log.info("DomeCsc constructed")
+        self.log.info("DomeCsc constructed.")
 
     async def connect(self) -> None:
         """Connect to the dome controller's TCP/IP port.
@@ -342,34 +340,34 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.info("connect")
         self.log.info(self.config)
-        self.log.info(f"self.simulation_mode = {self.simulation_mode}")
+        self.log.info(f"self.simulation_mode = {self.simulation_mode}.")
         if self.config is None:
-            raise RuntimeError("Not yet configured")
+            raise RuntimeError("Not yet configured.")
         if self.connected:
-            raise RuntimeError("Already connected")
+            raise RuntimeError("Already connected.")
         if self.simulation_mode == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER:
             await self.start_mock_ctrl()
-            host = _LOCAL_HOST
             assert self.mock_ctrl is not None
+            host = self.mock_ctrl.host
             port = self.mock_ctrl.port
         elif (
             self.simulation_mode
             == ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER
         ):
-            host = _LOCAL_HOST
+            host = tcpip.DEFAULT_LOCALHOST
             assert self.mock_port is not None
             port = self.mock_port
         else:
             host = self.config.host
             port = self.config.port
         try:
-            self.log.info(f"Connecting to host={host} and port={port}")
-            connect_coro = asyncio.open_connection(host=host, port=port)
-            self.reader, self.writer = await asyncio.wait_for(
-                connect_coro, timeout=self.config.connection_timeout
+            self.log.info(f"Connecting to host={host} and port={port}.")
+            self.client = tcpip.Client(
+                host=host, port=port, log=self.log, name="MTDomeClient"
             )
+            await asyncio.wait_for(fut=self.client.start_task, timeout=_TIMEOUT)
         except ConnectionError as e:
-            await self.fault(code=3, report=f"Connection to server failed: {e}")
+            await self.fault(code=3, report=f"Connection to server failed: {e}.")
             raise
 
         # DM-26374: Send enabled events for az and el since they are always
@@ -403,11 +401,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         vmax = self.config.amcs_vmax
         amax = self.config.amcs_amax
         jmax = self.config.amcs_jmax
-        self.log.info(f"Setting AMCS maximum velocity to {vmax}")
+        self.log.info(f"Setting AMCS maximum velocity to {vmax}.")
         vmax_dict: MaxValueConfigType = {"target": "vmax", "setting": [vmax]}
-        self.log.info(f"Setting AMCS maximum acceleration to {amax}")
+        self.log.info(f"Setting AMCS maximum acceleration to {amax}.")
         amax_dict: MaxValueConfigType = {"target": "amax", "setting": [amax]}
-        self.log.info(f"Setting AMCS maximum jerk to {jmax}")
+        self.log.info(f"Setting AMCS maximum jerk to {jmax}.")
         jmax_dict: MaxValueConfigType = {"target": "jmax", "setting": [jmax]}
         settings = [vmax_dict, amax_dict, jmax_dict]
         await self.config_llcs(system=LlcName.AMCS, settings=settings)
@@ -445,47 +443,46 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 await method()
                 await asyncio.sleep(interval)
         except Exception:
-            self.log.exception(f"one_periodic_task({method}) failed")
+            self.log.exception(f"one_periodic_task({method}) failed.")
 
     async def disconnect(self) -> None:
         """Disconnect from the TCP/IP controller, if connected, and stop the
         mock controller, if running.
         """
-        self.log.info("disconnect")
+        self.log.info("disconnect.")
 
         # Stop all periodic tasks, including polling for the status of the
         # lower level components.
         await self.cancel_periodic_tasks()
 
-        writer = self.writer
-        self.reader = None
-        self.writer = None
+        if self.connected:
+            assert self.client is not None  # make mypy happy
+            await self.client.close()
+            self.client = None
         if self.simulation_mode == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER:
             await self.stop_mock_ctrl()
-        if writer:
-            try:
-                writer.write_eof()
-                await asyncio.wait_for(writer.drain(), timeout=_TIMEOUT)
-            finally:
-                writer.close()
 
     async def start_mock_ctrl(self) -> None:
         """Start the mock controller.
 
         The simulation mode must be 1.
         """
-        self.log.info("start_mock_ctrl")
+        self.log.info("start_mock_ctrl.")
         try:
             assert (
                 self.simulation_mode
                 == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value
             )
             if self.mock_port is not None:
+                host = tcpip.DEFAULT_LOCALHOST
                 port = self.mock_port
             else:
                 assert self.config is not None
+                host = self.config.host
                 port = self.config.port
-            self.mock_ctrl = MockMTDomeController(port)
+            self.mock_ctrl = MockMTDomeController(
+                host=host, port=port, log=self.log, name="MockMTDomeController"
+            )
             await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
 
         except Exception as e:
@@ -498,7 +495,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         mock_ctrl = self.mock_ctrl
         self.mock_ctrl = None
         if mock_ctrl:
-            await mock_ctrl.stop()
+            await mock_ctrl.close()
 
     async def handle_summary_state(self) -> None:
         """Override of the handle_summary_state function to connect or
@@ -563,12 +560,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=command, tai=utils.current_tai()
         )
         command_dict = dict(commandId=command_id, command=command, parameters=params)
-        st = encoding_tools.encode(**command_dict)
         async with self.communication_lock:
             try:
-                assert self.writer is not None
+                assert self.client is not None
             except AssertionError as e:
-                await self.fault(code=3, report=f"Error writing command {st}: {e}")
+                await self.fault(
+                    code=3, report=f"Error writing command {command_dict}: {e}."
+                )
                 raise
 
             disabled_commands: set[str] = set()
@@ -576,24 +574,22 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 disabled_commands = COMMANDS_DISABLED_FOR_COMMISSIONING
 
             if command not in disabled_commands:
-                self.writer.write(st.encode() + b"\r\n")
-                await self.writer.drain()
                 try:
-                    assert self.reader is not None
-                    read_bytes = await asyncio.wait_for(
-                        self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
+                    await self.client.write_json(data=command_dict)
+                    data = await asyncio.wait_for(
+                        self.client.read_json(), timeout=_TIMEOUT
                     )
                 except (
                     asyncio.exceptions.IncompleteReadError,
                     asyncio.exceptions.TimeoutError,
-                    ConnectionResetError,
+                    ConnectionError,
                     AssertionError,
                 ) as e:
                     await self.fault(
-                        code=3, report=f"Error reading reply to command {st}: {e}"
+                        code=3,
+                        report=f"Error reading reply to command {command_dict}: {e}.",
                     )
                     raise
-                data = encoding_tools.decode(read_bytes.decode())
                 received_command_id = data["commandId"]
                 if received_command_id in self.commands_without_reply:
                     self.commands_without_reply.pop(received_command_id)
@@ -1423,13 +1419,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
     @property
     def connected(self) -> bool:
-        """Return True if connected to a server."""
-        return not (
-            self.reader is None
-            or self.writer is None
-            or self.reader.at_eof()
-            or self.writer.is_closing()
-        )
+        return self.client is not None and self.client.connected
 
     @staticmethod
     def get_config_pkg() -> str:

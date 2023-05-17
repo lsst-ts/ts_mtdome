@@ -30,7 +30,7 @@ from unittest import mock
 import numpy as np
 import pytest
 import yaml
-from lsst.ts import mtdome, salobj, utils
+from lsst.ts import mtdome, salobj, tcpip, utils
 from lsst.ts.idl.enums.MTDome import (
     EnabledState,
     MotionState,
@@ -1421,19 +1421,19 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.assert_next_summary_state(salobj.State.FAULT)
 
     async def test_connection_lost(self) -> None:
-        port = 0
-        mock_ctrl = mtdome.MockMTDomeController(port=port)
+        mock_ctrl = mtdome.MockMTDomeController(
+            host=tcpip.DEFAULT_LOCALHOST,
+            port=0,
+            log=logging.getLogger("CscTestCase"),
+        )
         mock_ctrl.determine_current_tai = self.determine_current_tai
-        asyncio.create_task(mock_ctrl.start())
-        await asyncio.sleep(1)
-        # Request the assigned port from the mock controller.
-        port = mock_ctrl.port
+        await asyncio.wait_for(mock_ctrl.start_task, timeout=STD_TIMEOUT)
 
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
             simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
-            mock_port=port,
+            mock_port=mock_ctrl.port,
         ):
             await self.assert_next_summary_state(salobj.State.STANDBY)
             await salobj.set_summary_state(
@@ -1447,7 +1447,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Now stop the MockController and verify that the CSC goes to FAULT
             # state.
-            await mock_ctrl.stop()
+            await mock_ctrl.close()
             await self.assert_next_summary_state(salobj.State.FAULT)
 
     @mock.patch(
