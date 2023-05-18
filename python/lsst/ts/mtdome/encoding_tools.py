@@ -54,23 +54,6 @@ def encode(**params: typing.Any) -> str:
     return json.dumps({**params})
 
 
-def decode(st: str) -> dict[str, typing.Any]:
-    """Decode the given string.
-
-    Parameters
-    ----------
-    st: `str`
-        The string to decode.
-
-    Returns
-    -------
-        A decoded Python representation of the string.
-    """
-    data = json.loads(st)
-    validate(data)
-    return data
-
-
 def validate(data: dict[str, typing.Any]) -> None:
     """Validates the data against a JSON schema and logs an error in case the
     validation fails.
@@ -105,3 +88,4 @@ def validate(data: dict[str, typing.Any]) -> None:
             log.error(f"Validation failed because no known key found in data {data!r}")
     except jsonschema.ValidationError as e:
         log.exception("Validation failed.", e)
+        raise

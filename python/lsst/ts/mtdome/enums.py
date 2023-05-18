@@ -73,11 +73,31 @@ class OnOff(enum.Enum):
 
 
 class ResponseCode(enum.IntEnum):
-    """Response codes."""
+    """Response codes.
+
+    The codes mean
+
+        * 0, "OK", "Command received correctly and is being executed."
+        * 1, Not used.
+        * 2, "Unsupported command", "A command was sent that is not supported
+          by the lower level component, for instance park is sent to LCS or
+          'mooveAz' instead of 'moveAz' to AMCS."
+        * 3, "Incorrect parameter(s)", "The command that was sent is supported
+          by the lower level component but the parameters for the command are
+          incorrect. This can mean not enough parameters, too many parameters
+          or one or more parameters with the wrong name."
+        * 4, "Incorrect source", "The current command source is not valid, e.g.
+          a remote command arrives while the system is operated in local mode,
+          like the push buttons for the Aperture Shutters."
+        * 5, "Incorrect state", "The current command cannot be executed in
+          current state, e.g. moveAz when the AMCS is in fault state."
+    """
 
     OK = 0
     UNSUPPORTED_COMMAND = 2
-    COMMAND_REJECTED = 3
+    INCORRECT_PARAMETERS = 3
+    INCORRECT_SOURCE = 4
+    INCORRECT_STATE = 5
 
 
 class ValidSimulationMode(enum.IntEnum):
