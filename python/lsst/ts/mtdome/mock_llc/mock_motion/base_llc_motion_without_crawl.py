@@ -19,12 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import abc
+
 from lsst.ts.idl.enums.MTDome import MotionState
 
 from .base_llc_motion import BaseLlcMotion
 
 
-class BaseLlcMotionWithoutCrawl(BaseLlcMotion):
+class BaseLlcMotionWithoutCrawl(BaseLlcMotion, abc.ABC):
     def set_target_position_and_velocity(
         self,
         start_tai: float,

@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import logging
 import math
 import unittest
 
@@ -32,10 +31,6 @@ from lsst.ts.mtdome.mock_llc.amcs import (
     CURRENT_PER_MOTOR_MOVING,
 )
 from lsst.ts.mtdome.mock_llc.mock_motion.azimuth_motion import NUM_MOTORS
-
-logging.basicConfig(
-    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
-)
 
 # The maximum AZ rotation speed (deg/s)
 MAX_SPEED = 4.0

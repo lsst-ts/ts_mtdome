@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["MTDomeCsc", "DOME_AZIMUTH_OFFSET", "run_mtdome"]
+__all__ = ["MTDomeCsc", "DOME_AZIMUTH_OFFSET", "CommandTime", "run_mtdome"]
 
 import asyncio
 import math
@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 
 import numpy as np
-from lsst.ts import salobj, utils
+from lsst.ts import salobj, tcpip, utils
 from lsst.ts.idl.enums.MTDome import (
     EnabledState,
     MotionState,
@@ -36,7 +36,7 @@ from lsst.ts.idl.enums.MTDome import (
     SubSystemId,
 )
 
-from . import __version__, encoding_tools
+from . import __version__
 from .config_schema import CONFIG_SCHEMA
 from .csc_utils import support_command
 from .enums import (
@@ -53,8 +53,10 @@ from .enums import (
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .mock_controller import MockMTDomeController
 
-_LOCAL_HOST = "127.0.0.1"
-_TIMEOUT = 20  # timeout [sec] to be used by this module
+# Timeout [sec] used when creating a Client, a mock controller or when waiting
+# for a reply when sending a command to the controller.
+_TIMEOUT = 20
+
 _KEYS_TO_REMOVE = {
     "status",
     "operationalMode",  # Remove because gets emitted as an event
@@ -93,6 +95,10 @@ _LWSCS_STATUS_PERIOD = 2.0
 _MONCS_STATUS_PERIOD = 2.0
 _THCS_STATUS_PERIOD = 2.0
 
+# Polling period [sec] for the task that checks if all commands have been
+# replied to.
+_COMMANDS_REPLIED_PERIOD = 600
+
 # These next commands are temporarily disabled in simulation mode 0 because
 # they will be issued during the upcoming TMA pointing test and the EIE LabVIEW
 # code doesn't handle them yet, which will result in an error. As soon as the
@@ -114,21 +120,17 @@ COMMANDS_DISABLED_FOR_COMMISSIONING = {
 }
 REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
 
-# All status methods and the intervals at which they are executed.
+# All status methods and the intervals at which they are executed. The boolean
+# indicates whther they are used for commissioning (True) or not. Note that all
+# methods always are used for unit testing.
 ALL_METHODS_AND_INTERVALS = {
-    ("statusAMCS", _AMCS_STATUS_PERIOD),
-    ("statusApSCS", _APSCS_STATUS_PERIOD),
-    ("statusLCS", _LCS_STATUS_PERIOD),
-    ("statusLWSCS", _LWSCS_STATUS_PERIOD),
-    ("statusMonCS", _MONCS_STATUS_PERIOD),
-    ("statusThCS", _THCS_STATUS_PERIOD),
-}
-
-# The status methods and the intervals at which they are executed to be used
-# during commissioning. Not all can be used because the LabVIEW code of EIE
-# doesn't support all of them yet.
-METHODS_AND_INTERVALS_FOR_COMMISSIONING = {
-    ("statusAMCS", _AMCS_STATUS_PERIOD),
+    "statusAMCS": (_AMCS_STATUS_PERIOD, True),
+    "statusApSCS": (_APSCS_STATUS_PERIOD, False),
+    "statusLCS": (_LCS_STATUS_PERIOD, False),
+    "statusLWSCS": (_LWSCS_STATUS_PERIOD, False),
+    "statusMonCS": (_MONCS_STATUS_PERIOD, False),
+    "statusThCS": (_THCS_STATUS_PERIOD, False),
+    "check_all_commands_have_replies": (_COMMANDS_REPLIED_PERIOD, True),
 }
 
 ALL_OPERATIONAL_MODE_COMMANDS = {
@@ -186,6 +188,23 @@ class MoveAzCommandData:
     velocity: float = math.nan
 
 
+@dataclass
+class CommandTime:
+    """Class representing the TAI time at which a command was issued.
+
+    Attributes
+    ----------
+    command : `str`
+        The command issued.
+    tai : `float`
+        TAI time as unix seconds, e.g. the time returned by CLOCK_TAI
+        on linux systems.
+    """
+
+    command: str
+    tai: float
+
+
 class MTDomeCsc(salobj.ConfigurableCsc):
     """Upper level Commandable SAL Component to interface with the Simonyi
     Survey Telescope Dome lower level components.
@@ -201,8 +220,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     override : `str`, optional
         Override of settings if ``initial_state`` is `State.DISABLED`
         or `State.ENABLED`.
-    mock_port : `int`
-        The port that the mock controller will listen on
 
     Notes
     -----
@@ -220,6 +237,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     and/or debugging the MTDome CSC.
     """
 
+    _index_iter = utils.index_generator()
     enable_cmdline_state = True
     valid_simulation_modes = set([v.value for v in ValidSimulationMode])
     version = __version__
@@ -230,16 +248,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         initial_state: salobj.State = salobj.State.STANDBY,
         simulation_mode: int = ValidSimulationMode.NORMAL_OPERATIONS,
         override: str = "",
-        mock_port: typing.Optional[int] = None,
     ) -> None:
-        self.reader: typing.Optional[asyncio.StreamReader] = None
-        self.writer: typing.Optional[asyncio.StreamWriter] = None
+        self.client: tcpip.Client | None = None
         self.config: typing.Optional[SimpleNamespace] = None
 
         self.mock_ctrl: typing.Optional[
             MockMTDomeController
         ] = None  # mock controller, or None if not constructed
-        self.mock_port = mock_port  # mock port, or None if not used
 
         # Check supported commands to make sure of backward compatibility with
         # XML 12.0.
@@ -260,7 +275,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # Keep the lower level statuses in memory for unit tests.
         self.lower_level_status: dict[str, typing.Any] = {}
-        self.status_tasks: list[asyncio.Future] = []
+        # List of periodic tasks to start.
+        self.periodic_tasks: list[asyncio.Future] = []
         # Keep track of the AMCS state for logging one the console.
         self.amcs_state: MotionState | None = None
         # Keep track of the AMCS status message for logging on the console.
@@ -304,7 +320,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # with velocity == 0.0 since that may introduce large oscillations.
         self.current_moveAz_command = MoveAzCommandData()
 
-        self.log.info("DomeCsc constructed")
+        # Keep track of the commands that have been sent and that haven't been
+        # replied to yet. The key of the dict is the commandId for the commands
+        # that have been sent.
+        self.commands_without_reply: dict[int, CommandTime] = {}
+
+        self.log.info("DomeCsc constructed.")
 
     async def connect(self) -> None:
         """Connect to the dome controller's TCP/IP port.
@@ -313,34 +334,33 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.info("connect")
         self.log.info(self.config)
-        self.log.info(f"self.simulation_mode = {self.simulation_mode}")
+        self.log.info(f"self.simulation_mode = {self.simulation_mode}.")
         if self.config is None:
-            raise RuntimeError("Not yet configured")
+            raise RuntimeError("Not yet configured.")
         if self.connected:
-            raise RuntimeError("Already connected")
+            raise RuntimeError("Already connected.")
         if self.simulation_mode == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER:
             await self.start_mock_ctrl()
-            host = _LOCAL_HOST
             assert self.mock_ctrl is not None
+            host = self.mock_ctrl.host
             port = self.mock_ctrl.port
         elif (
             self.simulation_mode
             == ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER
         ):
-            host = _LOCAL_HOST
-            assert self.mock_port is not None
-            port = self.mock_port
+            host = tcpip.DEFAULT_LOCALHOST
+            port = self.config.port
         else:
             host = self.config.host
             port = self.config.port
         try:
-            self.log.info(f"Connecting to host={host} and port={port}")
-            connect_coro = asyncio.open_connection(host=host, port=port)
-            self.reader, self.writer = await asyncio.wait_for(
-                connect_coro, timeout=self.config.connection_timeout
+            self.log.info(f"Connecting to host={host} and port={port}.")
+            self.client = tcpip.Client(
+                host=host, port=port, log=self.log, name="MTDomeClient"
             )
+            await asyncio.wait_for(fut=self.client.start_task, timeout=_TIMEOUT)
         except ConnectionError as e:
-            await self.fault(code=3, report=f"Connection to server failed: {e}")
+            await self.fault(code=3, report=f"Connection to server failed: {e}.")
             raise
 
         # DM-26374: Send enabled events for az and el since they are always
@@ -365,7 +385,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # Start polling for the status of the lower level components
         # periodically.
-        await self.start_status_tasks()
+        await self.start_periodic_tasks()
 
         self.log.info("connected")
 
@@ -374,71 +394,84 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         vmax = self.config.amcs_vmax
         amax = self.config.amcs_amax
         jmax = self.config.amcs_jmax
-        self.log.info(f"Setting AMCS maximum velocity to {vmax}")
+        self.log.info(f"Setting AMCS maximum velocity to {vmax}.")
         vmax_dict: MaxValueConfigType = {"target": "vmax", "setting": [vmax]}
-        self.log.info(f"Setting AMCS maximum acceleration to {amax}")
+        self.log.info(f"Setting AMCS maximum acceleration to {amax}.")
         amax_dict: MaxValueConfigType = {"target": "amax", "setting": [amax]}
-        self.log.info(f"Setting AMCS maximum jerk to {jmax}")
+        self.log.info(f"Setting AMCS maximum jerk to {jmax}.")
         jmax_dict: MaxValueConfigType = {"target": "jmax", "setting": [jmax]}
         settings = [vmax_dict, amax_dict, jmax_dict]
         await self.config_llcs(system=LlcName.AMCS, settings=settings)
 
-    async def cancel_status_tasks(self) -> None:
-        """Cancel all status tasks."""
-        while self.status_tasks:
-            self.status_tasks.pop().cancel()
+    async def cancel_periodic_tasks(self) -> None:
+        """Cancel all periodic tasks."""
+        while self.periodic_tasks:
+            self.periodic_tasks.pop().cancel()
 
-    async def start_status_tasks(self) -> None:
-        """Start all status tasks."""
-        await self.cancel_status_tasks()
-        methods_and_intervals = ALL_METHODS_AND_INTERVALS
-        if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
-            methods_and_intervals = METHODS_AND_INTERVALS_FOR_COMMISSIONING
-        for method, interval in methods_and_intervals:
+    async def start_periodic_tasks(self) -> None:
+        """Start all periodic tasks."""
+        await self.cancel_periodic_tasks()
+        for method, interval_and_execute in ALL_METHODS_AND_INTERVALS.items():
+            interval, execute = interval_and_execute
+            if (
+                self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS
+                and execute is False
+            ):
+                continue
             func = getattr(self, method)
-            self.status_tasks.append(
-                asyncio.create_task(self.one_status_loop(func, interval))
+            self.periodic_tasks.append(
+                asyncio.create_task(self.one_periodic_task(func, interval))
+            )
+
+    async def one_periodic_task(self, method: typing.Callable, interval: float) -> None:
+        """Run one method forever at the specified interval.
+
+        Parameters
+        ----------
+        method: coro
+            The periodic method to run.
+        interval: `float`
+            The interval (sec) at which to run the status method.
+
+        """
+        try:
+            while True:
+                await method()
+                await asyncio.sleep(interval)
+        except Exception as e:
+            self.log.exception(
+                f"one_periodic_task({method}) failed because of {e!r}. The task has stopped."
             )
 
     async def disconnect(self) -> None:
         """Disconnect from the TCP/IP controller, if connected, and stop the
         mock controller, if running.
         """
-        self.log.info("disconnect")
+        self.log.info("disconnect.")
 
-        # Stop polling for the status of the lower level components
-        # periodically.
-        await self.cancel_status_tasks()
+        # Stop all periodic tasks, including polling for the status of the
+        # lower level components.
+        await self.cancel_periodic_tasks()
 
-        writer = self.writer
-        self.reader = None
-        self.writer = None
+        if self.connected:
+            assert self.client is not None  # make mypy happy
+            await self.client.close()
+            self.client = None
         if self.simulation_mode == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER:
             await self.stop_mock_ctrl()
-        if writer:
-            try:
-                writer.write_eof()
-                await asyncio.wait_for(writer.drain(), timeout=_TIMEOUT)
-            finally:
-                writer.close()
 
     async def start_mock_ctrl(self) -> None:
         """Start the mock controller.
 
         The simulation mode must be 1.
         """
-        self.log.info("start_mock_ctrl")
+        self.log.info("start_mock_ctrl.")
         try:
             assert (
                 self.simulation_mode
                 == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value
             )
-            if self.mock_port is not None:
-                port = self.mock_port
-            else:
-                assert self.config is not None
-                port = self.config.port
-            self.mock_ctrl = MockMTDomeController(port)
+            self.mock_ctrl = MockMTDomeController(port=0, log=self.log)
             await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
 
         except Exception as e:
@@ -451,7 +484,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         mock_ctrl = self.mock_ctrl
         self.mock_ctrl = None
         if mock_ctrl:
-            await mock_ctrl.stop()
+            await mock_ctrl.close()
 
     async def handle_summary_state(self) -> None:
         """Override of the handle_summary_state function to connect or
@@ -511,48 +544,54 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             TimeoutValue} where "response" can be zero for "OK" or non-zero
             for "ERROR".
         """
-        command_dict = dict(command=command, parameters=params)
-        st = encoding_tools.encode(**command_dict)
+        command_id = next(self._index_iter)
+        self.commands_without_reply[command_id] = CommandTime(
+            command=command, tai=utils.current_tai()
+        )
+        command_dict = dict(commandId=command_id, command=command, parameters=params)
         async with self.communication_lock:
-            try:
-                assert self.writer is not None
-            except AssertionError as e:
-                await self.fault(code=3, report=f"Error writing command {st}: {e}")
-                raise
+            if self.client is None:
+                await self.fault(
+                    code=3,
+                    report=f"Error writing command {command_dict}: self.client == None.",
+                )
+                raise RuntimeError("self.client == None.")
 
             disabled_commands: set[str] = set()
             if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
                 disabled_commands = COMMANDS_DISABLED_FOR_COMMISSIONING
 
             if command not in disabled_commands:
-                self.writer.write(st.encode() + b"\r\n")
-                await self.writer.drain()
                 try:
-                    assert self.reader is not None
-                    read_bytes = await asyncio.wait_for(
-                        self.reader.readuntil(b"\r\n"), timeout=_TIMEOUT
+                    await self.client.write_json(data=command_dict)
+                    data = await asyncio.wait_for(
+                        self.client.read_json(), timeout=_TIMEOUT
                     )
-                except (
-                    asyncio.exceptions.IncompleteReadError,
-                    asyncio.exceptions.TimeoutError,
-                    ConnectionResetError,
-                    AssertionError,
-                ) as e:
+                except Exception as e:
                     await self.fault(
-                        code=3, report=f"Error reading reply to command {st}: {e}"
+                        code=3,
+                        report=f"Error reading reply to command {command_dict}: {e}.",
                     )
                     raise
-                data = encoding_tools.decode(read_bytes.decode())
+                received_command_id = data["commandId"]
+                if received_command_id in self.commands_without_reply:
+                    self.commands_without_reply.pop(received_command_id)
+                else:
+                    self.log.warning(
+                        f"Ignoring unknown commandId {received_command_id}."
+                    )
             else:
                 data = REPLY_DATA_FOR_DISABLED_COMMANDS
             response = data["response"]
 
             if response != ResponseCode.OK:
                 self.log.error(f"Received ERROR {data}.")
-                if response == ResponseCode.COMMAND_REJECTED:
-                    raise ValueError(f"The command {command} was rejected.")
-                elif response == ResponseCode.UNSUPPORTED_COMMAND:
-                    raise KeyError(f"The command {command} is unsupported.")
+                error_suffix = {
+                    ResponseCode.INCORRECT_PARAMETERS: "has incorrect parameters.",
+                    ResponseCode.INCORRECT_SOURCE: "was sent from an incorrect source.",
+                    ResponseCode.INCORRECT_STATE: "was sent for an incorrect state.",
+                }.get(response, "is not supported.")
+                raise ValueError(f"{command=} {error_suffix}")
 
             return data
 
@@ -1329,33 +1368,37 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def configure(self, config: SimpleNamespace) -> None:
         self.config = config
 
-    async def one_status_loop(self, method: typing.Callable, interval: float) -> None:
-        """Run one status method forever at the specified interval.
+    async def check_all_commands_have_replies(self) -> None:
+        """Check if all commands have received a reply.
 
-        Parameters
-        ----------
-        method: coro
-            The status method to run
-        interval: `float`
-            The interval (sec) at which to run the status method.
+        If a command hasn't received a reply after at least
+        _COMMANDS_REPLIED_PERIOD seconds, a warning is logged.
 
+        If a command hasn't received a reply after at least 2 *
+        _COMMANDS_REPLIED_PERIOD seconds, an error is logged and the command
+        is removed from the waiting list.
         """
-        try:
-            while True:
-                await method()
-                await asyncio.sleep(interval)
-        except Exception:
-            self.log.exception(f"one_status_loop({method}) failed")
+        current_tai = utils.current_tai()
+        commands_to_remove: set[int] = set()
+        for command_id in self.commands_without_reply:
+            command_time = self.commands_without_reply[command_id]
+            if current_tai - command_time.tai >= 2.0 * _COMMANDS_REPLIED_PERIOD:
+                self.log.error(
+                    f"Command {command_time.command} with {command_id=} has not received a "
+                    f"reply during at least {2 * _COMMANDS_REPLIED_PERIOD} seconds. Removing."
+                )
+                commands_to_remove.add(command_id)
+            elif current_tai - command_time.tai >= _COMMANDS_REPLIED_PERIOD:
+                self.log.warning(
+                    f"Command {command_time.command} with {command_id=} has not received a "
+                    f"reply during at least {_COMMANDS_REPLIED_PERIOD} seconds. Still waiting."
+                )
+        for command_id in commands_to_remove:
+            self.commands_without_reply.pop(command_id)
 
     @property
     def connected(self) -> bool:
-        """Return True if connected to a server."""
-        return not (
-            self.reader is None
-            or self.writer is None
-            or self.reader.at_eof()
-            or self.writer.is_closing()
-        )
+        return self.client is not None and self.client.connected
 
     @staticmethod
     def get_config_pkg() -> str:
