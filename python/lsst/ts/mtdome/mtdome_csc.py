@@ -53,7 +53,10 @@ from .enums import (
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .mock_controller import MockMTDomeController
 
-_TIMEOUT = 20  # timeout [sec] to be used by this module.
+# Timeout [sec] used when creating a Client, a mock controller or when waiting
+# for a reply when sending a command to the controller.
+_TIMEOUT = 20
+
 _KEYS_TO_REMOVE = {
     "status",
     "operationalMode",  # Remove because gets emitted as an event
@@ -117,23 +120,17 @@ COMMANDS_DISABLED_FOR_COMMISSIONING = {
 }
 REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
 
-# All status methods and the intervals at which they are executed.
+# All status methods and the intervals at which they are executed. The boolean
+# indicates whther they are used for commissioning (True) or not. Note that all
+# methods always are used for unit testing.
 ALL_METHODS_AND_INTERVALS = {
-    ("statusAMCS", _AMCS_STATUS_PERIOD),
-    ("statusApSCS", _APSCS_STATUS_PERIOD),
-    ("statusLCS", _LCS_STATUS_PERIOD),
-    ("statusLWSCS", _LWSCS_STATUS_PERIOD),
-    ("statusMonCS", _MONCS_STATUS_PERIOD),
-    ("statusThCS", _THCS_STATUS_PERIOD),
-    ("check_all_commands_have_replies", _COMMANDS_REPLIED_PERIOD),
-}
-
-# The status methods and the intervals at which they are executed to be used
-# during commissioning. Not all can be used because the LabVIEW code of EIE
-# doesn't support all of them yet.
-METHODS_AND_INTERVALS_FOR_COMMISSIONING = {
-    ("statusAMCS", _AMCS_STATUS_PERIOD),
-    ("check_all_commands_have_replies", _COMMANDS_REPLIED_PERIOD),
+    "statusAMCS": (_AMCS_STATUS_PERIOD, True),
+    "statusApSCS": (_APSCS_STATUS_PERIOD, False),
+    "statusLCS": (_LCS_STATUS_PERIOD, False),
+    "statusLWSCS": (_LWSCS_STATUS_PERIOD, False),
+    "statusMonCS": (_MONCS_STATUS_PERIOD, False),
+    "statusThCS": (_THCS_STATUS_PERIOD, False),
+    "check_all_commands_have_replies": (_COMMANDS_REPLIED_PERIOD, True),
 }
 
 ALL_OPERATIONAL_MODE_COMMANDS = {
@@ -223,8 +220,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     override : `str`, optional
         Override of settings if ``initial_state`` is `State.DISABLED`
         or `State.ENABLED`.
-    mock_port : `int`
-        The port that the mock controller will listen on
 
     Notes
     -----
@@ -253,7 +248,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         initial_state: salobj.State = salobj.State.STANDBY,
         simulation_mode: int = ValidSimulationMode.NORMAL_OPERATIONS,
         override: str = "",
-        mock_port: typing.Optional[int] = None,
     ) -> None:
         self.client: tcpip.Client | None = None
         self.config: typing.Optional[SimpleNamespace] = None
@@ -261,7 +255,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.mock_ctrl: typing.Optional[
             MockMTDomeController
         ] = None  # mock controller, or None if not constructed
-        self.mock_port = mock_port  # mock port, or None if not used
 
         # Check supported commands to make sure of backward compatibility with
         # XML 12.0.
@@ -328,7 +321,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.current_moveAz_command = MoveAzCommandData()
 
         # Keep track of the commands that have been sent and that haven't been
-        # replied to yet.
+        # replied to yet. The key of the dict is the commandId for the commands
+        # that have been sent.
         self.commands_without_reply: dict[int, CommandTime] = {}
 
         self.log.info("DomeCsc constructed.")
@@ -355,8 +349,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             == ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER
         ):
             host = tcpip.DEFAULT_LOCALHOST
-            assert self.mock_port is not None
-            port = self.mock_port
+            port = self.config.port
         else:
             host = self.config.host
             port = self.config.port
@@ -418,10 +411,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def start_periodic_tasks(self) -> None:
         """Start all periodic tasks."""
         await self.cancel_periodic_tasks()
-        methods_and_intervals = ALL_METHODS_AND_INTERVALS
-        if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
-            methods_and_intervals = METHODS_AND_INTERVALS_FOR_COMMISSIONING
-        for method, interval in methods_and_intervals:
+        for method, interval_and_execute in ALL_METHODS_AND_INTERVALS.items():
+            interval, execute = interval_and_execute
+            if (
+                self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS
+                and execute is False
+            ):
+                continue
             func = getattr(self, method)
             self.periodic_tasks.append(
                 asyncio.create_task(self.one_periodic_task(func, interval))
@@ -442,8 +438,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             while True:
                 await method()
                 await asyncio.sleep(interval)
-        except Exception:
-            self.log.exception(f"one_periodic_task({method}) failed.")
+        except Exception as e:
+            self.log.exception(
+                f"one_periodic_task({method}) failed because of {e!r}. The task has stopped."
+            )
 
     async def disconnect(self) -> None:
         """Disconnect from the TCP/IP controller, if connected, and stop the
@@ -473,16 +471,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 self.simulation_mode
                 == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value
             )
-            if self.mock_port is not None:
-                host = tcpip.DEFAULT_LOCALHOST
-                port = self.mock_port
-            else:
-                assert self.config is not None
-                host = self.config.host
-                port = self.config.port
-            self.mock_ctrl = MockMTDomeController(
-                host=host, port=port, log=self.log, name="MockMTDomeController"
-            )
+            self.mock_ctrl = MockMTDomeController(port=0, log=self.log)
             await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
 
         except Exception as e:
@@ -561,13 +550,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         command_dict = dict(commandId=command_id, command=command, parameters=params)
         async with self.communication_lock:
-            try:
-                assert self.client is not None
-            except AssertionError as e:
+            if self.client is None:
                 await self.fault(
-                    code=3, report=f"Error writing command {command_dict}: {e}."
+                    code=3,
+                    report=f"Error writing command {command_dict}: self.client == None.",
                 )
-                raise
+                raise RuntimeError("self.client == None.")
 
             disabled_commands: set[str] = set()
             if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
@@ -579,12 +567,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     data = await asyncio.wait_for(
                         self.client.read_json(), timeout=_TIMEOUT
                     )
-                except (
-                    asyncio.exceptions.IncompleteReadError,
-                    asyncio.exceptions.TimeoutError,
-                    ConnectionError,
-                    AssertionError,
-                ) as e:
+                except Exception as e:
                     await self.fault(
                         code=3,
                         report=f"Error reading reply to command {command_dict}: {e}.",
@@ -603,16 +586,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
             if response != ResponseCode.OK:
                 self.log.error(f"Received ERROR {data}.")
-                match response:
-                    case ResponseCode.INCORRECT_PARAMETERS:
-                        error_message = f"{command=} has incorrect parameters."
-                    case ResponseCode.INCORRECT_SOURCE:
-                        error_message = f"{command=} was sent from an incorrect source."
-                    case ResponseCode.INCORRECT_STATE:
-                        error_message = f"{command=} was sent for an incorrect state."
-                    case _:
-                        error_message = f"{command=} is not supported."
-                raise ValueError(error_message)
+                error_suffix = {
+                    ResponseCode.INCORRECT_PARAMETERS: "has incorrect parameters.",
+                    ResponseCode.INCORRECT_SOURCE: "was sent from an incorrect source.",
+                    ResponseCode.INCORRECT_STATE: "was sent for an incorrect state.",
+                }.get(response, "is not supported.")
+                raise ValueError(f"{command=} {error_suffix}")
 
             return data
 

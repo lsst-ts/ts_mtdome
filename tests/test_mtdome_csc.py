@@ -30,7 +30,7 @@ from unittest import mock
 import numpy as np
 import pytest
 import yaml
-from lsst.ts import mtdome, salobj, tcpip, utils
+from lsst.ts import mtdome, salobj, utils
 from lsst.ts.idl.enums.MTDome import (
     EnabledState,
     MotionState,
@@ -58,15 +58,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         override: str = "",
         **kwargs: typing.Any,
     ) -> None:
-        mock_port = 0
-        if "mock_port" in kwargs:
-            mock_port = kwargs["mock_port"]
         return mtdome.MTDomeCsc(
             initial_state=initial_state,
             config_dir=config_dir,
             simulation_mode=simulation_mode,
             override=override,
-            mock_port=mock_port,
         )
 
     async def test_standard_state_transitions(self) -> None:
@@ -1411,7 +1407,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
             simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
-            mock_port=5000,
         ):
             await self.assert_next_summary_state(salobj.State.STANDBY)
             with pytest.raises(RuntimeError):
@@ -1421,9 +1416,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.assert_next_summary_state(salobj.State.FAULT)
 
     async def test_connection_lost(self) -> None:
+        with open(CONFIG_DIR / "_init.yaml") as f:
+            config = yaml.safe_load(f)
         mock_ctrl = mtdome.MockMTDomeController(
-            host=tcpip.DEFAULT_LOCALHOST,
-            port=0,
+            port=config["port"],
             log=logging.getLogger("CscTestCase"),
         )
         mock_ctrl.determine_current_tai = self.determine_current_tai
@@ -1433,7 +1429,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
             simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
-            mock_port=mock_ctrl.port,
         ):
             await self.assert_next_summary_state(salobj.State.STANDBY)
             await salobj.set_summary_state(

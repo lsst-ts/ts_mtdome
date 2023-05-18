@@ -45,6 +45,8 @@ class MockTestCase(tcpip.BaseOneClientServerTestCase):
     server_class = mtdome.MockMTDomeController
 
     async def asyncSetUp(self) -> None:
+        # This is set to `any` to allow for invalid command_id data types. The
+        # valid data type is int.
         self.command_id: typing.Any = -1
         self.data: typing.Optional[dict] = None
         self.log = logging.getLogger("MockTestCase")
@@ -55,8 +57,6 @@ class MockTestCase(tcpip.BaseOneClientServerTestCase):
     @contextlib.asynccontextmanager
     async def create_mtdome_controller(self) -> typing.AsyncGenerator[None, None]:
         async with self.create_server(
-            name="MockMTDomeController",
-            host=tcpip.DEFAULT_LOCALHOST,
             connect_callback=self.connect_callback,
         ) as self.mock_ctrl:
             # Replace the determine_current_tai method with a mock method so
