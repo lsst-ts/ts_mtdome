@@ -20,6 +20,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import contextlib
 import logging
 import math
 import pathlib
@@ -30,7 +31,7 @@ from unittest import mock
 import numpy as np
 import pytest
 import yaml
-from lsst.ts import mtdome, salobj, utils
+from lsst.ts import mtdome, salobj, tcpip, utils
 from lsst.ts.idl.enums.MTDome import (
     EnabledState,
     MotionState,
@@ -64,6 +65,22 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             simulation_mode=simulation_mode,
             override=override,
         )
+
+    @contextlib.asynccontextmanager
+    async def create_mock_controller(
+        self,
+        port: int,
+        include_command_id: bool = True,
+    ) -> typing.AsyncGenerator[tcpip.BaseClientOrServer, None]:
+        mock_ctrl = mtdome.MockMTDomeController(
+            port=port,
+            log=logging.getLogger("CscTestCase"),
+            include_command_id=include_command_id,
+        )
+        mock_ctrl.determine_current_tai = self.determine_current_tai
+        await asyncio.wait_for(mock_ctrl.start_task, timeout=STD_TIMEOUT)
+        yield mock_ctrl
+        await mock_ctrl.close()
 
     async def test_standard_state_transitions(self) -> None:
         async with self.make_csc(
@@ -1418,14 +1435,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_connection_lost(self) -> None:
         with open(CONFIG_DIR / "_init.yaml") as f:
             config = yaml.safe_load(f)
-        mock_ctrl = mtdome.MockMTDomeController(
-            port=config["port"],
-            log=logging.getLogger("CscTestCase"),
-        )
-        mock_ctrl.determine_current_tai = self.determine_current_tai
-        await asyncio.wait_for(mock_ctrl.start_task, timeout=STD_TIMEOUT)
 
-        async with self.make_csc(
+        async with self.create_mock_controller(
+            port=config["port"]
+        ) as mock_ctrl, self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
             simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
@@ -1471,6 +1484,26 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.csc.check_all_commands_have_replies()
             assert command_id not in self.csc.commands_without_reply
+
+    # TODO DM-39564: Remove this test as soon as the MTDome control software
+    #   always includes a commandId in its data.
+    async def test_no_command_id(self) -> None:
+        with open(CONFIG_DIR / "_init.yaml") as f:
+            config = yaml.safe_load(f)
+
+        async with self.create_mock_controller(
+            port=config["port"], include_command_id=False
+        ), self.make_csc(
+            initial_state=salobj.State.ENABLED,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
+        ):
+            await self.assert_next_summary_state(salobj.State.ENABLED)
+            while len(self.csc.lower_level_status) == 0:
+                await asyncio.sleep(0.1)
+            for key in self.csc.lower_level_status.keys():
+                lower_level_status = self.csc.lower_level_status[key]
+                assert "commandId" not in lower_level_status
 
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")

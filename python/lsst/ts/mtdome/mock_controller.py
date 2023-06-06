@@ -23,14 +23,11 @@ __all__ = ["MockMTDomeController"]
 
 import asyncio
 import logging
-import re
 import typing
 
 from lsst.ts import tcpip, utils
 from lsst.ts.mtdome import encoding_tools, mock_llc
 from lsst.ts.mtdome.enums import LlcName, ResponseCode
-
-COMMAND_ID_PATTERN = re.compile(r'"commandId": (.*?),')
 
 
 class MockMTDomeController(tcpip.OneClientReadLoopServer):
@@ -82,6 +79,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         port: int,
         log: logging.Logger,
         connect_callback: None | tcpip.ConnectCallbackType = None,
+        include_command_id: bool = True,
     ) -> None:
         super().__init__(
             port=port,
@@ -153,6 +151,10 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         # Keep track of the command ID.
         self._command_id = -1
 
+        # TODO DM-39564: Remove this bool and the use of it once the MTDome
+        #  control software always includes a commandId in its data.
+        self._include_command_id = include_command_id
+
         # Variables for the lower level components.
         self.amcs: typing.Optional[mock_llc.AmcsStatus] = None
         self.apscs: typing.Optional[mock_llc.ApscsStatus] = None
@@ -194,7 +196,11 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         data:
             The data to write.
         """
-        await self.write_json({"commandId": self._command_id, **data})
+        # TODO DM-39564: Remove this if completely once the MTDome control
+        #  software always includes a commandId in its data.
+        if self._include_command_id:
+            data = {"commandId": self._command_id, **data}
+        await self.write_json(data)
 
     async def read_and_dispatch(self) -> None:
         response = ResponseCode.OK
