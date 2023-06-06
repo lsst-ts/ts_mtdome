@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v1.12.10
+========
+* Make sure that all config schemas get loaded.
+* Make sure that the CSC can handle data from the control software without a commandId.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_tcpip 1.1
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 16.0
+
 v1.12.9
 =======
 * Add a 'commandId' to all commands and replies and handle commands with no replies after a certain time limit.
