@@ -41,7 +41,7 @@ SLOW_NETWORK_TIMEOUT = mtdome.MockMTDomeController.SLOW_NETWORK_SLEEP + 1.0
 INDEX_ITER = utils.index_generator()
 
 
-class MockTestCase(tcpip.BaseOneClientServerTestCase):
+class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
     server_class = mtdome.MockMTDomeController
 
     async def asyncSetUp(self) -> None:
@@ -55,9 +55,12 @@ class MockTestCase(tcpip.BaseOneClientServerTestCase):
         pass
 
     @contextlib.asynccontextmanager
-    async def create_mtdome_controller(self) -> typing.AsyncGenerator[None, None]:
+    async def create_mtdome_controller(
+        self, include_command_id: bool = True
+    ) -> typing.AsyncGenerator[None, None]:
         async with self.create_server(
             connect_callback=self.connect_callback,
+            include_command_id=include_command_id,
         ) as self.mock_ctrl:
             # Replace the determine_current_tai method with a mock method so
             # that the start_tai value on the mock_ctrl object can be set to
@@ -1422,6 +1425,20 @@ class MockTestCase(tcpip.BaseOneClientServerTestCase):
         async with self.create_mtdome_controller(), self.create_client():
             await self.write(
                 command_id_to_use="1.1",
+                command="moveAz",
+                parameters={"position": 0.1, "velocity": 0.1},
+            )
+            self.data = await self.read(assert_command_id=False)
+            assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
+            assert self.data["timeout"] == -1
+
+    # TODO DM-39564: Remove this test as soon as the MTDome control software
+    #   always includes a commandId in its data.
+    async def test_no_command_id(self) -> None:
+        async with self.create_mtdome_controller(
+            include_command_id=False
+        ), self.create_client():
+            await self.write(
                 command="moveAz",
                 parameters={"position": 0.1, "velocity": 0.1},
             )
