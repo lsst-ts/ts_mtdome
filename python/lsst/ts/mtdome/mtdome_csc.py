@@ -401,7 +401,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.info(f"Setting AMCS maximum jerk to {jmax}.")
         jmax_dict: MaxValueConfigType = {"target": "jmax", "setting": [jmax]}
         settings = [vmax_dict, amax_dict, jmax_dict]
-        await self.config_llcs(system=LlcName.AMCS, settings=settings)
+        await self.config_llcs(system=LlcName.AMCS.value, settings=settings)
 
     async def cancel_periodic_tasks(self) -> None:
         """Cancel all periodic tasks."""
@@ -1033,9 +1033,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         """
         self.log.debug("config_llcs")
-        if system == LlcName.AMCS:
+        if system == LlcName.AMCS.value:
             converted_settings = self.amcs_limits.validate(settings)
-        elif system == LlcName.LWSCS:
+        elif system == LlcName.LWSCS.value:
             converted_settings = self.lwscs_limits.validate(settings)
         else:
             raise ValueError(f"Encountered unsupported {system=!s}")
@@ -1081,7 +1081,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the AMCS lower
         level component.
         """
-        await self.request_and_send_llc_status(LlcName.AMCS, self.tel_azimuth)
+        await self.request_and_send_llc_status(LlcName.AMCS.value, self.tel_azimuth)
 
     async def statusApSCS(self) -> None:
         """ApSCS status command not to be executed by SAL.
@@ -1089,7 +1089,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the ApSCS lower
         level component.
         """
-        await self.request_and_send_llc_status(LlcName.APSCS, self.tel_apertureShutter)
+        await self.request_and_send_llc_status(
+            LlcName.APSCS.value, self.tel_apertureShutter
+        )
 
     async def statusLCS(self) -> None:
         """LCS status command not to be executed by SAL.
@@ -1097,7 +1099,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the LCS lower
         level component.
         """
-        await self.request_and_send_llc_status(LlcName.LCS, self.tel_louvers)
+        await self.request_and_send_llc_status(LlcName.LCS.value, self.tel_louvers)
 
     async def statusLWSCS(self) -> None:
         """LWSCS status command not to be executed by SAL.
@@ -1105,7 +1107,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the LWSCS lower
         level component.
         """
-        await self.request_and_send_llc_status(LlcName.LWSCS, self.tel_lightWindScreen)
+        await self.request_and_send_llc_status(
+            LlcName.LWSCS.value, self.tel_lightWindScreen
+        )
 
     async def statusMonCS(self) -> None:
         """MonCS status command not to be executed by SAL.
@@ -1113,7 +1117,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the MonCS lower
         level component.
         """
-        await self.request_and_send_llc_status(LlcName.MONCS, self.tel_interlocks)
+        await self.request_and_send_llc_status(LlcName.MONCS.value, self.tel_interlocks)
 
     async def statusThCS(self) -> None:
         """ThCS status command not to be executed by SAL.
@@ -1121,7 +1125,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the ThCS lower
         level component.
         """
-        await self.request_and_send_llc_status(LlcName.THCS, self.tel_thermal)
+        await self.request_and_send_llc_status(LlcName.THCS.value, self.tel_thermal)
 
     async def _check_errors_and_send_events_az(
         self, llc_status: dict[str, typing.Any]
@@ -1246,14 +1250,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 )
 
     async def request_and_send_llc_status(
-        self, llc_name: LlcName, topic: SimpleNamespace
+        self, llc_name: str, topic: SimpleNamespace
     ) -> None:
         """Generic method for retrieving the status of a lower level component
         and publish that on the corresponding telemetry topic.
 
         Parameters
         ----------
-        llc_name: `LlcName`
+        llc_name: `str`
             The name of the lower level component.
         topic: SAL topic
             The SAL topic to publish the telemetry to.
@@ -1281,7 +1285,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # config_llcs command. Fortunately salobj only sends events if the
         # values have changed so it is safe to do this without overflowing the
         # EFD with events.
-        if llc_name == LlcName.AMCS:
+        if llc_name == LlcName.AMCS.value:
             applied_configuration = status[llc_name]["appliedConfiguration"]
             jmax = math.degrees(applied_configuration["jmax"])
             amax = math.degrees(applied_configuration["amax"])
@@ -1296,19 +1300,22 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         telemetry_in_degrees: dict[str, typing.Any] = {}
         telemetry_in_radians: dict[str, typing.Any] = status[llc_name]
         for key in telemetry_in_radians.keys():
-            if key in _KEYS_IN_RADIANS and llc_name in [LlcName.AMCS, LlcName.LWSCS]:
+            if key in _KEYS_IN_RADIANS and llc_name in [
+                LlcName.AMCS.value,
+                LlcName.LWSCS.value,
+            ]:
                 telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
                 # Compensate for the dome azimuth offset. This is done here and
                 # not one level higher since angle_wrap_nonnegative only
                 # accepts Angle or a float in degrees and this way the
                 # conversion from radians to degrees only is done in one line
                 # of code.
-                if key in _AMCS_KEYS_OFFSET and llc_name == LlcName.AMCS:
+                if key in _AMCS_KEYS_OFFSET and llc_name == LlcName.AMCS.value:
                     offset_value = utils.angle_wrap_nonnegative(
                         telemetry_in_degrees[key] - DOME_AZIMUTH_OFFSET
                     ).degree
                     telemetry_in_degrees[key] = offset_value
-            elif key in _APSCS_LIST_KEYS_IN_RADIANS and llc_name == LlcName.APSCS:
+            elif key in _APSCS_LIST_KEYS_IN_RADIANS and llc_name == LlcName.APSCS.value:
                 # APSCS key values that are lists can be converted from radians
                 # to degrees using numpy.
                 telemetry_in_degrees[key] = np.degrees(
@@ -1331,11 +1338,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # DM-26374: Check for errors and send the events.
         llc_status = status[llc_name]["status"]
-        if llc_name == LlcName.AMCS:
+        if llc_name == LlcName.AMCS.value:
             await self._check_errors_and_send_events_az(llc_status)
-        elif llc_name == LlcName.LWSCS:
+        elif llc_name == LlcName.LWSCS.value:
             await self._check_errors_and_send_events_el(llc_status)
-        elif llc_name == LlcName.APSCS:
+        elif llc_name == LlcName.APSCS.value:
             await self._check_errors_and_send_events_shutter(llc_status)
 
     def remove_keys_from_dict(

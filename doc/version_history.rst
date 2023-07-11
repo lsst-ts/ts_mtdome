@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v1.12.11
+========
+* Explicitly use the value of string enums.
+  This apparently is necessary for Python 3.11.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_tcpip 1.1
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 16.0
+
 v1.12.10
 ========
 * Make sure that all config schemas get loaded.
