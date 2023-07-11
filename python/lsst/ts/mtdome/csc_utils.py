@@ -35,6 +35,7 @@ def support_command(command_name: str) -> bool:
     `bool`
         True if the CSC interface defines the command, False otherwise.
     """
+    # TODO replace with salobj ComponentInfo.
     idl_metadata = salobj.parse_idl(
         "MTDome", idl.get_idl_dir() / "sal_revCoded_MTDome.idl"
     )

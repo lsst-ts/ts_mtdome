@@ -264,40 +264,40 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         """Request the status from the AMCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.amcs, LlcName.AMCS)
+        await self.request_and_send_status(self.amcs, LlcName.AMCS.value)
 
     async def status_apscs(self) -> None:
         """Request the status from the ApSCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.apscs, LlcName.APSCS)
+        await self.request_and_send_status(self.apscs, LlcName.APSCS.value)
 
     async def status_lcs(self) -> None:
         """Request the status from the LCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.lcs, LlcName.LCS)
+        await self.request_and_send_status(self.lcs, LlcName.LCS.value)
 
     async def status_lwscs(self) -> None:
         """Request the status from the LWSCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.lwscs, LlcName.LWSCS)
+        await self.request_and_send_status(self.lwscs, LlcName.LWSCS.value)
 
     async def status_moncs(self) -> None:
         """Request the status from the MonCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.moncs, LlcName.MONCS)
+        await self.request_and_send_status(self.moncs, LlcName.MONCS.value)
 
     async def status_thcs(self) -> None:
         """Request the status from the ThCS lower level component and write it
         in reply.
         """
-        await self.request_and_send_status(self.thcs, LlcName.THCS)
+        await self.request_and_send_status(self.thcs, LlcName.THCS.value)
 
     async def request_and_send_status(
-        self, llc: mock_llc.BaseMockStatus, llc_name: LlcName
+        self, llc: mock_llc.BaseMockStatus, llc_name: str
     ) -> None:
         """Request the status of the given Lower Level Component and write it
         to the requester.
@@ -306,7 +306,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         ----------
         llc: `BaseMockStatus`
             The Lower Level Component status to request the status from.
-        llc_name: `LlcName`
+        llc_name: `str`
             The name of the Lower Level Component.
         """
         self.log.debug("Determining current TAI.")
@@ -501,7 +501,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             It is assumed that all configuration parameters are present and
             that their values represent the value to set even unchanged.
         """
-        if system == LlcName.AMCS:
+        if system == LlcName.AMCS.value:
             for field in settings:
                 if field["target"] in ("jmax", "amax", "vmax"):
                     # DM-25758: All param values are passed on as arrays so in
@@ -509,7 +509,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
                     # array.
                     assert self.amcs is not None
                     setattr(self.amcs, field["target"], field["setting"][0])
-        elif system == LlcName.LWSCS:
+        elif system == LlcName.LWSCS.value:
             for field in settings:
                 if field["target"] in ("jmax", "amax", "vmax"):
                     # DM-25758: All param values are passed on as arrays so in
