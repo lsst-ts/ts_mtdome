@@ -33,7 +33,6 @@ else:
 
 from . import llc_configuration_limits, mock_llc, schema
 from .config_schema import CONFIG_SCHEMA
-from .csc_utils import *
 from .enums import *
 from .mock_controller import *
 from .mtdome_csc import *

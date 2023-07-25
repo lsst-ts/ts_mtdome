@@ -177,10 +177,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         await self.assert_next_sample(
             topic=self.remote.evt_elEnabled, state=EnabledState.ENABLED
         )
-        if mtdome.support_command("evt_shutterEnabled"):
-            await self.assert_next_sample(
-                topic=self.remote.evt_shutterEnabled, state=EnabledState.ENABLED
-            )
+        await self.assert_next_sample(
+            topic=self.remote.evt_shutterEnabled, state=EnabledState.ENABLED
+        )
         await self.assert_next_sample(topic=self.remote.evt_brakesEngaged, brakes=0)
         await self.assert_next_sample(topic=self.remote.evt_interlocks, interlocks=0)
         await self.assert_next_sample(
@@ -1044,21 +1043,17 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             current_tai = self.csc.mock_ctrl.current_tai + 0.1
             az_drives_in_error = [1, 1, 0, 0, 0]
             await self.csc.mock_ctrl.amcs.set_fault(current_tai, az_drives_in_error)
-            if mtdome.support_command("resetDrivesShutter"):
-                aps_drives_in_error = [1, 1, 0, 0]
-                await self.csc.mock_ctrl.apscs.set_fault(
-                    current_tai, aps_drives_in_error
-                )
+            aps_drives_in_error = [1, 1, 0, 0]
+            await self.csc.mock_ctrl.apscs.set_fault(current_tai, aps_drives_in_error)
             self.csc.mock_ctrl.amcs._commanded_motion_state = MotionState.ERROR
 
             # Make sure that the Enabled events are sent.
             await self.assert_next_sample(
                 topic=self.remote.evt_azEnabled, state=EnabledState.FAULT
             )
-            if mtdome.support_command("evt_shutterEnabled"):
-                await self.assert_next_sample(
-                    topic=self.remote.evt_shutterEnabled, state=EnabledState.FAULT
-                )
+            await self.assert_next_sample(
+                topic=self.remote.evt_shutterEnabled, state=EnabledState.FAULT
+            )
 
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
@@ -1073,9 +1068,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             az_reset = [1, 1, 0, 0, 0]
             await self.remote.cmd_resetDrivesAz.set_start(reset=az_reset)
             await self.assert_command_replied(cmd="resetDrivesAz")
-            if mtdome.support_command("resetDrivesShutter"):
-                aps_reset = [1, 1, 0, 0]
-                await self.remote.cmd_resetDrivesShutter.set_start(reset=aps_reset)
+            aps_reset = [1, 1, 0, 0]
+            await self.remote.cmd_resetDrivesShutter.set_start(reset=aps_reset)
             await self.assert_command_replied(cmd="resetDrivesShutter")
             await self.remote.cmd_exitFault.set_start()
             await self.assert_command_replied(cmd="exitFault")
@@ -1084,10 +1078,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.assert_next_sample(
                 topic=self.remote.evt_azEnabled, state=EnabledState.ENABLED
             )
-            if mtdome.support_command("evt_shutterEnabled"):
-                await self.assert_next_sample(
-                    topic=self.remote.evt_shutterEnabled, state=EnabledState.ENABLED
-                )
+            await self.assert_next_sample(
+                topic=self.remote.evt_shutterEnabled, state=EnabledState.ENABLED
+            )
 
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
