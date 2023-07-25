@@ -38,7 +38,6 @@ from lsst.ts.idl.enums.MTDome import (
 
 from . import __version__
 from .config_schema import CONFIG_SCHEMA
-from .csc_utils import support_command
 from .enums import (
     POSITION_TOLERANCE,
     ZERO_VELOCITY_TOLERANCE,
@@ -255,13 +254,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.mock_ctrl: typing.Optional[
             MockMTDomeController
         ] = None  # mock controller, or None if not constructed
-
-        # Check supported commands to make sure of backward compatibility with
-        # XML 12.0.
-        if support_command("resetDrivesShutter"):
-            setattr(self, "do_resetDrivesShutter", self._do_resetDrivesShutter)
-        if support_command("home"):
-            setattr(self, "do_home", self._do_home)
 
         super().__init__(
             name="MTDome",
@@ -573,9 +565,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         report=f"Error reading reply to command {command_dict}: {e}.",
                     )
                     raise
-                # TODO DM-39564: Remove the if but keep the code inside the if
-                #  as soon as the MTDome control software always includes a
-                #  commandId in its data.
+                # TODO DM-39564: Remove the if amd else but keep the code
+                #  inside the if as soon as the MTDome control software always
+                #  includes a commandId in its data.
                 if "commandId" in data:
                     received_command_id = data["commandId"]
                     if received_command_id in self.commands_without_reply:
@@ -584,6 +576,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         self.log.warning(
                             f"Ignoring unknown commandId {received_command_id}."
                         )
+                else:
+                    # To be on the safe side, all commands_without_reply
+                    # entries for the current command are removed to suppress
+                    # unneccesary warnings.
+                    self.commands_without_reply = {
+                        cmd_id: self.commands_without_reply[cmd_id]
+                        for cmd_id in self.commands_without_reply
+                        if self.commands_without_reply[cmd_id].command != command
+                    }
             else:
                 data = REPLY_DATA_FOR_DISABLED_COMMANDS
             response = data["response"]
@@ -961,7 +962,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(f"do_resetDrivesAz: reset={reset_ints}")
         await self.write_then_read_reply(command="resetDrivesAz", reset=reset_ints)
 
-    async def _do_resetDrivesShutter(self, data: SimpleNamespace) -> None:
+    async def do_resetDrivesShutter(self, data: SimpleNamespace) -> None:
         """Reset one or more Aperture Shutter drives. This is necessary when
         exiting from FAULT state without going to Degraded Mode since the
         drives don't reset themselves.
@@ -990,7 +991,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         await self.write_then_read_reply(command="calibrateAz")
 
-    async def _do_home(self, data: SimpleNamespace) -> None:
+    async def do_home(self, data: SimpleNamespace) -> None:
         """Search the home position of the Aperture Shutter, which is the
         closed position.
 
