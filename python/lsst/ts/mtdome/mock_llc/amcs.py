@@ -156,7 +156,7 @@ class AmcsStatus(BaseMockStatus):
             "timestampUTC": current_tai,
         }
 
-        self.log.debug(f"amcs_state = {self.llc_status}")
+        self.log.debug(f"{current_tai=}, amcs_state = {self.llc_status}")
 
     async def moveAz(self, position: float, velocity: float, start_tai: float) -> float:
         """Move the dome at maximum velocity to the specified azimuth. Azimuth
@@ -182,7 +182,7 @@ class AmcsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        self.log.debug(f"moveAz with position={position} and velocity={velocity}")
+        self.log.debug(f"moveAz with {start_tai=}, {position=} and {velocity=}")
         self.position_commanded = position
         duration = self.azimuth_motion.set_target_position_and_velocity(
             start_tai=start_tai,

@@ -253,6 +253,7 @@ class AzimuthMotion(BaseLlcMotionWithCrawl):
             elif self._current_motion_state in [
                 MotionState.PARKED,
                 InternalMotionState.STATIONARY,
+                MotionState.STOPPED,
             ] and self._commanded_motion_state in [
                 MotionState.MOVING,
                 MotionState.CRAWLING,
@@ -298,6 +299,56 @@ class AzimuthMotion(BaseLlcMotionWithCrawl):
 
         self._current_motion_state = motion_state
         return position, velocity, motion_state
+
+    def set_target_position_and_velocity(
+        self,
+        start_tai: float,
+        end_position: float,
+        crawl_velocity: float,
+        motion_state: MotionState,
+    ) -> float:
+        """Sets start position and then call the super method.
+
+        Return the duration provided by or raise the exception raised by the
+        super method. No aceleration is taken into account.
+
+        Parameters
+        ----------
+        start_tai: `float`
+            The TAI time, unix seconds, at which the command was issued. To
+            model the real dome, this should be the current time. However, for
+            unit tests it can be convenient to use other values.
+        end_position: `float`
+            The target position.
+        crawl_velocity: `float`
+            The crawl_velocity.
+        motion_state: `MotionState`
+            MOVING or CRAWLING. The value is not checked.
+
+        Returns
+        -------
+        duration: `float`
+            The duration of the move.
+
+        Raises
+        ------
+        ValueError
+            If the target position falls outside the range
+            [min position, max position] or if abs(crawl_velocity) > max_speed.
+
+        """
+
+        curr_position, _, _ = self.get_position_velocity_and_motion_state(tai=start_tai)
+        self._start_position = curr_position
+
+        duration = super().set_target_position_and_velocity(
+            start_tai=start_tai,
+            end_position=end_position,
+            crawl_velocity=crawl_velocity,
+            motion_state=motion_state,
+        )
+        self._end_tai = start_tai + duration
+        return duration
 
     def park(self, start_tai: float) -> float:
         """Parks the dome.

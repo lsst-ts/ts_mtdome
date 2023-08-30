@@ -41,7 +41,7 @@ class BaseLlcMotion(ABC):
         self._start_position = start_position
         # This defines the end position of the move, after which all motion
         # will stop. Ignored in case of a crawl command.
-        self._end_position = 0.0
+        self._end_position = start_position
         # This defines the minimum allowed position.
         self._min_position = min_position
         # This defines the maximum allowed position.

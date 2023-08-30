@@ -157,6 +157,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         self.mock_ctrl.current_tai = _CURRENT_TAI
         self.mock_ctrl.amcs.azimuth_motion._start_tai = self.mock_ctrl.current_tai
         self.mock_ctrl.amcs.azimuth_motion._start_position = start_position
+        self.mock_ctrl.amcs.azimuth_motion._end_position = start_position
         await self.write(
             command="moveAz",
             parameters={"position": target_position, "velocity": target_velocity},
@@ -230,6 +231,53 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 MotionState.CRAWLING,
                 math.radians(10.03),
                 crawl_velocity=target_velocity,
+            )
+
+    async def test_moveAz_zero_pos_pos_in_two_steps(self) -> None:
+        async with self.create_mtdome_controller(), self.create_client():
+            # Test moving the AMCS to a position in positive direction starting
+            # from position 0 and ending in velocity == 0.0
+            start_position = 0
+            target_position_1 = math.radians(5.0)
+            target_position_2 = math.radians(10.0)
+            target_velocity = 0.0
+            await self.prepare_amcs_move(
+                start_position,
+                target_position_1,
+                target_velocity,
+            )
+
+            # Make the amcs rotate to the first target position and check both
+            # status and position at the specified times
+            await self.verify_amcs_move(
+                START_MOTORS_ADD_DURATION + 1.0,
+                MotionState.MOVING,
+                math.radians(1.5),
+            )
+            await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(3.0))
+            await self.verify_amcs_move(
+                2.0,
+                MotionState.STOPPED,
+                math.radians(5.0),
+                crawl_velocity=target_velocity,
+            )
+
+            # Make the amcs rotate to the second target position and check both
+            # status and position at the specified times again
+            await self.write(
+                command="moveAz",
+                parameters={"position": target_position_2, "velocity": target_velocity},
+            )
+            self.data = await self.read()
+            await self.verify_amcs_move(
+                2.0,
+                MotionState.MOVING,
+                math.radians(8.0),
+            )
+            await self.verify_amcs_move(
+                4.0,
+                MotionState.STOPPED,
+                math.radians(10.0),
             )
 
     async def test_moveAz_zero_pos_neg(self) -> None:
