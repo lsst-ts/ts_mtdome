@@ -6,6 +6,18 @@
 Version History
 ###############
 
+v1.12.13
+========
+* Make azimuth rotation remember its position.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_tcpip 1.1
+* ts_utils 1.0
+* IDL file for MTDome from ts_xml 16.0
+
 v1.12.12
 ========
 * Suppress "command has not received a reply" warnings.
