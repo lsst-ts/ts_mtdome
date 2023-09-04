@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import abc
 import math
 
 from lsst.ts.idl.enums.MTDome import MotionState
@@ -26,7 +27,7 @@ from lsst.ts.idl.enums.MTDome import MotionState
 from .base_llc_motion import BaseLlcMotion
 
 
-class BaseLlcMotionWithCrawl(BaseLlcMotion):
+class BaseLlcMotionWithCrawl(BaseLlcMotion, abc.ABC):
     def __init__(
         self,
         start_position: float,

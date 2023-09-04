@@ -127,12 +127,14 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         expected_duration: float,
         expected_states: list[ExpectedState],
         start_tai: float,
+        prepare_azimuth_motion: bool = True,
     ) -> None:
-        await self.prepare_azimuth_motion(
-            start_position=start_position,
-            max_speed=max_speed,
-            start_tai=start_tai,
-        )
+        if prepare_azimuth_motion:
+            await self.prepare_azimuth_motion(
+                start_position=start_position,
+                max_speed=max_speed,
+                start_tai=start_tai,
+            )
         await self.verify_duration(
             target_position,
             crawl_velocity,
@@ -175,6 +177,48 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
             expected_duration=expected_duration,
             expected_states=expected_states,
             start_tai=start_tai,
+        )
+
+    async def test_move_zero_ten_pos_in_two_steps(self) -> None:
+        """Test the AzimuthMotion when moving from position 0 to
+        position 10 degrees in two steps and then stop.
+        """
+        start_position = 0.0
+        start_tai = START_TAI
+        target_position_1 = 5.0
+        target_position_2 = 10.0
+        crawl_velocity = 0.0
+        expected_duration = (
+            START_MOTORS_ADD_DURATION + (target_position_1 - start_position) / MAX_SPEED
+        )
+        expected_states_1 = [
+            ExpectedState(1.0, 4.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(1.25, 5.0, 0.0, MotionState.STOPPED),
+        ]
+        expected_states_2 = [
+            ExpectedState(2.0, 8.0, MAX_SPEED, MotionState.MOVING),
+            ExpectedState(3.0, 10.0, 0.0, MotionState.STOPPED),
+        ]
+        await self.verify_azimuth(
+            commanded_state=MotionState.MOVING,
+            start_position=start_position,
+            target_position=target_position_1,
+            max_speed=MAX_SPEED,
+            crawl_velocity=crawl_velocity,
+            expected_duration=expected_duration,
+            expected_states=expected_states_1,
+            start_tai=start_tai,
+        )
+        await self.verify_azimuth(
+            commanded_state=MotionState.MOVING,
+            start_position=target_position_1,
+            target_position=target_position_2,
+            max_speed=MAX_SPEED,
+            crawl_velocity=crawl_velocity,
+            expected_duration=1.25,
+            expected_states=expected_states_2,
+            start_tai=start_tai + expected_duration,
+            prepare_azimuth_motion=False,
         )
 
     async def test_move_zero_ten_neg(self) -> None:
