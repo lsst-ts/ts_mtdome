@@ -192,6 +192,12 @@ This is the MonCS status schema.
    :language: python
 
 
+This is the RAD status schema.
+
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/rad_status.py
+   :language: python
+
+
 This is the ThCS status schema.
 
 .. literalinclude:: ../python/lsst/ts/mtdome/schema/thcs_status.py
