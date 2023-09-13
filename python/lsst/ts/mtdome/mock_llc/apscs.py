@@ -73,10 +73,10 @@ class ApscsStatus(BaseMockStatus):
         self.end_tai = 0.0
 
         # Variables holding the status of the mock Aperture Shutter
-        self.status = np.full(NUM_SHUTTERS, MotionState.CLOSED.name, dtype=object)
+        self.status = np.full(NUM_SHUTTERS, MotionState.CLOSED, dtype=object)
         self.messages = DEFAULT_MESSAGES
         self.position_actual = np.zeros(NUM_SHUTTERS, dtype=float)
-        self.position_commanded = 0.0
+        self.position_commanded = np.zeros(NUM_SHUTTERS, dtype=float)
         self.drive_torque_actual = np.zeros(
             NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER, dtype=float
         )
@@ -135,7 +135,7 @@ class ApscsStatus(BaseMockStatus):
                 "operationalMode": self.operational_mode.name,
             },
             "positionActual": self.position_actual.tolist(),
-            "positionCommanded": self.position_commanded,
+            "positionCommanded": self.position_commanded.tolist(),
             "driveTorqueActual": self.drive_torque_actual.tolist(),
             "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
             "driveCurrentActual": self.drive_current_actual.tolist(),
@@ -162,13 +162,13 @@ class ApscsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        self.position_commanded = OPEN_POSITION
+        self.position_commanded = np.full(NUM_SHUTTERS, OPEN_POSITION, dtype=float)
         durations = []
         for i in range(NUM_SHUTTERS):
             durations.append(
                 self.shutter_motion[i].set_target_position_and_velocity(
                     start_tai=start_tai,
-                    end_position=self.position_commanded,
+                    end_position=self.position_commanded[i],
                     motion_state=MotionState.MOVING,
                 )
             )
@@ -189,13 +189,13 @@ class ApscsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        self.position_commanded = CLOSED_POSITION
+        self.position_commanded = np.full(NUM_SHUTTERS, CLOSED_POSITION, dtype=float)
         durations = []
         for i in range(NUM_SHUTTERS):
             durations.append(
                 self.shutter_motion[i].set_target_position_and_velocity(
                     start_tai=start_tai,
-                    end_position=self.position_commanded,
+                    end_position=self.position_commanded[i],
                     motion_state=MotionState.MOVING,
                 )
             )

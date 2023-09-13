@@ -96,7 +96,14 @@ registry["ApSCS"] = json.loads(
           ]
         },
         "positionCommanded": {
-          "type": "number"
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "type": "number"
+            }
+          ]
         },
         "driveTorqueActual": {
           "type": "array",
