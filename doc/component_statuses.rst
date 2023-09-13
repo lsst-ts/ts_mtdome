@@ -97,3 +97,7 @@ MonCS
     * CONFIGURING: executing the configure command
     * ERROR: an error has occurred indicated by the provided error code (TBD)
     * NORMAL: the GIS system is normal
+
+RAD
+
+    * No statuses because cannot be commanded.

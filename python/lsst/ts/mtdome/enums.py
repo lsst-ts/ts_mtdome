@@ -62,6 +62,7 @@ class LlcName(str, enum.Enum):
     LCS = "LCS"
     LWSCS = "LWSCS"
     MONCS = "MonCS"
+    RAD = "RAD"
     THCS = "ThCS"
 
 
