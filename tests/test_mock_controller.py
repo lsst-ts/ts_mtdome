@@ -923,26 +923,26 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             await self.validate_apscs(
                 status=MotionState.MOVING,
                 position_actual=[0.0, 0.0],
-                position_commanded=100.0,
+                position_commanded=[100.0, 100.0],
             )
             self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 5.0
             await self.validate_apscs(
                 status=MotionState.MOVING,
                 position_actual=[50.0, 50.0],
-                position_commanded=100.0,
+                position_commanded=[100.0, 100.0],
             )
             self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 10.0
             await self.validate_apscs(
                 status=MotionState.STOPPED,
                 position_actual=[100.0, 100.0],
-                position_commanded=100.0,
+                position_commanded=[100.0, 100.0],
             )
 
     async def validate_apscs(
         self,
         status: MotionState = None,
         position_actual: list[float] | None = None,
-        position_commanded: float | None = None,
+        position_commanded: list[float] | None = None,
     ) -> None:
         await self.write(command="statusApSCS", parameters={})
         self.data = await self.read()
@@ -970,7 +970,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             await self.validate_apscs(
                 status=MotionState.STOPPED,
                 position_actual=[0.0, 0.0],
-                position_commanded=0.0,
+                position_commanded=[0.0, 0.0],
             )
 
     async def test_stopShutter(self) -> None:
@@ -996,7 +996,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             await self.validate_apscs(
                 status=MotionState.STOPPED,
                 position_actual=[2.0, 2.0],
-                position_commanded=100.0,
+                position_commanded=[100.0, 100.0],
             )
 
     async def validate_operational_mode(

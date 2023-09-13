@@ -132,6 +132,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             "statusLCS": self.status_lcs,
             "statusLWSCS": self.status_lwscs,
             "statusMonCS": self.status_moncs,
+            "statusRAD": self.status_rad,
             "statusThCS": self.status_thcs,
             "stopAz": self.stop_az,
             "stopEl": self.stop_el,
@@ -161,6 +162,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         self.lcs: typing.Optional[mock_llc.LcsStatus] = None
         self.lwscs: typing.Optional[mock_llc.LwscsStatus] = None
         self.moncs: typing.Optional[mock_llc.MoncsStatus] = None
+        self.rad: typing.Optional[mock_llc.RadStatus] = None
         self.thcs: typing.Optional[mock_llc.ThcsStatus] = None
 
     async def start(self, **kwargs: typing.Any) -> None:
@@ -183,6 +185,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         self.lcs = mock_llc.LcsStatus()
         self.lwscs = mock_llc.LwscsStatus(start_tai=self.current_tai)
         self.moncs = mock_llc.MoncsStatus()
+        self.rad = mock_llc.RadStatus()
         self.thcs = mock_llc.ThcsStatus()
 
     async def write_reply(self, **data: typing.Any) -> None:
@@ -289,6 +292,12 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         in reply.
         """
         await self.request_and_send_status(self.moncs, LlcName.MONCS.value)
+
+    async def status_rad(self) -> None:
+        """Request the status from the RAD lower level component and write it
+        in reply.
+        """
+        await self.request_and_send_status(self.rad, LlcName.RAD.value)
 
     async def status_thcs(self) -> None:
         """Request the status from the ThCS lower level component and write it

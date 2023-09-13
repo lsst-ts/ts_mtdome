@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v1.13.0
+=======
+* Set ApsCS positionCommanded to two values.
+* Add RAD status.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_tcpip 1.1
+* ts_utils 1.0
+* ts_xml 20.0
+
 v1.12.13
 ========
 * Make azimuth rotation remember its position.

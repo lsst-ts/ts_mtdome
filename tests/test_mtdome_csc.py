@@ -194,6 +194,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             | SubSystemId.LCS
             | SubSystemId.THCS
             | SubSystemId.MONCS
+            | SubSystemId.RAD
         )
         await self.validate_operational_mode(
             operational_mode=OperationalMode.NORMAL, sub_system_ids=sub_system_ids
@@ -1309,11 +1310,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             SubSystemId.LCS: self.csc.statusLCS,
             SubSystemId.LWSCS: self.csc.statusLWSCS,
             SubSystemId.MONCS: self.csc.statusMonCS,
+            SubSystemId.RAD: self.csc.statusRAD,
             SubSystemId.THCS: self.csc.statusThCS,
         }
         events_to_check = []
         for sub_system_id in SubSystemId:
             if sub_system_id & sub_system_ids:
+                logging.debug(f"WOUTER {sub_system_id=}, {sub_system_ids=}")
                 func = status_dict[sub_system_id]
                 name = mtdome.LlcNameDict[sub_system_id]
                 await func()

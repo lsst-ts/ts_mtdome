@@ -27,6 +27,7 @@ from .command import *
 from .lcs_status import *
 from .lwscs_status import *
 from .moncs_status import *
+from .rad_status import *
 from .registry import *
 from .response import *
 from .thcs_status import *

@@ -26,4 +26,5 @@ from .lcs import *
 from .lwscs import *
 from .mock_motion import *
 from .moncs import *
+from .rad import *
 from .thcs import *

@@ -63,6 +63,7 @@ The units are `AstroPy Units`_.
     "statusLCS"
     "statusLWSCS"
     "statusMonCS"
+    "statusRAD"
     "statusThCS"
     "stopAz"
     "stopEl"
