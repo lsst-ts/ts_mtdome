@@ -92,6 +92,7 @@ _APSCS_STATUS_PERIOD = 2.0
 _LCS_STATUS_PERIOD = 2.0
 _LWSCS_STATUS_PERIOD = 2.0
 _MONCS_STATUS_PERIOD = 2.0
+_RAD_STATUS_PERIOD = 2.0
 _THCS_STATUS_PERIOD = 2.0
 
 # Polling period [sec] for the task that checks if all commands have been
@@ -128,6 +129,7 @@ ALL_METHODS_AND_INTERVALS = {
     "statusLCS": (_LCS_STATUS_PERIOD, False),
     "statusLWSCS": (_LWSCS_STATUS_PERIOD, False),
     "statusMonCS": (_MONCS_STATUS_PERIOD, False),
+    "statusRAD": (_RAD_STATUS_PERIOD, False),
     "statusThCS": (_THCS_STATUS_PERIOD, False),
     "check_all_commands_have_replies": (_COMMANDS_REPLIED_PERIOD, True),
 }
@@ -1119,6 +1121,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         level component.
         """
         await self.request_and_send_llc_status(LlcName.MONCS.value, self.tel_interlocks)
+
+    async def statusRAD(self) -> None:
+        """RAD status command not to be executed by SAL.
+
+        This command will be used to request the full status of the RAD lower
+        level component.
+        """
+        await self.request_and_send_llc_status(
+            LlcName.RAD.value, self.tel_rearAccessDoor
+        )
 
     async def statusThCS(self) -> None:
         """ThCS status command not to be executed by SAL.

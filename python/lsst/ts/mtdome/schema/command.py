@@ -76,6 +76,7 @@ registry["command"] = json.loads(
         "statusLCS",
         "statusLWSCS",
         "statusMonCS",
+        "statusRAD",
         "statusThCS",
         "exitFault",
         "resetDrivesAz",
@@ -802,6 +803,23 @@ registry["command"] = json.loads(
         "properties": {
           "command": {
             "const": "statusMonCS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "statusRAD"
           }
         }
       },
