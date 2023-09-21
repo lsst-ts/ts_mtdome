@@ -28,6 +28,7 @@ __all__ = [
     "MaxValueConfigType",
     "MaxValuesConfigType",
     "OnOff",
+    "PowerManagementMode",
     "ResponseCode",
     "ValidSimulationMode",
     "motion_state_translations",
@@ -107,6 +108,15 @@ class ValidSimulationMode(enum.IntEnum):
     NORMAL_OPERATIONS = 0
     SIMULATION_WITH_MOCK_CONTROLLER = 1
     SIMULATION_WITHOUT_MOCK_CONTROLLER = 2
+
+
+class PowerManagementMode(enum.Enum):
+    """Power management modes for the CSC."""
+
+    NO_POWER_MANAGEMENT = enum.auto()
+    CONSERVATIVE_OPERATIONS = enum.auto()
+    EMERGENCY = enum.auto()
+    MAINTENANCE = enum.auto()
 
 
 # Dictionary to look up which LlcName is associated with which sub-system.

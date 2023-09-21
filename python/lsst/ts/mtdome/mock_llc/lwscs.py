@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["LwscsStatus", "CURRENT_PER_MOTOR", "NUM_MOTORS", "TOTAL_POWER"]
+__all__ = ["LwscsStatus", "CURRENT_PER_MOTOR", "NUM_MOTORS"]
 
 import logging
 import math
@@ -28,16 +28,14 @@ import numpy as np
 from lsst.ts.idl.enums.MTDome import MotionState
 
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
+from ..power_draw_constants import LWS_POWER_DRAW
 from .base_mock_llc import DOME_VOLTAGE, BaseMockStatus
 from .mock_motion.elevation_motion import ElevationMotion
 
 NUM_MOTORS = 2
 
-# Total maximum power drawn by the Light Wind Screen [W] as indicated by the
-# vendor. The power draw varies depending on the elevation of the screen.
-TOTAL_POWER = 67500.0
 # Current drawn per motor by the Light Wind Screen [A].
-CURRENT_PER_MOTOR = TOTAL_POWER / NUM_MOTORS / DOME_VOLTAGE
+CURRENT_PER_MOTOR = LWS_POWER_DRAW / NUM_MOTORS / DOME_VOLTAGE
 
 
 class LwscsStatus(BaseMockStatus):
@@ -115,7 +113,7 @@ class LwscsStatus(BaseMockStatus):
             self.drive_current_actual = np.full(
                 NUM_MOTORS, CURRENT_PER_MOTOR, dtype=float
             )
-            self.power_draw = TOTAL_POWER
+            self.power_draw = LWS_POWER_DRAW
         else:
             self.drive_current_actual = np.zeros(NUM_MOTORS, dtype=float)
             self.power_draw = 0.0

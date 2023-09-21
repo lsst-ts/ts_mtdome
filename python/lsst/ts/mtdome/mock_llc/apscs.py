@@ -19,13 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["ApscsStatus", "CURRENT_PER_MOTOR", "NUM_SHUTTERS", "TOTAL_POWER"]
+__all__ = ["ApscsStatus", "CURRENT_PER_MOTOR", "NUM_SHUTTERS"]
 
 import logging
 
 import numpy as np
 from lsst.ts.idl.enums.MTDome import MotionState
 
+from ..power_draw_constants import APS_POWER_DRAW
 from .base_mock_llc import (
     DEFAULT_MESSAGES,
     DOME_VOLTAGE,
@@ -41,10 +42,10 @@ from .mock_motion.shutter_motion import (
 
 NUM_SHUTTERS = 2
 
-# Total power drawn by the Aperture Shutter [W] as indicated by the vendor.
-TOTAL_POWER = 5600.0
 # Current per motor drawn by the Aperture Shutter [A].
-CURRENT_PER_MOTOR = TOTAL_POWER / NUM_SHUTTERS / NUM_MOTORS_PER_SHUTTER / DOME_VOLTAGE
+CURRENT_PER_MOTOR = (
+    APS_POWER_DRAW / NUM_SHUTTERS / NUM_MOTORS_PER_SHUTTER / DOME_VOLTAGE
+)
 
 
 class ApscsStatus(BaseMockStatus):
@@ -120,7 +121,7 @@ class ApscsStatus(BaseMockStatus):
                     * NUM_MOTORS_PER_SHUTTER : (index + 1)
                     * NUM_MOTORS_PER_SHUTTER
                 ] = CURRENT_PER_MOTOR
-                self.power_draw = TOTAL_POWER
+                self.power_draw = APS_POWER_DRAW
             else:
                 self.drive_current_actual[
                     index
