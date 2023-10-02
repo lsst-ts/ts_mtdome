@@ -36,3 +36,4 @@ from .config_schema import CONFIG_SCHEMA
 from .enums import *
 from .mock_controller import *
 from .mtdome_csc import *
+from .power_draw_constants import *

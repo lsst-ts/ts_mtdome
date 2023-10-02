@@ -26,7 +26,8 @@ import pytest
 from expected_state import ExpectedState
 from lsst.ts import mtdome
 from lsst.ts.idl.enums.MTDome import MotionState
-from lsst.ts.mtdome.mock_llc.lwscs import CURRENT_PER_MOTOR, NUM_MOTORS, TOTAL_POWER
+from lsst.ts.mtdome.mock_llc.lwscs import CURRENT_PER_MOTOR, NUM_MOTORS
+from lsst.ts.mtdome.power_draw_constants import LWS_POWER_DRAW
 
 START_TAI = 10001.0
 MIN_POSITION = 0
@@ -103,7 +104,7 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
             MotionState.MOVING,
         ]:
             expected_drive_current = [CURRENT_PER_MOTOR] * NUM_MOTORS
-            expected_power_draw = TOTAL_POWER
+            expected_power_draw = LWS_POWER_DRAW
         assert expected_drive_current == self.lwscs.llc_status["driveCurrentActual"]
         assert expected_power_draw == self.lwscs.llc_status["powerDraw"]
 

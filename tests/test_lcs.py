@@ -28,8 +28,8 @@ from lsst.ts.mtdome.mock_llc.lcs import (
     CURRENT_PER_MOTOR,
     NUM_LOUVERS,
     NUM_MOTORS_PER_LOUVER,
-    TOTAL_POWER,
 )
+from lsst.ts.mtdome.power_draw_constants import LOUVERS_POWER_DRAW
 
 START_TAI = 10001.0
 
@@ -86,7 +86,7 @@ class LcsTestCase(unittest.IsolatedAsyncioTestCase):
                 if lcs_status["status"]["status"][index] == MotionState.MOVING:
                     assert driveCurrentActualMotor1 == CURRENT_PER_MOTOR
                     assert driveCurrentActualMotor2 == CURRENT_PER_MOTOR
-                    assert lcs_status["powerDraw"] == TOTAL_POWER
+                    assert lcs_status["powerDraw"] == LOUVERS_POWER_DRAW
             else:
                 assert driveCurrentActualMotor1 == 0.0
                 assert driveCurrentActualMotor2 == 0.0

@@ -6,6 +6,20 @@
 Version History
 ###############
 
+v1.14.0
+=======
+* Add a start for power management.
+  .. Starting the implementation triggered a lot of questions which I asked via email.
+     As soon as I have answers to those questions, the implementation can continue.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_tcpip 1.1
+* ts_utils 1.0
+* ts_xml 20.0
+
 v1.13.0
 =======
 * Set ApsCS positionCommanded to two values.

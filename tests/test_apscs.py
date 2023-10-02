@@ -24,13 +24,14 @@ import unittest
 import pytest
 from lsst.ts import mtdome
 from lsst.ts.idl.enums.MTDome import MotionState
-from lsst.ts.mtdome.mock_llc.apscs import CURRENT_PER_MOTOR, NUM_SHUTTERS, TOTAL_POWER
+from lsst.ts.mtdome.mock_llc.apscs import CURRENT_PER_MOTOR, NUM_SHUTTERS
 from lsst.ts.mtdome.mock_llc.mock_motion.shutter_motion import (
     CLOSED_POSITION,
     NUM_MOTORS_PER_SHUTTER,
     OPEN_POSITION,
     SHUTTER_SPEED,
 )
+from lsst.ts.mtdome.power_draw_constants import APS_POWER_DRAW
 
 START_TAI = 10001.0
 
@@ -92,7 +93,7 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
             expected_drive_current = (
                 [CURRENT_PER_MOTOR] * NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER
             )
-            expected_power_draw = TOTAL_POWER
+            expected_power_draw = APS_POWER_DRAW
         assert expected_drive_current == self.apscs.llc_status["driveCurrentActual"]
         assert expected_power_draw == self.apscs.llc_status["powerDraw"]
 

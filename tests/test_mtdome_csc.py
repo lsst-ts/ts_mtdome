@@ -1316,7 +1316,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         events_to_check = []
         for sub_system_id in SubSystemId:
             if sub_system_id & sub_system_ids:
-                logging.debug(f"WOUTER {sub_system_id=}, {sub_system_ids=}")
                 func = status_dict[sub_system_id]
                 name = mtdome.LlcNameDict[sub_system_id]
                 await func()
