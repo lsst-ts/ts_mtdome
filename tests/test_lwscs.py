@@ -26,7 +26,7 @@ import pytest
 from expected_state import ExpectedState
 from lsst.ts import mtdome
 from lsst.ts.mtdome.mock_llc.lwscs import CURRENT_PER_MOTOR, NUM_MOTORS
-from lsst.ts.mtdome.power_draw_constants import LWS_POWER_DRAW
+from lsst.ts.mtdome.power_management.power_draw_constants import LWS_POWER_DRAW
 from lsst.ts.xml.enums.MTDome import MotionState
 
 START_TAI = 10001.0

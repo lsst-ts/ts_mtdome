@@ -28,7 +28,7 @@ import numpy as np
 from lsst.ts.xml.enums.MTDome import MotionState
 
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
-from ..power_draw_constants import LWS_POWER_DRAW
+from ..power_management.power_draw_constants import LWS_POWER_DRAW
 from .base_mock_llc import DOME_VOLTAGE, BaseMockStatus
 from .mock_motion.elevation_motion import ElevationMotion
 

@@ -22,6 +22,10 @@
 __all__ = [
     "POWER_MANAGEMENT_COMMANDS",
     "POSITION_TOLERANCE",
+    "STOP_EL",
+    "STOP_FANS",
+    "STOP_LOUVERS",
+    "STOP_SHUTTER",
     "ZERO_VELOCITY_TOLERANCE",
     "CommandName",
     "InternalMotionState",
@@ -32,11 +36,15 @@ __all__ = [
     "OnOff",
     "PowerManagementMode",
     "ResponseCode",
+    "ScheduledCommand",
+    "StopCommand",
     "ValidSimulationMode",
     "motion_state_translations",
 ]
 
 import enum
+import typing
+from dataclasses import dataclass
 
 from lsst.ts.xml.enums.MTDome import MotionState, SubSystemId
 
@@ -204,7 +212,7 @@ class ScheduledCommand:
     the total power draw on the rotating part of the dome to exceed the
     threshold value defined in `AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY`.
 
-    Attributes
+    Parameters
     ----------
     command : `str`
         The command that may need to be scheduled.
@@ -214,3 +222,45 @@ class ScheduledCommand:
 
     command: str
     params: dict[str, typing.Any]
+
+
+@dataclass
+class StopCommand:
+    """Class representing a command to stop an ongoing motion.
+
+    An ongoing motion may need to be stopped if the subsystem, represented by
+    the LlcName, draws power so that issuing a higher priority command would
+    push the power draw over the slip ring limit.
+
+    Parameters
+    ----------
+    scheduled_command : `ScheduledCommand`
+        The command and its parameters that will stop the ongoing motion.
+    llc_name : `LlcName`
+        The name of the subsystem, or Lower Level Component, that the stop
+        command is issued for. This name is used to check if the subsystem
+        currently draws power so that issuing a higher priority command would
+        push the power draw over the slip ring limit.
+    """
+
+    scheduled_command: ScheduledCommand
+    llc_name: LlcName
+
+
+# Stop commands.
+STOP_EL = StopCommand(
+    ScheduledCommand(command=CommandName.STOP_EL, params={}),
+    LlcName.LWSCS,
+)
+STOP_FANS = StopCommand(
+    ScheduledCommand(command=CommandName.FANS, params={"action": OnOff.OFF}),
+    LlcName.AMCS,
+)
+STOP_LOUVERS = StopCommand(
+    ScheduledCommand(command=CommandName.STOP_LOUVERS, params={}),
+    LlcName.LCS,
+)
+STOP_SHUTTER = StopCommand(
+    ScheduledCommand(command=CommandName.STOP_SHUTTER, params={}),
+    LlcName.APSCS,
+)

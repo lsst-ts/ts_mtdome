@@ -19,20 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import typing
-
-# For an explanation why these next lines are so complicated, see
-# https://confluence.lsstcorp.org/pages/viewpage.action?spaceKey=LTS&title=Enabling+Mypy+in+Pytest
-if typing.TYPE_CHECKING:
-    __version__ = "?"
-else:
-    try:
-        from .version import *
-    except ImportError:
-        __version__ = "?"
-
-from . import llc_configuration_limits, mock_llc, power_management, schema
-from .config_schema import CONFIG_SCHEMA
-from .enums import *
-from .mock_controller import *
-from .mtdome_csc import *
+from .command_priorities import *
+from .power_draw_constants import *
+from .power_management_handler import *

@@ -28,7 +28,7 @@ from lsst.ts.mtdome.mock_llc.lcs import (
     NUM_LOUVERS,
     NUM_MOTORS_PER_LOUVER,
 )
-from lsst.ts.mtdome.power_draw_constants import LOUVERS_POWER_DRAW
+from lsst.ts.mtdome.power_management.power_draw_constants import LOUVERS_POWER_DRAW
 from lsst.ts.xml.enums.MTDome import MotionState
 
 START_TAI = 10001.0

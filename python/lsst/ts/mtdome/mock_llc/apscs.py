@@ -26,7 +26,7 @@ import logging
 import numpy as np
 from lsst.ts.xml.enums.MTDome import MotionState
 
-from ..power_draw_constants import APS_POWER_DRAW
+from ..power_management.power_draw_constants import APS_POWER_DRAW
 from .base_mock_llc import (
     DEFAULT_MESSAGES,
     DOME_VOLTAGE,

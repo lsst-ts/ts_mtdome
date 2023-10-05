@@ -48,14 +48,17 @@ from .enums import (
     MaxValuesConfigType,
     PowerManagementMode,
     ResponseCode,
+    ScheduledCommand,
     ValidSimulationMode,
     motion_state_translations,
 )
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .mock_controller import MockMTDomeController
-from .power_draw_constants import (
+from .power_management import (
     AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY,
     FANS_POWER_DRAW,
+    PowerManagementHandler,
+    command_priorities,
 )
 
 # Timeout [sec] used when creating a Client, a mock controller or when waiting
@@ -216,26 +219,6 @@ class CommandTime:
     tai: float
 
 
-@dataclass
-class ScheduledCommand:
-    """Class representing a scheduled command.
-
-    A command needs to be scheduled in case the power draw by it would cause
-    the total power draw on the rotating part of the dome to exceed the
-    threshold value defined in `AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY`.
-
-    Attributes
-    ----------
-    command : `str`
-        The command that may need to be scheduled.
-    params : `dict`[`str`, `typing.Any`]
-        The parameters for the command. Defaults to None.
-    """
-
-    command: str
-    params: dict[str, typing.Any]
-
-
 class MTDomeCsc(salobj.ConfigurableCsc):
     """Upper level Commandable SAL Component to interface with the Simonyi
     Survey Telescope Dome lower level components.
@@ -275,17 +258,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
     def __init__(
         self,
-        config_dir: typing.Optional[str] = None,
+        config_dir: str | None = None,
         initial_state: salobj.State = salobj.State.STANDBY,
         simulation_mode: int = ValidSimulationMode.NORMAL_OPERATIONS,
         override: str = "",
     ) -> None:
         self.client: tcpip.Client | None = None
-        self.config: typing.Optional[SimpleNamespace] = None
+        self.config: SimpleNamespace | None = None
 
-        self.mock_ctrl: typing.Optional[
-            MockMTDomeController
-        ] = None  # mock controller, or None if not constructed
+        # mock controller, or None if not constructed
+        self.mock_ctrl: MockMTDomeController | None = None
 
         super().__init__(
             name="MTDome",
@@ -349,13 +331,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # that have been sent.
         self.commands_without_reply: dict[int, CommandTime] = {}
 
-        # Queue of commands to execute. A Queue wouldn't work here since it
-        # removes an item when getting one and the item may need to stay in the
-        # queue.
-        self.command_queue: list[ScheduledCommand] = []
-
-        # The power management state.
+        # Power management attributes.
         self.power_management_state = PowerManagementMode.NO_POWER_MANAGEMENT
+        self.power_management_handler = PowerManagementHandler(
+            self.log, command_priorities
+        )
 
         self.log.info("DomeCsc constructed.")
 
@@ -567,8 +547,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             self.log.info("Not setting AMCS maximum velocity, acceleration and jerk.")
 
-    # TODO DM-40861: <code block starts> Continue working on the next code
-    #  block as soon as the questions in DM-38789 have been answered.
     async def schedule_command_if_power_management_active(
         self, command: str, **params: typing.Any
     ) -> None:
@@ -590,7 +568,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.write_then_read_reply(command=command, **params)
         else:
             scheduled_command = ScheduledCommand(command=command, params=params)
-            self.command_queue.append(scheduled_command)
+            await self.power_management_handler.schedule_command(scheduled_command)
 
     async def process_command_queue(self) -> None:
         """Process the commands in the queue, if there are any.
@@ -608,14 +586,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         self.log.debug(f"{current_power_draw=}, {power_available=}")
 
-        commands_to_remove: list[ScheduledCommand] = []
-        for scheduled_command in self.command_queue:
+        scheduled_command = await self.power_management_handler.get_next_command(
+            current_power_draw
+        )
+        if scheduled_command is not None:
             await self.write_then_read_reply(
                 command=scheduled_command.command, **scheduled_command.params
             )
-            commands_to_remove.append(scheduled_command)
-        for scheduled_command in commands_to_remove:
-            self.command_queue.remove(scheduled_command)
 
     async def _get_current_power_draw_for_llcs(self) -> dict[str, float]:
         """Determine the current power draw for each subsystem based on the
@@ -644,137 +621,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 if "powerDraw" in llc_status:
                     current_power_draw[llc_name] = llc_status["powerDraw"]
         return current_power_draw
-
-    async def _schedule_for_conservative_operations(
-        self, current_power_draw: dict[str, float], command: str, **params: typing.Any
-    ) -> None:
-        """Schedule a command.
-
-        The operations approach means that
-          * The aperture shutter is open and does not move.
-          * The light/wind screen can move.
-          * The louvers may be opened or closed.
-          * The fans will be off.
-          * The OBC may not move.
-          * The RAD may not move.
-          * The calibration screen may not be used.
-
-        Conservative indicates that the power draw may never exceed the maximum
-        continuous power capacity of the slip ring, which is defined in
-        AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY (which takes into account
-        that there is electronic equipment that always takes a small amount of
-        power). To achieve this, the light/wind screen motion takes precedence
-        over the louvers. If the louvers are opening or closing when the
-        light/wind screen needs to move, the motion of the louvers needs to be
-        stopped until the light/wind screen is in position, and then can
-        continue.
-
-        Parameters
-        ----------
-        current_power_draw : `dict`[`str`, `float`]
-            The current power draw for each lower level component.
-        command : `str`
-            The command to schedule.
-        params : `typing.Any`
-            The parameters to pass along with the command. This may be empty.
-        """
-        match command:
-            case CommandName.OPEN_SHUTTER | CommandName.CLOSE_SHUTTER | CommandName.SEARCH_ZERO_SHUTTER:
-                pass
-            case CommandName.MOVE_EL | CommandName.CRAWL_EL:
-                pass
-            case CommandName.SET_LOUVERS | CommandName.CLOSE_LOUVERS:
-                pass
-            case CommandName.FANS:
-                pass
-            case _:
-                raise RuntimeError(f"{command=} is not supported by power management.")
-
-    async def _schedule_for_emergency_closing(
-        self, current_power_draw: dict[str, float], command: str, **params: typing.Any
-    ) -> None:
-        """Schedule a command.
-
-        The emergency closing approach means that
-          * The aperture shutter needs to be closed.
-          * The light/wind screen can not move.
-          * The louvers need to be closed.
-          * The fans will be off.
-          * The OBC may not move.
-          * The RAD may not move.
-          * The calibration screen may not be used.
-
-        In this approach the power draw will never exceed the maximum
-        continuous power capacity of the slip ring, which is defined in
-        AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY (which takes into account
-        that there is electronic equipment that always takes a small amount of
-        power).
-
-        Parameters
-        ----------
-        current_power_draw : `dict`[`str`, `float`]
-            The current power draw for each lower level component.
-        command : `str`
-            The command to schedule.
-        params : `typing.Any`
-            The parameters to pass along with the command. This may be empty.
-        """
-        match command:
-            case CommandName.OPEN_SHUTTER | CommandName.CLOSE_SHUTTER | CommandName.SEARCH_ZERO_SHUTTER:
-                pass
-            case CommandName.MOVE_EL | CommandName.CRAWL_EL:
-                pass
-            case CommandName.SET_LOUVERS | CommandName.CLOSE_LOUVERS:
-                pass
-            case CommandName.FANS:
-                pass
-            case _:
-                raise RuntimeError(f"{command=} is not supported by power management.")
-
-    async def _schedule_for_maintenance(
-        self, current_power_draw: dict[str, float], command: str, **params: typing.Any
-    ) -> None:
-        """Schedule a command.
-
-        The maintenance approach means that
-          * The aperture shutter is open and does not move.
-          * The light/wind screen can move.
-          * The louvers cannot move.
-          * The fans may be on or off.
-          * The OBC may move.
-          * The RAD may open or close.
-          * The calibration screen may be used.
-
-        In this approach the power draw may exceed the maximum continuous power
-        capacity of the slip ring, which is defined in
-        AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY (which takes into account
-        that there is electronic equipment that always takes a small amount of
-        power). The motion of the light/wind screen takes precedence over the
-        use of the fans, so the fans need to be stopped if on when the
-        light/wind screen needs to move and then started again.
-
-        Parameters
-        ----------
-        current_power_draw : `dict`[`str`, `float`]
-            The current power draw for each lower level component.
-        command : `str`
-            The command to schedule.
-        params : `typing.Any`
-            The parameters to pass along with the command. This may be empty.
-        """
-        match command:
-            case CommandName.OPEN_SHUTTER | CommandName.CLOSE_SHUTTER | CommandName.SEARCH_ZERO_SHUTTER:
-                pass
-            case CommandName.MOVE_EL | CommandName.CRAWL_EL:
-                pass
-            case CommandName.SET_LOUVERS | CommandName.CLOSE_LOUVERS:
-                pass
-            case CommandName.FANS:
-                pass
-            case _:
-                raise RuntimeError(f"{command=} is not supported by power management.")
-
-    # TODO DM-40861: <code block ends>
 
     async def write_then_read_reply(
         self, command: str, **params: typing.Any

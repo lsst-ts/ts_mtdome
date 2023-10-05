@@ -19,6 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+HIGH_PRIOTITY = 0  # High priority for scheduling commands.
+
 # Total power draw by the Aperture Shutter [W] as indicated by the vendor.
 APS_POWER_DRAW = 5600.0
 

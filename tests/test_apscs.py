@@ -30,7 +30,7 @@ from lsst.ts.mtdome.mock_llc.mock_motion.shutter_motion import (
     OPEN_POSITION,
     SHUTTER_SPEED,
 )
-from lsst.ts.mtdome.power_draw_constants import APS_POWER_DRAW
+from lsst.ts.mtdome.power_management.power_draw_constants import APS_POWER_DRAW
 from lsst.ts.xml.enums.MTDome import MotionState
 
 START_TAI = 10001.0
