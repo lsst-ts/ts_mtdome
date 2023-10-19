@@ -25,7 +25,7 @@ import logging
 
 import numpy as np
 from lsst.ts import utils
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 from ..enums import InternalMotionState
 from .base_mock_llc import BaseMockStatus

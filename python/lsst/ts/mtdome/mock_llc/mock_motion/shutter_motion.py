@@ -30,7 +30,7 @@ __all__ = [
 import logging
 import math
 
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 from ...enums import InternalMotionState
 from .base_llc_motion_without_crawl import BaseLlcMotionWithoutCrawl

@@ -23,13 +23,13 @@ import unittest
 
 import numpy as np
 from lsst.ts import mtdome
-from lsst.ts.idl.enums.MTDome import MotionState
 from lsst.ts.mtdome.mock_llc.lcs import (
     CURRENT_PER_MOTOR,
     NUM_LOUVERS,
     NUM_MOTORS_PER_LOUVER,
 )
 from lsst.ts.mtdome.power_draw_constants import LOUVERS_POWER_DRAW
+from lsst.ts.xml.enums.MTDome import MotionState
 
 START_TAI = 10001.0
 

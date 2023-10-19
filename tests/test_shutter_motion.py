@@ -23,12 +23,12 @@ import unittest
 
 import pytest
 from lsst.ts import mtdome
-from lsst.ts.idl.enums.MTDome import MotionState
 from lsst.ts.mtdome.mock_llc.mock_motion.shutter_motion import (
     CLOSED_POSITION,
     OPEN_POSITION,
     SHUTTER_SPEED,
 )
+from lsst.ts.xml.enums.MTDome import MotionState
 
 START_TAI = 10001.0
 

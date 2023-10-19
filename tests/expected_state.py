@@ -21,7 +21,7 @@
 
 import dataclasses
 
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 
 @dataclasses.dataclass

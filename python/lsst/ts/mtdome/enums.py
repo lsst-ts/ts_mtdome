@@ -36,7 +36,7 @@ __all__ = [
 
 import enum
 
-from lsst.ts.idl.enums.MTDome import MotionState, SubSystemId
+from lsst.ts.xml.enums.MTDome import MotionState, SubSystemId
 
 
 class InternalMotionState(enum.IntEnum):

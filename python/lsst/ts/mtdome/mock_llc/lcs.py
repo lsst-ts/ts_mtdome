@@ -25,7 +25,7 @@ import logging
 
 import numpy as np
 from lsst.ts import utils
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 from ..enums import InternalMotionState
 from ..power_draw_constants import LOUVERS_POWER_DRAW

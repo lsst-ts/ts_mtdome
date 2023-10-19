@@ -30,7 +30,7 @@ import logging
 import math
 
 import numpy as np
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 from ..enums import OnOff
 from ..llc_configuration_limits.amcs_limits import AmcsLimits

@@ -27,8 +27,8 @@ import typing
 import numpy as np
 import pytest
 from lsst.ts import mtdome, tcpip, utils
-from lsst.ts.idl.enums.MTDome import MotionState, OperationalMode
 from lsst.ts.mtdome.mock_llc.apscs import NUM_SHUTTERS
+from lsst.ts.xml.enums.MTDome import MotionState, OperationalMode
 
 _CURRENT_TAI = 100001
 START_MOTORS_ADD_DURATION = 5.5

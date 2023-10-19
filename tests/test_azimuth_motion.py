@@ -25,7 +25,7 @@ import unittest
 import pytest
 from expected_state import ExpectedState
 from lsst.ts import mtdome
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 # The maximum AZ rotation speed (deg/s)
 MAX_SPEED = 4.0

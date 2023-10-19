@@ -25,7 +25,7 @@ import logging
 import typing
 from abc import ABC, abstractmethod
 
-from lsst.ts.idl.enums.MTDome import OperationalMode
+from lsst.ts.xml.enums.MTDome import OperationalMode
 
 # The voltage used in the dome.
 DOME_VOLTAGE = 220.0

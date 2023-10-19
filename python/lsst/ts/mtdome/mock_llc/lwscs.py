@@ -25,7 +25,7 @@ import logging
 import math
 
 import numpy as np
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
 from ..power_draw_constants import LWS_POWER_DRAW

@@ -23,7 +23,6 @@ import unittest
 
 import pytest
 from lsst.ts import mtdome
-from lsst.ts.idl.enums.MTDome import MotionState
 from lsst.ts.mtdome.mock_llc.apscs import CURRENT_PER_MOTOR, NUM_SHUTTERS
 from lsst.ts.mtdome.mock_llc.mock_motion.shutter_motion import (
     CLOSED_POSITION,
@@ -32,6 +31,7 @@ from lsst.ts.mtdome.mock_llc.mock_motion.shutter_motion import (
     SHUTTER_SPEED,
 )
 from lsst.ts.mtdome.power_draw_constants import APS_POWER_DRAW
+from lsst.ts.xml.enums.MTDome import MotionState
 
 START_TAI = 10001.0
 

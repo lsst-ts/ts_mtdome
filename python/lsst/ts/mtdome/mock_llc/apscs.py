@@ -24,7 +24,7 @@ __all__ = ["ApscsStatus", "CURRENT_PER_MOTOR", "NUM_SHUTTERS"]
 import logging
 
 import numpy as np
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 from ..power_draw_constants import APS_POWER_DRAW
 from .base_mock_llc import (

@@ -22,7 +22,7 @@
 import abc
 import math
 
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 from .base_llc_motion import BaseLlcMotion
 

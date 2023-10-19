@@ -29,7 +29,7 @@ from types import SimpleNamespace
 
 import numpy as np
 from lsst.ts import salobj, tcpip, utils
-from lsst.ts.idl.enums.MTDome import (
+from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
     OperationalMode,

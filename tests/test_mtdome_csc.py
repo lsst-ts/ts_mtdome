@@ -32,7 +32,7 @@ import numpy as np
 import pytest
 import yaml
 from lsst.ts import mtdome, salobj, tcpip, utils
-from lsst.ts.idl.enums.MTDome import (
+from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
     OperationalMode,
