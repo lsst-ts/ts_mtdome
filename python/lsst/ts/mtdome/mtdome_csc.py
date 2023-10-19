@@ -1425,8 +1425,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             #  anymore by the AMCS.
             if llc_status["status"] == "IDLE":
                 motion_state = self.previous_state
-
-            if llc_status["status"] in motion_state_translations:
+            elif llc_status["status"] in motion_state_translations:
                 motion_state = motion_state_translations[llc_status["status"]]
             else:
                 motion_state = MotionState[llc_status["status"]]
@@ -1541,17 +1540,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=command
         )
 
-        if llc_name not in self.lower_level_status:
-            # DM-30807: Send OperationalMode event at start up.
-            current_operational_mode = status[llc_name]["status"]["operationalMode"]
-            operatinal_mode = OperationalMode[current_operational_mode]
-            sub_system_id = [
-                sid for sid, name in LlcNameDict.items() if name == llc_name
-            ][0]
-            await self.evt_operationalMode.set_write(
-                operationalMode=operatinal_mode,
-                subSystemId=sub_system_id,
-            )
+        await self._send_operational_mode_event(llc_name=llc_name, status=status)
 
         # Send appliedConfiguration event for AMCS. This needs to be sent every
         # time the status is read because it can be modified by issuing the
@@ -1608,9 +1597,33 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         # Send the telemetry.
         await topic.set_write(**telemetry)
-
-        # DM-26374: Check for errors and send the events.
         llc_status = status[llc_name]["status"]
+        await self.check_errors_and_send_events(
+            llc_name=llc_name, llc_status=llc_status
+        )
+
+    async def _send_operational_mode_event(
+        self, llc_name: str, status: dict[str, typing.Any]
+    ) -> None:
+        if (
+            llc_name not in self.lower_level_status
+            and "operationalMode" in status[llc_name]["status"]
+        ):
+            # DM-30807: Send OperationalMode event at start up.
+            current_operational_mode = status[llc_name]["status"]["operationalMode"]
+            operatinal_mode = OperationalMode[current_operational_mode]
+            sub_system_id = [
+                sid for sid, name in LlcNameDict.items() if name == llc_name
+            ][0]
+            await self.evt_operationalMode.set_write(
+                operationalMode=operatinal_mode,
+                subSystemId=sub_system_id,
+            )
+
+    async def check_errors_and_send_events(
+        self, llc_name: str, llc_status: dict[str, typing.Any]
+    ) -> None:
+        # DM-26374: Check for errors and send the events.
         if llc_name == LlcName.AMCS.value:
             await self._check_errors_and_send_events_az(llc_status)
         elif llc_name == LlcName.LWSCS.value:
