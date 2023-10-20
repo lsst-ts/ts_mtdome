@@ -824,26 +824,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         report=f"Error reading reply to command {command_dict}: {e}.",
                     )
                     raise
-                # TODO DM-39564: Remove the if amd else but keep the code
-                #  inside the if as soon as the MTDome control software always
-                #  includes a commandId in its data.
-                if "commandId" in data:
-                    received_command_id = data["commandId"]
-                    if received_command_id in self.commands_without_reply:
-                        self.commands_without_reply.pop(received_command_id)
-                    else:
-                        self.log.warning(
-                            f"Ignoring unknown commandId {received_command_id}."
-                        )
+                received_command_id = data["commandId"]
+                if received_command_id in self.commands_without_reply:
+                    self.commands_without_reply.pop(received_command_id)
                 else:
-                    # To be on the safe side, all commands_without_reply
-                    # entries for the current command are removed to suppress
-                    # unneccesary warnings.
-                    self.commands_without_reply = {
-                        cmd_id: self.commands_without_reply[cmd_id]
-                        for cmd_id in self.commands_without_reply
-                        if self.commands_without_reply[cmd_id].command != command
-                    }
+                    self.log.warning(
+                        f"Ignoring unknown commandId {received_command_id}."
+                    )
             else:
                 data = REPLY_DATA_FOR_DISABLED_COMMANDS
             response = data["response"]

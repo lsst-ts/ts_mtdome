@@ -1548,25 +1548,5 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.check_all_commands_have_replies()
             assert command_id not in self.csc.commands_without_reply
 
-    # TODO DM-39564: Remove this test as soon as the MTDome control software
-    #   always includes a commandId in its data.
-    async def test_no_command_id(self) -> None:
-        with open(CONFIG_DIR / "_init.yaml") as f:
-            config = yaml.safe_load(f)
-
-        async with self.create_mock_controller(
-            port=config["port"], include_command_id=False
-        ), self.make_csc(
-            initial_state=salobj.State.ENABLED,
-            config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
-        ):
-            await self.assert_next_summary_state(salobj.State.ENABLED)
-            while len(self.csc.lower_level_status) == 0:
-                await asyncio.sleep(0.1)
-            for key in self.csc.lower_level_status.keys():
-                lower_level_status = self.csc.lower_level_status[key]
-                assert "commandId" not in lower_level_status
-
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")
