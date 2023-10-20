@@ -538,7 +538,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=2.0,
             expected_states=expected_states,
-            command="stopAz",
+            command=mtdome.CommandName.STOP_AZ,
         )
 
     async def test_stop_from_crawling_after_moving(self) -> None:
@@ -572,7 +572,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="stopAz",
+            command=mtdome.CommandName.STOP_AZ,
         )
 
     async def test_stop_from_crawling(self) -> None:
@@ -602,7 +602,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="stopAz",
+            command=mtdome.CommandName.STOP_AZ,
         )
 
     async def test_park_from_moving(self) -> None:
@@ -636,7 +636,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=1.0,
             expected_states=expected_states,
-            command="park",
+            command=mtdome.CommandName.PARK,
         )
 
     async def test_park_from_crawling_after_moving(self) -> None:
@@ -672,7 +672,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="park",
+            command=mtdome.CommandName.PARK,
         )
 
     async def test_park_from_crawling(self) -> None:
@@ -705,7 +705,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="park",
+            command=mtdome.CommandName.PARK,
         )
 
     async def test_stationary_from_moving(self) -> None:

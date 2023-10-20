@@ -340,7 +340,7 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=2.0,
             expected_states=expected_states,
-            command="stopEl",
+            command=mtdome.CommandName.STOP_EL,
         )
 
     async def test_stationary(self) -> None:

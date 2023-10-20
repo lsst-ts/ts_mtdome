@@ -48,7 +48,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         # This is set to `any` to allow for invalid command_id data types. The
         # valid data type is int.
         self.command_id: typing.Any = -1
-        self.data: typing.Optional[dict] = None
+        self.data: dict | None = None
         self.log = logging.getLogger("MockTestCase")
 
     async def determine_current_tai(self) -> None:
@@ -122,7 +122,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
     async def test_too_many_command_parameters(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
             await self.write(
-                command="moveAz",
+                command=mtdome.CommandName.MOVE_AZ,
                 parameters={"position": 0.1, "velocity": 0.1, "acceleration": 0.1},
             )
             self.data = await self.read()
@@ -159,7 +159,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         self.mock_ctrl.amcs.azimuth_motion._start_position = start_position
         self.mock_ctrl.amcs.azimuth_motion._end_position = start_position
         await self.write(
-            command="moveAz",
+            command=mtdome.CommandName.MOVE_AZ,
             parameters={"position": target_position, "velocity": target_velocity},
         )
         self.data = await self.read()
@@ -197,7 +197,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         # Give some time to the mock device to move.
         assert self.mock_ctrl is not None
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + time_diff
-        await self.write(command="statusAMCS", parameters={})
+        await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
         self.data = await self.read()
         amcs_status = self.data[mtdome.LlcName.AMCS.value]
         assert amcs_status["status"]["status"] == expected_status.name
@@ -265,7 +265,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # Make the amcs rotate to the second target position and check both
             # status and position at the specified times again
             await self.write(
-                command="moveAz",
+                command=mtdome.CommandName.MOVE_AZ,
                 parameters={"position": target_position_2, "velocity": target_velocity},
             )
             self.data = await self.read()
@@ -446,7 +446,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # Give some time to the mock device to move and theck the error
             # status.
             self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.1
-            await self.write(command="statusAMCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["messages"] == expected_messages
@@ -461,7 +461,8 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             self.mock_ctrl.amcs.command_time_tai = self.mock_ctrl.current_tai
             target_velocity = math.radians(0.1)
             await self.write(
-                command="crawlAz", parameters={"velocity": target_velocity}
+                command=mtdome.CommandName.CRAWL_AZ,
+                parameters={"velocity": target_velocity},
             )
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
@@ -474,7 +475,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 self.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 1.0
             )
 
-            await self.write(command="statusAMCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.CRAWLING.name
@@ -498,7 +499,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 math.radians(1.5),
             )
 
-            await self.write(command="stopAz", parameters={})
+            await self.write(command=mtdome.CommandName.STOP_AZ, parameters={})
             # Give some time to the mock device to stop moving.
             assert self.mock_ctrl is not None
             self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
@@ -506,7 +507,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.data["timeout"] == 0.0
 
-            await self.write(command="statusAMCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.STOPPED.name
@@ -534,7 +535,9 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         assert self.mock_ctrl is not None
         self.mock_ctrl.current_tai = _CURRENT_TAI
         self.mock_ctrl.lwscs.elevation_motion._start_position = start_position
-        await self.write(command="moveEl", parameters={"position": target_position})
+        await self.write(
+            command=mtdome.CommandName.MOVE_EL, parameters={"position": target_position}
+        )
         self.data = await self.read()
         assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.data["timeout"] == pytest.approx(
@@ -562,7 +565,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         # Give some time to the mock device to move.
         assert self.mock_ctrl is not None
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + time_diff
-        await self.write(command="statusLWSCS", parameters={})
+        await self.write(command=mtdome.CommandName.STATUS_LWSCS, parameters={})
         self.data = await self.read()
         lwscs_status = self.data[mtdome.LlcName.LWSCS.value]
         assert lwscs_status["status"]["status"] == expected_status.name
@@ -652,12 +655,12 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 expected_position=math.radians(1.75),
             )
 
-            await self.write(command="stopEl", parameters={})
+            await self.write(command=mtdome.CommandName.STOP_EL, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.data["timeout"] == 0.0
 
-            await self.write(command="statusLWSCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_LWSCS, parameters={})
             self.data = await self.read()
             lwscs_status = self.data[mtdome.LlcName.LWSCS.value]
             assert lwscs_status["status"]["status"] == MotionState.STOPPED.name
@@ -686,7 +689,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         self.mock_ctrl.current_tai = _CURRENT_TAI
         self.mock_ctrl.lwscs.elevation_motion._start_position = start_position
         await self.write(
-            command="crawlEl",
+            command=mtdome.CommandName.CRAWL_EL,
             parameters={"velocity": target_velocity},
         )
         self.data = await self.read()
@@ -714,7 +717,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         # Give some time to the mock device to move.
         assert self.mock_ctrl is not None
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + time_diff
-        await self.write(command="statusLWSCS", parameters={})
+        await self.write(command=mtdome.CommandName.STATUS_LWSCS, parameters={})
         self.data = await self.read()
         lwscs_status = self.data[mtdome.LlcName.LWSCS.value]
         assert lwscs_status["status"]["status"] == expected_status.name
@@ -759,7 +762,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         for index, louver_id in enumerate(louver_ids):
             position[louver_id] = target_positions[index]
         await self.write(
-            command="setLouvers",
+            command=mtdome.CommandName.SET_LOUVERS,
             parameters={"position": position.tolist()},
         )
         self.data = await self.read()
@@ -794,7 +797,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         target positions are lined up.
 
         """
-        await self.write(command="statusLCS", parameters={})
+        await self.write(command=mtdome.CommandName.STATUS_LCS, parameters={})
         self.data = await self.read()
 
         # See mock_llc.lcs for what the structure of lcs looks like as well as
@@ -836,7 +839,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
     async def test_closeLouvers(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
-            await self.write(command="closeLouvers", parameters={})
+            await self.write(command=mtdome.CommandName.CLOSE_LOUVERS, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.mock_ctrl is not None
@@ -850,7 +853,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # Give some time to the mock device to close.
             self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-            await self.write(command="statusLCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_LCS, parameters={})
             self.data = await self.read()
             lcs_status = self.data[mtdome.LlcName.LCS.value]
             assert (
@@ -869,7 +872,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             position = np.full(mtdome.mock_llc.NUM_LOUVERS, -1.0, dtype=float)
             position[louver_id] = target_position
             await self.write(
-                command="setLouvers",
+                command=mtdome.CommandName.SET_LOUVERS,
                 parameters={"position": position.tolist()},
             )
             self.data = await self.read()
@@ -885,7 +888,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # Give some time to the mock device to open.
             self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-            await self.write(command="stopLouvers", parameters={})
+            await self.write(command=mtdome.CommandName.STOP_LOUVERS, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
@@ -893,7 +896,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # Give some time to the mock device to stop.
             self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-            await self.write(command="statusLCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_LCS, parameters={})
             self.data = await self.read()
             lcs_status = self.data[mtdome.LlcName.LCS.value]
             assert (
@@ -912,7 +915,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # Set the TAI time in the mock controller for easier control.
             self.mock_ctrl.current_tai = _CURRENT_TAI
 
-            await self.write(command="openShutter", parameters={})
+            await self.write(command=mtdome.CommandName.OPEN_SHUTTER, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.mock_ctrl is not None
@@ -944,7 +947,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         position_actual: list[float] | None = None,
         position_commanded: list[float] | None = None,
     ) -> None:
-        await self.write(command="statusApSCS", parameters={})
+        await self.write(command=mtdome.CommandName.STATUS_APSCS, parameters={})
         self.data = await self.read()
         apscs_status = self.data[mtdome.LlcName.APSCS.value]
         if status is not None:
@@ -961,7 +964,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # Set the TAI time in the mock controller for easier control.
             self.mock_ctrl.current_tai = _CURRENT_TAI
 
-            await self.write(command="closeShutter", parameters={})
+            await self.write(command=mtdome.CommandName.CLOSE_SHUTTER, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.mock_ctrl is not None
@@ -978,7 +981,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # Set the TAI time in the mock controller for easier control.
             self.mock_ctrl.current_tai = _CURRENT_TAI
 
-            await self.write(command="openShutter", parameters={})
+            await self.write(command=mtdome.CommandName.OPEN_SHUTTER, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.mock_ctrl is not None
@@ -988,7 +991,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # Give some time to the mock device to open.
             self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-            await self.write(command="stopShutter", parameters={})
+            await self.write(command=mtdome.CommandName.STOP_SHUTTER, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.data["timeout"] == 0.0  # stopping is instantaneous.
@@ -1063,7 +1066,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                     {"target": "vmax", "setting": [amcs_vmax]},
                 ],
             }
-            await self.write(command="config", parameters=parameters)
+            await self.write(command=mtdome.CommandName.CONFIG, parameters=parameters)
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
@@ -1085,7 +1088,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                     {"target": "vmax", "setting": [lwscs_vmax]},
                 ],
             }
-            await self.write(command="config", parameters=parameters)
+            await self.write(command=mtdome.CommandName.CONFIG, parameters=parameters)
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
@@ -1104,7 +1107,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             target_position = math.radians(1)
             target_velocity = math.radians(0.1)
             await self.write(
-                command="moveAz",
+                command=mtdome.CommandName.MOVE_AZ,
                 parameters={"position": target_position, "velocity": target_velocity},
             )
             self.data = await self.read()
@@ -1119,7 +1122,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 self.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + wait_time
             )
 
-            await self.write(command="park", parameters={})
+            await self.write(command=mtdome.CommandName.PARK, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.data["timeout"] == pytest.approx(
@@ -1132,7 +1135,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # Give some time to the mock device to park.
             self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 5.0
 
-            await self.write(command="statusAMCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
@@ -1143,7 +1146,8 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         async with self.create_mtdome_controller(), self.create_client():
             temperature = 10.0
             await self.write(
-                command="setTemperature", parameters={"temperature": temperature}
+                command=mtdome.CommandName.SET_TEMPERATURE,
+                parameters={"temperature": temperature},
             )
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
@@ -1158,7 +1162,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # Give some time to the mock device to set the temperature.
             self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
 
-            await self.write(command="statusThCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
             self.data = await self.read()
             thcs_status = self.data[mtdome.LlcName.THCS.value]
             assert thcs_status["status"]["status"] == MotionState.OPEN.name
@@ -1170,10 +1174,13 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
     async def test_inflate(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
             # Make sure that the inflate status is set to OFF.
-            await self.write(command="statusAMCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
-            assert amcs_status["status"]["inflate"] == mtdome.OnOff.OFF.value
+            assert (
+                amcs_status["status"][mtdome.CommandName.INFLATE]
+                == mtdome.OnOff.OFF.value
+            )
 
             # Set the TAI time in the mock controller for easier control.
             self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -1181,7 +1188,8 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # for easier control.
             self.mock_ctrl.thcs.command_time_tai = self.mock_ctrl.current_tai
             await self.write(
-                command="inflate", parameters={"action": mtdome.OnOff.ON.value}
+                command=mtdome.CommandName.INFLATE,
+                parameters={"action": mtdome.OnOff.ON.value},
             )
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
@@ -1189,18 +1197,23 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
             assert self.mock_ctrl.amcs.seal_inflated == mtdome.OnOff.ON
             # Also check that the inflate status is set in the AMCS status.
-            await self.write(command="statusAMCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
-            assert amcs_status["status"]["inflate"] == mtdome.OnOff.ON.value
+            assert (
+                amcs_status["status"][mtdome.CommandName.INFLATE]
+                == mtdome.OnOff.ON.value
+            )
 
     async def test_fans(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
             # Make sure that the fans status is set to OFF
-            await self.write(command="statusAMCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
-            assert amcs_status["status"]["fans"] == mtdome.OnOff.OFF.value
+            assert (
+                amcs_status["status"][mtdome.CommandName.FANS] == mtdome.OnOff.OFF.value
+            )
 
             # Set the TAI time in the mock controller for easier control.
             self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -1208,7 +1221,8 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # for easier control.
             self.mock_ctrl.thcs.command_time_tai = self.mock_ctrl.current_tai
             await self.write(
-                command="fans", parameters={"action": mtdome.OnOff.ON.value}
+                command=mtdome.CommandName.FANS,
+                parameters={"action": mtdome.OnOff.ON.value},
             )
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
@@ -1216,14 +1230,16 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
             assert self.mock_ctrl.amcs.fans_enabled == mtdome.OnOff.ON
             # Also check that the fans status is set in the AMCS status.
-            await self.write(command="statusAMCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
-            assert amcs_status["status"]["fans"] == mtdome.OnOff.ON.value
+            assert (
+                amcs_status["status"][mtdome.CommandName.FANS] == mtdome.OnOff.ON.value
+            )
 
     async def test_status(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
-            await self.write(command="statusAMCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
@@ -1233,7 +1249,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 status=MotionState.STOPPED, position_actual=[0.0, 0.0]
             )
 
-            await self.write(command="statusLCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_LCS, parameters={})
             self.data = await self.read()
             lcs_status = self.data[mtdome.LlcName.LCS.value]
             assert (
@@ -1242,19 +1258,19 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             )
             assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
 
-            await self.write(command="statusLWSCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_LWSCS, parameters={})
             self.data = await self.read()
             lwscs_status = self.data[mtdome.LlcName.LWSCS.value]
             assert lwscs_status["status"]["status"] == MotionState.STOPPED.name
             assert lwscs_status["positionActual"] == 0
 
-            await self.write(command="statusMonCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_MONCS, parameters={})
             self.data = await self.read()
             moncs_status = self.data[mtdome.LlcName.MONCS.value]
             assert moncs_status["status"]["status"] == MotionState.CLOSED.name
             assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
 
-            await self.write(command="statusThCS", parameters={})
+            await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
             self.data = await self.read()
             thcs_status = self.data[mtdome.LlcName.THCS.value]
             assert thcs_status["status"]["status"] == MotionState.CLOSED.name
@@ -1348,7 +1364,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
             # Now call exit_fault. This will fail because there still are
             # drives at fault.
-            await self.write(command="exitFault", parameters={})
+            await self.write(command=mtdome.CommandName.EXIT_FAULT, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
             assert self.data["timeout"] == -1
@@ -1387,7 +1403,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
             # Now call exit_fault. This will fail because there still are
             # drives at fault.
-            await self.write(command="exitFault", parameters={})
+            await self.write(command=mtdome.CommandName.EXIT_FAULT, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
             assert self.data["timeout"] == -1
@@ -1426,7 +1442,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             )
 
             # Cannot calibrate while AMCS is MOVING.
-            await self.write(command="calibrateAz", parameters={})
+            await self.write(command=mtdome.CommandName.CALIBRATE_AZ, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
             assert self.data["timeout"] == -1
@@ -1438,7 +1454,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             )
 
             # Can calibrate while AMCS is STOPPED.
-            await self.write(command="calibrateAz", parameters={})
+            await self.write(command=mtdome.CommandName.CALIBRATE_AZ, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.data["timeout"] == 0.0
@@ -1459,7 +1475,9 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 position_actual=initial_position_actual.tolist(),
             )
 
-            await self.write(command="searchZeroShutter", parameters={})
+            await self.write(
+                command=mtdome.CommandName.SEARCH_ZERO_SHUTTER, parameters={}
+            )
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.data["timeout"] == 0.0
@@ -1473,7 +1491,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         async with self.create_mtdome_controller(), self.create_client():
             await self.write(
                 command_id_to_use="1.1",
-                command="moveAz",
+                command=mtdome.CommandName.MOVE_AZ,
                 parameters={"position": 0.1, "velocity": 0.1},
             )
             self.data = await self.read(assert_command_id=False)
@@ -1487,7 +1505,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             include_command_id=False
         ), self.create_client():
             await self.write(
-                command="moveAz",
+                command=mtdome.CommandName.MOVE_AZ,
                 parameters={"position": 0.1, "velocity": 0.1},
             )
             self.data = await self.read(assert_command_id=False)

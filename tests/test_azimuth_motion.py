@@ -607,7 +607,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=1.0,
             expected_states=expected_states,
-            command="park",
+            command=mtdome.CommandName.PARK,
         )
 
     async def test_park_from_crawling_after_moving(self) -> None:
@@ -643,7 +643,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="park",
+            command=mtdome.CommandName.PARK,
         )
 
     async def test_park_from_crawling(self) -> None:
@@ -676,7 +676,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="park",
+            command=mtdome.CommandName.PARK,
         )
 
     async def test_stationary_from_moving(self) -> None:

@@ -20,8 +20,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = [
+    "POWER_MANAGEMENT_COMMANDS",
     "POSITION_TOLERANCE",
     "ZERO_VELOCITY_TOLERANCE",
+    "CommandName",
     "InternalMotionState",
     "LlcName",
     "LlcNameDict",
@@ -55,7 +57,58 @@ motion_state_translations = {
 }
 
 
-class LlcName(str, enum.Enum):
+class CommandName(enum.StrEnum):
+    """Command names."""
+
+    CALIBRATE_AZ = "calibrateAz"
+    CLOSE_LOUVERS = "closeLouvers"
+    CLOSE_SHUTTER = "closeShutter"
+    CONFIG = "config"
+    CRAWL_AZ = "crawlAz"
+    CRAWL_EL = "crawlEl"
+    EXIT_FAULT = "exitFault"
+    FANS = "fans"
+    GO_STATIONARY_AZ = "goStationaryAz"
+    GO_STATIONARY_EL = "goStationaryEl"
+    GO_STATIONARY_LOUVERS = "goStationaryLouvers"
+    GO_STATIONARY_SHUTTER = "goStationaryShutter"
+    INFLATE = "inflate"
+    MOVE_AZ = "moveAz"
+    MOVE_EL = "moveEl"
+    OPEN_SHUTTER = "openShutter"
+    PARK = "park"
+    RESET_DRIVES_AZ = "resetDrivesAz"
+    RESET_DRIVES_SHUTTER = "resetDrivesShutter"
+    RESTORE = "restore"
+    SEARCH_ZERO_SHUTTER = "searchZeroShutter"
+    SET_DEGRADED_AZ = "setDegradedAz"
+    SET_DEGRADED_EL = "setDegradedEl"
+    SET_DEGRADED_LOUVERS = "setDegradedLouvers"
+    SET_DEGRADED_SHUTTER = "setDegradedShutter"
+    SET_DEGRADED_MONITORING = "setDegradedMonitoring"
+    SET_DEGRADED_THERMAL = "setDegradedThermal"
+    SET_NORMAL_AZ = "setNormalAz"
+    SET_NORMAL_EL = "setNormalEl"
+    SET_NORMAL_LOUVERS = "setNormalLouvers"
+    SET_NORMAL_SHUTTER = "setNormalShutter"
+    SET_NORMAL_MONITORING = "setNormalMonitoring"
+    SET_NORMAL_THERMAL = "setNormalThermal"
+    SET_LOUVERS = "setLouvers"
+    SET_TEMPERATURE = "setTemperature"
+    STATUS_AMCS = "statusAMCS"
+    STATUS_APSCS = "statusApSCS"
+    STATUS_LCS = "statusLCS"
+    STATUS_LWSCS = "statusLWSCS"
+    STATUS_MONCS = "statusMonCS"
+    STATUS_RAD = "statusRAD"
+    STATUS_THCS = "statusThCS"
+    STOP_AZ = "stopAz"
+    STOP_EL = "stopEl"
+    STOP_LOUVERS = "stopLouvers"
+    STOP_SHUTTER = "stopShutter"
+
+
+class LlcName(enum.StrEnum):
     """LLC names."""
 
     AMCS = "AMCS"
@@ -72,6 +125,15 @@ class OnOff(enum.Enum):
 
     ON = True
     OFF = False
+
+
+class PowerManagementMode(enum.IntEnum):
+    """Power management modes for the CSC."""
+
+    NO_POWER_MANAGEMENT = enum.auto()
+    OPERATIONS = enum.auto()
+    EMERGENCY = enum.auto()
+    MAINTENANCE = enum.auto()
 
 
 class ResponseCode(enum.IntEnum):
@@ -110,15 +172,6 @@ class ValidSimulationMode(enum.IntEnum):
     SIMULATION_WITHOUT_MOCK_CONTROLLER = 2
 
 
-class PowerManagementMode(enum.Enum):
-    """Power management modes for the CSC."""
-
-    NO_POWER_MANAGEMENT = enum.auto()
-    CONSERVATIVE_OPERATIONS = enum.auto()
-    EMERGENCY = enum.auto()
-    MAINTENANCE = enum.auto()
-
-
 # Dictionary to look up which LlcName is associated with which sub-system.
 LlcNameDict = {getattr(SubSystemId, enum.name): enum.value for enum in LlcName}
 
@@ -126,6 +179,38 @@ LlcNameDict = {getattr(SubSystemId, enum.name): enum.value for enum in LlcName}
 MaxValueConfigType = dict[str, str | list[float]]
 MaxValuesConfigType = list[MaxValueConfigType]
 
+# Commands under power management.
+POWER_MANAGEMENT_COMMANDS = [
+    CommandName.CLOSE_LOUVERS,
+    CommandName.CLOSE_SHUTTER,
+    CommandName.CRAWL_EL,
+    CommandName.FANS,
+    CommandName.MOVE_EL,
+    CommandName.OPEN_SHUTTER,
+    CommandName.SEARCH_ZERO_SHUTTER,
+    CommandName.SET_LOUVERS,
+]
+
 # Tolerances for the azimuth motion. The position tolerance is from LTS-97.
-ZERO_VELOCITY_TOLERANCE = 1e-7  # deg /sec
 POSITION_TOLERANCE = 0.25  # deg
+ZERO_VELOCITY_TOLERANCE = 1e-7  # deg /sec
+
+
+@dataclass(order=True)
+class ScheduledCommand:
+    """Class representing a scheduled command.
+
+    A command needs to be scheduled in case the power draw by it would cause
+    the total power draw on the rotating part of the dome to exceed the
+    threshold value defined in `AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY`.
+
+    Attributes
+    ----------
+    command : `str`
+        The command that may need to be scheduled.
+    params : `dict`[`str`, `typing.Any`]
+        The parameters for the command. Defaults to None.
+    """
+
+    command: str
+    params: dict[str, typing.Any]
