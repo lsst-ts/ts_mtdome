@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -18,6 +18,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+HIGH_PRIOTITY = 0  # High priority for scheduling commands.
 
 # Total power draw by the Aperture Shutter [W] as indicated by the vendor.
 APS_POWER_DRAW = 5600.0

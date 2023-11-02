@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -25,7 +25,7 @@ import unittest
 import pytest
 from expected_state import ExpectedState
 from lsst.ts import mtdome
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 START_TAI = 10001.0
 MIN_POSITION = 0

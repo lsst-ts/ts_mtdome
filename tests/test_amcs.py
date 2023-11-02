@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -25,12 +25,12 @@ import unittest
 import pytest
 from expected_state import ExpectedState
 from lsst.ts import mtdome
-from lsst.ts.idl.enums.MTDome import MotionState
 from lsst.ts.mtdome.mock_llc.amcs import (
     CURRENT_PER_MOTOR_CRAWLING,
     CURRENT_PER_MOTOR_MOVING,
 )
 from lsst.ts.mtdome.mock_llc.mock_motion.azimuth_motion import NUM_MOTORS
+from lsst.ts.xml.enums.MTDome import MotionState
 
 # The maximum AZ rotation speed (deg/s)
 MAX_SPEED = 4.0
@@ -538,7 +538,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=2.0,
             expected_states=expected_states,
-            command="stopAz",
+            command=mtdome.CommandName.STOP_AZ,
         )
 
     async def test_stop_from_crawling_after_moving(self) -> None:
@@ -572,7 +572,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="stopAz",
+            command=mtdome.CommandName.STOP_AZ,
         )
 
     async def test_stop_from_crawling(self) -> None:
@@ -602,7 +602,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="stopAz",
+            command=mtdome.CommandName.STOP_AZ,
         )
 
     async def test_park_from_moving(self) -> None:
@@ -636,7 +636,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=1.0,
             expected_states=expected_states,
-            command="park",
+            command=mtdome.CommandName.PARK,
         )
 
     async def test_park_from_crawling_after_moving(self) -> None:
@@ -672,7 +672,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="park",
+            command=mtdome.CommandName.PARK,
         )
 
     async def test_park_from_crawling(self) -> None:
@@ -705,7 +705,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="park",
+            command=mtdome.CommandName.PARK,
         )
 
     async def test_stationary_from_moving(self) -> None:

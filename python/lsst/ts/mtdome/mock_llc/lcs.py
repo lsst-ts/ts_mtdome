@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -25,10 +25,10 @@ import logging
 
 import numpy as np
 from lsst.ts import utils
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 from ..enums import InternalMotionState
-from ..power_draw_constants import LOUVERS_POWER_DRAW
+from ..power_management.power_draw_constants import LOUVERS_POWER_DRAW
 from .base_mock_llc import DOME_VOLTAGE, BaseMockStatus
 
 NUM_LOUVERS = 34

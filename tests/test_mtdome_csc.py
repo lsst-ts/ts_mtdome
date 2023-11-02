@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -32,7 +32,7 @@ import numpy as np
 import pytest
 import yaml
 from lsst.ts import mtdome, salobj, tcpip, utils
-from lsst.ts.idl.enums.MTDome import (
+from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
     OperationalMode,
@@ -91,31 +91,31 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             await self.check_standard_state_transitions(
                 enabled_commands=(
-                    "moveAz",
-                    "moveEl",
-                    "stopAz",
-                    "stopEl",
+                    mtdome.CommandName.MOVE_AZ,
+                    mtdome.CommandName.MOVE_EL,
+                    mtdome.CommandName.STOP_AZ,
+                    mtdome.CommandName.STOP_EL,
                     "stop",
-                    "crawlAz",
-                    "crawlEl",
-                    "setLouvers",
-                    "closeLouvers",
-                    "stopLouvers",
-                    "openShutter",
-                    "closeShutter",
-                    "stopShutter",
-                    "park",
+                    mtdome.CommandName.CRAWL_AZ,
+                    mtdome.CommandName.CRAWL_EL,
+                    mtdome.CommandName.SET_LOUVERS,
+                    mtdome.CommandName.CLOSE_LOUVERS,
+                    mtdome.CommandName.STOP_LOUVERS,
+                    mtdome.CommandName.OPEN_SHUTTER,
+                    mtdome.CommandName.CLOSE_SHUTTER,
+                    mtdome.CommandName.STOP_SHUTTER,
+                    mtdome.CommandName.PARK,
                     "goStationary",
-                    "goStationaryAz",
-                    "goStationaryEl",
-                    "goStationaryLouvers",
-                    "goStationaryShutter",
-                    "setTemperature",
-                    "exitFault",
+                    mtdome.CommandName.GO_STATIONARY_AZ,
+                    mtdome.CommandName.GO_STATIONARY_EL,
+                    mtdome.CommandName.GO_STATIONARY_LOUVERS,
+                    mtdome.CommandName.GO_STATIONARY_SHUTTER,
+                    mtdome.CommandName.SET_TEMPERATURE,
+                    mtdome.CommandName.EXIT_FAULT,
                     "setOperationalMode",
-                    "resetDrivesAz",
+                    mtdome.CommandName.RESET_DRIVES_AZ,
                     "setZeroAz",
-                    "resetDrivesShutter",
+                    mtdome.CommandName.RESET_DRIVES_SHUTTER,
                     "home",
                 ),
             )
@@ -260,7 +260,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             data = await self.assert_next_sample(
                 topic=self.remote.evt_azTarget, position=desired_position
             )
-            await self.assert_command_replied(cmd="moveAz")
+            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
             assert desired_velocity == pytest.approx(data.velocity)
 
             # Give some time to the mock device to move.
@@ -290,7 +290,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             position=desired_position,
             timeout=SHORT_TIMEOUT,
         )
-        await self.assert_command_replied(cmd="moveAz")
+        await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
         assert desired_velocity == pytest.approx(data.velocity)
 
         # Give some time to the mock device to move.
@@ -370,7 +370,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.assert_next_sample(
                 topic=self.remote.evt_elTarget, position=desired_position, velocity=0
             )
-            await self.assert_command_replied(cmd="moveEl")
+            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_EL)
 
             # Now also check the elMotion event.
             await self.csc.statusLWSCS()
@@ -420,7 +420,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 state=MotionState.MOVING,
                 inPosition=False,
             )
-            await self.assert_command_replied(cmd="moveAz")
+            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
 
             await self.remote.cmd_stop.set_start(
                 engageBrakes=False, subSystemIds=SubSystemId.AMCS
@@ -462,7 +462,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 state=MotionState.STOPPED,
                 inPosition=True,
             )
-            await self.assert_command_replied(cmd="moveEl")
+            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_EL)
 
     async def test_do_stop(self) -> None:
         async with self.make_csc(
@@ -500,7 +500,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 topic=self.remote.evt_azMotion,
                 state=MotionState.MOVING,
             )
-            await self.assert_command_replied(cmd="moveAz")
+            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
 
             sub_system_ids = (
                 SubSystemId.AMCS
@@ -557,7 +557,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             data = await self.assert_next_sample(
                 topic=self.remote.evt_azTarget,
             )
-            await self.assert_command_replied(cmd="crawlAz")
+            await self.assert_command_replied(cmd=mtdome.CommandName.CRAWL_AZ)
             assert np.isnan(data.position)
             assert desired_velocity == pytest.approx(data.velocity)
 
@@ -605,7 +605,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             data = await self.assert_next_sample(
                 topic=self.remote.evt_elTarget,
             )
-            await self.assert_command_replied(cmd="crawlEl")
+            await self.assert_command_replied(cmd=mtdome.CommandName.CRAWL_EL)
             assert np.isnan(data.position)
             assert desired_velocity == pytest.approx(data.velocity)
 
@@ -634,7 +634,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 position=desired_position.tolist(),
                 timeout=STD_TIMEOUT,
             )
-            await self.assert_command_replied(cmd="setLouvers")
+            await self.assert_command_replied(cmd=mtdome.CommandName.SET_LOUVERS)
 
     async def test_do_closeLouvers(self) -> None:
         async with self.make_csc(
@@ -644,7 +644,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_closeLouvers.set_start()
-            await self.assert_command_replied(cmd="closeLouvers")
+            await self.assert_command_replied(cmd=mtdome.CommandName.CLOSE_LOUVERS)
 
     async def test_do_stopLouvers(self) -> None:
         async with self.make_csc(
@@ -665,7 +665,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_openShutter.set_start()
-            await self.assert_command_replied(cmd="openShutter")
+            await self.assert_command_replied(cmd=mtdome.CommandName.OPEN_SHUTTER)
 
     async def test_do_closeShutter(self) -> None:
         async with self.make_csc(
@@ -675,7 +675,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_closeShutter.set_start()
-            await self.assert_command_replied(cmd="closeShutter")
+            await self.assert_command_replied(cmd=mtdome.CommandName.CLOSE_SHUTTER)
 
     async def test_do_stopShutter(self) -> None:
         async with self.make_csc(
@@ -716,7 +716,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 position=360.0 - mtdome.DOME_AZIMUTH_OFFSET,
                 velocity=0,
             )
-            await self.assert_command_replied(cmd="park")
+            await self.assert_command_replied(cmd=mtdome.CommandName.PARK)
 
             # No new azMotion event gets emitted since the PARKED event already
             # was emitted and AMCS has not changed status since, so we're done.
@@ -753,7 +753,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mock_ctrl.current_tai = (
                 self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
             )
-            await self.assert_command_replied(cmd="moveAz")
+            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
 
             sub_system_ids = (
                 SubSystemId.AMCS
@@ -792,7 +792,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 temperature=desired_temperature,
                 timeout=STD_TIMEOUT,
             )
-            await self.assert_command_replied(cmd="setTemperature")
+            await self.assert_command_replied(cmd=mtdome.CommandName.SET_TEMPERATURE)
 
     async def test_config(self) -> None:
         async with self.make_csc(
@@ -935,9 +935,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.csc.write_then_read_reply(
-                command="fans", action=mtdome.OnOff.ON.value
+                command=mtdome.CommandName.FANS, action=mtdome.OnOff.ON.value
             )
-            await self.assert_command_replied(cmd="fans")
+            await self.assert_command_replied(cmd=mtdome.CommandName.FANS)
 
             # Give some time to the mock device to move.
             self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
@@ -962,9 +962,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.csc.write_then_read_reply(
-                command="inflate", action=mtdome.OnOff.ON.value
+                command=mtdome.CommandName.INFLATE, action=mtdome.OnOff.ON.value
             )
-            await self.assert_command_replied(cmd="inflate")
+            await self.assert_command_replied(cmd=mtdome.CommandName.INFLATE)
 
             # Give some time to the mock device to move.
             self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
@@ -1095,7 +1095,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 velocity=desired_velocity,
                 timeout=STD_TIMEOUT,
             )
-            await self.assert_command_replied(cmd="moveAz")
+            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
 
             self.csc.mock_ctrl.current_tai = (
                 self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
@@ -1130,16 +1130,18 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # command will also reset the AZ and ApS drives so this next
             # command will not fail.
             await self.remote.cmd_exitFault.set_start()
-            await self.assert_command_replied(cmd="exitFault")
+            await self.assert_command_replied(cmd=mtdome.CommandName.EXIT_FAULT)
 
             az_reset = [1, 1, 0, 0, 0]
             await self.remote.cmd_resetDrivesAz.set_start(reset=az_reset)
-            await self.assert_command_replied(cmd="resetDrivesAz")
+            await self.assert_command_replied(cmd=mtdome.CommandName.RESET_DRIVES_AZ)
             aps_reset = [1, 1, 0, 0]
             await self.remote.cmd_resetDrivesShutter.set_start(reset=aps_reset)
-            await self.assert_command_replied(cmd="resetDrivesShutter")
+            await self.assert_command_replied(
+                cmd=mtdome.CommandName.RESET_DRIVES_SHUTTER
+            )
             await self.remote.cmd_exitFault.set_start()
-            await self.assert_command_replied(cmd="exitFault")
+            await self.assert_command_replied(cmd=mtdome.CommandName.EXIT_FAULT)
 
             # Make sure that the Enabled events are sent.
             await self.assert_next_sample(
@@ -1229,7 +1231,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 velocity=desired_velocity,
                 timeout=STD_TIMEOUT,
             )
-            await self.assert_command_replied(cmd="moveAz")
+            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
             data = await self.assert_next_sample(
                 topic=self.remote.evt_azTarget, position=desired_position
             )
@@ -1545,26 +1547,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.csc.check_all_commands_have_replies()
             assert command_id not in self.csc.commands_without_reply
-
-    # TODO DM-39564: Remove this test as soon as the MTDome control software
-    #   always includes a commandId in its data.
-    async def test_no_command_id(self) -> None:
-        with open(CONFIG_DIR / "_init.yaml") as f:
-            config = yaml.safe_load(f)
-
-        async with self.create_mock_controller(
-            port=config["port"], include_command_id=False
-        ), self.make_csc(
-            initial_state=salobj.State.ENABLED,
-            config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
-        ):
-            await self.assert_next_summary_state(salobj.State.ENABLED)
-            while len(self.csc.lower_level_status) == 0:
-                await asyncio.sleep(0.1)
-            for key in self.csc.lower_level_status.keys():
-                lower_level_status = self.csc.lower_level_status[key]
-                assert "commandId" not in lower_level_status
 
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")

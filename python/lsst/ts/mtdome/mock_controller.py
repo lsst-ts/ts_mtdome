@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -26,8 +26,19 @@ import logging
 import typing
 
 from lsst.ts import tcpip, utils
-from lsst.ts.mtdome import encoding_tools, mock_llc
-from lsst.ts.mtdome.enums import LlcName, ResponseCode
+
+from .encoding_tools import validate
+from .enums import CommandName, LlcName, ResponseCode
+from .mock_llc import (
+    AmcsStatus,
+    ApscsStatus,
+    BaseMockStatus,
+    LcsStatus,
+    LwscsStatus,
+    MoncsStatus,
+    RadStatus,
+    ThcsStatus,
+)
 
 
 class MockMTDomeController(tcpip.OneClientReadLoopServer):
@@ -92,52 +103,52 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         # * No arguments, if `has_argument` False.
         # * The argument as a string, if `has_argument` is True.
         self.dispatch_dict: dict[str, typing.Callable] = {
-            "calibrateAz": self.calibrate_az,
-            "closeLouvers": self.close_louvers,
-            "closeShutter": self.close_shutter,
-            "config": self.config,
-            "crawlAz": self.crawl_az,
-            "crawlEl": self.crawl_el,
-            "exitFault": self.exit_fault,
-            "fans": self.fans,
-            "goStationaryAz": self.go_stationary_az,
-            "goStationaryEl": self.go_stationary_el,
-            "goStationaryLouvers": self.go_stationary_louvers,
-            "goStationaryShutter": self.go_stationary_shutter,
-            "inflate": self.inflate,
-            "moveAz": self.move_az,
-            "moveEl": self.move_el,
-            "openShutter": self.open_shutter,
-            "park": self.park,
-            "resetDrivesAz": self.reset_drives_az,
-            "resetDrivesShutter": self.reset_drives_shutter,
-            "restore": self.restore,
-            "searchZeroShutter": self.search_zero_shutter,
-            "setDegradedAz": self.set_degraded_az,
-            "setDegradedEl": self.set_degraded_el,
-            "setDegradedLouvers": self.set_degraded_louvers,
-            "setDegradedShutter": self.set_degraded_shutter,
-            "setDegradedMonitoring": self.set_degraded_monitoring,
-            "setDegradedThermal": self.set_degraded_thermal,
-            "setLouvers": self.set_louvers,
-            "setNormalAz": self.set_normal_az,
-            "setNormalEl": self.set_normal_el,
-            "setNormalLouvers": self.set_normal_louvers,
-            "setNormalShutter": self.set_normal_shutter,
-            "setNormalMonitoring": self.set_normal_monitoring,
-            "setNormalThermal": self.set_normal_thermal,
-            "setTemperature": self.set_temperature,
-            "statusAMCS": self.status_amcs,
-            "statusApSCS": self.status_apscs,
-            "statusLCS": self.status_lcs,
-            "statusLWSCS": self.status_lwscs,
-            "statusMonCS": self.status_moncs,
-            "statusRAD": self.status_rad,
-            "statusThCS": self.status_thcs,
-            "stopAz": self.stop_az,
-            "stopEl": self.stop_el,
-            "stopLouvers": self.stop_louvers,
-            "stopShutter": self.stop_shutter,
+            CommandName.CALIBRATE_AZ: self.calibrate_az,
+            CommandName.CLOSE_LOUVERS: self.close_louvers,
+            CommandName.CLOSE_SHUTTER: self.close_shutter,
+            CommandName.CONFIG: self.config,
+            CommandName.CRAWL_AZ: self.crawl_az,
+            CommandName.CRAWL_EL: self.crawl_el,
+            CommandName.EXIT_FAULT: self.exit_fault,
+            CommandName.FANS: self.fans,
+            CommandName.GO_STATIONARY_AZ: self.go_stationary_az,
+            CommandName.GO_STATIONARY_EL: self.go_stationary_el,
+            CommandName.GO_STATIONARY_LOUVERS: self.go_stationary_louvers,
+            CommandName.GO_STATIONARY_SHUTTER: self.go_stationary_shutter,
+            CommandName.INFLATE: self.inflate,
+            CommandName.MOVE_AZ: self.move_az,
+            CommandName.MOVE_EL: self.move_el,
+            CommandName.OPEN_SHUTTER: self.open_shutter,
+            CommandName.PARK: self.park,
+            CommandName.RESET_DRIVES_AZ: self.reset_drives_az,
+            CommandName.RESET_DRIVES_SHUTTER: self.reset_drives_shutter,
+            CommandName.RESTORE: self.restore,
+            CommandName.SEARCH_ZERO_SHUTTER: self.search_zero_shutter,
+            CommandName.SET_DEGRADED_AZ: self.set_degraded_az,
+            CommandName.SET_DEGRADED_EL: self.set_degraded_el,
+            CommandName.SET_DEGRADED_LOUVERS: self.set_degraded_louvers,
+            CommandName.SET_DEGRADED_MONITORING: self.set_degraded_monitoring,
+            CommandName.SET_DEGRADED_SHUTTER: self.set_degraded_shutter,
+            CommandName.SET_DEGRADED_THERMAL: self.set_degraded_thermal,
+            CommandName.SET_LOUVERS: self.set_louvers,
+            CommandName.SET_NORMAL_AZ: self.set_normal_az,
+            CommandName.SET_NORMAL_EL: self.set_normal_el,
+            CommandName.SET_NORMAL_LOUVERS: self.set_normal_louvers,
+            CommandName.SET_NORMAL_MONITORING: self.set_normal_monitoring,
+            CommandName.SET_NORMAL_SHUTTER: self.set_normal_shutter,
+            CommandName.SET_NORMAL_THERMAL: self.set_normal_thermal,
+            CommandName.SET_TEMPERATURE: self.set_temperature,
+            CommandName.STATUS_AMCS: self.status_amcs,
+            CommandName.STATUS_APSCS: self.status_apscs,
+            CommandName.STATUS_LCS: self.status_lcs,
+            CommandName.STATUS_LWSCS: self.status_lwscs,
+            CommandName.STATUS_MONCS: self.status_moncs,
+            CommandName.STATUS_RAD: self.status_rad,
+            CommandName.STATUS_THCS: self.status_thcs,
+            CommandName.STOP_AZ: self.stop_az,
+            CommandName.STOP_EL: self.stop_el,
+            CommandName.STOP_LOUVERS: self.stop_louvers,
+            CommandName.STOP_SHUTTER: self.stop_shutter,
         }
         # Time keeping
         self.current_tai = 0
@@ -157,13 +168,13 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         self._include_command_id = include_command_id
 
         # Variables for the lower level components.
-        self.amcs: typing.Optional[mock_llc.AmcsStatus] = None
-        self.apscs: typing.Optional[mock_llc.ApscsStatus] = None
-        self.lcs: typing.Optional[mock_llc.LcsStatus] = None
-        self.lwscs: typing.Optional[mock_llc.LwscsStatus] = None
-        self.moncs: typing.Optional[mock_llc.MoncsStatus] = None
-        self.rad: typing.Optional[mock_llc.RadStatus] = None
-        self.thcs: typing.Optional[mock_llc.ThcsStatus] = None
+        self.amcs: AmcsStatus | None = None
+        self.apscs: ApscsStatus | None = None
+        self.lcs: LcsStatus | None = None
+        self.lwscs: LwscsStatus | None = None
+        self.moncs: MoncsStatus | None = None
+        self.rad: RadStatus | None = None
+        self.thcs: ThcsStatus | None = None
 
     async def start(self, **kwargs: typing.Any) -> None:
         """Start the TCP/IP server.
@@ -180,13 +191,13 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         await self.determine_current_tai()
 
         self.log.info("Starting LLCs")
-        self.amcs = mock_llc.AmcsStatus(start_tai=self.current_tai)
-        self.apscs = mock_llc.ApscsStatus(start_tai=self.current_tai)
-        self.lcs = mock_llc.LcsStatus()
-        self.lwscs = mock_llc.LwscsStatus(start_tai=self.current_tai)
-        self.moncs = mock_llc.MoncsStatus()
-        self.rad = mock_llc.RadStatus()
-        self.thcs = mock_llc.ThcsStatus()
+        self.amcs = AmcsStatus(start_tai=self.current_tai)
+        self.apscs = ApscsStatus(start_tai=self.current_tai)
+        self.lcs = LcsStatus()
+        self.lwscs = LwscsStatus(start_tai=self.current_tai)
+        self.moncs = MoncsStatus()
+        self.rad = RadStatus()
+        self.thcs = ThcsStatus()
 
     async def write_reply(self, **data: typing.Any) -> None:
         """Write the data appended with the commandId.
@@ -214,7 +225,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             self.log.warning(f"Ignoring a command that was not valid json: {e!r}.")
             return
         try:
-            encoding_tools.validate(data)
+            validate(data)
         except Exception:
             self.log.warning(
                 f"Ignoring command {data} because it has incorrect schema."
@@ -267,47 +278,52 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         """Request the status from the AMCS lower level component and write it
         in reply.
         """
+        assert self.amcs is not None
         await self.request_and_send_status(self.amcs, LlcName.AMCS.value)
 
     async def status_apscs(self) -> None:
         """Request the status from the ApSCS lower level component and write it
         in reply.
         """
+        assert self.apscs is not None
         await self.request_and_send_status(self.apscs, LlcName.APSCS.value)
 
     async def status_lcs(self) -> None:
         """Request the status from the LCS lower level component and write it
         in reply.
         """
+        assert self.lcs is not None
         await self.request_and_send_status(self.lcs, LlcName.LCS.value)
 
     async def status_lwscs(self) -> None:
         """Request the status from the LWSCS lower level component and write it
         in reply.
         """
+        assert self.lwscs is not None
         await self.request_and_send_status(self.lwscs, LlcName.LWSCS.value)
 
     async def status_moncs(self) -> None:
         """Request the status from the MonCS lower level component and write it
         in reply.
         """
+        assert self.moncs is not None
         await self.request_and_send_status(self.moncs, LlcName.MONCS.value)
 
     async def status_rad(self) -> None:
         """Request the status from the RAD lower level component and write it
         in reply.
         """
+        assert self.rad is not None
         await self.request_and_send_status(self.rad, LlcName.RAD.value)
 
     async def status_thcs(self) -> None:
         """Request the status from the ThCS lower level component and write it
         in reply.
         """
+        assert self.thcs is not None
         await self.request_and_send_status(self.thcs, LlcName.THCS.value)
 
-    async def request_and_send_status(
-        self, llc: mock_llc.BaseMockStatus, llc_name: str
-    ) -> None:
+    async def request_and_send_status(self, llc: BaseMockStatus, llc_name: str) -> None:
         """Request the status of the given Lower Level Component and write it
         to the requester.
 

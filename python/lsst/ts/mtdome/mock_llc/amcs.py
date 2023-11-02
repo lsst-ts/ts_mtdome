@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -30,7 +30,7 @@ import logging
 import math
 
 import numpy as np
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 from ..enums import OnOff
 from ..llc_configuration_limits.amcs_limits import AmcsLimits

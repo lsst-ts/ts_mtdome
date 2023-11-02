@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -29,7 +29,7 @@ from types import SimpleNamespace
 
 import numpy as np
 from lsst.ts import salobj, tcpip, utils
-from lsst.ts.idl.enums.MTDome import (
+from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
     OperationalMode,
@@ -41,20 +41,24 @@ from .config_schema import CONFIG_SCHEMA
 from .enums import (
     POSITION_TOLERANCE,
     ZERO_VELOCITY_TOLERANCE,
+    CommandName,
     LlcName,
     LlcNameDict,
     MaxValueConfigType,
     MaxValuesConfigType,
     PowerManagementMode,
     ResponseCode,
+    ScheduledCommand,
     ValidSimulationMode,
     motion_state_translations,
 )
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .mock_controller import MockMTDomeController
-from .power_draw_constants import (
+from .power_management import (
     AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY,
     FANS_POWER_DRAW,
+    PowerManagementHandler,
+    command_priorities,
 )
 
 # Timeout [sec] used when creating a Client, a mock controller or when waiting
@@ -115,17 +119,17 @@ _COMMAND_QUEUE_PERIOD = 1.0
 # that there probably will be more situations during commissioning in which
 # commands need to be disabled.
 COMMANDS_DISABLED_FOR_COMMISSIONING = {
-    "closeLouvers",
-    "crawlEl",
-    "fans",
-    "goStationaryEl",
-    "goStationaryLouvers",
-    "inflate",
-    "moveEl",
-    "setLouvers",
-    "setTemperature",
-    "stopEl",
-    "stopLouvers",
+    CommandName.CLOSE_LOUVERS,
+    CommandName.CRAWL_EL,
+    CommandName.FANS,
+    CommandName.GO_STATIONARY_EL,
+    CommandName.GO_STATIONARY_LOUVERS,
+    CommandName.INFLATE,
+    CommandName.MOVE_EL,
+    CommandName.SET_LOUVERS,
+    CommandName.SET_TEMPERATURE,
+    CommandName.STOP_EL,
+    CommandName.STOP_LOUVERS,
 }
 REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
 
@@ -133,47 +137,47 @@ REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
 # indicates whther they are used for commissioning (True) or not. Note that all
 # methods always are used for unit testing.
 ALL_METHODS_AND_INTERVALS = {
-    "statusAMCS": (_AMCS_STATUS_PERIOD, True),
-    "statusApSCS": (_APSCS_STATUS_PERIOD, True),
-    "statusLCS": (_LCS_STATUS_PERIOD, False),
-    "statusLWSCS": (_LWSCS_STATUS_PERIOD, False),
-    "statusMonCS": (_MONCS_STATUS_PERIOD, False),
-    "statusRAD": (_RAD_STATUS_PERIOD, True),
-    "statusThCS": (_THCS_STATUS_PERIOD, False),
+    CommandName.STATUS_AMCS: (_AMCS_STATUS_PERIOD, True),
+    CommandName.STATUS_APSCS: (_APSCS_STATUS_PERIOD, True),
+    CommandName.STATUS_LCS: (_LCS_STATUS_PERIOD, False),
+    CommandName.STATUS_LWSCS: (_LWSCS_STATUS_PERIOD, False),
+    CommandName.STATUS_MONCS: (_MONCS_STATUS_PERIOD, False),
+    CommandName.STATUS_RAD: (_RAD_STATUS_PERIOD, True),
+    CommandName.STATUS_THCS: (_THCS_STATUS_PERIOD, False),
     "check_all_commands_have_replies": (_COMMANDS_REPLIED_PERIOD, True),
 }
 
 ALL_OPERATIONAL_MODE_COMMANDS = {
     SubSystemId.AMCS: {
-        OperationalMode.NORMAL.name: "setNormalAz",
-        OperationalMode.DEGRADED.name: "setDegradedAz",
+        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_AZ,
+        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_AZ,
     },
     SubSystemId.LWSCS: {
-        OperationalMode.NORMAL.name: "setNormalEl",
-        OperationalMode.DEGRADED.name: "setDegradedEl",
+        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_EL,
+        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_EL,
     },
     SubSystemId.APSCS: {
-        OperationalMode.NORMAL.name: "setNormalShutter",
-        OperationalMode.DEGRADED.name: "setDegradedShutter",
+        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_SHUTTER,
+        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_SHUTTER,
     },
     SubSystemId.LCS: {
-        OperationalMode.NORMAL.name: "setNormalLouvers",
-        OperationalMode.DEGRADED.name: "setDegradedLouvers",
+        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_LOUVERS,
+        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_LOUVERS,
     },
     SubSystemId.MONCS: {
-        OperationalMode.NORMAL.name: "setNormalMonitoring",
-        OperationalMode.DEGRADED.name: "setDegradedMonitoring",
+        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_MONITORING,
+        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_MONITORING,
     },
     SubSystemId.THCS: {
-        OperationalMode.NORMAL.name: "setNormalThermal",
-        OperationalMode.DEGRADED.name: "setDegradedThermal",
+        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_THERMAL,
+        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_THERMAL,
     },
 }
 
 OPERATIONAL_MODE_COMMANDS_FOR_COMMISSIONING = {
     SubSystemId.AMCS: {
-        OperationalMode.NORMAL.name: "setNormalAz",
-        OperationalMode.DEGRADED.name: "setDegradedAz",
+        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_AZ,
+        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_AZ,
     },
 }
 
@@ -215,26 +219,6 @@ class CommandTime:
     tai: float
 
 
-@dataclass
-class ScheduledCommand:
-    """Class representing a scheduled command.
-
-    A command needs to be scheduled in case the power draw by it would cause
-    the total power draw on the rotating part of the dome to exceed the
-    threshold value defined in `AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY`.
-
-    Attributes
-    ----------
-    command : `str`
-        The command that may need to be scheduled.
-    params : `dict`[`str`, `typing.Any`]
-        The parameters for the command. Defaults to None.
-    """
-
-    command: str
-    params: dict[str, typing.Any]
-
-
 class MTDomeCsc(salobj.ConfigurableCsc):
     """Upper level Commandable SAL Component to interface with the Simonyi
     Survey Telescope Dome lower level components.
@@ -274,17 +258,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
     def __init__(
         self,
-        config_dir: typing.Optional[str] = None,
+        config_dir: str | None = None,
         initial_state: salobj.State = salobj.State.STANDBY,
         simulation_mode: int = ValidSimulationMode.NORMAL_OPERATIONS,
         override: str = "",
     ) -> None:
         self.client: tcpip.Client | None = None
-        self.config: typing.Optional[SimpleNamespace] = None
+        self.config: SimpleNamespace | None = None
 
-        self.mock_ctrl: typing.Optional[
-            MockMTDomeController
-        ] = None  # mock controller, or None if not constructed
+        # mock controller, or None if not constructed
+        self.mock_ctrl: MockMTDomeController | None = None
 
         super().__init__(
             name="MTDome",
@@ -330,7 +313,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # Keep track of which command to send the home command on a lower level
         # component.
         self.set_home_command_dict = {
-            SubSystemId.APSCS: "searchZeroShutter",
+            SubSystemId.APSCS: CommandName.SEARCH_ZERO_SHUTTER,
         }
 
         # TODO DM-37170: Remove as soon as the IDLE state is not used anymore
@@ -348,13 +331,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # that have been sent.
         self.commands_without_reply: dict[int, CommandTime] = {}
 
-        # Queue of commands to execute. A Queue wouldn't work here since it
-        # removes an item when getting one and the item may need to stay in the
-        # queue.
-        self.command_queue: list[ScheduledCommand] = []
-
-        # The power management state.
+        # Power management attributes.
         self.power_management_state = PowerManagementMode.NO_POWER_MANAGEMENT
+        self.power_management_handler = PowerManagementHandler(
+            self.log, command_priorities
+        )
 
         self.log.info("DomeCsc constructed.")
 
@@ -554,7 +535,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if self.simulation_mode != ValidSimulationMode.NORMAL_OPERATIONS:
             # For backward compatibility with XML 12.0, we always send the
             # searchZeroShutter command.
-            await self.write_then_read_reply(command="searchZeroShutter")
+            await self.write_then_read_reply(command=CommandName.SEARCH_ZERO_SHUTTER)
 
         assert self.config is not None
         if (
@@ -566,8 +547,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             self.log.info("Not setting AMCS maximum velocity, acceleration and jerk.")
 
-    # TODO DM-40861: <code block starts> Continue working on the next code
-    #  block as soon as the questions in DM-38789 have been answered.
     async def schedule_command_if_power_management_active(
         self, command: str, **params: typing.Any
     ) -> None:
@@ -589,7 +568,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.write_then_read_reply(command=command, **params)
         else:
             scheduled_command = ScheduledCommand(command=command, params=params)
-            self.command_queue.append(scheduled_command)
+            await self.power_management_handler.schedule_command(scheduled_command)
 
     async def process_command_queue(self) -> None:
         """Process the commands in the queue, if there are any.
@@ -607,14 +586,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         self.log.debug(f"{current_power_draw=}, {power_available=}")
 
-        commands_to_remove: list[ScheduledCommand] = []
-        for scheduled_command in self.command_queue:
+        scheduled_command = await self.power_management_handler.get_next_command(
+            current_power_draw
+        )
+        if scheduled_command is not None:
             await self.write_then_read_reply(
                 command=scheduled_command.command, **scheduled_command.params
             )
-            commands_to_remove.append(scheduled_command)
-        for scheduled_command in commands_to_remove:
-            self.command_queue.remove(scheduled_command)
 
     async def _get_current_power_draw_for_llcs(self) -> dict[str, float]:
         """Determine the current power draw for each subsystem based on the
@@ -643,137 +621,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 if "powerDraw" in llc_status:
                     current_power_draw[llc_name] = llc_status["powerDraw"]
         return current_power_draw
-
-    async def _schedule_for_conservative_operations(
-        self, current_power_draw: dict[str, float], command: str, **params: typing.Any
-    ) -> None:
-        """Schedule a command.
-
-        The operations approach means that
-          * The aperture shutter is open and does not move.
-          * The light/wind screen can move.
-          * The louvers may be opened or closed.
-          * The fans will be off.
-          * The OBC may not move.
-          * The RAD may not move.
-          * The calibration screen may not be used.
-
-        Conservative indicates that the power draw may never exceed the maximum
-        continuous power capacity of the slip ring, which is defined in
-        AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY (which takes into account
-        that there is electronic equipment that always takes a small amount of
-        power). To achieve this, the light/wind screen motion takes precedence
-        over the louvers. If the louvers are opening or closing when the
-        light/wind screen needs to move, the motion of the louvers needs to be
-        stopped until the light/wind screen is in position, and then can
-        continue.
-
-        Parameters
-        ----------
-        current_power_draw : `dict`[`str`, `float`]
-            The current power draw for each lower level component.
-        command : `str`
-            The command to schedule.
-        params : `typing.Any`
-            The parameters to pass along with the command. This may be empty.
-        """
-        match command:
-            case "openShutter" | "closeShutter" | "searchZeroShutter":
-                pass
-            case "moveEl" | "crawlEl":
-                pass
-            case "setLouvers" | "closeLouvers":
-                pass
-            case "fans":
-                pass
-            case _:
-                raise RuntimeError(f"{command=} is not supported by power management.")
-
-    async def _schedule_for_emergency_closing(
-        self, current_power_draw: dict[str, float], command: str, **params: typing.Any
-    ) -> None:
-        """Schedule a command.
-
-        The emergency closing approach means that
-          * The aperture shutter needs to be closed.
-          * The light/wind screen can not move.
-          * The louvers need to be closed.
-          * The fans will be off.
-          * The OBC may not move.
-          * The RAD may not move.
-          * The calibration screen may not be used.
-
-        In this approach the power draw will never exceed the maximum
-        continuous power capacity of the slip ring, which is defined in
-        AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY (which takes into account
-        that there is electronic equipment that always takes a small amount of
-        power).
-
-        Parameters
-        ----------
-        current_power_draw : `dict`[`str`, `float`]
-            The current power draw for each lower level component.
-        command : `str`
-            The command to schedule.
-        params : `typing.Any`
-            The parameters to pass along with the command. This may be empty.
-        """
-        match command:
-            case "openShutter" | "closeShutter" | "searchZeroShutter":
-                pass
-            case "moveEl" | "crawlEl":
-                pass
-            case "setLouvers" | "closeLouvers":
-                pass
-            case "fans":
-                pass
-            case _:
-                raise RuntimeError(f"{command=} is not supported by power management.")
-
-    async def _schedule_for_maintenance(
-        self, current_power_draw: dict[str, float], command: str, **params: typing.Any
-    ) -> None:
-        """Schedule a command.
-
-        The maintenance approach means that
-          * The aperture shutter is open and does not move.
-          * The light/wind screen can move.
-          * The louvers cannot move.
-          * The fans may be on or off.
-          * The OBC may move.
-          * The RAD may open or close.
-          * The calibration screen may be used.
-
-        In this approach the power draw may exceed the maximum continuous power
-        capacity of the slip ring, which is defined in
-        AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY (which takes into account
-        that there is electronic equipment that always takes a small amount of
-        power). The motion of the light/wind screen takes precedence over the
-        use of the fans, so the fans need to be stopped if on when the
-        light/wind screen needs to move and then started again.
-
-        Parameters
-        ----------
-        current_power_draw : `dict`[`str`, `float`]
-            The current power draw for each lower level component.
-        command : `str`
-            The command to schedule.
-        params : `typing.Any`
-            The parameters to pass along with the command. This may be empty.
-        """
-        match command:
-            case "openShutter" | "closeShutter" | "searchZeroShutter":
-                pass
-            case "moveEl" | "crawlEl":
-                pass
-            case "setLouvers" | "closeLouvers":
-                pass
-            case "fans":
-                pass
-            case _:
-                raise RuntimeError(f"{command=} is not supported by power management.")
-
-    # TODO DM-40861: <code block ends>
 
     async def write_then_read_reply(
         self, command: str, **params: typing.Any
@@ -807,7 +654,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 )
                 raise RuntimeError("self.client == None.")
 
-            disabled_commands: set[str] = set()
+            disabled_commands: set[CommandName] = set()
             if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
                 disabled_commands = COMMANDS_DISABLED_FOR_COMMISSIONING
 
@@ -823,26 +670,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         report=f"Error reading reply to command {command_dict}: {e}.",
                     )
                     raise
-                # TODO DM-39564: Remove the if amd else but keep the code
-                #  inside the if as soon as the MTDome control software always
-                #  includes a commandId in its data.
-                if "commandId" in data:
-                    received_command_id = data["commandId"]
-                    if received_command_id in self.commands_without_reply:
-                        self.commands_without_reply.pop(received_command_id)
-                    else:
-                        self.log.warning(
-                            f"Ignoring unknown commandId {received_command_id}."
-                        )
+                received_command_id = data["commandId"]
+                if received_command_id in self.commands_without_reply:
+                    self.commands_without_reply.pop(received_command_id)
                 else:
-                    # To be on the safe side, all commands_without_reply
-                    # entries for the current command are removed to suppress
-                    # unneccesary warnings.
-                    self.commands_without_reply = {
-                        cmd_id: self.commands_without_reply[cmd_id]
-                        for cmd_id in self.commands_without_reply
-                        if self.commands_without_reply[cmd_id].command != command
-                    }
+                    self.log.warning(
+                        f"Ignoring unknown commandId {received_command_id}."
+                    )
             else:
                 data = REPLY_DATA_FOR_DISABLED_COMMANDS
             response = data["response"]
@@ -931,7 +765,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             position=data.position, velocity=data.velocity
         ):
             await self.write_then_read_reply(
-                command="moveAz",
+                command=CommandName.MOVE_AZ,
                 position=math.radians(position),
                 velocity=math.radians(data.velocity),
             )
@@ -950,7 +784,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         self.log.debug(f"do_moveEl: {data.position=!s}")
         await self.schedule_command_if_power_management_active(
-            command="moveEl", position=math.radians(data.position)
+            command=CommandName.MOVE_EL, position=math.radians(data.position)
         )
         await self.evt_elTarget.set_write(position=data.position, velocity=0)
 
@@ -966,9 +800,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(f"stop_az: {engage_brakes=!s}")
         self.assert_enabled()
         if engage_brakes:
-            await self.write_then_read_reply(command="goStationaryAz")
+            await self.write_then_read_reply(command=CommandName.GO_STATIONARY_AZ)
         else:
-            await self.write_then_read_reply(command="stopAz")
+            await self.write_then_read_reply(command=CommandName.STOP_AZ)
 
     async def stop_el(self, engage_brakes: bool) -> None:
         """Stop EL motion and engage the brakes if indicated. Also
@@ -982,9 +816,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(f"stop_el: {engage_brakes=!s}")
         self.assert_enabled()
         if engage_brakes:
-            await self.write_then_read_reply(command="goStationaryEl")
+            await self.write_then_read_reply(command=CommandName.GO_STATIONARY_EL)
         else:
-            await self.write_then_read_reply(command="stopEl")
+            await self.write_then_read_reply(command=CommandName.STOP_EL)
 
     async def stop_louvers(self, engage_brakes: bool) -> None:
         """Stop Louvers motion and engage the brakes if indicated.
@@ -998,9 +832,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(f"stop_louvers: {engage_brakes=!s}")
         self.assert_enabled()
         if engage_brakes:
-            await self.write_then_read_reply(command="goStationaryLouvers")
+            await self.write_then_read_reply(command=CommandName.GO_STATIONARY_LOUVERS)
         else:
-            await self.write_then_read_reply(command="stopLouvers")
+            await self.write_then_read_reply(command=CommandName.STOP_LOUVERS)
 
     async def stop_shutter(self, engage_brakes: bool) -> None:
         """Stop Shutter motion and engage the brakes if indicated.
@@ -1014,9 +848,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(f"stop_shutter: {engage_brakes=!s}")
         self.assert_enabled()
         if engage_brakes:
-            await self.write_then_read_reply(command="goStationaryShutter")
+            await self.write_then_read_reply(command=CommandName.GO_STATIONARY_SHUTTER)
         else:
-            await self.write_then_read_reply(command="stopShutter")
+            await self.write_then_read_reply(command=CommandName.STOP_SHUTTER)
 
     async def do_stop(self, data: SimpleNamespace) -> None:
         """Stop all motion and engage the brakes if indicated in the data.
@@ -1052,7 +886,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(f"do_crawlAz: {data.velocity=!s}")
         self.assert_enabled()
         await self.write_then_read_reply(
-            command="crawlAz", velocity=math.radians(data.velocity)
+            command=CommandName.CRAWL_AZ, velocity=math.radians(data.velocity)
         )
         await self.evt_azTarget.set_write(position=float("nan"), velocity=data.velocity)
 
@@ -1067,7 +901,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(f"do_crawlEl: {data.velocity=!s}")
         self.assert_enabled()
         await self.schedule_command_if_power_management_active(
-            command="crawlEl", velocity=math.radians(data.velocity)
+            command=CommandName.CRAWL_EL, velocity=math.radians(data.velocity)
         )
         await self.evt_elTarget.set_write(position=float("nan"), velocity=data.velocity)
 
@@ -1082,7 +916,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(f"do_setLouvers: {data.position=!s}")
         self.assert_enabled()
         await self.schedule_command_if_power_management_active(
-            command="setLouvers", position=data.position
+            command=CommandName.SET_LOUVERS, position=data.position
         )
 
     async def do_closeLouvers(self, data: SimpleNamespace) -> None:
@@ -1095,7 +929,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug("do_closeLouvers")
         self.assert_enabled()
-        await self.schedule_command_if_power_management_active(command="closeLouvers")
+        await self.schedule_command_if_power_management_active(
+            command=CommandName.CLOSE_LOUVERS
+        )
 
     async def do_openShutter(self, data: SimpleNamespace) -> None:
         """Open Shutter.
@@ -1107,7 +943,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug("do_openShutter")
         self.assert_enabled()
-        await self.schedule_command_if_power_management_active(command="openShutter")
+        await self.schedule_command_if_power_management_active(
+            command=CommandName.OPEN_SHUTTER
+        )
 
     async def do_closeShutter(self, data: SimpleNamespace) -> None:
         """Close Shutter.
@@ -1119,7 +957,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug("do_closeShutter")
         self.assert_enabled()
-        await self.schedule_command_if_power_management_active(command="closeShutter")
+        await self.schedule_command_if_power_management_active(
+            command=CommandName.CLOSE_SHUTTER
+        )
 
     async def do_park(self, data: SimpleNamespace) -> None:
         """Park, meaning stop all motion and engage the brakes and locking
@@ -1132,7 +972,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug("do_park")
         self.assert_enabled()
-        await self.write_then_read_reply(command="park")
+        await self.write_then_read_reply(command=CommandName.PARK)
         await self.evt_azTarget.set_write(
             position=360.0 - DOME_AZIMUTH_OFFSET, velocity=0
         )
@@ -1148,7 +988,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(f"do_setTemperature: {data.temperature=!s}")
         self.assert_enabled()
         await self.write_then_read_reply(
-            command="setTemperature", temperature=data.temperature
+            command=CommandName.SET_TEMPERATURE, temperature=data.temperature
         )
 
     async def do_exitFault(self, data: SimpleNamespace) -> None:
@@ -1166,15 +1006,17 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # commands.
         az_reset = [1, 1, 1, 1, 1]
         self.log.debug(f"resetDrivesAz: {az_reset=!s}")
-        await self.write_then_read_reply(command="resetDrivesAz", reset=az_reset)
+        await self.write_then_read_reply(
+            command=CommandName.RESET_DRIVES_AZ, reset=az_reset
+        )
         if self.simulation_mode != ValidSimulationMode.NORMAL_OPERATIONS:
             aps_reset = [1, 1, 1, 1]
             self.log.debug(f"resetDrivesShutter: {aps_reset=!s}")
             await self.write_then_read_reply(
-                command="resetDrivesShutter", reset=aps_reset
+                command=CommandName.RESET_DRIVES_SHUTTER, reset=aps_reset
             )
         self.log.debug("do_exitFault")
-        await self.write_then_read_reply(command="exitFault")
+        await self.write_then_read_reply(command=CommandName.EXIT_FAULT)
 
     async def do_setOperationalMode(self, data: SimpleNamespace) -> None:
         """Indicate that one or more sub_systems need to operate in degraded
@@ -1220,7 +1062,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         reset_ints = [int(value) for value in data.reset]
         self.log.debug(f"do_resetDrivesAz: reset={reset_ints}")
-        await self.write_then_read_reply(command="resetDrivesAz", reset=reset_ints)
+        await self.write_then_read_reply(
+            command=CommandName.RESET_DRIVES_AZ, reset=reset_ints
+        )
 
     async def do_resetDrivesShutter(self, data: SimpleNamespace) -> None:
         """Reset one or more Aperture Shutter drives. This is necessary when
@@ -1235,7 +1079,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         reset_ints = [int(value) for value in data.reset]
         self.log.debug(f"do_resetDrivesShutter: reset={reset_ints}")
-        await self.write_then_read_reply(command="resetDrivesShutter", reset=reset_ints)
+        await self.write_then_read_reply(
+            command=CommandName.RESET_DRIVES_SHUTTER, reset=reset_ints
+        )
 
     async def do_setZeroAz(self, data: SimpleNamespace) -> None:
         """Take the current position of the dome as zero. This is necessary as
@@ -1249,7 +1095,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug("do_setZeroAz")
         self.assert_enabled()
-        await self.write_then_read_reply(command="calibrateAz")
+        await self.write_then_read_reply(command=CommandName.CALIBRATE_AZ)
 
     async def do_home(self, data: SimpleNamespace) -> None:
         """Search the home position of the Aperture Shutter, which is the
@@ -1302,11 +1148,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             raise ValueError(f"Encountered unsupported {system=!s}")
 
         await self.write_then_read_reply(
-            command="config", system=system, settings=converted_settings
+            command=CommandName.CONFIG, system=system, settings=converted_settings
         )
 
     async def restore_llcs(self) -> None:
-        await self.write_then_read_reply(command="restore")
+        await self.write_then_read_reply(command=CommandName.RESTORE)
 
     async def fans(self, data: dict[str, typing.Any]) -> None:
         """Fans command not to be executed by SAL.
@@ -1321,7 +1167,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             string value (ON or OFF).
         """
         await self.schedule_command_if_power_management_active(
-            command="fans", action=data["action"]
+            command=CommandName.FANS, action=data["action"]
         )
 
     async def inflate(self, data: dict[str, typing.Any]) -> None:
@@ -1336,7 +1182,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             the key "action" with a
             string value (ON or OFF).
         """
-        await self.write_then_read_reply(command="inflate", action=data["action"])
+        await self.write_then_read_reply(
+            command=CommandName.INFLATE, action=data["action"]
+        )
 
     async def statusAMCS(self) -> None:
         """AMCS status command not to be executed by SAL.
@@ -1425,8 +1273,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             #  anymore by the AMCS.
             if llc_status["status"] == "IDLE":
                 motion_state = self.previous_state
-
-            if llc_status["status"] in motion_state_translations:
+            elif llc_status["status"] in motion_state_translations:
                 motion_state = motion_state_translations[llc_status["status"]]
             else:
                 motion_state = MotionState[llc_status["status"]]
@@ -1541,17 +1388,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=command
         )
 
-        if llc_name not in self.lower_level_status:
-            # DM-30807: Send OperationalMode event at start up.
-            current_operational_mode = status[llc_name]["status"]["operationalMode"]
-            operatinal_mode = OperationalMode[current_operational_mode]
-            sub_system_id = [
-                sid for sid, name in LlcNameDict.items() if name == llc_name
-            ][0]
-            await self.evt_operationalMode.set_write(
-                operationalMode=operatinal_mode,
-                subSystemId=sub_system_id,
-            )
+        await self._send_operational_mode_event(llc_name=llc_name, status=status)
 
         # Send appliedConfiguration event for AMCS. This needs to be sent every
         # time the status is read because it can be modified by issuing the
@@ -1608,9 +1445,33 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         # Send the telemetry.
         await topic.set_write(**telemetry)
-
-        # DM-26374: Check for errors and send the events.
         llc_status = status[llc_name]["status"]
+        await self.check_errors_and_send_events(
+            llc_name=llc_name, llc_status=llc_status
+        )
+
+    async def _send_operational_mode_event(
+        self, llc_name: str, status: dict[str, typing.Any]
+    ) -> None:
+        if (
+            llc_name not in self.lower_level_status
+            and "operationalMode" in status[llc_name]["status"]
+        ):
+            # DM-30807: Send OperationalMode event at start up.
+            current_operational_mode = status[llc_name]["status"]["operationalMode"]
+            operatinal_mode = OperationalMode[current_operational_mode]
+            sub_system_id = [
+                sid for sid, name in LlcNameDict.items() if name == llc_name
+            ][0]
+            await self.evt_operationalMode.set_write(
+                operationalMode=operatinal_mode,
+                subSystemId=sub_system_id,
+            )
+
+    async def check_errors_and_send_events(
+        self, llc_name: str, llc_status: dict[str, typing.Any]
+    ) -> None:
+        # DM-26374: Check for errors and send the events.
         if llc_name == LlcName.AMCS.value:
             await self._check_errors_and_send_events_az(llc_status)
         elif llc_name == LlcName.LWSCS.value:

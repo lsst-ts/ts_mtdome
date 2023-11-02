@@ -8,9 +8,11 @@ Version History
 
 v1.14.0
 =======
-* Add a start for power management.
-  .. Starting the implementation triggered a lot of questions which I asked via email.
-     As soon as I have answers to those questions, the implementation can continue.
+* Replace ts_idl enums with ts_xml ones.
+* Reduce complexity of the "request_and_send_llc_status" command.
+* Replace all string command names with an enum.
+* Remove check for missing commandId.
+* Start implementing power management.
 
 Requires:
 

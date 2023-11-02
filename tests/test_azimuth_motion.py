@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -25,7 +25,7 @@ import unittest
 import pytest
 from expected_state import ExpectedState
 from lsst.ts import mtdome
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 # The maximum AZ rotation speed (deg/s)
 MAX_SPEED = 4.0
@@ -607,7 +607,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=1.0,
             expected_states=expected_states,
-            command="park",
+            command=mtdome.CommandName.PARK,
         )
 
     async def test_park_from_crawling_after_moving(self) -> None:
@@ -643,7 +643,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="park",
+            command=mtdome.CommandName.PARK,
         )
 
     async def test_park_from_crawling(self) -> None:
@@ -676,7 +676,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         await self.verify_halt(
             start_tai=4.0,
             expected_states=expected_states,
-            command="park",
+            command=mtdome.CommandName.PARK,
         )
 
     async def test_stationary_from_moving(self) -> None:
