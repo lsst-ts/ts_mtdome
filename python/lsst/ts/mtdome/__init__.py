@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -31,7 +31,7 @@ else:
     except ImportError:
         __version__ = "?"
 
-from . import llc_configuration_limits, mock_llc, schema
+from . import llc_configuration_limits, mock_llc, power_management, schema
 from .config_schema import CONFIG_SCHEMA
 from .enums import *
 from .mock_controller import *

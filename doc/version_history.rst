@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v1.14.0
+=======
+* Replace ts_idl enums with ts_xml ones.
+* Reduce complexity of the "request_and_send_llc_status" command.
+* Replace all string command names with an enum.
+* Remove check for missing commandId.
+* Start implementing power management.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_tcpip 1.1
+* ts_utils 1.0
+* ts_xml 20.0
+
 v1.13.0
 =======
 * Set ApsCS positionCommanded to two values.

@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -25,7 +25,7 @@ import logging
 import typing
 from abc import ABC, abstractmethod
 
-from lsst.ts.idl.enums.MTDome import OperationalMode
+from lsst.ts.xml.enums.MTDome import OperationalMode
 
 # The voltage used in the dome.
 DOME_VOLTAGE = 220.0

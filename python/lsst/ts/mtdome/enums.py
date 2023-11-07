@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -20,22 +20,33 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = [
+    "POWER_MANAGEMENT_COMMANDS",
     "POSITION_TOLERANCE",
+    "STOP_EL",
+    "STOP_FANS",
+    "STOP_LOUVERS",
+    "STOP_SHUTTER",
     "ZERO_VELOCITY_TOLERANCE",
+    "CommandName",
     "InternalMotionState",
     "LlcName",
     "LlcNameDict",
     "MaxValueConfigType",
     "MaxValuesConfigType",
     "OnOff",
+    "PowerManagementMode",
     "ResponseCode",
+    "ScheduledCommand",
+    "StopCommand",
     "ValidSimulationMode",
     "motion_state_translations",
 ]
 
 import enum
+import typing
+from dataclasses import dataclass
 
-from lsst.ts.idl.enums.MTDome import MotionState, SubSystemId
+from lsst.ts.xml.enums.MTDome import MotionState, SubSystemId
 
 
 class InternalMotionState(enum.IntEnum):
@@ -54,7 +65,58 @@ motion_state_translations = {
 }
 
 
-class LlcName(str, enum.Enum):
+class CommandName(enum.StrEnum):
+    """Command names."""
+
+    CALIBRATE_AZ = "calibrateAz"
+    CLOSE_LOUVERS = "closeLouvers"
+    CLOSE_SHUTTER = "closeShutter"
+    CONFIG = "config"
+    CRAWL_AZ = "crawlAz"
+    CRAWL_EL = "crawlEl"
+    EXIT_FAULT = "exitFault"
+    FANS = "fans"
+    GO_STATIONARY_AZ = "goStationaryAz"
+    GO_STATIONARY_EL = "goStationaryEl"
+    GO_STATIONARY_LOUVERS = "goStationaryLouvers"
+    GO_STATIONARY_SHUTTER = "goStationaryShutter"
+    INFLATE = "inflate"
+    MOVE_AZ = "moveAz"
+    MOVE_EL = "moveEl"
+    OPEN_SHUTTER = "openShutter"
+    PARK = "park"
+    RESET_DRIVES_AZ = "resetDrivesAz"
+    RESET_DRIVES_SHUTTER = "resetDrivesShutter"
+    RESTORE = "restore"
+    SEARCH_ZERO_SHUTTER = "searchZeroShutter"
+    SET_DEGRADED_AZ = "setDegradedAz"
+    SET_DEGRADED_EL = "setDegradedEl"
+    SET_DEGRADED_LOUVERS = "setDegradedLouvers"
+    SET_DEGRADED_SHUTTER = "setDegradedShutter"
+    SET_DEGRADED_MONITORING = "setDegradedMonitoring"
+    SET_DEGRADED_THERMAL = "setDegradedThermal"
+    SET_NORMAL_AZ = "setNormalAz"
+    SET_NORMAL_EL = "setNormalEl"
+    SET_NORMAL_LOUVERS = "setNormalLouvers"
+    SET_NORMAL_SHUTTER = "setNormalShutter"
+    SET_NORMAL_MONITORING = "setNormalMonitoring"
+    SET_NORMAL_THERMAL = "setNormalThermal"
+    SET_LOUVERS = "setLouvers"
+    SET_TEMPERATURE = "setTemperature"
+    STATUS_AMCS = "statusAMCS"
+    STATUS_APSCS = "statusApSCS"
+    STATUS_LCS = "statusLCS"
+    STATUS_LWSCS = "statusLWSCS"
+    STATUS_MONCS = "statusMonCS"
+    STATUS_RAD = "statusRAD"
+    STATUS_THCS = "statusThCS"
+    STOP_AZ = "stopAz"
+    STOP_EL = "stopEl"
+    STOP_LOUVERS = "stopLouvers"
+    STOP_SHUTTER = "stopShutter"
+
+
+class LlcName(enum.StrEnum):
     """LLC names."""
 
     AMCS = "AMCS"
@@ -71,6 +133,15 @@ class OnOff(enum.Enum):
 
     ON = True
     OFF = False
+
+
+class PowerManagementMode(enum.IntEnum):
+    """Power management modes for the CSC."""
+
+    NO_POWER_MANAGEMENT = enum.auto()
+    OPERATIONS = enum.auto()
+    EMERGENCY = enum.auto()
+    MAINTENANCE = enum.auto()
 
 
 class ResponseCode(enum.IntEnum):
@@ -116,6 +187,80 @@ LlcNameDict = {getattr(SubSystemId, enum.name): enum.value for enum in LlcName}
 MaxValueConfigType = dict[str, str | list[float]]
 MaxValuesConfigType = list[MaxValueConfigType]
 
+# Commands under power management.
+POWER_MANAGEMENT_COMMANDS = [
+    CommandName.CLOSE_LOUVERS,
+    CommandName.CLOSE_SHUTTER,
+    CommandName.CRAWL_EL,
+    CommandName.FANS,
+    CommandName.MOVE_EL,
+    CommandName.OPEN_SHUTTER,
+    CommandName.SEARCH_ZERO_SHUTTER,
+    CommandName.SET_LOUVERS,
+]
+
 # Tolerances for the azimuth motion. The position tolerance is from LTS-97.
-ZERO_VELOCITY_TOLERANCE = 1e-7  # deg /sec
 POSITION_TOLERANCE = 0.25  # deg
+ZERO_VELOCITY_TOLERANCE = 1e-7  # deg /sec
+
+
+@dataclass(order=True)
+class ScheduledCommand:
+    """Class representing a scheduled command.
+
+    A command needs to be scheduled in case the power draw by it would cause
+    the total power draw on the rotating part of the dome to exceed the
+    threshold value defined in `AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY`.
+
+    Parameters
+    ----------
+    command : `str`
+        The command that may need to be scheduled.
+    params : `dict`[`str`, `typing.Any`]
+        The parameters for the command. Defaults to None.
+    """
+
+    command: str
+    params: dict[str, typing.Any]
+
+
+@dataclass
+class StopCommand:
+    """Class representing a command to stop an ongoing motion.
+
+    An ongoing motion may need to be stopped if the subsystem, represented by
+    the LlcName, draws power so that issuing a higher priority command would
+    push the power draw over the slip ring limit.
+
+    Parameters
+    ----------
+    scheduled_command : `ScheduledCommand`
+        The command and its parameters that will stop the ongoing motion.
+    llc_name : `LlcName`
+        The name of the subsystem, or Lower Level Component, that the stop
+        command is issued for. This name is used to check if the subsystem
+        currently draws power so that issuing a higher priority command would
+        push the power draw over the slip ring limit.
+    """
+
+    scheduled_command: ScheduledCommand
+    llc_name: LlcName
+
+
+# Stop commands.
+STOP_EL = StopCommand(
+    ScheduledCommand(command=CommandName.STOP_EL, params={}),
+    LlcName.LWSCS,
+)
+STOP_FANS = StopCommand(
+    ScheduledCommand(command=CommandName.FANS, params={"action": OnOff.OFF}),
+    LlcName.AMCS,
+)
+STOP_LOUVERS = StopCommand(
+    ScheduledCommand(command=CommandName.STOP_LOUVERS, params={}),
+    LlcName.LCS,
+)
+STOP_SHUTTER = StopCommand(
+    ScheduledCommand(command=CommandName.STOP_SHUTTER, params={}),
+    LlcName.APSCS,
+)

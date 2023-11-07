@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -23,14 +23,15 @@ import unittest
 
 import pytest
 from lsst.ts import mtdome
-from lsst.ts.idl.enums.MTDome import MotionState
-from lsst.ts.mtdome.mock_llc.apscs import CURRENT_PER_MOTOR, NUM_SHUTTERS, TOTAL_POWER
+from lsst.ts.mtdome.mock_llc.apscs import CURRENT_PER_MOTOR, NUM_SHUTTERS
 from lsst.ts.mtdome.mock_llc.mock_motion.shutter_motion import (
     CLOSED_POSITION,
     NUM_MOTORS_PER_SHUTTER,
     OPEN_POSITION,
     SHUTTER_SPEED,
 )
+from lsst.ts.mtdome.power_management.power_draw_constants import APS_POWER_DRAW
+from lsst.ts.xml.enums.MTDome import MotionState
 
 START_TAI = 10001.0
 
@@ -92,7 +93,7 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
             expected_drive_current = (
                 [CURRENT_PER_MOTOR] * NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER
             )
-            expected_power_draw = TOTAL_POWER
+            expected_power_draw = APS_POWER_DRAW
         assert expected_drive_current == self.apscs.llc_status["driveCurrentActual"]
         assert expected_power_draw == self.apscs.llc_status["powerDraw"]
 

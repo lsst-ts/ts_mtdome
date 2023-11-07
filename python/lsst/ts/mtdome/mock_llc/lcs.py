@@ -1,6 +1,6 @@
 # This file is part of ts_mtdome.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -19,30 +19,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = [
-    "LcsStatus",
-    "CURRENT_PER_MOTOR",
-    "NUM_LOUVERS",
-    "NUM_MOTORS_PER_LOUVER",
-    "TOTAL_POWER",
-]
+__all__ = ["LcsStatus", "CURRENT_PER_MOTOR", "NUM_LOUVERS", "NUM_MOTORS_PER_LOUVER"]
 
 import logging
 
 import numpy as np
 from lsst.ts import utils
-from lsst.ts.idl.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState
 
 from ..enums import InternalMotionState
+from ..power_management.power_draw_constants import LOUVERS_POWER_DRAW
 from .base_mock_llc import DOME_VOLTAGE, BaseMockStatus
 
 NUM_LOUVERS = 34
 NUM_MOTORS_PER_LOUVER = 2
 
-# Total power drawn by the Louvers [W] as indicated by the vendor.
-TOTAL_POWER = 69000.0
 # Current drawn per louver [A].
-_CURRENT_PER_LOUVER = TOTAL_POWER / NUM_LOUVERS / DOME_VOLTAGE
+_CURRENT_PER_LOUVER = LOUVERS_POWER_DRAW / NUM_LOUVERS / DOME_VOLTAGE
 # Current drawn per motor by the louvers [A].
 CURRENT_PER_MOTOR = _CURRENT_PER_LOUVER / NUM_MOTORS_PER_LOUVER
 
@@ -95,7 +88,7 @@ class LcsStatus(BaseMockStatus):
                 self.drive_current_actual[
                     index * NUM_MOTORS_PER_LOUVER : (index + 1) * NUM_MOTORS_PER_LOUVER
                 ] = CURRENT_PER_MOTOR
-                self.power_draw = TOTAL_POWER
+                self.power_draw = LOUVERS_POWER_DRAW
             else:
                 self.drive_current_actual[
                     index * NUM_MOTORS_PER_LOUVER : (index + 1) * NUM_MOTORS_PER_LOUVER

@@ -19,6 +19,7 @@ Using lsst.ts.mtdome
     component_statuses
     configuration_parameters
     response_codes
+    power_management
     :maxdepth: 2
 
 Build and Test
