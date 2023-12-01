@@ -55,7 +55,8 @@ from .enums import (
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .mock_controller import MockMTDomeController
 from .power_management import (
-    AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY,
+    CONTINUOUS_ELECTRONICS_POWER_DRAW,
+    CONTINUOUS_SLIP_RING_POWER_CAPACITY,
     FANS_POWER_DRAW,
     PowerManagementHandler,
     command_priorities,
@@ -582,7 +583,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         current_power_draw = await self._get_current_power_draw_for_llcs()
         total_current_power_draw = sum([p for k, p in current_power_draw.items()])
         power_available = (
-            AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY - total_current_power_draw
+            CONTINUOUS_SLIP_RING_POWER_CAPACITY
+            - CONTINUOUS_ELECTRONICS_POWER_DRAW
+            - total_current_power_draw
         )
         self.log.debug(f"{current_power_draw=}, {power_available=}")
 

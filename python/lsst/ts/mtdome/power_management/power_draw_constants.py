@@ -43,10 +43,24 @@ OBC_POWER_DRAW = 6000.0
 # Total power draw by the Rear Access Door [W] as indicated by the vendor.
 RAD_POWER_DRAW = 3000.0
 
-# The total continuous slip ring power capacity [W].
-TOTAL_CONTINUOUS_SLIP_RING_POWER_CAPACITY = 78000.0
+# The continuous slip ring power capacity [W].
+# This represents how much power can be continuously drawn
+# safely from the slip ring, without overheating etc.
+CONTINUOUS_SLIP_RING_POWER_CAPACITY = 78000.0
 
-# The continuous slip ring power capacity [kW].
-AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY = (
-    TOTAL_CONTINUOUS_SLIP_RING_POWER_CAPACITY - CONTINUOUS_ELECTRONICS_POWER_DRAW
+# The maximum slip ring power capacity [W].
+# Drawing power between the CONTINUOUS_SLIP_RING_POWER_CAPACITY and this amount
+# will overheat the slip ring and must be limited to at most 6 minutes.
+MAXIMUM_SLIP_RING_POWER_CAPACITY = 100000.0
+
+# The amount of power available on top of the continuous power [kW].
+OVER_LIMIT_POWER_AVAILABLE = (
+    MAXIMUM_SLIP_RING_POWER_CAPACITY - CONTINUOUS_SLIP_RING_POWER_CAPACITY
 )
+
+# The maximum allowed time to be over the low power limit [s] equivalent to 6
+# minutes.
+MAXIMUM_OVER_LOW_LIMIT_TIME = 360.0
+
+# Maximum cool down time for a slip ring [s] equivalent to 4 minutes.
+MAXIMUM_COOL_DOWN_TIME = 240.0

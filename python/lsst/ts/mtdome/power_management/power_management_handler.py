@@ -37,6 +37,7 @@ from ..enums import (
     StopCommand,
 )
 from .power_draw_constants import HIGH_PRIOTITY
+from .slip_ring import SlipRing
 
 
 class PowerManagementHandler:
@@ -95,6 +96,7 @@ class PowerManagementHandler:
         self.command_priorities = command_priorities
         self.power_management_mode = PowerManagementMode.NO_POWER_MANAGEMENT
         self.log = log.getChild(type(self).__name__)
+        self.slip_ring = SlipRing(log=log, index=0)
 
     async def schedule_command(self, command: ScheduledCommand) -> None:
         """Schedule a command to be issued.
