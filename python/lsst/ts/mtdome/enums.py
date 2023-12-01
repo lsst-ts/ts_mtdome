@@ -37,6 +37,7 @@ __all__ = [
     "PowerManagementMode",
     "ResponseCode",
     "ScheduledCommand",
+    "SlipRingState",
     "StopCommand",
     "ValidSimulationMode",
     "motion_state_translations",
@@ -172,6 +173,12 @@ class ResponseCode(enum.IntEnum):
     INCORRECT_STATE = 5
 
 
+class SlipRingState(enum.IntEnum):
+    BELOW_LOW_LIMIT = enum.auto()
+    OVER_LOW_LIMIT = enum.auto()
+    COOLING_DOWN = enum.auto()
+
+
 class ValidSimulationMode(enum.IntEnum):
     """Valid values for the simulation_mode attribute of the CSC."""
 
@@ -210,7 +217,7 @@ class ScheduledCommand:
 
     A command needs to be scheduled in case the power draw by it would cause
     the total power draw on the rotating part of the dome to exceed the
-    threshold value defined in `AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY`.
+    threshold value defined in `CONTINUOUS_SLIP_RING_POWER_CAPACITY`.
 
     Parameters
     ----------

@@ -22,3 +22,4 @@
 from .command_priorities import *
 from .power_draw_constants import *
 from .power_management_handler import *
+from .slip_ring import *

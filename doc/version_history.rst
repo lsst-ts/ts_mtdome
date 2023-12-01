@@ -12,7 +12,7 @@ v1.14.0
 * Reduce complexity of the "request_and_send_llc_status" command.
 * Replace all string command names with an enum.
 * Remove check for missing commandId.
-* Start implementing power management.
+* Implement power management.
 
 Requires:
 
