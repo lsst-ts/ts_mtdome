@@ -23,7 +23,6 @@ import math
 import unittest
 
 import pytest
-from expected_state import ExpectedState
 from lsst.ts import mtdome
 from lsst.ts.mtdome.mock_llc.amcs import (
     CURRENT_PER_MOTOR_CRAWLING,
@@ -31,6 +30,7 @@ from lsst.ts.mtdome.mock_llc.amcs import (
 )
 from lsst.ts.mtdome.mock_llc.mock_motion.azimuth_motion import NUM_MOTORS
 from lsst.ts.xml.enums.MTDome import MotionState
+from utils_for_tests import ExpectedState
 
 # The maximum AZ rotation speed (deg/s)
 MAX_SPEED = 4.0

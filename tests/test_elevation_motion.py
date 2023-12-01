@@ -23,9 +23,9 @@ import math
 import unittest
 
 import pytest
-from expected_state import ExpectedState
 from lsst.ts import mtdome
 from lsst.ts.xml.enums.MTDome import MotionState
+from utils_for_tests import ExpectedState
 
 START_TAI = 10001.0
 MIN_POSITION = 0
