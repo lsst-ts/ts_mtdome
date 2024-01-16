@@ -1242,6 +1242,15 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 thcs_status["temperature"] == [0.0] * mtdome.mock_llc.NUM_THERMO_SENSORS
             )
 
+            await self.write(command=mtdome.CommandName.STATUS_RAD, parameters={})
+            self.data = await self.read()
+            rad_status = self.data[mtdome.LlcName.RAD.value]
+            assert (
+                rad_status["status"]["status"]
+                == [MotionState.CLOSED.name] * mtdome.mock_llc.NUM_DOORS
+            )
+            assert rad_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_DOORS
+
     async def test_az_reset_drives(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
             assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is False
