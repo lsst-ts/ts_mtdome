@@ -174,6 +174,12 @@ This is the ApSCS status schema.
    :language: python
 
 
+This is the CSCS status schema.
+
+.. literalinclude:: ../python/lsst/ts/mtdome/schema/cscs_status.py
+   :language: python
+
+
 This is the LCS status schema.
 
 .. literalinclude:: ../python/lsst/ts/mtdome/schema/lcs_status.py

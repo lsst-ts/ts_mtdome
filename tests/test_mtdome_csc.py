@@ -35,6 +35,7 @@ from lsst.ts import mtdome, salobj, tcpip, utils
 from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
+    OnOff,
     OperationalMode,
     SubSystemId,
 )
@@ -111,6 +112,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     mtdome.CommandName.GO_STATIONARY_LOUVERS,
                     mtdome.CommandName.GO_STATIONARY_SHUTTER,
                     mtdome.CommandName.SET_TEMPERATURE,
+                    mtdome.CommandName.FANS,
+                    mtdome.CommandName.INFLATE,
                     mtdome.CommandName.EXIT_FAULT,
                     "setOperationalMode",
                     mtdome.CommandName.RESET_DRIVES_AZ,
@@ -195,6 +198,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             | SubSystemId.THCS
             | SubSystemId.MONCS
             | SubSystemId.RAD
+            | SubSystemId.CSCS
         )
         await self.validate_operational_mode(
             operational_mode=OperationalMode.NORMAL, sub_system_ids=sub_system_ids
@@ -920,7 +924,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 config_file="config_for_friction_drive_system_with_four_motors.yaml"
             )
 
-    async def test_fans(self) -> None:
+    async def test_do_fans(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
@@ -935,7 +939,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.csc.write_then_read_reply(
-                command=mtdome.CommandName.FANS, action=mtdome.OnOff.ON.value
+                command=mtdome.CommandName.FANS, speed=50.0
             )
             await self.assert_command_replied(cmd=mtdome.CommandName.FANS)
 
@@ -945,9 +949,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
-            assert amcs_status["status"]["fans"] == mtdome.OnOff.ON.value
+            assert amcs_status["status"]["fans"] == pytest.approx(50.0)
 
-    async def test_inflate(self) -> None:
+    async def test_do_inflate(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
@@ -962,7 +966,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.csc.write_then_read_reply(
-                command=mtdome.CommandName.INFLATE, action=mtdome.OnOff.ON.value
+                command=mtdome.CommandName.INFLATE, action=OnOff.ON.value
             )
             await self.assert_command_replied(cmd=mtdome.CommandName.INFLATE)
 
@@ -972,7 +976,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
-            assert amcs_status["status"]["inflate"] == mtdome.OnOff.ON.value
+            assert amcs_status["status"]["inflate"] == OnOff.ON.value
 
     async def test_status(self) -> None:
         async with self.make_csc(
@@ -1309,6 +1313,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         status_dict = {
             SubSystemId.AMCS: self.csc.statusAMCS,
             SubSystemId.APSCS: self.csc.statusApSCS,
+            SubSystemId.CSCS: self.csc.statusCSCS,
             SubSystemId.LCS: self.csc.statusLCS,
             SubSystemId.LWSCS: self.csc.statusLWSCS,
             SubSystemId.MONCS: self.csc.statusMonCS,
@@ -1326,7 +1331,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 events_to_check.append(sub_system_id.value)
 
         events_recevied = []
-        for i in range(len(events_to_check)):
+        for _ in range(len(events_to_check)):
             data = await self.assert_next_sample(
                 topic=self.remote.evt_operationalMode,
                 operationalMode=operational_mode,

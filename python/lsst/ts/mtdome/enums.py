@@ -33,7 +33,6 @@ __all__ = [
     "LlcNameDict",
     "MaxValueConfigType",
     "MaxValuesConfigType",
-    "OnOff",
     "PowerManagementMode",
     "ResponseCode",
     "ScheduledCommand",
@@ -47,7 +46,7 @@ import enum
 import typing
 from dataclasses import dataclass
 
-from lsst.ts.xml.enums.MTDome import MotionState, SubSystemId
+from lsst.ts.xml.enums.MTDome import MotionState, OnOff, SubSystemId
 
 
 class InternalMotionState(enum.IntEnum):
@@ -106,6 +105,7 @@ class CommandName(enum.StrEnum):
     SET_TEMPERATURE = "setTemperature"
     STATUS_AMCS = "statusAMCS"
     STATUS_APSCS = "statusApSCS"
+    STATUS_CSCS = "statusCSCS"
     STATUS_LCS = "statusLCS"
     STATUS_LWSCS = "statusLWSCS"
     STATUS_MONCS = "statusMonCS"
@@ -122,18 +122,12 @@ class LlcName(enum.StrEnum):
 
     AMCS = "AMCS"
     APSCS = "ApSCS"
+    CSCS = "CSCS"
     LCS = "LCS"
     LWSCS = "LWSCS"
     MONCS = "MonCS"
     RAD = "RAD"
     THCS = "ThCS"
-
-
-class OnOff(enum.Enum):
-    """ON or OFF."""
-
-    ON = True
-    OFF = False
 
 
 class PowerManagementMode(enum.IntEnum):

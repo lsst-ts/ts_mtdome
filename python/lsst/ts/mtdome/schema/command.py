@@ -73,6 +73,7 @@ registry["command"] = json.loads(
         "inflate",
         "statusAMCS",
         "statusApSCS",
+        "statusCSCS",
         "statusLCS",
         "statusLWSCS",
         "statusMonCS",
@@ -693,12 +694,12 @@ registry["command"] = json.loads(
           "parameters": {
             "type": "object",
             "properties": {
-              "action": {
-                "type": "boolean"
+              "speed": {
+                "type": "number"
               }
             },
             "required": [
-              "action"
+              "speed"
             ],
             "additionalProperties": false
           }
@@ -752,6 +753,23 @@ registry["command"] = json.loads(
         "properties": {
           "command": {
             "const": "statusApSCS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "statusCSCS"
           }
         }
       },

@@ -30,9 +30,8 @@ import logging
 import math
 
 import numpy as np
-from lsst.ts.xml.enums.MTDome import MotionState
+from lsst.ts.xml.enums.MTDome import MotionState, OnOff
 
-from ..enums import OnOff
 from ..llc_configuration_limits.amcs_limits import AmcsLimits
 from .base_mock_llc import DEFAULT_MESSAGES, FAULT_MESSAGES, BaseMockStatus
 from .mock_motion.azimuth_motion import NUM_MOTORS, AzimuthMotion
@@ -85,7 +84,7 @@ class AmcsStatus(BaseMockStatus):
         # For now the value of 'messages' is kept as is since the error codes
         # and descriptions still are being discussed.
         self.messages = DEFAULT_MESSAGES
-        self.fans_enabled = OnOff.OFF
+        self.fans_speed = 0.0
         self.seal_inflated = OnOff.OFF
         self.position_commanded = PARK_POSITION
         self.velocity_commanded = PARK_POSITION
@@ -131,7 +130,7 @@ class AmcsStatus(BaseMockStatus):
             "status": {
                 "messages": self.messages,
                 "status": motion_state.name,
-                "fans": self.fans_enabled.value,
+                "fans": self.fans_speed,
                 "inflate": self.seal_inflated.value,
                 "operationalMode": self.operational_mode.name,
             },
@@ -311,7 +310,7 @@ class AmcsStatus(BaseMockStatus):
         self.end_tai = start_tai
         return duration
 
-    async def fans(self, start_tai: float, action: str) -> float:
+    async def fans(self, start_tai: float, speed: float) -> float:
         """Enable or disable the fans in the dome.
 
         This is a placeholder for now until it becomes clear what this command
@@ -323,16 +322,15 @@ class AmcsStatus(BaseMockStatus):
             The TAI time, unix seconds, when the command was issued. To model
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
-        action: `str`
-            The value should be ON or OFF but the value doesn't get validated
-            here.
+        speed: `float`
+            The speed of the fans [%].
 
         Returns
         -------
         `float`
             The expected duration of the command [s].
         """
-        self.fans_enabled = OnOff(action)
+        self.fans_speed = speed
         duration = 0.0
         self.end_tai = start_tai
         return duration

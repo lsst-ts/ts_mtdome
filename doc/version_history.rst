@@ -6,6 +6,23 @@
 Version History
 ###############
 
+v1.15.0
+=======
+* Switch to do_fans and do_inflate commands.
+* Improve unit test code.
+* Add test for the statusRAD command.
+* Add support for the statusCSCS command.
+
+These changes require at least ts_xml 20.2 and will not work with ts_xml 20.1 or before.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_tcpip 1.1
+* ts_utils 1.0
+* ts_xml 20.2
+
 v1.14.1
 =======
 * Add and use slip ring state machine.
