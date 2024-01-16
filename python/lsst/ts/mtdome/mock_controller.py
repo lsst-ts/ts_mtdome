@@ -703,16 +703,16 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         assert self.amcs is not None
         await self.amcs.inflate(self.current_tai, action)
 
-    async def fans(self, action: str) -> None:
+    async def fans(self, speed: float) -> None:
         """Enable or disable the fans in the dome.
 
         Parameters
         ----------
-        action: `str`
-            ON means fans on and OFF fans off.
+        speed: `float`
+            The speed of the fans [%].
         """
         assert self.amcs is not None
-        await self.amcs.fans(self.current_tai, action)
+        await self.amcs.fans(self.current_tai, speed)
 
     async def reset_drives_az(self, reset: list[int]) -> float:
         """Reset one or more AZ drives.

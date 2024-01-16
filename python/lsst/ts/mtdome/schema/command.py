@@ -693,12 +693,12 @@ registry["command"] = json.loads(
           "parameters": {
             "type": "object",
             "properties": {
-              "action": {
-                "type": "boolean"
+              "speed": {
+                "type": "number"
               }
             },
             "required": [
-              "action"
+              "speed"
             ],
             "additionalProperties": false
           }

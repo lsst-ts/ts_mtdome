@@ -26,7 +26,7 @@ The units are `AstroPy Units`_.
     "crawlAz", "velocity", "double", "rad/s", "Positive means in the direction of increasing azimuth, negative in the direction of decreasing azimuth."
     "crawlEl", "velocity", "double", "rad/s", "Positive means in the direction of increasing elevation, negative in the direction of decreasing elevation."
     "exitFault"
-    "fans", "action", "string", "unitless", "ON or OFF"
+    "fans", "speed", "double", "unitless", "0 <= position < 100%"
     "goStationaryAz"
     "goStationaryEl"
     "goStationaryLouvers"

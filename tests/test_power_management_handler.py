@@ -24,12 +24,13 @@ import unittest
 from dataclasses import dataclass
 
 from lsst.ts import mtdome
+from lsst.ts.xml.enums.MTDome import OnOff
 
 CLOSE_SHUTTER = mtdome.ScheduledCommand(
     command=mtdome.CommandName.CLOSE_SHUTTER, params={}
 )
 FANS_ON = mtdome.ScheduledCommand(
-    command=mtdome.CommandName.FANS, params={"action": mtdome.OnOff.ON}
+    command=mtdome.CommandName.FANS, params={"action": OnOff.ON}
 )
 OPEN_SHUTTER = mtdome.ScheduledCommand(
     command=mtdome.CommandName.OPEN_SHUTTER, params={}

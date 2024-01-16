@@ -24,6 +24,8 @@ __all__ = ["PowerManagementHandler"]
 import asyncio
 import logging
 
+from lsst.ts.xml.enums.MTDome import OnOff
+
 from ..enums import (
     STOP_EL,
     STOP_FANS,
@@ -31,7 +33,6 @@ from ..enums import (
     STOP_SHUTTER,
     CommandName,
     LlcName,
-    OnOff,
     PowerManagementMode,
     ScheduledCommand,
     StopCommand,

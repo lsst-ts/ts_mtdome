@@ -1157,36 +1157,32 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def restore_llcs(self) -> None:
         await self.write_then_read_reply(command=CommandName.RESTORE)
 
-    async def fans(self, data: dict[str, typing.Any]) -> None:
-        """Fans command not to be executed by SAL.
-
-        This command will be used to switch on or off the fans in the dome.
+    async def do_fans(self, data: SimpleNamespace) -> None:
+        """Set the speed of the fans.
 
         Parameters
         ----------
-        data : `dict`
-            A dictionary with arguments to the function call. It should contain
-            the key "action" with a
-            string value (ON or OFF).
+        data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
+        self.assert_enabled()
+        self.log.debug(f"do_fans: {data.speed=!s}")
         await self.schedule_command_if_power_management_active(
-            command=CommandName.FANS, action=data["action"]
+            command=CommandName.FANS, speed=data.speed
         )
 
-    async def inflate(self, data: dict[str, typing.Any]) -> None:
-        """Inflate command not to be executed by SAL.
-
-        This command will be used to inflate or deflate the inflatable seal.
+    async def do_inflate(self, data: SimpleNamespace) -> None:
+        """Inflate or deflate the inflatable seal.
 
         Parameters
         ----------
-        data : `dict`
-            A dictionary with arguments to the function call. It should contain
-            the key "action" with a
-            string value (ON or OFF).
+        data : A SALOBJ data object
+            Contains the data as defined in the SAL XML file.
         """
+        self.assert_enabled()
+        self.log.debug(f"do_inflate: {data.action=!s}")
         await self.write_then_read_reply(
-            command=CommandName.INFLATE, action=data["action"]
+            command=CommandName.INFLATE, action=data.action
         )
 
     async def statusAMCS(self) -> None:

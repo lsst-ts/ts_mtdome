@@ -28,7 +28,7 @@ import numpy as np
 import pytest
 from lsst.ts import mtdome, tcpip, utils
 from lsst.ts.mtdome.mock_llc.apscs import NUM_SHUTTERS
-from lsst.ts.xml.enums.MTDome import MotionState, OperationalMode
+from lsst.ts.xml.enums.MTDome import MotionState, OnOff, OperationalMode
 
 _CURRENT_TAI = 100001
 START_MOTORS_ADD_DURATION = 5.5
@@ -1177,10 +1177,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
-            assert (
-                amcs_status["status"][mtdome.CommandName.INFLATE]
-                == mtdome.OnOff.OFF.value
-            )
+            assert amcs_status["status"][mtdome.CommandName.INFLATE] == OnOff.OFF.value
 
             # Set the TAI time in the mock controller for easier control.
             self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -1189,21 +1186,18 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             self.mock_ctrl.thcs.command_time_tai = self.mock_ctrl.current_tai
             await self.write(
                 command=mtdome.CommandName.INFLATE,
-                parameters={"action": mtdome.OnOff.ON.value},
+                parameters={"action": OnOff.ON.value},
             )
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.mock_ctrl is not None
             assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
-            assert self.mock_ctrl.amcs.seal_inflated == mtdome.OnOff.ON
+            assert self.mock_ctrl.amcs.seal_inflated == OnOff.ON
             # Also check that the inflate status is set in the AMCS status.
             await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
-            assert (
-                amcs_status["status"][mtdome.CommandName.INFLATE]
-                == mtdome.OnOff.ON.value
-            )
+            assert amcs_status["status"][mtdome.CommandName.INFLATE] == OnOff.ON.value
 
     async def test_fans(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
@@ -1211,9 +1205,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
-            assert (
-                amcs_status["status"][mtdome.CommandName.FANS] == mtdome.OnOff.OFF.value
-            )
+            assert amcs_status["status"][mtdome.CommandName.FANS] == pytest.approx(0.0)
 
             # Set the TAI time in the mock controller for easier control.
             self.mock_ctrl.current_tai = _CURRENT_TAI
@@ -1221,21 +1213,18 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # for easier control.
             self.mock_ctrl.thcs.command_time_tai = self.mock_ctrl.current_tai
             await self.write(
-                command=mtdome.CommandName.FANS,
-                parameters={"action": mtdome.OnOff.ON.value},
+                command=mtdome.CommandName.FANS, parameters={"speed": 75.0}
             )
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.mock_ctrl is not None
             assert self.data["timeout"] == mtdome.MockMTDomeController.LONG_DURATION
-            assert self.mock_ctrl.amcs.fans_enabled == mtdome.OnOff.ON
+            assert self.mock_ctrl.amcs.fans_speed == pytest.approx(75.0)
             # Also check that the fans status is set in the AMCS status.
             await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
-            assert (
-                amcs_status["status"][mtdome.CommandName.FANS] == mtdome.OnOff.ON.value
-            )
+            assert amcs_status["status"][mtdome.CommandName.FANS] == pytest.approx(75.0)
 
     async def test_status(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
