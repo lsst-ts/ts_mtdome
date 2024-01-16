@@ -105,6 +105,7 @@ class CommandName(enum.StrEnum):
     SET_TEMPERATURE = "setTemperature"
     STATUS_AMCS = "statusAMCS"
     STATUS_APSCS = "statusApSCS"
+    STATUS_CSCS = "statusCSCS"
     STATUS_LCS = "statusLCS"
     STATUS_LWSCS = "statusLWSCS"
     STATUS_MONCS = "statusMonCS"
@@ -121,6 +122,7 @@ class LlcName(enum.StrEnum):
 
     AMCS = "AMCS"
     APSCS = "ApSCS"
+    CSCS = "CSCS"
     LCS = "LCS"
     LWSCS = "LWSCS"
     MONCS = "MonCS"

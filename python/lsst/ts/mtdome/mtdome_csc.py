@@ -99,6 +99,7 @@ DOME_AZIMUTH_OFFSET = 32.0
 # Polling periods [sec] for the lower level components.
 _AMCS_STATUS_PERIOD = 0.2
 _APSCS_STATUS_PERIOD = 2.0
+_CSCS_STATUS_PERIOD = 2.0
 _LCS_STATUS_PERIOD = 2.0
 _LWSCS_STATUS_PERIOD = 2.0
 _MONCS_STATUS_PERIOD = 2.0
@@ -140,6 +141,7 @@ REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
 ALL_METHODS_AND_INTERVALS = {
     CommandName.STATUS_AMCS: (_AMCS_STATUS_PERIOD, True),
     CommandName.STATUS_APSCS: (_APSCS_STATUS_PERIOD, True),
+    CommandName.STATUS_CSCS: (_CSCS_STATUS_PERIOD, True),
     CommandName.STATUS_LCS: (_LCS_STATUS_PERIOD, False),
     CommandName.STATUS_LWSCS: (_LWSCS_STATUS_PERIOD, False),
     CommandName.STATUS_MONCS: (_MONCS_STATUS_PERIOD, False),
@@ -1201,6 +1203,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.request_and_send_llc_status(
             LlcName.APSCS.value, self.tel_apertureShutter
+        )
+
+    async def statusCSCS(self) -> None:
+        """CSCS status command not to be executed by SAL.
+
+        This command will be used to request the full status of the CSCS lower
+        level component.
+        """
+        await self.request_and_send_llc_status(
+            LlcName.CSCS.value, self.tel_calibrationScreen
         )
 
     async def statusLCS(self) -> None:

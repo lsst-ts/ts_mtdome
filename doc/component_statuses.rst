@@ -65,6 +65,10 @@ ApCS
     * STOPPED: the stopShutter command has been executed
     * STOPPING: executing the stopShutter command
 
+CSCS
+
+    * No statuses because cannot be commanded.
+
 LCS
 
     * CONFIGURING: executing the configure command

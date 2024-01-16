@@ -1251,6 +1251,12 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             )
             assert rad_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_DOORS
 
+            await self.write(command=mtdome.CommandName.STATUS_CSCS, parameters={})
+            self.data = await self.read()
+            cscs_status = self.data[mtdome.LlcName.CSCS.value]
+            assert cscs_status["status"]["status"] == MotionState.STOPPED.name
+            assert cscs_status["positionActual"] == pytest.approx(0.0)
+
     async def test_az_reset_drives(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
             assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is False

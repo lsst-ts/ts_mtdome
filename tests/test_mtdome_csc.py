@@ -198,6 +198,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             | SubSystemId.THCS
             | SubSystemId.MONCS
             | SubSystemId.RAD
+            | SubSystemId.CSCS
         )
         await self.validate_operational_mode(
             operational_mode=OperationalMode.NORMAL, sub_system_ids=sub_system_ids
@@ -1312,6 +1313,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         status_dict = {
             SubSystemId.AMCS: self.csc.statusAMCS,
             SubSystemId.APSCS: self.csc.statusApSCS,
+            SubSystemId.CSCS: self.csc.statusCSCS,
             SubSystemId.LCS: self.csc.statusLCS,
             SubSystemId.LWSCS: self.csc.statusLWSCS,
             SubSystemId.MONCS: self.csc.statusMonCS,
@@ -1329,7 +1331,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 events_to_check.append(sub_system_id.value)
 
         events_recevied = []
-        for i in range(len(events_to_check)):
+        for _ in range(len(events_to_check)):
             data = await self.assert_next_sample(
                 topic=self.remote.evt_operationalMode,
                 operationalMode=operational_mode,
