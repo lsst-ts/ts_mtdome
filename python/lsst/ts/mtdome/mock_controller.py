@@ -242,7 +242,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             self.log.debug(f"Trying to execute cmd {cmd}")
             if cmd not in self.dispatch_dict:
                 self.log.error(f"Command '{data}' unknown")
-                response = ResponseCode.UNSUPPORTED_COMMAND
+                response = ResponseCode.UNSUPPORTED
                 duration = -1
             else:
                 if self.enable_network_interruption:
