@@ -26,6 +26,7 @@ __all__ = [
     "STOP_FANS",
     "STOP_LOUVERS",
     "STOP_SHUTTER",
+    "UNCONTROLLED_LLCS",
     "ZERO_VELOCITY_TOLERANCE",
     "CommandName",
     "InternalMotionState",
@@ -126,6 +127,7 @@ class LlcName(enum.StrEnum):
     LCS = "LCS"
     LWSCS = "LWSCS"
     MONCS = "MonCS"
+    OBC = "OBC"
     RAD = "RAD"
     THCS = "ThCS"
 
@@ -271,3 +273,6 @@ STOP_SHUTTER = StopCommand(
     ScheduledCommand(command=CommandName.STOP_SHUTTER, params={}),
     LlcName.APSCS,
 )
+
+# These LLCs are not cointrolled by the cRIO.
+UNCONTROLLED_LLCS = [LlcName.RAD, LlcName.CSCS, LlcName.OBC]
