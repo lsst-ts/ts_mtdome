@@ -55,7 +55,8 @@ from .enums import (
 from .llc_configuration_limits import AmcsLimits, LwscsLimits
 from .mock_controller import MockMTDomeController
 from .power_management import (
-    AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY,
+    CONTINUOUS_ELECTRONICS_POWER_DRAW,
+    CONTINUOUS_SLIP_RING_POWER_CAPACITY,
     FANS_POWER_DRAW,
     PowerManagementHandler,
     command_priorities,
@@ -98,6 +99,7 @@ DOME_AZIMUTH_OFFSET = 32.0
 # Polling periods [sec] for the lower level components.
 _AMCS_STATUS_PERIOD = 0.2
 _APSCS_STATUS_PERIOD = 2.0
+_CSCS_STATUS_PERIOD = 2.0
 _LCS_STATUS_PERIOD = 2.0
 _LWSCS_STATUS_PERIOD = 2.0
 _MONCS_STATUS_PERIOD = 2.0
@@ -139,6 +141,7 @@ REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
 ALL_METHODS_AND_INTERVALS = {
     CommandName.STATUS_AMCS: (_AMCS_STATUS_PERIOD, True),
     CommandName.STATUS_APSCS: (_APSCS_STATUS_PERIOD, True),
+    CommandName.STATUS_CSCS: (_CSCS_STATUS_PERIOD, True),
     CommandName.STATUS_LCS: (_LCS_STATUS_PERIOD, False),
     CommandName.STATUS_LWSCS: (_LWSCS_STATUS_PERIOD, False),
     CommandName.STATUS_MONCS: (_MONCS_STATUS_PERIOD, False),
@@ -521,14 +524,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.disconnect()
 
-    async def end_enable(self, data: salobj.BaseDdsDataType) -> None:
+    async def end_enable(self, data: salobj.BaseMsgType) -> None:
         """End do_enable; called after state changes
         but before command acknowledged.
 
         Parameters
         ----------
-        data : `salobj.BaseDdsDataType`
-            Command data
+        data : `salobj.BaseMsgType`
+            Command data.
         """
         await super().end_enable(data)
 
@@ -582,7 +585,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         current_power_draw = await self._get_current_power_draw_for_llcs()
         total_current_power_draw = sum([p for k, p in current_power_draw.items()])
         power_available = (
-            AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY - total_current_power_draw
+            CONTINUOUS_SLIP_RING_POWER_CAPACITY
+            - CONTINUOUS_ELECTRONICS_POWER_DRAW
+            - total_current_power_draw
         )
         self.log.debug(f"{current_power_draw=}, {power_available=}")
 
@@ -747,12 +752,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.current_moveAz_command.velocity = velocity
         return False
 
-    async def do_moveAz(self, data: SimpleNamespace) -> None:
+    async def do_moveAz(self, data: salobj.BaseMsgType) -> None:
         """Move AZ.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -773,12 +778,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 position=data.position, velocity=data.velocity
             )
 
-    async def do_moveEl(self, data: SimpleNamespace) -> None:
+    async def do_moveEl(self, data: salobj.BaseMsgType) -> None:
         """Move El.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -852,13 +857,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.write_then_read_reply(command=CommandName.STOP_SHUTTER)
 
-    async def do_stop(self, data: SimpleNamespace) -> None:
+    async def do_stop(self, data: salobj.BaseMsgType) -> None:
         """Stop all motion and engage the brakes if indicated in the data.
         Also disengage the locking pins if engaged.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -875,12 +880,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         "stop function. Ignoring."
                     )
 
-    async def do_crawlAz(self, data: SimpleNamespace) -> None:
+    async def do_crawlAz(self, data: salobj.BaseMsgType) -> None:
         """Crawl AZ.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.log.debug(f"do_crawlAz: {data.velocity=!s}")
@@ -890,12 +895,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         await self.evt_azTarget.set_write(position=float("nan"), velocity=data.velocity)
 
-    async def do_crawlEl(self, data: SimpleNamespace) -> None:
+    async def do_crawlEl(self, data: salobj.BaseMsgType) -> None:
         """Crawl El.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.log.debug(f"do_crawlEl: {data.velocity=!s}")
@@ -905,12 +910,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
         await self.evt_elTarget.set_write(position=float("nan"), velocity=data.velocity)
 
-    async def do_setLouvers(self, data: SimpleNamespace) -> None:
+    async def do_setLouvers(self, data: salobj.BaseMsgType) -> None:
         """Set Louver.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.log.debug(f"do_setLouvers: {data.position=!s}")
@@ -919,12 +924,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=CommandName.SET_LOUVERS, position=data.position
         )
 
-    async def do_closeLouvers(self, data: SimpleNamespace) -> None:
+    async def do_closeLouvers(self, data: salobj.BaseMsgType) -> None:
         """Close Louvers.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.log.debug("do_closeLouvers")
@@ -933,12 +938,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=CommandName.CLOSE_LOUVERS
         )
 
-    async def do_openShutter(self, data: SimpleNamespace) -> None:
+    async def do_openShutter(self, data: salobj.BaseMsgType) -> None:
         """Open Shutter.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.log.debug("do_openShutter")
@@ -947,12 +952,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=CommandName.OPEN_SHUTTER
         )
 
-    async def do_closeShutter(self, data: SimpleNamespace) -> None:
+    async def do_closeShutter(self, data: salobj.BaseMsgType) -> None:
         """Close Shutter.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.log.debug("do_closeShutter")
@@ -961,13 +966,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=CommandName.CLOSE_SHUTTER
         )
 
-    async def do_park(self, data: SimpleNamespace) -> None:
+    async def do_park(self, data: salobj.BaseMsgType) -> None:
         """Park, meaning stop all motion and engage the brakes and locking
         pins.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.log.debug("do_park")
@@ -977,12 +982,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             position=360.0 - DOME_AZIMUTH_OFFSET, velocity=0
         )
 
-    async def do_setTemperature(self, data: SimpleNamespace) -> None:
+    async def do_setTemperature(self, data: salobj.BaseMsgType) -> None:
         """Set Temperature.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.log.debug(f"do_setTemperature: {data.temperature=!s}")
@@ -991,13 +996,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=CommandName.SET_TEMPERATURE, temperature=data.temperature
         )
 
-    async def do_exitFault(self, data: SimpleNamespace) -> None:
+    async def do_exitFault(self, data: salobj.BaseMsgType) -> None:
         """Indicate that all hardware errors, leading to fault state, have been
         resolved.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -1018,13 +1023,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug("do_exitFault")
         await self.write_then_read_reply(command=CommandName.EXIT_FAULT)
 
-    async def do_setOperationalMode(self, data: SimpleNamespace) -> None:
+    async def do_setOperationalMode(self, data: salobj.BaseMsgType) -> None:
         """Indicate that one or more sub_systems need to operate in degraded
         (true) or normal (false) state.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -1049,14 +1054,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     subSystemId=sub_system_id,
                 )
 
-    async def do_resetDrivesAz(self, data: SimpleNamespace) -> None:
+    async def do_resetDrivesAz(self, data: salobj.BaseMsgType) -> None:
         """Reset one or more AZ drives. This is necessary when exiting from
         FAULT state without going to Degraded Mode since the drives don't reset
         themselves.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -1066,14 +1071,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=CommandName.RESET_DRIVES_AZ, reset=reset_ints
         )
 
-    async def do_resetDrivesShutter(self, data: SimpleNamespace) -> None:
+    async def do_resetDrivesShutter(self, data: salobj.BaseMsgType) -> None:
         """Reset one or more Aperture Shutter drives. This is necessary when
         exiting from FAULT state without going to Degraded Mode since the
         drives don't reset themselves.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -1083,21 +1088,21 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=CommandName.RESET_DRIVES_SHUTTER, reset=reset_ints
         )
 
-    async def do_setZeroAz(self, data: SimpleNamespace) -> None:
+    async def do_setZeroAz(self, data: salobj.BaseMsgType) -> None:
         """Take the current position of the dome as zero. This is necessary as
         long as the racks and pinions on the drives have not been installed yet
         to compensate for slippage of the drives.
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.log.debug("do_setZeroAz")
         self.assert_enabled()
         await self.write_then_read_reply(command=CommandName.CALIBRATE_AZ)
 
-    async def do_home(self, data: SimpleNamespace) -> None:
+    async def do_home(self, data: salobj.BaseMsgType) -> None:
         """Search the home position of the Aperture Shutter, which is the
         closed position.
 
@@ -1106,7 +1111,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        data : A SALOBJ data object
+        data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
@@ -1154,36 +1159,32 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def restore_llcs(self) -> None:
         await self.write_then_read_reply(command=CommandName.RESTORE)
 
-    async def fans(self, data: dict[str, typing.Any]) -> None:
-        """Fans command not to be executed by SAL.
-
-        This command will be used to switch on or off the fans in the dome.
+    async def do_fans(self, data: salobj.BaseMsgType) -> None:
+        """Set the speed of the fans.
 
         Parameters
         ----------
-        data : `dict`
-            A dictionary with arguments to the function call. It should contain
-            the key "action" with a
-            string value (ON or OFF).
+        data : `salobj.BaseMsgType`
+            Contains the data as defined in the SAL XML file.
         """
+        self.assert_enabled()
+        self.log.debug(f"do_fans: {data.speed=!s}")
         await self.schedule_command_if_power_management_active(
-            command=CommandName.FANS, action=data["action"]
+            command=CommandName.FANS, speed=data.speed
         )
 
-    async def inflate(self, data: dict[str, typing.Any]) -> None:
-        """Inflate command not to be executed by SAL.
-
-        This command will be used to inflate or deflate the inflatable seal.
+    async def do_inflate(self, data: salobj.BaseMsgType) -> None:
+        """Inflate or deflate the inflatable seal.
 
         Parameters
         ----------
-        data : `dict`
-            A dictionary with arguments to the function call. It should contain
-            the key "action" with a
-            string value (ON or OFF).
+        data : `salobj.BaseMsgType`
+            Contains the data as defined in the SAL XML file.
         """
+        self.assert_enabled()
+        self.log.debug(f"do_inflate: {data.action=!s}")
         await self.write_then_read_reply(
-            command=CommandName.INFLATE, action=data["action"]
+            command=CommandName.INFLATE, action=data.action
         )
 
     async def statusAMCS(self) -> None:
@@ -1202,6 +1203,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.request_and_send_llc_status(
             LlcName.APSCS.value, self.tel_apertureShutter
+        )
+
+    async def statusCSCS(self) -> None:
+        """CSCS status command not to be executed by SAL.
+
+        This command will be used to request the full status of the CSCS lower
+        level component.
+        """
+        await self.request_and_send_llc_status(
+            LlcName.CSCS.value, self.tel_calibrationScreen
         )
 
     async def statusLCS(self) -> None:

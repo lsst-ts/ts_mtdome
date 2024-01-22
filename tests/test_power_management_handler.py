@@ -24,17 +24,21 @@ import unittest
 from dataclasses import dataclass
 
 from lsst.ts import mtdome
+from lsst.ts.xml.enums.MTDome import OnOff
 
 CLOSE_SHUTTER = mtdome.ScheduledCommand(
     command=mtdome.CommandName.CLOSE_SHUTTER, params={}
 )
 FANS_ON = mtdome.ScheduledCommand(
-    command=mtdome.CommandName.FANS, params={"action": mtdome.OnOff.ON}
+    command=mtdome.CommandName.FANS, params={"action": OnOff.ON}
 )
 OPEN_SHUTTER = mtdome.ScheduledCommand(
     command=mtdome.CommandName.OPEN_SHUTTER, params={}
 )
 STOP_EL = mtdome.ScheduledCommand(command=mtdome.CommandName.STOP_EL, params={})
+STOP_LOUVERS = mtdome.ScheduledCommand(
+    command=mtdome.CommandName.STOP_LOUVERS, params={}
+)
 
 
 @dataclass
@@ -52,7 +56,7 @@ ALL_PM_TEST_DATA: dict[mtdome.PowerManagementMode, list[PmTestData]] = {
             current_power_draw={
                 mtdome.LlcName.AMCS: 0.0,
                 mtdome.LlcName.APSCS: 0.0,
-                mtdome.LlcName.LWSCS: 0.0,
+                mtdome.LlcName.LWSCS: mtdome.power_management.LWS_POWER_DRAW,
                 mtdome.LlcName.LCS: 0.0,
                 mtdome.LlcName.RAD: 0.0,
             },
@@ -63,9 +67,9 @@ ALL_PM_TEST_DATA: dict[mtdome.PowerManagementMode, list[PmTestData]] = {
             command_to_schedule=FANS_ON,
             current_power_draw={
                 mtdome.LlcName.AMCS: 0.0,
-                mtdome.LlcName.APSCS: mtdome.power_management.APS_POWER_DRAW,
-                mtdome.LlcName.LWSCS: 0.0,
-                mtdome.LlcName.LCS: 0.0,
+                mtdome.LlcName.APSCS: 0.0,
+                mtdome.LlcName.LWSCS: mtdome.power_management.LWS_POWER_DRAW,
+                mtdome.LlcName.LCS: mtdome.power_management.LOUVERS_POWER_DRAW,
                 mtdome.LlcName.RAD: 0.0,
             },
             expected_command=None,
@@ -77,11 +81,11 @@ ALL_PM_TEST_DATA: dict[mtdome.PowerManagementMode, list[PmTestData]] = {
                 mtdome.LlcName.AMCS: 0.0,
                 mtdome.LlcName.APSCS: 0.0,
                 mtdome.LlcName.LWSCS: mtdome.power_management.LWS_POWER_DRAW,
-                mtdome.LlcName.LCS: 0.0,
+                mtdome.LlcName.LCS: mtdome.power_management.LOUVERS_POWER_DRAW,
                 mtdome.LlcName.RAD: 0.0,
             },
             expected_command=None,
-            exp_cmd_in_queue=[STOP_EL, OPEN_SHUTTER],
+            exp_cmd_in_queue=[STOP_EL, STOP_LOUVERS, OPEN_SHUTTER],
         ),
         PmTestData(
             command_to_schedule=STOP_EL,
@@ -89,7 +93,7 @@ ALL_PM_TEST_DATA: dict[mtdome.PowerManagementMode, list[PmTestData]] = {
                 mtdome.LlcName.AMCS: 0.0,
                 mtdome.LlcName.APSCS: 0.0,
                 mtdome.LlcName.LWSCS: mtdome.power_management.LWS_POWER_DRAW,
-                mtdome.LlcName.LCS: 0.0,
+                mtdome.LlcName.LCS: mtdome.power_management.LOUVERS_POWER_DRAW,
                 mtdome.LlcName.RAD: 0.0,
             },
             expected_command=STOP_EL,

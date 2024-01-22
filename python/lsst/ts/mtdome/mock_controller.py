@@ -33,6 +33,7 @@ from .mock_llc import (
     AmcsStatus,
     ApscsStatus,
     BaseMockStatus,
+    CscsStatus,
     LcsStatus,
     LwscsStatus,
     MoncsStatus,
@@ -140,6 +141,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             CommandName.SET_TEMPERATURE: self.set_temperature,
             CommandName.STATUS_AMCS: self.status_amcs,
             CommandName.STATUS_APSCS: self.status_apscs,
+            CommandName.STATUS_CSCS: self.status_cscs,
             CommandName.STATUS_LCS: self.status_lcs,
             CommandName.STATUS_LWSCS: self.status_lwscs,
             CommandName.STATUS_MONCS: self.status_moncs,
@@ -170,6 +172,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         # Variables for the lower level components.
         self.amcs: AmcsStatus | None = None
         self.apscs: ApscsStatus | None = None
+        self.cscs: CscsStatus | None = None
         self.lcs: LcsStatus | None = None
         self.lwscs: LwscsStatus | None = None
         self.moncs: MoncsStatus | None = None
@@ -193,6 +196,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         self.log.info("Starting LLCs")
         self.amcs = AmcsStatus(start_tai=self.current_tai)
         self.apscs = ApscsStatus(start_tai=self.current_tai)
+        self.cscs = CscsStatus(start_tai=self.current_tai)
         self.lcs = LcsStatus()
         self.lwscs = LwscsStatus(start_tai=self.current_tai)
         self.moncs = MoncsStatus()
@@ -287,6 +291,13 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         """
         assert self.apscs is not None
         await self.request_and_send_status(self.apscs, LlcName.APSCS.value)
+
+    async def status_cscs(self) -> None:
+        """Request the status from the Calibration Screen and write it in
+        reply.
+        """
+        assert self.cscs is not None
+        await self.request_and_send_status(self.cscs, LlcName.CSCS.value)
 
     async def status_lcs(self) -> None:
         """Request the status from the LCS lower level component and write it
@@ -703,16 +714,16 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         assert self.amcs is not None
         await self.amcs.inflate(self.current_tai, action)
 
-    async def fans(self, action: str) -> None:
+    async def fans(self, speed: float) -> None:
         """Enable or disable the fans in the dome.
 
         Parameters
         ----------
-        action: `str`
-            ON means fans on and OFF fans off.
+        speed: `float`
+            The speed of the fans [%].
         """
         assert self.amcs is not None
-        await self.amcs.fans(self.current_tai, action)
+        await self.amcs.fans(self.current_tai, speed)
 
     async def reset_drives_az(self, reset: list[int]) -> float:
         """Reset one or more AZ drives.

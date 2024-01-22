@@ -19,7 +19,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .command_priorities import *
-from .power_draw_constants import *
-from .power_management_handler import *
-from .slip_ring import *
+import unittest
+
+import pytest
+from lsst.ts import mtdome
+
+START_TAI = 10001.0
+
+
+class CalibrationScreenTestCase(unittest.IsolatedAsyncioTestCase):
+    async def test_calibration_screen_status(self) -> None:
+        cscs = mtdome.mock_llc.CscsStatus(start_tai=START_TAI)
+        await cscs.determine_status(current_tai=START_TAI)
+        assert cscs.llc_status["positionActual"] == pytest.approx(0.0)
+        assert cscs.llc_status["positionCommanded"] == pytest.approx(0.0)

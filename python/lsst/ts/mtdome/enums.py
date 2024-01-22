@@ -33,10 +33,10 @@ __all__ = [
     "LlcNameDict",
     "MaxValueConfigType",
     "MaxValuesConfigType",
-    "OnOff",
     "PowerManagementMode",
     "ResponseCode",
     "ScheduledCommand",
+    "SlipRingState",
     "StopCommand",
     "ValidSimulationMode",
     "motion_state_translations",
@@ -46,7 +46,7 @@ import enum
 import typing
 from dataclasses import dataclass
 
-from lsst.ts.xml.enums.MTDome import MotionState, SubSystemId
+from lsst.ts.xml.enums.MTDome import MotionState, OnOff, SubSystemId
 
 
 class InternalMotionState(enum.IntEnum):
@@ -105,6 +105,7 @@ class CommandName(enum.StrEnum):
     SET_TEMPERATURE = "setTemperature"
     STATUS_AMCS = "statusAMCS"
     STATUS_APSCS = "statusApSCS"
+    STATUS_CSCS = "statusCSCS"
     STATUS_LCS = "statusLCS"
     STATUS_LWSCS = "statusLWSCS"
     STATUS_MONCS = "statusMonCS"
@@ -121,18 +122,12 @@ class LlcName(enum.StrEnum):
 
     AMCS = "AMCS"
     APSCS = "ApSCS"
+    CSCS = "CSCS"
     LCS = "LCS"
     LWSCS = "LWSCS"
     MONCS = "MonCS"
     RAD = "RAD"
     THCS = "ThCS"
-
-
-class OnOff(enum.Enum):
-    """ON or OFF."""
-
-    ON = True
-    OFF = False
 
 
 class PowerManagementMode(enum.IntEnum):
@@ -170,6 +165,12 @@ class ResponseCode(enum.IntEnum):
     INCORRECT_PARAMETERS = 3
     INCORRECT_SOURCE = 4
     INCORRECT_STATE = 5
+
+
+class SlipRingState(enum.IntEnum):
+    BELOW_LOW_LIMIT = enum.auto()
+    OVER_LOW_LIMIT = enum.auto()
+    COOLING_DOWN = enum.auto()
 
 
 class ValidSimulationMode(enum.IntEnum):
@@ -210,7 +211,7 @@ class ScheduledCommand:
 
     A command needs to be scheduled in case the power draw by it would cause
     the total power draw on the rotating part of the dome to exceed the
-    threshold value defined in `AVAILABLE_CONTINUOUS_SLIP_RING_POWER_CAPACITY`.
+    threshold value defined in `CONTINUOUS_SLIP_RING_POWER_CAPACITY`.
 
     Parameters
     ----------

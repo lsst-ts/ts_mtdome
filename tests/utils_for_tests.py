@@ -21,7 +21,16 @@
 
 import dataclasses
 
+from lsst.ts import mtdome
 from lsst.ts.xml.enums.MTDome import MotionState
+
+
+@dataclasses.dataclass
+class CoolDownTestData:
+    tai: float
+    power_drawn: float
+    expected_power_available: float
+    expected_state: mtdome.SlipRingState
 
 
 @dataclasses.dataclass
@@ -30,3 +39,10 @@ class ExpectedState:
     position: float
     velocity: float
     motion_state: MotionState
+
+
+@dataclasses.dataclass
+class SlipRingTestData:
+    max_power_drawn: float
+    time_over_limit: float
+    expected_cool_down_time: float

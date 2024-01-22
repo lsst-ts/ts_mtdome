@@ -24,6 +24,8 @@ __all__ = ["PowerManagementHandler"]
 import asyncio
 import logging
 
+from lsst.ts.xml.enums.MTDome import OnOff
+
 from ..enums import (
     STOP_EL,
     STOP_FANS,
@@ -31,12 +33,18 @@ from ..enums import (
     STOP_SHUTTER,
     CommandName,
     LlcName,
-    OnOff,
     PowerManagementMode,
     ScheduledCommand,
     StopCommand,
 )
-from .power_draw_constants import HIGH_PRIOTITY
+from .power_draw_constants import (
+    APS_POWER_DRAW,
+    FANS_POWER_DRAW,
+    HIGH_PRIOTITY,
+    LOUVERS_POWER_DRAW,
+    LWS_POWER_DRAW,
+)
+from .slip_ring import SlipRing
 
 
 class PowerManagementHandler:
@@ -95,6 +103,7 @@ class PowerManagementHandler:
         self.command_priorities = command_priorities
         self.power_management_mode = PowerManagementMode.NO_POWER_MANAGEMENT
         self.log = log.getChild(type(self).__name__)
+        self.slip_ring = SlipRing(log=log, index=0)
 
     async def schedule_command(self, command: ScheduledCommand) -> None:
         """Schedule a command to be issued.
@@ -196,6 +205,7 @@ class PowerManagementHandler:
             case CommandName.OPEN_SHUTTER | CommandName.CLOSE_SHUTTER | CommandName.SEARCH_ZERO_SHUTTER:
                 return await self.generic_get_scheduled_command_or_stop_commands(
                     scheduled_command,
+                    APS_POWER_DRAW,
                     current_power_draw,
                     [STOP_EL, STOP_LOUVERS, STOP_FANS],
                     [],
@@ -203,6 +213,7 @@ class PowerManagementHandler:
             case CommandName.MOVE_EL | CommandName.CRAWL_EL:
                 return await self.generic_get_scheduled_command_or_stop_commands(
                     scheduled_command,
+                    LWS_POWER_DRAW,
                     current_power_draw,
                     [STOP_LOUVERS, STOP_FANS],
                     [LlcName.APSCS],
@@ -210,6 +221,7 @@ class PowerManagementHandler:
             case CommandName.SET_LOUVERS | CommandName.CLOSE_LOUVERS:
                 return await self.generic_get_scheduled_command_or_stop_commands(
                     scheduled_command,
+                    LOUVERS_POWER_DRAW,
                     current_power_draw,
                     [STOP_FANS],
                     [LlcName.APSCS, LlcName.LWSCS],
@@ -221,6 +233,7 @@ class PowerManagementHandler:
                 else:
                     return await self.generic_get_scheduled_command_or_stop_commands(
                         scheduled_command,
+                        FANS_POWER_DRAW,
                         current_power_draw,
                         [],
                         [LlcName.APSCS, LlcName.LWSCS, LlcName.LCS],
@@ -274,6 +287,7 @@ class PowerManagementHandler:
             case CommandName.MOVE_EL | CommandName.CRAWL_EL:
                 return await self.generic_get_scheduled_command_or_stop_commands(
                     scheduled_command,
+                    LWS_POWER_DRAW,
                     current_power_draw,
                     [STOP_SHUTTER, STOP_LOUVERS, STOP_FANS],
                     [],
@@ -285,6 +299,7 @@ class PowerManagementHandler:
                 else:
                     return await self.generic_get_scheduled_command_or_stop_commands(
                         scheduled_command,
+                        FANS_POWER_DRAW,
                         current_power_draw,
                         [STOP_SHUTTER, STOP_LOUVERS],
                         [LlcName.LWSCS],
@@ -343,6 +358,7 @@ class PowerManagementHandler:
             case CommandName.CLOSE_SHUTTER | CommandName.CLOSE_LOUVERS:
                 return await self.generic_get_scheduled_command_or_stop_commands(
                     scheduled_command,
+                    APS_POWER_DRAW,
                     current_power_draw,
                     [STOP_EL, STOP_FANS],
                     [],
@@ -371,6 +387,7 @@ class PowerManagementHandler:
     async def generic_get_scheduled_command_or_stop_commands(
         self,
         scheduled_command: ScheduledCommand,
+        power_required: float,
         current_power_draw: dict[str, float],
         stop_commands: list[StopCommand],
         llcs_to_wait_for: list[LlcName],
@@ -394,6 +411,9 @@ class PowerManagementHandler:
         Parameters
         ----------
         scheduled_command : `ScheduledCommand`
+            The scheduled command and its parameters.
+        power_required : `float`
+            The power required to execute the command.
         stop_commands : `list[`StopCommand`]
             The stop commands with their parameters and the subsystem, or Lower
             Level Component, names.
@@ -409,6 +429,16 @@ class PowerManagementHandler:
         bool
             True if at least one stop command was scheduled, False otherwise.
         """
+        # Verify that there is enough power available to execute the command.
+        total_power_draw = sum(
+            [power_draw for system, power_draw in current_power_draw.items()]
+        )
+        power_available = self.slip_ring.get_available_power(total_power_draw)
+        if power_available - total_power_draw > power_required:
+            return scheduled_command
+
+        # If not enough power is available, stop lower priority commands to
+        # free up power.
         for llc_name in llcs_to_wait_for:
             if current_power_draw[llc_name] > 0:
                 self.log.info(
