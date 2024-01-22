@@ -19,9 +19,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import typing
 import unittest
 
 import numpy as np
+import pytest
 from lsst.ts import mtdome
 from lsst.ts.mtdome.mock_llc.lcs import (
     CURRENT_PER_MOTOR,
@@ -35,9 +37,7 @@ START_TAI = 10001.0
 
 
 class LcsTestCase(unittest.IsolatedAsyncioTestCase):
-    """A simple test class for testing some of the basic LCS commands. More
-    will be added as soon as the state machine for the LCS has been defined.
-    """
+    """A simple test class for testing some of the basic LCS commands."""
 
     async def verify_lcs(self, expected_positions: dict[int, float]) -> None:
         """Utility method for verifying the positions of the louvers against
@@ -57,43 +57,49 @@ class LcsTestCase(unittest.IsolatedAsyncioTestCase):
         """
         await self.lcs.determine_status(current_tai=0.0)
         lcs_status = self.lcs.llc_status
-        for index, status in enumerate(lcs_status["status"]["status"]):
+        await self.verify_state(lcs_status, expected_positions)
+        for index, position_actual in enumerate(lcs_status["positionActual"]):
             if index in expected_positions:
-                if expected_positions[index] > 0:
-                    assert MotionState.OPEN.name == status
-                else:
-                    assert MotionState.CLOSED.name == status
+                assert expected_positions[index] == position_actual
             else:
-                assert MotionState.CLOSED.name == status
-        for index, positionActual in enumerate(lcs_status["positionActual"]):
+                assert 0 == position_actual
+        for index, position_commanded in enumerate(lcs_status["positionCommanded"]):
             if index in expected_positions:
-                assert expected_positions[index] == positionActual
+                assert expected_positions[index] == position_commanded
             else:
-                assert 0 == positionActual
-        for index, positionCommanded in enumerate(lcs_status["positionCommanded"]):
-            if index in expected_positions:
-                assert expected_positions[index] == positionCommanded
-            else:
-                assert 0 == positionCommanded
+                assert 0 == position_commanded
         for index in range(NUM_LOUVERS):
-            driveCurrentActualMotor1 = lcs_status["driveCurrentActual"][
+            drive_current_actual_motor1 = lcs_status["driveCurrentActual"][
                 index * NUM_MOTORS_PER_LOUVER
             ]
-            driveCurrentActualMotor2 = lcs_status["driveCurrentActual"][
+            drive_current_actual_motor2 = lcs_status["driveCurrentActual"][
                 index * NUM_MOTORS_PER_LOUVER + 1
             ]
             if index in expected_positions:
                 if lcs_status["status"]["status"][index] == MotionState.MOVING:
-                    assert driveCurrentActualMotor1 == CURRENT_PER_MOTOR
-                    assert driveCurrentActualMotor2 == CURRENT_PER_MOTOR
+                    assert drive_current_actual_motor1 == CURRENT_PER_MOTOR
+                    assert drive_current_actual_motor2 == CURRENT_PER_MOTOR
                     assert lcs_status["powerDraw"] == LOUVERS_POWER_DRAW
             else:
-                assert driveCurrentActualMotor1 == 0.0
-                assert driveCurrentActualMotor2 == 0.0
-                assert lcs_status["powerDraw"] == 0.0
+                assert drive_current_actual_motor1 == pytest.approx(0.0)
+                assert drive_current_actual_motor2 == pytest.approx(0.0)
+                assert lcs_status["powerDraw"] == pytest.approx(0.0)
+
+    async def verify_state(
+        self, lcs_status: dict[str, typing.Any], expected_positions: dict[int, float]
+    ) -> None:
+        for index, status in enumerate(lcs_status["status"]["status"]):
+            if index in expected_positions:
+                if expected_positions[index] > 0:
+                    if self.lcs.current_tai == START_TAI:
+                        assert MotionState.MOVING.name == status
+                else:
+                    assert MotionState.STOPPED.name == status
+            else:
+                assert MotionState.STOPPED.name == status
 
     async def test_set_louvers(self) -> None:
-        """Test setting the louvers from to the indicated position."""
+        """Test setting the louvers to the indicated position."""
         # A dict of louver ID (int) and expected position (float).
         expected_positions = {
             5: 100.0,
@@ -104,10 +110,14 @@ class LcsTestCase(unittest.IsolatedAsyncioTestCase):
             10: 60.0,
         }
         self.lcs = mtdome.mock_llc.LcsStatus()
+        self.lcs.current_state[:] = MotionState.STOPPED.name
+        self.lcs.target_state[:] = MotionState.STOPPED.name
         position = np.full(NUM_LOUVERS, -1.0, dtype=float)
         for louver_id in expected_positions:
             position[louver_id] = expected_positions[louver_id]
-        await self.lcs.setLouvers(position=position)
+        await self.lcs.setLouvers(position=position, current_tai=START_TAI)
+        await self.lcs.evaluate_state(current_tai=START_TAI)
+        await self.lcs.evaluate_state(current_tai=START_TAI + 31.0)
         await self.verify_lcs(expected_positions=expected_positions)
 
     async def test_close_louvers(self) -> None:
@@ -122,13 +132,16 @@ class LcsTestCase(unittest.IsolatedAsyncioTestCase):
             10: 60.0,
         }
         self.lcs = mtdome.mock_llc.LcsStatus()
-        position = np.full(NUM_LOUVERS, -1.0, dtype=float)
+        self.lcs.current_state[:] = MotionState.STOPPED.name
+        self.lcs.target_state[:] = MotionState.STOPPED.name
         for louver_id in expected_positions:
-            position[louver_id] = expected_positions[louver_id]
-        await self.lcs.setLouvers(position=position)
+            self.lcs.position_actual[louver_id] = expected_positions[louver_id]
+            self.lcs.start_position[louver_id] = 100.0
 
         # Now close the louvers.
-        await self.lcs.closeLouvers()
+        await self.lcs.closeLouvers(current_tai=START_TAI)
+        await self.lcs.evaluate_state(current_tai=START_TAI)
+        await self.lcs.evaluate_state(current_tai=START_TAI + 31.0)
         expected_positions = {
             5: 0.0,
             6: 0.0,

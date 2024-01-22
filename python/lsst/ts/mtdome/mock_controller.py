@@ -467,17 +467,17 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             fully open, for each louver. A position of -1 means "do not move".
         """
         assert self.lcs is not None
-        await self.lcs.setLouvers(position)
+        await self.lcs.setLouvers(position, self.current_tai)
 
     async def close_louvers(self) -> None:
         """Close all louvers."""
         assert self.lcs is not None
-        await self.lcs.closeLouvers()
+        await self.lcs.closeLouvers(self.current_tai)
 
     async def stop_louvers(self) -> None:
         """Stop the motion of all louvers."""
         assert self.lcs is not None
-        await self.lcs.stopLouvers()
+        await self.lcs.stopLouvers(self.current_tai)
 
     async def open_shutter(self) -> float:
         """Open the shutter.
@@ -611,7 +611,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
     async def go_stationary_louvers(self) -> None:
         """Stop louvers motion and engage the brakes."""
         assert self.lcs is not None
-        await self.lcs.go_stationary()
+        await self.lcs.go_stationary(self.current_tai)
 
     async def set_normal_az(self) -> None:
         """Set az operational mode to normal (as opposed to degraded)."""
@@ -695,7 +695,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         assert self.apscs is not None
         await self.apscs.exit_fault(self.current_tai)
         assert self.lcs is not None
-        await self.lcs.exit_fault()
+        await self.lcs.exit_fault(self.current_tai)
         assert self.lwscs is not None
         await self.lwscs.exit_fault(self.current_tai)
         assert self.moncs is not None
