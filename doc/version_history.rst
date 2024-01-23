@@ -6,6 +6,21 @@
 Version History
 ###############
 
+v1.15.1
+=======
+* Add new response codes.
+* Take CSCS, RAD, OBC power draw into account.
+* Add LCS state machine infrastructure.
+* Add ThCS state machine infrastructure.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_tcpip 1.1
+* ts_utils 1.0
+* ts_xml 20.2
+
 v1.15.0
 =======
 * Switch to do_fans and do_inflate commands.

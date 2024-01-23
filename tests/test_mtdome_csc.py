@@ -1012,7 +1012,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             lcs_status = self.csc.lower_level_status[mtdome.LlcName.LCS.value]
             assert (
                 lcs_status["status"]["status"]
-                == [MotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS
+                == [mtdome.InternalMotionState.STATIONARY.name]
+                * mtdome.mock_llc.NUM_LOUVERS
             )
             assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
 
@@ -1033,7 +1034,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.csc.statusThCS()
             thcs_status = self.csc.lower_level_status[mtdome.LlcName.THCS.value]
-            assert thcs_status["status"]["status"] == MotionState.CLOSED.name
+            assert thcs_status["status"]["status"] == MotionState.DISABLED.name
             assert (
                 thcs_status["temperature"]
                 == [0.0] * mtdome.mock_llc.thcs.NUM_THERMO_SENSORS

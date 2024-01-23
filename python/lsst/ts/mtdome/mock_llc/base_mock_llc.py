@@ -19,7 +19,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["BaseMockStatus", "DOME_VOLTAGE", "DEFAULT_MESSAGES", "FAULT_MESSAGES"]
+__all__ = [
+    "DEFAULT_MESSAGES",
+    "DOME_VOLTAGE",
+    "FAULT_MESSAGES",
+    "BaseMockStatus",
+]
 
 import logging
 import typing
@@ -41,13 +46,13 @@ class BaseMockStatus(ABC):
     """
 
     def __init__(self) -> None:
-        # dict to hold the status of the Lower Level Component.
+        # A dict to hold the status of the Lower Level Component.
         self.llc_status: dict[str, typing.Any] = {}
-        # the operational mode of the Lower Level Component.
+        # Operational mode of the Lower Level Component.
         self.operational_mode = OperationalMode.NORMAL
-        # time of the last executed command, in TAI Unix seconds.
-        self.command_time_tai = 0
-        # logger
+        # Time of the last executed command, in TAI Unix seconds.
+        self.command_time_tai = 0.0
+        # Logger.
         self.log = logging.getLogger("BaseMockStatus")
 
     @abstractmethod
@@ -60,7 +65,7 @@ class BaseMockStatus(ABC):
         current_tai: `float`
             The current Unix TAI time, in seconds
         """
-        pass
+        raise NotImplementedError
 
     async def set_normal(self) -> None:
         """Set operational state to normal (as opposed to degraded)."""

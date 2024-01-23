@@ -26,6 +26,7 @@ import logging
 import typing
 
 from lsst.ts import tcpip, utils
+from lsst.ts.xml.enums.MTDome import MotionState
 
 from .encoding_tools import validate
 from .enums import CommandName, LlcName, ResponseCode
@@ -242,7 +243,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             self.log.debug(f"Trying to execute cmd {cmd}")
             if cmd not in self.dispatch_dict:
                 self.log.error(f"Command '{data}' unknown")
-                response = ResponseCode.UNSUPPORTED_COMMAND
+                response = ResponseCode.UNSUPPORTED
                 duration = -1
             else:
                 if self.enable_network_interruption:
@@ -350,7 +351,23 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         self.log.debug(f"Requesting status for LLC {llc_name}")
         await llc.determine_status(self.current_tai)
         state = {llc_name: llc.llc_status}
+        if llc_name == LlcName.AMCS:
+            assert self.thcs is not None
+            if (
+                llc.llc_status["status"]["status"]
+                == MotionState.STARTING_MOTOR_COOLING.name
+            ):
+                await self.thcs.start_cooling(self.current_tai)
+            elif (
+                llc.llc_status["status"]["status"]
+                == MotionState.STOPPING_MOTOR_COOLING.name
+            ):
+                await self.thcs.stop_cooling(self.current_tai)
         await self.write_reply(response=ResponseCode.OK, **state)
+
+    async def start_or_stop_thcs_if_necessary(self) -> None:
+        # empty
+        pass
 
     async def determine_current_tai(self) -> None:
         """Determine the current TAI time.
@@ -467,17 +484,17 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             fully open, for each louver. A position of -1 means "do not move".
         """
         assert self.lcs is not None
-        await self.lcs.setLouvers(position)
+        await self.lcs.setLouvers(position, self.current_tai)
 
     async def close_louvers(self) -> None:
         """Close all louvers."""
         assert self.lcs is not None
-        await self.lcs.closeLouvers()
+        await self.lcs.closeLouvers(self.current_tai)
 
     async def stop_louvers(self) -> None:
         """Stop the motion of all louvers."""
         assert self.lcs is not None
-        await self.lcs.stopLouvers()
+        await self.lcs.stopLouvers(self.current_tai)
 
     async def open_shutter(self) -> float:
         """Open the shutter.
@@ -611,7 +628,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
     async def go_stationary_louvers(self) -> None:
         """Stop louvers motion and engage the brakes."""
         assert self.lcs is not None
-        await self.lcs.go_stationary()
+        await self.lcs.go_stationary(self.current_tai)
 
     async def set_normal_az(self) -> None:
         """Set az operational mode to normal (as opposed to degraded)."""
@@ -686,7 +703,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             The temperature, in degrees Celsius, to set.
         """
         assert self.thcs is not None
-        await self.thcs.setTemperature(temperature)
+        await self.thcs.set_temperature(temperature, self.current_tai)
 
     async def exit_fault(self) -> None:
         """Exit from fault state."""
@@ -695,7 +712,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         assert self.apscs is not None
         await self.apscs.exit_fault(self.current_tai)
         assert self.lcs is not None
-        await self.lcs.exit_fault()
+        await self.lcs.exit_fault(self.current_tai)
         assert self.lwscs is not None
         await self.lwscs.exit_fault(self.current_tai)
         assert self.moncs is not None

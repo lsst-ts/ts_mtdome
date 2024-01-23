@@ -23,6 +23,7 @@ import contextlib
 import logging
 import math
 import typing
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -732,6 +733,8 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         target positions are lined up.
 
         """
+        self.mock_ctrl.lcs.current_state[:] = MotionState.STOPPED.name
+        self.mock_ctrl.lcs.target_state[:] = MotionState.STOPPED.name
         position = np.full(mtdome.mock_llc.NUM_LOUVERS, -1.0, dtype=float)
         for index, louver_id in enumerate(louver_ids):
             position[louver_id] = target_positions[index]
@@ -750,7 +753,9 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         # easier control.
         self.mock_ctrl.lcs.command_time_tai = self.mock_ctrl.current_tai
         # Give some time to the mock device to open.
-        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 0.2
+        await self.mock_ctrl.lcs.evaluate_state(self.mock_ctrl.current_tai)
+        self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 31.0
+        await self.mock_ctrl.lcs.evaluate_state(self.mock_ctrl.current_tai)
 
     async def verify_louvers(
         self, louver_ids: list[int], target_positions: list[float]
@@ -780,11 +785,12 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         for index, status in enumerate(lcs_status["status"]["status"]):
             if index in louver_ids:
                 if target_positions[louver_ids.index(index)] > 0:
-                    assert MotionState.OPEN.name == status
+                    if self.mock_ctrl.current_tai == _CURRENT_TAI:
+                        assert MotionState.MOVING.name == status
                 else:
-                    assert MotionState.CLOSED.name == status
+                    assert MotionState.STOPPED.name == status
             else:
-                assert MotionState.CLOSED.name == status
+                assert MotionState.STOPPED.name == status
         for index, position_actual in enumerate(lcs_status["positionActual"]):
             if index in louver_ids:
                 assert target_positions[louver_ids.index(index)] == position_actual
@@ -832,7 +838,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             lcs_status = self.data[mtdome.LlcName.LCS.value]
             assert (
                 lcs_status["status"]["status"]
-                == [MotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS
+                == [MotionState.ENABLING_MOTOR_POWER.name] * mtdome.mock_llc.NUM_LOUVERS
             )
             assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
             assert (
@@ -841,6 +847,8 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
     async def test_stopLouvers(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
+            self.mock_ctrl.lcs.current_state[:] = MotionState.STOPPED.name
+            self.mock_ctrl.lcs.target_state[:] = MotionState.STOPPED.name
             louver_id = 5
             target_position = 100
             position = np.full(mtdome.mock_llc.NUM_LOUVERS, -1.0, dtype=float)
@@ -877,9 +885,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 lcs_status["status"]["status"]
                 == [MotionState.STOPPED.name] * mtdome.mock_llc.NUM_LOUVERS
             )
-            assert lcs_status["positionActual"] == [0.0] * louver_id + [
-                target_position
-            ] + [0.0] * (mtdome.mock_llc.NUM_LOUVERS - louver_id - 1)
+            assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
             assert lcs_status["positionCommanded"] == [0.0] * louver_id + [
                 target_position
             ] + [0.0] * (mtdome.mock_llc.NUM_LOUVERS - louver_id - 1)
@@ -1140,7 +1146,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
             self.data = await self.read()
             thcs_status = self.data[mtdome.LlcName.THCS.value]
-            assert thcs_status["status"]["status"] == MotionState.OPEN.name
+            assert thcs_status["status"]["status"] == MotionState.DISABLED.name
             assert (
                 thcs_status["temperature"]
                 == [temperature] * mtdome.mock_llc.thcs.NUM_THERMO_SENSORS
@@ -1213,12 +1219,14 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 status=MotionState.STOPPED, position_actual=[0.0, 0.0]
             )
 
+            self.mock_ctrl.lcs.current_state[:] = MotionState.STOPPED.name
+            self.mock_ctrl.lcs.target_state[:] = MotionState.STOPPED.name
             await self.write(command=mtdome.CommandName.STATUS_LCS, parameters={})
             self.data = await self.read()
             lcs_status = self.data[mtdome.LlcName.LCS.value]
             assert (
                 lcs_status["status"]["status"]
-                == [MotionState.CLOSED.name] * mtdome.mock_llc.NUM_LOUVERS
+                == [MotionState.STOPPED.name] * mtdome.mock_llc.NUM_LOUVERS
             )
             assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
 
@@ -1237,7 +1245,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
             self.data = await self.read()
             thcs_status = self.data[mtdome.LlcName.THCS.value]
-            assert thcs_status["status"]["status"] == MotionState.CLOSED.name
+            assert thcs_status["status"]["status"] == MotionState.DISABLED.name
             assert (
                 thcs_status["temperature"] == [0.0] * mtdome.mock_llc.NUM_THERMO_SENSORS
             )
@@ -1490,3 +1498,38 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             self.data = await self.read(assert_command_id=False)
             assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
             assert self.data["timeout"] == -1
+
+    async def test_start_stop_thermal_control(self) -> None:
+        with patch(
+            "lsst.ts.mtdome.mock_llc.mock_motion.AzimuthMotion.get_position_velocity_and_motion_state",
+            MagicMock(),
+        ) as mock:
+            async with self.create_mtdome_controller(), self.create_client():
+                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+                self.data = await self.read()
+                thcs_status = self.data[mtdome.LlcName.THCS.value]
+                assert thcs_status["status"]["status"] == MotionState.DISABLED.name
+
+                mock.return_value = (0.0, 0.0, MotionState.STARTING_MOTOR_COOLING)
+                await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
+                await self.read()
+                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+                self.data = await self.read()
+                thcs_status = self.data[mtdome.LlcName.THCS.value]
+                assert thcs_status["status"]["status"] == MotionState.ENABLING.name
+                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+                self.data = await self.read()
+                thcs_status = self.data[mtdome.LlcName.THCS.value]
+                assert thcs_status["status"]["status"] == MotionState.ENABLED.name
+
+                mock.return_value = (0.0, 0.0, MotionState.STOPPING_MOTOR_COOLING)
+                await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
+                await self.read()
+                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+                self.data = await self.read()
+                thcs_status = self.data[mtdome.LlcName.THCS.value]
+                assert thcs_status["status"]["status"] == MotionState.DISABLING.name
+                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+                self.data = await self.read()
+                thcs_status = self.data[mtdome.LlcName.THCS.value]
+                assert thcs_status["status"]["status"] == MotionState.DISABLED.name
