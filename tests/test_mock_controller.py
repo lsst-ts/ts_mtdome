@@ -23,6 +23,7 @@ import contextlib
 import logging
 import math
 import typing
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -1145,7 +1146,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
             self.data = await self.read()
             thcs_status = self.data[mtdome.LlcName.THCS.value]
-            assert thcs_status["status"]["status"] == MotionState.OPEN.name
+            assert thcs_status["status"]["status"] == MotionState.DISABLED.name
             assert (
                 thcs_status["temperature"]
                 == [temperature] * mtdome.mock_llc.thcs.NUM_THERMO_SENSORS
@@ -1244,7 +1245,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
             self.data = await self.read()
             thcs_status = self.data[mtdome.LlcName.THCS.value]
-            assert thcs_status["status"]["status"] == MotionState.CLOSED.name
+            assert thcs_status["status"]["status"] == MotionState.DISABLED.name
             assert (
                 thcs_status["temperature"] == [0.0] * mtdome.mock_llc.NUM_THERMO_SENSORS
             )
@@ -1497,3 +1498,38 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             self.data = await self.read(assert_command_id=False)
             assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
             assert self.data["timeout"] == -1
+
+    async def test_start_stop_thermal_control(self) -> None:
+        with patch(
+            "lsst.ts.mtdome.mock_llc.mock_motion.AzimuthMotion.get_position_velocity_and_motion_state",
+            MagicMock(),
+        ) as mock:
+            async with self.create_mtdome_controller(), self.create_client():
+                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+                self.data = await self.read()
+                thcs_status = self.data[mtdome.LlcName.THCS.value]
+                assert thcs_status["status"]["status"] == MotionState.DISABLED.name
+
+                mock.return_value = (0.0, 0.0, MotionState.STARTING_MOTOR_COOLING)
+                await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
+                await self.read()
+                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+                self.data = await self.read()
+                thcs_status = self.data[mtdome.LlcName.THCS.value]
+                assert thcs_status["status"]["status"] == MotionState.ENABLING.name
+                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+                self.data = await self.read()
+                thcs_status = self.data[mtdome.LlcName.THCS.value]
+                assert thcs_status["status"]["status"] == MotionState.ENABLED.name
+
+                mock.return_value = (0.0, 0.0, MotionState.STOPPING_MOTOR_COOLING)
+                await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
+                await self.read()
+                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+                self.data = await self.read()
+                thcs_status = self.data[mtdome.LlcName.THCS.value]
+                assert thcs_status["status"]["status"] == MotionState.DISABLING.name
+                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+                self.data = await self.read()
+                thcs_status = self.data[mtdome.LlcName.THCS.value]
+                assert thcs_status["status"]["status"] == MotionState.DISABLED.name

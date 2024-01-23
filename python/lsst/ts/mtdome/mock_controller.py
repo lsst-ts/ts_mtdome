@@ -26,6 +26,7 @@ import logging
 import typing
 
 from lsst.ts import tcpip, utils
+from lsst.ts.xml.enums.MTDome import MotionState
 
 from .encoding_tools import validate
 from .enums import CommandName, LlcName, ResponseCode
@@ -350,7 +351,23 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         self.log.debug(f"Requesting status for LLC {llc_name}")
         await llc.determine_status(self.current_tai)
         state = {llc_name: llc.llc_status}
+        if llc_name == LlcName.AMCS:
+            assert self.thcs is not None
+            if (
+                llc.llc_status["status"]["status"]
+                == MotionState.STARTING_MOTOR_COOLING.name
+            ):
+                await self.thcs.start_cooling(self.current_tai)
+            elif (
+                llc.llc_status["status"]["status"]
+                == MotionState.STOPPING_MOTOR_COOLING.name
+            ):
+                await self.thcs.stop_cooling(self.current_tai)
         await self.write_reply(response=ResponseCode.OK, **state)
+
+    async def start_or_stop_thcs_if_necessary(self) -> None:
+        # empty
+        pass
 
     async def determine_current_tai(self) -> None:
         """Determine the current TAI time.
@@ -686,7 +703,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             The temperature, in degrees Celsius, to set.
         """
         assert self.thcs is not None
-        await self.thcs.setTemperature(temperature)
+        await self.thcs.set_temperature(temperature, self.current_tai)
 
     async def exit_fault(self) -> None:
         """Exit from fault state."""

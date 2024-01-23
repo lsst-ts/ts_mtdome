@@ -1034,7 +1034,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.csc.statusThCS()
             thcs_status = self.csc.lower_level_status[mtdome.LlcName.THCS.value]
-            assert thcs_status["status"]["status"] == MotionState.CLOSED.name
+            assert thcs_status["status"]["status"] == MotionState.DISABLED.name
             assert (
                 thcs_status["temperature"]
                 == [0.0] * mtdome.mock_llc.thcs.NUM_THERMO_SENSORS
