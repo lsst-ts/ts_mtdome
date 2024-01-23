@@ -26,6 +26,7 @@ __all__ = [
     "STOP_FANS",
     "STOP_LOUVERS",
     "STOP_SHUTTER",
+    "UNCONTROLLED_LLCS",
     "ZERO_VELOCITY_TOLERANCE",
     "CommandName",
     "InternalMotionState",
@@ -126,6 +127,7 @@ class LlcName(enum.StrEnum):
     LCS = "LCS"
     LWSCS = "LWSCS"
     MONCS = "MonCS"
+    OBC = "OBC"
     RAD = "RAD"
     THCS = "ThCS"
 
@@ -146,9 +148,9 @@ class ResponseCode(enum.IntEnum):
 
         * 0, "OK", "Command received correctly and is being executed."
         * 1, Not used.
-        * 2, "Unsupported command", "A command was sent that is not supported
-          by the lower level component, for instance park is sent to LCS or
-          'mooveAz' instead of 'moveAz' to AMCS."
+        * 2, "Unsupported", "A command was sent that is not supported by the
+          lower level component, for instance park is sent to LCS or 'mooveAz'
+          instead of 'moveAz' to AMCS."
         * 3, "Incorrect parameter(s)", "The command that was sent is supported
           by the lower level component but the parameters for the command are
           incorrect. This can mean not enough parameters, too many parameters
@@ -158,13 +160,19 @@ class ResponseCode(enum.IntEnum):
           like the push buttons for the Aperture Shutters."
         * 5, "Incorrect state", "The current command cannot be executed in
           current state, e.g. moveAz when the AMCS is in fault state."
+        * 6, "Rotating part did not receive", "It was not possible to forward
+          the command to the rotating part."
+        * 7, "Rotating part did not reply", "The command was sent to the
+          rotating part, but it did not send a reply before a timeout."
     """
 
     OK = 0
-    UNSUPPORTED_COMMAND = 2
+    UNSUPPORTED = 2
     INCORRECT_PARAMETERS = 3
     INCORRECT_SOURCE = 4
     INCORRECT_STATE = 5
+    ROTATING_PART_NOT_RECEIVED = 6
+    ROTATING_PART_NOT_REPLIED = 7
 
 
 class SlipRingState(enum.IntEnum):
@@ -265,3 +273,6 @@ STOP_SHUTTER = StopCommand(
     ScheduledCommand(command=CommandName.STOP_SHUTTER, params={}),
     LlcName.APSCS,
 )
+
+# These LLCs are not cointrolled by the cRIO.
+UNCONTROLLED_LLCS = [LlcName.RAD, LlcName.CSCS, LlcName.OBC]

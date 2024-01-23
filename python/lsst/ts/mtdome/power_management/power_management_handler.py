@@ -31,6 +31,7 @@ from ..enums import (
     STOP_FANS,
     STOP_LOUVERS,
     STOP_SHUTTER,
+    UNCONTROLLED_LLCS,
     CommandName,
     LlcName,
     PowerManagementMode,
@@ -436,6 +437,9 @@ class PowerManagementHandler:
         power_available = self.slip_ring.get_available_power(total_power_draw)
         if power_available - total_power_draw > power_required:
             return scheduled_command
+
+        # Always wait for these LLCs, which are not controlled by the cRIO.
+        llcs_to_wait_for = llcs_to_wait_for + UNCONTROLLED_LLCS
 
         # If not enough power is available, stop lower priority commands to
         # free up power.

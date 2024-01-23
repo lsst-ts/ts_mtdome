@@ -692,6 +692,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     ResponseCode.INCORRECT_PARAMETERS: "has incorrect parameters.",
                     ResponseCode.INCORRECT_SOURCE: "was sent from an incorrect source.",
                     ResponseCode.INCORRECT_STATE: "was sent for an incorrect state.",
+                    ResponseCode.ROTATING_PART_NOT_RECEIVED: "was not received by the rotating part.",
+                    ResponseCode.ROTATING_PART_NOT_REPLIED: "was not replied to by the rotating part.",
                 }.get(response, "is not supported.")
                 raise ValueError(f"{command=} {error_suffix}")
 
