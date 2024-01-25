@@ -675,13 +675,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         report=f"Error reading reply to command {command_dict}: {e}.",
                     )
                     raise
-                received_command_id = data["commandId"]
-                if received_command_id in self.commands_without_reply:
-                    self.commands_without_reply.pop(received_command_id)
+                if "commandId" not in data:
+                    self.log.error(f"No 'commandId' in reply for {command=}")
                 else:
-                    self.log.warning(
-                        f"Ignoring unknown commandId {received_command_id}."
-                    )
+                    received_command_id = data["commandId"]
+                    if received_command_id in self.commands_without_reply:
+                        self.commands_without_reply.pop(received_command_id)
+                    else:
+                        self.log.warning(
+                            f"Ignoring unknown commandId {received_command_id}."
+                        )
             else:
                 data = REPLY_DATA_FOR_DISABLED_COMMANDS
             response = data["response"]
