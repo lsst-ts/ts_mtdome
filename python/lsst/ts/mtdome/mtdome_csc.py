@@ -98,13 +98,13 @@ DOME_AZIMUTH_OFFSET = 32.0
 
 # Polling periods [sec] for the lower level components.
 _AMCS_STATUS_PERIOD = 0.2
-_APSCS_STATUS_PERIOD = 2.0
-_CSCS_STATUS_PERIOD = 2.0
-_LCS_STATUS_PERIOD = 2.0
-_LWSCS_STATUS_PERIOD = 2.0
-_MONCS_STATUS_PERIOD = 2.0
-_RAD_STATUS_PERIOD = 2.0
-_THCS_STATUS_PERIOD = 2.0
+_APSCS_STATUS_PERIOD = 0.5
+_CSCS_STATUS_PERIOD = 0.5
+_LCS_STATUS_PERIOD = 0.5
+_LWSCS_STATUS_PERIOD = 0.5
+_MONCS_STATUS_PERIOD = 0.5
+_RAD_STATUS_PERIOD = 0.5
+_THCS_STATUS_PERIOD = 0.5
 
 # Polling period [sec] for the task that checks if all commands have been
 # replied to.
