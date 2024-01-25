@@ -319,10 +319,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             SubSystemId.APSCS: CommandName.SEARCH_ZERO_SHUTTER,
         }
 
-        # TODO DM-37170: Remove as soon as the IDLE state is not used anymore
-        #  by the AMCS.
-        self.previous_state = MotionState.PARKED
-
         # Keep track of the parameters of the current moveAz command issued so
         # repetition of the same command can be avoided. This is necessary in
         # case the dome repeatedly is instructed to move to the same position
@@ -1285,11 +1281,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
 
-            # TODO DM-37170: Remove as soon as the IDLE state is not used
-            #  anymore by the AMCS.
-            if llc_status["status"] == "IDLE":
-                motion_state = self.previous_state
-            elif llc_status["status"] in motion_state_translations:
+            if llc_status["status"] in motion_state_translations:
                 motion_state = motion_state_translations[llc_status["status"]]
             else:
                 motion_state = MotionState[llc_status["status"]]
@@ -1307,10 +1299,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_azMotion.set_write(
                 state=motion_state, inPosition=in_position
             )
-
-            # TODO DM-37170: Remove as soon as the IDLE state is not used
-            #  anymore by the AMCS.
-            self.previous_state = motion_state
 
     async def _check_errors_and_send_events_el(
         self, llc_status: dict[str, typing.Any]
