@@ -6,6 +6,21 @@
 Version History
 ###############
 
+v1.15.2
+=======
+* Increase frequency of all low frequency status commands.
+* Workaround for missing "commandId" in command replies.
+* Remove workaround for handling IDLE state.
+* Disable all status commands to avoid overloading the CSC during unit tests.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_tcpip 1.1
+* ts_utils 1.0
+* ts_xml 20.2
+
 v1.15.1
 =======
 * Add new response codes.
