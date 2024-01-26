@@ -98,13 +98,13 @@ DOME_AZIMUTH_OFFSET = 32.0
 
 # Polling periods [sec] for the lower level components.
 _AMCS_STATUS_PERIOD = 0.2
-_APSCS_STATUS_PERIOD = 2.0
-_CSCS_STATUS_PERIOD = 2.0
-_LCS_STATUS_PERIOD = 2.0
-_LWSCS_STATUS_PERIOD = 2.0
-_MONCS_STATUS_PERIOD = 2.0
-_RAD_STATUS_PERIOD = 2.0
-_THCS_STATUS_PERIOD = 2.0
+_APSCS_STATUS_PERIOD = 0.5
+_CSCS_STATUS_PERIOD = 0.5
+_LCS_STATUS_PERIOD = 0.5
+_LWSCS_STATUS_PERIOD = 0.5
+_MONCS_STATUS_PERIOD = 0.5
+_RAD_STATUS_PERIOD = 0.5
+_THCS_STATUS_PERIOD = 0.5
 
 # Polling period [sec] for the task that checks if all commands have been
 # replied to.
@@ -318,10 +318,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.set_home_command_dict = {
             SubSystemId.APSCS: CommandName.SEARCH_ZERO_SHUTTER,
         }
-
-        # TODO DM-37170: Remove as soon as the IDLE state is not used anymore
-        #  by the AMCS.
-        self.previous_state = MotionState.PARKED
 
         # Keep track of the parameters of the current moveAz command issued so
         # repetition of the same command can be avoided. This is necessary in
@@ -675,13 +671,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         report=f"Error reading reply to command {command_dict}: {e}.",
                     )
                     raise
-                received_command_id = data["commandId"]
-                if received_command_id in self.commands_without_reply:
-                    self.commands_without_reply.pop(received_command_id)
+                if "commandId" not in data:
+                    self.log.error(f"No 'commandId' in reply for {command=}")
                 else:
-                    self.log.warning(
-                        f"Ignoring unknown commandId {received_command_id}."
-                    )
+                    received_command_id = data["commandId"]
+                    if received_command_id in self.commands_without_reply:
+                        self.commands_without_reply.pop(received_command_id)
+                    else:
+                        self.log.warning(
+                            f"Ignoring unknown commandId {received_command_id}."
+                        )
             else:
                 data = REPLY_DATA_FOR_DISABLED_COMMANDS
             response = data["response"]
@@ -1282,11 +1281,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
 
-            # TODO DM-37170: Remove as soon as the IDLE state is not used
-            #  anymore by the AMCS.
-            if llc_status["status"] == "IDLE":
-                motion_state = self.previous_state
-            elif llc_status["status"] in motion_state_translations:
+            if llc_status["status"] in motion_state_translations:
                 motion_state = motion_state_translations[llc_status["status"]]
             else:
                 motion_state = MotionState[llc_status["status"]]
@@ -1304,10 +1299,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_azMotion.set_write(
                 state=motion_state, inPosition=in_position
             )
-
-            # TODO DM-37170: Remove as soon as the IDLE state is not used
-            #  anymore by the AMCS.
-            self.previous_state = motion_state
 
     async def _check_errors_and_send_events_el(
         self, llc_status: dict[str, typing.Any]

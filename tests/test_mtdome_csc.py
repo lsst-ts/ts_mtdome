@@ -52,6 +52,13 @@ logging.basicConfig(
 )
 
 
+# Disable all status commands to avoid overloading the CSC during unit tests.
+# This means that all test cases need to request the status of the involved
+# subsystem(s) themselves.
+@mock.patch.dict(
+    "lsst.ts.mtdome.mtdome_csc.ALL_METHODS_AND_INTERVALS",
+    {"check_all_commands_have_replies": (600, True)},
+)
 class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     def basic_make_csc(
         self,
@@ -316,6 +323,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 2.0
             await asyncio.sleep(0.2)
         # The mock device should be stopped and in position now.
+        await self.csc.statusAMCS()
         await self.assert_next_sample(
             topic=self.remote.evt_azMotion,
             state=MotionState.STOPPED,
@@ -400,6 +408,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # for easier control
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
+            await self.csc.statusAMCS()
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
                 state=MotionState.PARKED,
@@ -419,6 +428,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
             )
 
+            await self.csc.statusAMCS()
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
                 state=MotionState.MOVING,
@@ -430,6 +440,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 engageBrakes=False, subSystemIds=SubSystemId.AMCS
             )
 
+            await self.csc.statusAMCS()
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
                 state=MotionState.STOPPED,
@@ -500,6 +511,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mock_ctrl.current_tai = (
                 self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
             )
+            await self.csc.statusAMCS()
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
                 state=MotionState.MOVING,
@@ -520,6 +532,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            await self.csc.statusAMCS()
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
                 state=MotionState.STOPPED,
@@ -527,6 +540,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             await self.assert_command_replied(cmd="stop")
 
+            await self.csc.statusLWSCS()
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
                 state=MotionState.STOPPED,
@@ -869,6 +883,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         config_amax = math.degrees(self.csc.mock_ctrl.amcs.amax)
         config_vmax = math.degrees(self.csc.mock_ctrl.amcs.vmax)
 
+        await self.csc.statusAMCS()
         data = await self.assert_next_sample(
             topic=self.remote.evt_azConfigurationApplied
         )
@@ -1086,6 +1101,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # for easier control
             self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
+            await self.csc.statusAMCS()
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
                 state=MotionState.PARKED,
@@ -1106,6 +1122,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
             )
 
+            await self.csc.statusAMCS()
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
                 state=MotionState.MOVING,
@@ -1120,6 +1137,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mock_ctrl.amcs._commanded_motion_state = MotionState.ERROR
 
             # Make sure that the Enabled events are sent.
+            await self.csc.statusAMCS()
+            await self.csc.statusApSCS()
             await self.assert_next_sample(
                 topic=self.remote.evt_azEnabled, state=EnabledState.FAULT
             )
@@ -1149,6 +1168,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.assert_command_replied(cmd=mtdome.CommandName.EXIT_FAULT)
 
             # Make sure that the Enabled events are sent.
+            await self.csc.statusAMCS()
+            await self.csc.statusApSCS()
             await self.assert_next_sample(
                 topic=self.remote.evt_azEnabled, state=EnabledState.ENABLED
             )
@@ -1477,6 +1498,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             assert desired_velocity == pytest.approx(data.velocity)
 
+    @mock.patch.dict(
+        "lsst.ts.mtdome.mtdome_csc.ALL_METHODS_AND_INTERVALS",
+        {
+            "statusAMCS": (0.2, True),
+            "check_all_commands_have_replies": (600, True),
+        },
+    )
     async def test_network_interruption(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.DISABLED,
@@ -1502,6 +1530,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 )
             await self.assert_next_summary_state(salobj.State.FAULT)
 
+    @mock.patch.dict(
+        "lsst.ts.mtdome.mtdome_csc.ALL_METHODS_AND_INTERVALS",
+        {
+            "statusAMCS": (0.2, True),
+            "check_all_commands_have_replies": (600, True),
+        },
+    )
     async def test_connection_lost(self) -> None:
         with open(CONFIG_DIR / "_init.yaml") as f:
             config = yaml.safe_load(f)
