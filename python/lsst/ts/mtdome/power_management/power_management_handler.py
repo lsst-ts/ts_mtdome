@@ -203,7 +203,11 @@ class PowerManagementHandler:
         """
         _, scheduled_command = await self.command_queue.get()
         match scheduled_command.command:
-            case CommandName.OPEN_SHUTTER | CommandName.CLOSE_SHUTTER | CommandName.SEARCH_ZERO_SHUTTER:
+            case (
+                CommandName.OPEN_SHUTTER
+                | CommandName.CLOSE_SHUTTER
+                | CommandName.SEARCH_ZERO_SHUTTER
+            ):
                 return await self.generic_get_scheduled_command_or_stop_commands(
                     scheduled_command,
                     APS_POWER_DRAW,
