@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v1.15.3
+=======
+* Add temporary InternalMotionState values.
+* Improve handling of InternalMotionState values.
+
+Requires:
+
+* ts_salobj 7.0
+* ts_idl
+* ts_tcpip 1.1
+* ts_utils 1.0
+* ts_xml 20.2
+
 v1.15.2
 =======
 * Increase frequency of all low frequency status commands.
