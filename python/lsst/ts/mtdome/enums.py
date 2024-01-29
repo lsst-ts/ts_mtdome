@@ -56,13 +56,29 @@ class InternalMotionState(enum.IntEnum):
     These get translated into IDL MotionState instances by the CSC.
     """
 
+    # TODO DM-42701: Remove all values except STATIONARY as soon as XML 20.3.0
+    #  has been released.
+    BRAKE_DISENGAGED = enum.auto()
+    BRAKE_ENGAGED = enum.auto()
+    DISENGAGING_BRAKE = enum.auto()
+    ENGAGING_BRAKE = enum.auto()
+    INCLINED = enum.auto()
     STATIONARY = enum.auto()
+    VERTICAL = enum.auto()
 
 
 # Dict holding translations from motion states, that the lower level
 # controllers can have, to MotionState.
 motion_state_translations = {
-    "STATIONARY": MotionState.STOPPED_BRAKED,
+    # TODO DM-42701: Remove all values except STATIONARY as soon as XML 20.3.0
+    #  has been released.
+    InternalMotionState.BRAKE_DISENGAGED.name: MotionState.BRAKES_DISENGAGED,
+    InternalMotionState.BRAKE_ENGAGED.name: MotionState.BRAKES_ENGAGED,
+    InternalMotionState.DISENGAGING_BRAKE.name: MotionState.DISENGAGING_BRAKES,
+    InternalMotionState.ENGAGING_BRAKE.name: MotionState.ENGAGING_BRAKES,
+    InternalMotionState.INCLINED.name: MotionState.OPEN,
+    InternalMotionState.STATIONARY.name: MotionState.STOPPED_BRAKED,
+    InternalMotionState.VERTICAL.name: MotionState.CLOSED,
 }
 
 

@@ -1260,6 +1260,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         await self.request_and_send_llc_status(LlcName.THCS.value, self.tel_thermal)
 
+    def _translate_motion_state_if_necessary(self, state: str) -> MotionState:
+        try:
+            motion_state = MotionState[state]
+        except KeyError:
+            motion_state = motion_state_translations[state]
+        return motion_state
+
     async def _check_errors_and_send_events_az(
         self, llc_status: dict[str, typing.Any]
     ) -> None:
@@ -1281,10 +1288,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
 
-            if llc_status["status"] in motion_state_translations:
-                motion_state = motion_state_translations[llc_status["status"]]
-            else:
-                motion_state = MotionState[llc_status["status"]]
+            motion_state = self._translate_motion_state_if_necessary(
+                llc_status["status"]
+            )
             in_position = False
             if motion_state in [
                 MotionState.STOPPED,
@@ -1314,10 +1320,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             )
         else:
             await self.evt_elEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
-            if llc_status["status"] in motion_state_translations:
-                motion_state = motion_state_translations[llc_status["status"]]
-            else:
-                motion_state = MotionState[llc_status["status"]]
+            motion_state = self._translate_motion_state_if_necessary(
+                llc_status["status"]
+            )
             in_position = False
             if motion_state in [
                 MotionState.STOPPED,
@@ -1357,10 +1362,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             # The number of statuses has been validated by the JSON schema. So
             # here it is safe to loop over all statuses.
             for status in statuses:
-                if status in motion_state_translations:
-                    motion_state.append(motion_state_translations[status])
-                else:
-                    motion_state.append(MotionState[status])
+                motion_state.append(self._translate_motion_state_if_necessary(status))
                 in_position.append(
                     status
                     in [
