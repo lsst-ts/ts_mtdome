@@ -862,7 +862,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         assert self.azimuth_motion.drives_in_error_state == expected_drive_error_state
         assert self.azimuth_motion.motion_state_in_error is False
 
-    async def test_calibrate_az(self) -> None:
+    async def test_set_zero_az(self) -> None:
         start_position = 0.0
         start_tai = START_TAI
         target_position = 10.0
@@ -886,7 +886,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
 
         current_tai = START_TAI + START_MOTORS_ADD_DURATION + 1.1
         with pytest.raises(RuntimeError):
-            self.azimuth_motion.calibrate_az(current_tai)
+            self.azimuth_motion.set_zero_az(current_tai)
 
         await self.verify_azimuth_state(
             tai=START_TAI + START_MOTORS_ADD_DURATION + 2.5,
@@ -896,7 +896,7 @@ class AzimuthMotionTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
         current_tai = START_TAI + START_MOTORS_ADD_DURATION + 3.0
-        self.azimuth_motion.calibrate_az(current_tai)
+        self.azimuth_motion.set_zero_az(current_tai)
 
         await self.verify_azimuth_state(
             tai=current_tai,

@@ -376,7 +376,7 @@ class AzimuthMotion(BaseLlcMotionWithCrawl):
         self._end_tai = self._start_tai + self._get_duration()
         return self._end_tai - start_tai
 
-    def calibrate_az(self, start_tai: float) -> float:
+    def set_zero_az(self, start_tai: float) -> float:
         """Take the current position of the dome as zero. This is necessary as
         long as the racks and pinions on the drives have not been installed yet
         to compensate for slippage of the drives.

@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v1.15.4
+=======
+* Set log level for local run script to DEBUG.
+* Rename the calibrateAz command to setZeroAz.
+
+Requires:
+
+* ts_salobj 7
+* ts_idl
+* ts_tcpip 2.0
+* ts_utils 1.2
+* ts_xml 20.2
+
 v1.15.3
 =======
 * Add temporary InternalMotionState values.
@@ -13,10 +26,10 @@ v1.15.3
 
 Requires:
 
-* ts_salobj 7.0
+* ts_salobj 7
 * ts_idl
-* ts_tcpip 1.1
-* ts_utils 1.0
+* ts_tcpip 2.0
+* ts_utils 1.2
 * ts_xml 20.2
 
 v1.15.2
@@ -28,10 +41,10 @@ v1.15.2
 
 Requires:
 
-* ts_salobj 7.0
+* ts_salobj 7
 * ts_idl
-* ts_tcpip 1.1
-* ts_utils 1.0
+* ts_tcpip 2.0
+* ts_utils 1.2
 * ts_xml 20.2
 
 v1.15.1
@@ -43,10 +56,10 @@ v1.15.1
 
 Requires:
 
-* ts_salobj 7.0
+* ts_salobj 7
 * ts_idl
-* ts_tcpip 1.1
-* ts_utils 1.0
+* ts_tcpip 2.0
+* ts_utils 1.2
 * ts_xml 20.2
 
 v1.15.0
@@ -60,10 +73,10 @@ These changes require at least ts_xml 20.2 and will not work with ts_xml 20.1 or
 
 Requires:
 
-* ts_salobj 7.0
+* ts_salobj 7
 * ts_idl
-* ts_tcpip 1.1
-* ts_utils 1.0
+* ts_tcpip 2.0
+* ts_utils 1.2
 * ts_xml 20.2
 
 v1.14.1

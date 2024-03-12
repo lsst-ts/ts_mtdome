@@ -383,7 +383,7 @@ class AmcsStatus(BaseMockStatus):
         self.end_tai = start_tai + duration
         return duration
 
-    async def calibrate_az(self, start_tai: float) -> float:
+    async def set_zero_az(self, start_tai: float) -> float:
         """Take the current position of the dome as zero. This is necessary as
         long as the racks and pinions on the drives have not been installed yet
         to compensate for slippage of the drives.
@@ -400,7 +400,7 @@ class AmcsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        self.azimuth_motion.calibrate_az(start_tai)
+        self.azimuth_motion.set_zero_az(start_tai)
         duration = 0.0
         self.end_tai = start_tai + duration
         return duration

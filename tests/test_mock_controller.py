@@ -1409,7 +1409,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             await self.mock_ctrl.exit_fault()
             await self.validate_apscs(status=mtdome.InternalMotionState.STATIONARY)
 
-    async def test_calibrate_az(self) -> None:
+    async def test_set_zero_az(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
             start_position = 0
             target_position = math.radians(10)
@@ -1428,8 +1428,8 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 math.radians(1.5),
             )
 
-            # Cannot calibrate while AMCS is MOVING.
-            await self.write(command=mtdome.CommandName.CALIBRATE_AZ, parameters={})
+            # Cannot set the zero position while AMCS is MOVING.
+            await self.write(command=mtdome.CommandName.SET_ZERO_AZ, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
             assert self.data["timeout"] == -1
@@ -1440,8 +1440,8 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 math.radians(10.0),
             )
 
-            # Can calibrate while AMCS is STOPPED.
-            await self.write(command=mtdome.CommandName.CALIBRATE_AZ, parameters={})
+            # Can set the zero position while AMCS is STOPPED.
+            await self.write(command=mtdome.CommandName.SET_ZERO_AZ, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
             assert self.data["timeout"] == pytest.approx(0.0)

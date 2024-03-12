@@ -81,7 +81,7 @@ registry["command"] = json.loads(
         "statusThCS",
         "exitFault",
         "resetDrivesAz",
-        "calibrateAz",
+        "setZeroAz",
         "resetDrivesShutter",
         "searchZeroShutter"
       ]
@@ -920,7 +920,7 @@ registry["command"] = json.loads(
       "if": {
         "properties": {
           "command": {
-            "const": "calibrateAz"
+            "const": "setZeroAz"
           }
         }
       },
