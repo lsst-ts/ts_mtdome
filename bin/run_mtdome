@@ -21,6 +21,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import logging
+
 from lsst.ts import mtdome
+
+# Set log level to DEBUG. This is safe to do since this script is not part of
+# the ts-mtdome conda package.
+logging.basicConfig(
+    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s",
+    level=logging.DEBUG,
+)
+# Set the log level of the Kafka logger.
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
 mtdome.run_mtdome()
