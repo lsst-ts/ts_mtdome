@@ -1101,7 +1101,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug("do_setZeroAz")
         self.assert_enabled()
-        await self.write_then_read_reply(command=CommandName.CALIBRATE_AZ)
+        await self.write_then_read_reply(command=CommandName.SET_ZERO_AZ)
 
     async def do_home(self, data: salobj.BaseMsgType) -> None:
         """Search the home position of the Aperture Shutter, which is the

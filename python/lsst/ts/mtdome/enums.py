@@ -85,7 +85,6 @@ motion_state_translations = {
 class CommandName(enum.StrEnum):
     """Command names."""
 
-    CALIBRATE_AZ = "calibrateAz"
     CLOSE_LOUVERS = "closeLouvers"
     CLOSE_SHUTTER = "closeShutter"
     CONFIG = "config"
@@ -120,6 +119,7 @@ class CommandName(enum.StrEnum):
     SET_NORMAL_THERMAL = "setNormalThermal"
     SET_LOUVERS = "setLouvers"
     SET_TEMPERATURE = "setTemperature"
+    SET_ZERO_AZ = "setZeroAz"
     STATUS_AMCS = "statusAMCS"
     STATUS_APSCS = "statusApSCS"
     STATUS_CSCS = "statusCSCS"

@@ -105,7 +105,6 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         # * No arguments, if `has_argument` False.
         # * The argument as a string, if `has_argument` is True.
         self.dispatch_dict: dict[str, typing.Callable] = {
-            CommandName.CALIBRATE_AZ: self.calibrate_az,
             CommandName.CLOSE_LOUVERS: self.close_louvers,
             CommandName.CLOSE_SHUTTER: self.close_shutter,
             CommandName.CONFIG: self.config,
@@ -140,6 +139,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             CommandName.SET_NORMAL_SHUTTER: self.set_normal_shutter,
             CommandName.SET_NORMAL_THERMAL: self.set_normal_thermal,
             CommandName.SET_TEMPERATURE: self.set_temperature,
+            CommandName.SET_ZERO_AZ: self.set_zero_az,
             CommandName.STATUS_AMCS: self.status_amcs,
             CommandName.STATUS_APSCS: self.status_apscs,
             CommandName.STATUS_CSCS: self.status_cscs,
@@ -783,7 +783,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         assert self.apscs is not None
         await self.apscs.reset_drives_shutter(self.current_tai, reset)
 
-    async def calibrate_az(self) -> float:
+    async def set_zero_az(self) -> float:
         """Take the current position of the dome as zero. This is necessary as
         long as the racks, pinions and encoders on the drives have not been
         installed yet to compensate for slippage of the drives.
@@ -794,7 +794,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             The estimated duration of the execution of the command.
         """
         assert self.amcs is not None
-        return await self.amcs.calibrate_az(self.current_tai)
+        return await self.amcs.set_zero_az(self.current_tai)
 
     async def search_zero_shutter(self) -> float:
         """Search the zero position of the Aperture Shutter, which is the

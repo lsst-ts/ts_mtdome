@@ -871,7 +871,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         )
         assert self.amcs.azimuth_motion.motion_state_in_error is False
 
-    async def test_calibrate_az(self) -> None:
+    async def test_set_zero_az(self) -> None:
         start_position = 0.0
         start_tai = START_TAI
         target_position = 10.0
@@ -895,7 +895,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
 
         current_tai = START_TAI + START_MOTORS_ADD_DURATION + 1.1
         with pytest.raises(RuntimeError):
-            await self.amcs.calibrate_az(current_tai)
+            await self.amcs.set_zero_az(current_tai)
 
         await self.verify_amcs_state(
             tai=START_TAI + START_MOTORS_ADD_DURATION + 2.5,
@@ -905,7 +905,7 @@ class AmcsTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
         current_tai = START_TAI + START_MOTORS_ADD_DURATION + 3.0
-        await self.amcs.calibrate_az(current_tai)
+        await self.amcs.set_zero_az(current_tai)
 
         await self.verify_amcs_state(
             tai=current_tai,
