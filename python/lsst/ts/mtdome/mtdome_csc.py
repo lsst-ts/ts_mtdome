@@ -778,6 +778,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_azTarget.set_write(
                 position=data.position, velocity=data.velocity
             )
+        else:
+            self.log.warning(
+                f"Ignoring moveAz command for position={data.position} and "
+                f"velocity={data.velocity} because it is a duplicate command."
+            )
 
     async def do_moveEl(self, data: salobj.BaseMsgType) -> None:
         """Move El.

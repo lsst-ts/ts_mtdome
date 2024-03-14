@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v1.15.5
+=======
+* Log a warning message when a duplicate moveAz command is received.
+  Duplicate moveAz commands get ignored and that was not visible to the operators.
+
+Requires:
+
+* ts_salobj 7
+* ts_idl
+* ts_tcpip 2.0
+* ts_utils 1.2
+* ts_xml 20.2
+
 v1.15.4
 =======
 * Set log level for local run script to DEBUG.
