@@ -27,7 +27,6 @@ import typing
 from dataclasses import dataclass
 from types import SimpleNamespace
 
-import numpy as np
 from lsst.ts import salobj, tcpip, utils
 from lsst.ts.xml.enums.MTDome import (
     EnabledState,
@@ -87,9 +86,6 @@ _KEYS_IN_RADIANS = {
     "velocityActual",
     "velocityCommanded",
 }.union(_AMCS_KEYS_OFFSET)
-# The values of the following ApSCS keys are lists and also need to be
-# converted from radians to degrees.
-_APSCS_LIST_KEYS_IN_RADIANS = {"positionActual"}
 
 # The offset of the dome rotation zero point with respect to azimuth 0º (true
 # north) is 32º west and this needs to be added when commanding the azimuth
@@ -1436,12 +1432,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         telemetry_in_degrees[key] - DOME_AZIMUTH_OFFSET
                     ).degree
                     telemetry_in_degrees[key] = offset_value
-            elif key in _APSCS_LIST_KEYS_IN_RADIANS and llc_name == LlcName.APSCS.value:
-                # APSCS key values that are lists can be converted from radians
-                # to degrees using numpy.
-                telemetry_in_degrees[key] = np.degrees(
-                    np.array(telemetry_in_radians[key])
-                ).tolist()
             elif key == "timestampUTC":
                 # DM-26653: The name of this parameter is still under
                 # discussion.
