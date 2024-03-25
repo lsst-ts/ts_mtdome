@@ -176,7 +176,7 @@ class BaseLlcMotion(ABC):
             model the real dome, this should be the current time. However, for
             unit tests it can be convenient to use other values.
         """
-        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
+        position, _, motion_state = self.get_position_velocity_and_motion_state(
             tai=start_tai
         )
         self._start_tai = start_tai
@@ -184,7 +184,8 @@ class BaseLlcMotion(ABC):
         self._end_position = position
         self._current_motion_state = motion_state
         self._commanded_motion_state = MotionState.STOPPED
-        self._end_tai = self._start_tai + self._get_duration()
+        # This transition in the mock LLCs is instantaneous.
+        self._end_tai = self._start_tai
         return self._end_tai - start_tai
 
     def go_stationary(self, start_tai: float) -> float:
@@ -197,14 +198,13 @@ class BaseLlcMotion(ABC):
             model the real dome, this should be the current time. However, for
             unit tests it can be convenient to use other values.
         """
-        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
-            tai=start_tai
-        )
+        position, _, _ = self.get_position_velocity_and_motion_state(tai=start_tai)
         self._start_tai = start_tai
         self._start_position = position
         self._end_position = position
         self._commanded_motion_state = InternalMotionState.STATIONARY
-        self._end_tai = self._start_tai + self._get_duration()
+        # This transition in the mock LLCs is instantaneous.
+        self._end_tai = self._start_tai
         return self._end_tai - start_tai
 
     def exit_fault(self, start_tai: float) -> float:
@@ -260,9 +260,7 @@ class BaseLlcMotion(ABC):
         This function is not mapped to a command that MockMTDomeController can
         receive. It is intended to be set by unit test cases.
         """
-        position, velocity, motion_state = self.get_position_velocity_and_motion_state(
-            tai=start_tai
-        )
+        position, _, _ = self.get_position_velocity_and_motion_state(tai=start_tai)
         self._error_state_position = position
         self.motion_state_in_error = True
         self._error_start_tai = start_tai

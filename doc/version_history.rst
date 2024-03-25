@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v1.15.6
+=======
+* Make sure that the shutter position cannot exceed 100%.
+* Update the version of ts-conda-build to 0.4 in the conda recipe.
+
+Requires:
+
+* ts_salobj 7
+* ts_idl
+* ts_tcpip 2.0
+* ts_utils 1.2
+* ts_xml 20.2
+
 v1.15.5
 =======
 * Log a warning message when a duplicate moveAz command is received.

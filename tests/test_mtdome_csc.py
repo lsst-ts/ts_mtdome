@@ -32,6 +32,7 @@ import numpy as np
 import pytest
 import yaml
 from lsst.ts import mtdome, salobj, tcpip, utils
+from lsst.ts.mtdome.mock_llc import mock_motion
 from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
@@ -178,6 +179,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 )
 
     async def determine_current_tai(self) -> None:
+        # Deliberately left empty.
         pass
 
     async def set_csc_to_enabled(self) -> None:
@@ -272,7 +274,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 topic=self.remote.evt_azTarget, position=desired_position
             )
             await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
-            assert desired_velocity == pytest.approx(data.velocity)
+            assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
             # Give some time to the mock device to move.
             self.csc.mock_ctrl.current_tai = (
@@ -302,7 +304,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             timeout=SHORT_TIMEOUT,
         )
         await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
-        assert desired_velocity == pytest.approx(data.velocity)
+        assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
         # Give some time to the mock device to move.
         self.csc.mock_ctrl.current_tai = (
@@ -319,7 +321,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             inPosition=False,
             timeout=SHORT_TIMEOUT,
         )
-        for i in range(5):
+        for _ in range(5):
             self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 2.0
             await asyncio.sleep(0.2)
         # The mock device should be stopped and in position now.
@@ -577,7 +579,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             await self.assert_command_replied(cmd=mtdome.CommandName.CRAWL_AZ)
             assert np.isnan(data.position)
-            assert desired_velocity == pytest.approx(data.velocity)
+            assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
             # Give some time to the mock device to move.
             self.csc.mock_ctrl.current_tai = (
@@ -625,7 +627,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             await self.assert_command_replied(cmd=mtdome.CommandName.CRAWL_EL)
             assert np.isnan(data.position)
-            assert desired_velocity == pytest.approx(data.velocity)
+            assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
             # Now also check the elMotion event.
             await self.csc.statusLWSCS()
@@ -682,8 +684,35 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
+
+            # Set the TAI time in the mock controller for easier control
+            self.csc.mock_ctrl.current_tai = 1000
+            # Set the mock device status TAI time to the mock controller time
+            # for easier control
+            self.csc.mock_ctrl.apscs.command_time_tai = self.csc.mock_ctrl.current_tai
+
             await self.remote.cmd_openShutter.set_start()
             await self.assert_command_replied(cmd=mtdome.CommandName.OPEN_SHUTTER)
+
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            await self.csc.statusApSCS()
+            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            assert apscs_status["status"]["status"] == [
+                MotionState.MOVING.name,
+                MotionState.MOVING.name,
+            ]
+
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 10.1
+            await self.csc.statusApSCS()
+            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            assert apscs_status["status"]["status"] == [
+                MotionState.STOPPED.name,
+                MotionState.STOPPED.name,
+            ]
+            for actual_position in apscs_status["positionActual"]:
+                assert actual_position == pytest.approx(
+                    mock_motion.shutter_motion.OPEN_POSITION
+                )
 
     async def test_do_closeShutter(self) -> None:
         async with self.make_csc(
@@ -691,9 +720,51 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             config_dir=CONFIG_DIR,
             simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
+
             await self.set_csc_to_enabled()
+
+            start_tai = 1000
+
+            # Mock opened shutter doors.
+            self.csc.mock_ctrl.apscs.shutter_motion = [
+                mock_motion.ShutterMotion(
+                    start_position=mock_motion.shutter_motion.OPEN_POSITION,
+                    start_tai=start_tai,
+                ),
+                mock_motion.ShutterMotion(
+                    start_position=mock_motion.shutter_motion.OPEN_POSITION,
+                    start_tai=start_tai,
+                ),
+            ]
+
+            # Set the TAI time in the mock controller for easier control
+            self.csc.mock_ctrl.current_tai = start_tai
+            # Set the mock device status TAI time to the mock controller time
+            # for easier control
+            self.csc.mock_ctrl.apscs.command_time_tai = self.csc.mock_ctrl.current_tai
+
             await self.remote.cmd_closeShutter.set_start()
             await self.assert_command_replied(cmd=mtdome.CommandName.CLOSE_SHUTTER)
+
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            await self.csc.statusApSCS()
+            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            assert apscs_status["status"]["status"] == [
+                MotionState.MOVING.name,
+                MotionState.MOVING.name,
+            ]
+
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 10.1
+            await self.csc.statusApSCS()
+            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            assert apscs_status["status"]["status"] == [
+                MotionState.STOPPED.name,
+                MotionState.STOPPED.name,
+            ]
+            for actual_position in apscs_status["positionActual"]:
+                assert actual_position == pytest.approx(
+                    mock_motion.shutter_motion.CLOSED_POSITION
+                )
 
     async def test_do_stopShutter(self) -> None:
         async with self.make_csc(
@@ -1261,7 +1332,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             data = await self.assert_next_sample(
                 topic=self.remote.evt_azTarget, position=desired_position
             )
-            assert desired_velocity == pytest.approx(data.velocity)
+            assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
             # Give some time to the mock device to move.
             self.csc.mock_ctrl.current_tai = (
@@ -1496,7 +1567,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             data = await self.assert_next_sample(
                 topic=self.remote.evt_azTarget, position=desired_position
             )
-            assert desired_velocity == pytest.approx(data.velocity)
+            assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
     @mock.patch.dict(
         "lsst.ts.mtdome.mtdome_csc.ALL_METHODS_AND_INTERVALS",
