@@ -9,6 +9,7 @@ Version History
 v1.15.6
 =======
 * Make sure that the shutter position cannot exceed 100%.
+* Update the version of ts-conda-build to 0.4 in the conda recipe.
 
 Requires:
 
