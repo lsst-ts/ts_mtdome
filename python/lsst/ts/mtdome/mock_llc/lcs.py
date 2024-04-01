@@ -80,7 +80,6 @@ class LcsStatus(BaseMockStatus):
         self.power_draw = 0.0
 
         # State machine related attributes.
-        self.current_tai = 0.0
         self.current_state = np.full(
             NUM_LOUVERS, InternalMotionState.STATIONARY.name, dtype=object
         )
@@ -91,116 +90,117 @@ class LcsStatus(BaseMockStatus):
             NUM_LOUVERS, InternalMotionState.STATIONARY.name, dtype=object
         )
 
-    async def evaluate_state(self, current_tai: float) -> None:
+    async def evaluate_state(self, current_tai: float, louver_id: int) -> None:
         """Evaluate the state and perform a state transition if necessary.
 
         Parameters
         ----------
         current_tai : `float`
             The current time, in UNIX TAI seconds.
+        louver_id : `int`
+            The louver id.
         """
-        self.current_tai = current_tai
-        for index in range(NUM_LOUVERS):
-            target_state = self.target_state[index]
-            match target_state:
-                case MotionState.CLOSED.name:
-                    await self.handle_closed_or_open(index)
-                case MotionState.OPEN.name:
-                    await self.handle_closed_or_open(index)
-                case MotionState.STOPPED.name:
-                    await self.handle_stopped(index)
-                case InternalMotionState.STATIONARY.name:
-                    await self.handle_stationary(index)
-                case _:
-                    # Not a valid state, so empty.
-                    pass
-
-    async def handle_closed_or_open(self, index: int) -> None:
-        state = self.current_state[index]
-        match state:
+        match self.target_state[louver_id]:
+            case MotionState.STOPPED.name:
+                await self._handle_stopped(louver_id)
             case InternalMotionState.STATIONARY.name:
-                self.current_state[index] = MotionState.ENABLING_MOTOR_POWER.name
+                await self._handle_stationary(current_tai, louver_id)
+            case _:
+                # Not a valid state, so empty.
+                self.log.warning(
+                    f"Not handling invalid target state {self.target_state[louver_id]}"
+                )
+
+    async def _handle_stopped(self, louver_id: int) -> None:
+        # STATIONARY is the final state for the setLouvers, closeLouveres and
+        # stopLovers (with brakes engaged) commands.
+        if self.target_state[louver_id] == InternalMotionState.STATIONARY.name:
+            self.current_state[louver_id] = MotionState.ENGAGING_BRAKES.name
+
+    async def _handle_stationary(self, current_tai: float, louver_id: int) -> None:
+        match self.current_state[louver_id]:
+            case InternalMotionState.STATIONARY.name:
+                if self.start_state[louver_id] in [
+                    MotionState.OPENING.name,
+                    MotionState.CLOSING.name,
+                ]:
+                    self.current_state[louver_id] = (
+                        MotionState.ENABLING_MOTOR_POWER.name
+                    )
             case MotionState.ENABLING_MOTOR_POWER.name:
-                self.current_state[index] = MotionState.MOTOR_POWER_ON.name
+                self.current_state[louver_id] = MotionState.MOTOR_POWER_ON.name
             case MotionState.MOTOR_POWER_ON.name:
-                self.current_state[index] = MotionState.GO_NORMAL.name
+                self.current_state[louver_id] = MotionState.GO_NORMAL.name
             case MotionState.GO_NORMAL.name:
-                self.current_state[index] = MotionState.DISENGAGING_BRAKES.name
+                self.current_state[louver_id] = MotionState.DISENGAGING_BRAKES.name
             case MotionState.DISENGAGING_BRAKES.name:
-                self.current_state[index] = MotionState.BRAKES_DISENGAGED.name
+                self.current_state[louver_id] = MotionState.BRAKES_DISENGAGED.name
             case MotionState.BRAKES_DISENGAGED.name:
-                self.current_state[index] = MotionState.MOVING.name
+                self.current_state[louver_id] = MotionState.MOVING.name
             case MotionState.MOVING.name:
-                await self.handle_moving(index)
+                await self._handle_moving(current_tai, louver_id)
             case MotionState.STOPPING.name:
-                self.current_state[index] = MotionState.STOPPED.name
+                self.current_state[louver_id] = MotionState.STOPPED.name
             case MotionState.STOPPED.name:
-                await self.handle_stopped(index)
-
-    async def handle_stopped(self, index: int) -> None:
-        intermediate_state = self.start_state[index]
-        target_state = self.target_state[index]
-        if target_state == InternalMotionState.STATIONARY.name:
-            self.current_state[index] = MotionState.ENGAGING_BRAKES.name
-        elif target_state in [MotionState.CLOSED.name, MotionState.OPEN.name]:
-            if intermediate_state == InternalMotionState.STATIONARY.name:
-                self.start_state[index] = target_state
-                self.current_state[index] = MotionState.STOPPED.name
-            elif intermediate_state != target_state:
-                self.current_state[index] = MotionState.MOVING.name
-
-    async def handle_stationary(self, index: int) -> None:
-        state: MotionState | InternalMotionState = self.current_state[index]
-        match state:
-            case MotionState.STOPPED.name:
-                await self.handle_stopped(index)
+                await self._handle_stopped(louver_id)
             case MotionState.ENGAGING_BRAKES.name:
-                self.current_state[index] = MotionState.BRAKES_ENGAGED.name
+                self.current_state[louver_id] = MotionState.BRAKES_ENGAGED.name
             case MotionState.BRAKES_ENGAGED.name:
-                self.current_state[index] = MotionState.GO_STATIONARY.name
+                self.current_state[louver_id] = MotionState.GO_STATIONARY.name
             case MotionState.GO_STATIONARY.name:
-                self.current_state[index] = MotionState.DISABLING_MOTOR_POWER.name
+                self.current_state[louver_id] = MotionState.DISABLING_MOTOR_POWER.name
             case MotionState.DISABLING_MOTOR_POWER.name:
-                self.current_state[index] = MotionState.MOTOR_POWER_OFF.name
+                self.current_state[louver_id] = MotionState.MOTOR_POWER_OFF.name
             case MotionState.MOTOR_POWER_OFF.name:
-                self.current_state[index] = InternalMotionState.STATIONARY.name
-            case InternalMotionState.STATIONARY.name:
-                self.start_state[index] = InternalMotionState.STATIONARY.name
+                self.start_state[louver_id] = InternalMotionState.STATIONARY.name
+                self.current_state[louver_id] = InternalMotionState.STATIONARY.name
+                self.target_state[louver_id] = InternalMotionState.STATIONARY.name
 
-    async def handle_moving(self, index: int) -> None:
+    async def _handle_moving(self, current_tai: float, louver_id: int) -> None:
         time_needed = (
-            abs(self.position_commanded[index] - self.start_position[index])
+            abs(self.position_commanded[louver_id] - self.start_position[louver_id])
             / MOTION_VELOCITY
         )
-        time_so_far = self.current_tai - self.command_time_tai
+        time_so_far = current_tai - self.command_time_tai
         time_frac = 1.0
         if not np.isclose(time_needed, 0.0):
             time_frac = time_so_far / time_needed
         if time_frac >= 1.0:
-            self.position_actual[index] = self.position_commanded[index]
-            self.current_state[index] = MotionState.STOPPING.name
+            self.position_actual[louver_id] = self.position_commanded[louver_id]
+            self.current_state[louver_id] = MotionState.STOPPING.name
         else:
-            distance = self.position_commanded[index] - self.start_position[index]
-            self.position_actual[index] = (
-                self.start_position[index] + distance * time_frac
+            distance = (
+                self.position_commanded[louver_id] - self.start_position[louver_id]
+            )
+            self.position_actual[louver_id] = (
+                self.start_position[louver_id] + distance * time_frac
             )
 
     async def determine_status(self, current_tai: float) -> None:
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
+
+        Parameters
+        ----------
+        current_tai : `float`
+            The current time, in UNIX TAI seconds.
         """
-        await self.evaluate_state(current_tai)
         # Determine the current drawn by the louvers.
-        for index, motion_state in enumerate(self.current_state):
+        for louver_id, motion_state in enumerate(self.current_state):
+            await self.evaluate_state(current_tai, louver_id)
             # Louver motors come in pairs of two.
             if motion_state == MotionState.MOVING.name:
                 self.drive_current_actual[
-                    index * NUM_MOTORS_PER_LOUVER : (index + 1) * NUM_MOTORS_PER_LOUVER
+                    louver_id
+                    * NUM_MOTORS_PER_LOUVER : (louver_id + 1)
+                    * NUM_MOTORS_PER_LOUVER
                 ] = CURRENT_PER_MOTOR
                 self.power_draw = LOUVERS_POWER_DRAW
             else:
                 self.drive_current_actual[
-                    index * NUM_MOTORS_PER_LOUVER : (index + 1) * NUM_MOTORS_PER_LOUVER
+                    louver_id
+                    * NUM_MOTORS_PER_LOUVER : (louver_id + 1)
+                    * NUM_MOTORS_PER_LOUVER
                 ] = 0.0
                 self.power_draw = 0.0
         self.llc_status = {
@@ -229,7 +229,7 @@ class LcsStatus(BaseMockStatus):
         ----------
         position: array of float
             An array with the positions (percentage) to set the louvers to. 0
-            means closed, 180 means wide open, -1 means do not move. These
+            means closed, 100 means wide open, -1 means do not move. These
             limits are not checked.
         current_tai : `float`
             The current time, in UNIX TAI seconds.
@@ -237,13 +237,13 @@ class LcsStatus(BaseMockStatus):
         self.command_time_tai = current_tai
         pos: float = 0
         for louver_id, pos in enumerate(position):
-            if 0 <= pos <= 100:
+            if 0 <= pos <= 100 and not np.isclose(self.position_actual[louver_id], pos):
                 if pos > 0:
                     self.start_state[louver_id] = MotionState.OPENING.name
-                    self.target_state[louver_id] = MotionState.OPEN.name
+                    self.target_state[louver_id] = InternalMotionState.STATIONARY.name
                 else:
                     self.start_state[louver_id] = MotionState.CLOSING.name
-                    self.target_state[louver_id] = MotionState.CLOSED.name
+                    self.target_state[louver_id] = InternalMotionState.STATIONARY.name
                 self.start_position = np.copy(self.position_actual)
                 self.position_commanded[louver_id] = pos
 
@@ -256,8 +256,10 @@ class LcsStatus(BaseMockStatus):
             The current time, in UNIX TAI seconds.
         """
         self.command_time_tai = current_tai
-        self.start_state[:] = MotionState.CLOSING.name
-        self.target_state[:] = MotionState.CLOSED.name
+        for louver_id in range(NUM_LOUVERS):
+            if not np.isclose(self.position_actual[louver_id], 0.0):
+                self.start_state[louver_id] = MotionState.CLOSING.name
+                self.target_state[louver_id] = InternalMotionState.STATIONARY.name
         self.position_commanded[:] = 0.0
 
     async def stopLouvers(self, current_tai: float) -> None:

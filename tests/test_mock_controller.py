@@ -733,8 +733,6 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         target positions are lined up.
 
         """
-        self.mock_ctrl.lcs.current_state[:] = MotionState.STOPPED.name
-        self.mock_ctrl.lcs.target_state[:] = MotionState.STOPPED.name
         position = np.full(mtdome.mock_llc.NUM_LOUVERS, -1.0, dtype=float)
         for index, louver_id in enumerate(louver_ids):
             position[louver_id] = target_positions[index]
@@ -742,6 +740,8 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             command=mtdome.CommandName.SET_LOUVERS,
             parameters={"position": position.tolist()},
         )
+        for louver_id in louver_ids:
+            self.mock_ctrl.lcs.current_state[louver_id] = MotionState.MOVING.name
         self.data = await self.read()
         assert self.data["response"] == mtdome.ResponseCode.OK
         assert self.mock_ctrl is not None
@@ -752,10 +752,16 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         # Set the mock device statuses TAI time to the mock controller time for
         # easier control.
         self.mock_ctrl.lcs.command_time_tai = self.mock_ctrl.current_tai
-        # Give some time to the mock device to open.
-        await self.mock_ctrl.lcs.evaluate_state(self.mock_ctrl.current_tai)
+        # Give some time to the mock devices to open.
+        for louver_id in louver_ids:
+            await self.mock_ctrl.lcs.evaluate_state(
+                self.mock_ctrl.current_tai, louver_id
+            )
         self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 31.0
-        await self.mock_ctrl.lcs.evaluate_state(self.mock_ctrl.current_tai)
+        for louver_id in louver_ids:
+            await self.mock_ctrl.lcs.evaluate_state(
+                self.mock_ctrl.current_tai, louver_id
+            )
 
     async def verify_louvers(
         self, louver_ids: list[int], target_positions: list[float]
@@ -790,7 +796,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 else:
                     assert MotionState.STOPPED.name == status
             else:
-                assert MotionState.STOPPED.name == status
+                assert mtdome.InternalMotionState.STATIONARY.name == status
         for index, position_actual in enumerate(lcs_status["positionActual"]):
             if index in louver_ids:
                 assert target_positions[louver_ids.index(index)] == position_actual
@@ -819,6 +825,9 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
     async def test_closeLouvers(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
+            self.mock_ctrl.lcs.position_actual = np.full(
+                mtdome.mock_llc.NUM_LOUVERS, 100.0, dtype=float
+            )
             await self.write(command=mtdome.CommandName.CLOSE_LOUVERS, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
@@ -840,7 +849,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 lcs_status["status"]["status"]
                 == [MotionState.ENABLING_MOTOR_POWER.name] * mtdome.mock_llc.NUM_LOUVERS
             )
-            assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
+            assert lcs_status["positionActual"] == [100.0] * mtdome.mock_llc.NUM_LOUVERS
             assert (
                 lcs_status["positionCommanded"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
             )
