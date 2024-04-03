@@ -32,7 +32,6 @@ import numpy as np
 import pytest
 import yaml
 from lsst.ts import mtdome, salobj, tcpip, utils
-from lsst.ts.mtdome.mock_llc import mock_motion
 from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
@@ -53,13 +52,6 @@ logging.basicConfig(
 )
 
 
-# Disable all status commands to avoid overloading the CSC during unit tests.
-# This means that all test cases need to request the status of the involved
-# subsystem(s) themselves.
-@mock.patch.dict(
-    "lsst.ts.mtdome.mtdome_csc.ALL_METHODS_AND_INTERVALS",
-    {"check_all_commands_have_replies": (600, True)},
-)
 class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     def basic_make_csc(
         self,
@@ -69,6 +61,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         override: str = "",
         **kwargs: typing.Any,
     ) -> None:
+        # Disable all periodic tasks so the unit tests can take full control.
+        mtdome.MTDomeCsc.all_methods_and_intervals = {}
         return mtdome.MTDomeCsc(
             initial_state=initial_state,
             config_dir=config_dir,
@@ -687,9 +681,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Set the TAI time in the mock controller for easier control
             self.csc.mock_ctrl.current_tai = 1000
-            # Set the mock device status TAI time to the mock controller time
-            # for easier control
-            self.csc.mock_ctrl.apscs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.remote.cmd_openShutter.set_start()
             await self.assert_command_replied(cmd=mtdome.CommandName.OPEN_SHUTTER)
@@ -698,21 +689,20 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusApSCS()
             apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
             assert apscs_status["status"]["status"] == [
-                MotionState.MOVING.name,
-                MotionState.MOVING.name,
+                MotionState.LP_DISENGAGING.name,
+                MotionState.LP_DISENGAGING.name,
             ]
 
             self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 10.1
+            self.csc.mock_ctrl.apscs.current_state = [
+                MotionState.OPENING.name
+            ] * mtdome.mock_llc.NUM_SHUTTERS
             await self.csc.statusApSCS()
             apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
             assert apscs_status["status"]["status"] == [
-                MotionState.STOPPED.name,
-                MotionState.STOPPED.name,
+                MotionState.PROXIMITY_OPEN_LS_ENGAGED.name,
+                MotionState.PROXIMITY_OPEN_LS_ENGAGED.name,
             ]
-            for actual_position in apscs_status["positionActual"]:
-                assert actual_position == pytest.approx(
-                    mock_motion.shutter_motion.OPEN_POSITION
-                )
 
     async def test_do_closeShutter(self) -> None:
         async with self.make_csc(
@@ -725,23 +715,24 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             start_tai = 1000
 
-            # Mock opened shutter doors.
-            self.csc.mock_ctrl.apscs.shutter_motion = [
-                mock_motion.ShutterMotion(
-                    start_position=mock_motion.shutter_motion.OPEN_POSITION,
-                    start_tai=start_tai,
-                ),
-                mock_motion.ShutterMotion(
-                    start_position=mock_motion.shutter_motion.OPEN_POSITION,
-                    start_tai=start_tai,
-                ),
+            self.csc.mock_ctrl.apscs.position_actual = np.full(
+                mtdome.mock_llc.NUM_SHUTTERS, 100.0, dtype=float
+            )
+            self.csc.mock_ctrl.apscs.start_state = [
+                MotionState.OPEN.name,
+                MotionState.OPEN.name,
+            ]
+            self.csc.mock_ctrl.apscs.current_state = [
+                MotionState.OPEN.name,
+                MotionState.OPEN.name,
+            ]
+            self.csc.mock_ctrl.apscs.target_state = [
+                MotionState.OPEN.name,
+                MotionState.OPEN.name,
             ]
 
             # Set the TAI time in the mock controller for easier control
             self.csc.mock_ctrl.current_tai = start_tai
-            # Set the mock device status TAI time to the mock controller time
-            # for easier control
-            self.csc.mock_ctrl.apscs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.remote.cmd_closeShutter.set_start()
             await self.assert_command_replied(cmd=mtdome.CommandName.CLOSE_SHUTTER)
@@ -750,21 +741,20 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusApSCS()
             apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
             assert apscs_status["status"]["status"] == [
-                MotionState.MOVING.name,
-                MotionState.MOVING.name,
+                MotionState.LP_DISENGAGING.name,
+                MotionState.LP_DISENGAGING.name,
             ]
 
             self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 10.1
+            self.csc.mock_ctrl.apscs.current_state = [
+                MotionState.OPENING.name
+            ] * mtdome.mock_llc.NUM_SHUTTERS
             await self.csc.statusApSCS()
             apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
             assert apscs_status["status"]["status"] == [
-                MotionState.STOPPED.name,
-                MotionState.STOPPED.name,
+                MotionState.PROXIMITY_CLOSED_LS_ENGAGED.name,
+                MotionState.PROXIMITY_CLOSED_LS_ENGAGED.name,
             ]
-            for actual_position in apscs_status["positionActual"]:
-                assert actual_position == pytest.approx(
-                    mock_motion.shutter_motion.CLOSED_POSITION
-                )
 
     async def test_do_stopShutter(self) -> None:
         async with self.make_csc(
@@ -1089,8 +1079,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.statusApSCS()
             apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
             assert apscs_status["status"]["status"] == [
-                MotionState.STOPPED.name,
-                MotionState.STOPPED.name,
+                MotionState.CLOSED.name,
+                MotionState.CLOSED.name,
             ]
             assert apscs_status["positionActual"] == [0.0, 0.0]
 
@@ -1373,7 +1363,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             initial_position_actual = np.full(
-                mtdome.mock_llc.NUM_SHUTTERS, 5.0, dtype=float
+                mtdome.mock_llc.NUM_SHUTTERS, 0.0, dtype=float
             )
             self.csc.mock_ctrl.apscs.position_actual = initial_position_actual
 
@@ -1568,21 +1558,24 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
-    @mock.patch.dict(
-        "lsst.ts.mtdome.mtdome_csc.ALL_METHODS_AND_INTERVALS",
-        {
-            "statusAMCS": (0.2, True),
-            "check_all_commands_have_replies": (600, True),
-        },
-    )
     async def test_network_interruption(self) -> None:
         async with self.make_csc(
-            initial_state=salobj.State.DISABLED,
+            initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
             simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
+            # Make sure that the statusAMCS periodic task runs because the test
+            # depends on that.
+            mtdome.MTDomeCsc.all_methods_and_intervals = {"statusAMCS": (0.2, True)}
+
+            await self.assert_next_summary_state(salobj.State.STANDBY)
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.DISABLED
+            )
             await self.assert_next_summary_state(salobj.State.DISABLED)
-            await self.set_csc_to_enabled()
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
             await self.assert_next_summary_state(salobj.State.ENABLED)
             self.csc.mock_ctrl.enable_network_interruption = True
             await self.assert_next_summary_state(salobj.State.FAULT)
@@ -1600,13 +1593,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 )
             await self.assert_next_summary_state(salobj.State.FAULT)
 
-    @mock.patch.dict(
-        "lsst.ts.mtdome.mtdome_csc.ALL_METHODS_AND_INTERVALS",
-        {
-            "statusAMCS": (0.2, True),
-            "check_all_commands_have_replies": (600, True),
-        },
-    )
     async def test_connection_lost(self) -> None:
         with open(CONFIG_DIR / "_init.yaml") as f:
             config = yaml.safe_load(f)
@@ -1618,6 +1604,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             config_dir=CONFIG_DIR,
             simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
         ):
+            # Make sure that the statusAMCS periodic task runs because the test
+            # depends on that.
+            mtdome.MTDomeCsc.all_methods_and_intervals = {"statusAMCS": (0.2, True)}
             await self.assert_next_summary_state(salobj.State.STANDBY)
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.DISABLED

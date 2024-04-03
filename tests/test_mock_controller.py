@@ -912,19 +912,22 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             assert self.data["timeout"] == pytest.approx(10.0)
 
             await self.validate_apscs(
-                status=MotionState.MOVING,
+                status=MotionState.LP_DISENGAGING,
                 position_actual=[0.0, 0.0],
                 position_commanded=[100.0, 100.0],
             )
             self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 5.0
+            self.mock_ctrl.apscs.current_state = [
+                MotionState.OPENING.name
+            ] * NUM_SHUTTERS
             await self.validate_apscs(
-                status=MotionState.MOVING,
+                status=MotionState.OPENING,
                 position_actual=[50.0, 50.0],
                 position_commanded=[100.0, 100.0],
             )
             self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 10.0
             await self.validate_apscs(
-                status=MotionState.STOPPED,
+                status=MotionState.PROXIMITY_OPEN_LS_ENGAGED,
                 position_actual=[100.0, 100.0],
                 position_commanded=[100.0, 100.0],
             )
@@ -959,7 +962,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             assert self.data["timeout"] == pytest.approx(0.0)
 
             await self.validate_apscs(
-                status=MotionState.STOPPED,
+                status=MotionState.CLOSED,
                 position_actual=[0.0, 0.0],
                 position_commanded=[0.0, 0.0],
             )
@@ -1225,7 +1228,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             assert amcs_status["positionActual"] == 0
 
             await self.validate_apscs(
-                status=MotionState.STOPPED, position_actual=[0.0, 0.0]
+                status=MotionState.CLOSED, position_actual=[0.0, 0.0]
             )
 
             self.mock_ctrl.lcs.current_state[:] = MotionState.STOPPED.name
@@ -1308,22 +1311,17 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
     async def test_shutter_reset_drives(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
             for i in range(NUM_SHUTTERS):
-                assert (
-                    self.mock_ctrl.apscs.shutter_motion[i].motion_state_in_error
-                    is False
-                )
+                assert self.mock_ctrl.apscs.motion_state_in_error[i] is False
 
             drives_in_error = [0, 1, 0, 1]
             expected_drive_error_state = [False, True]
             await self.mock_ctrl.apscs.set_fault(_CURRENT_TAI, drives_in_error)
             for i in range(NUM_SHUTTERS):
                 assert (
-                    self.mock_ctrl.apscs.shutter_motion[i].drives_in_error_state
+                    self.mock_ctrl.apscs.drives_in_error_state[i]
                     == expected_drive_error_state
                 )
-                assert (
-                    self.mock_ctrl.apscs.shutter_motion[i].motion_state_in_error is True
-                )
+                assert self.mock_ctrl.apscs.motion_state_in_error[i] is True
 
     async def test_az_exit_fault_and_reset_drives(self) -> None:
         """Test recovering AZ from an ERROR state."""
@@ -1389,12 +1387,10 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             await self.mock_ctrl.apscs.set_fault(_CURRENT_TAI, drives_in_error)
             for i in range(NUM_SHUTTERS):
                 assert (
-                    self.mock_ctrl.apscs.shutter_motion[i].drives_in_error_state
+                    self.mock_ctrl.apscs.drives_in_error_state[i]
                     == expected_drive_error_state
                 )
-                assert (
-                    self.mock_ctrl.apscs.shutter_motion[i].motion_state_in_error is True
-                )
+                assert self.mock_ctrl.apscs.motion_state_in_error[i] is True
             await self.validate_apscs(status=MotionState.ERROR)
 
             # Now call exit_fault. This will fail because there still are
@@ -1409,7 +1405,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             await self.mock_ctrl.reset_drives_shutter(reset=reset)
             for i in range(NUM_SHUTTERS):
                 assert (
-                    self.mock_ctrl.apscs.shutter_motion[i].drives_in_error_state
+                    self.mock_ctrl.apscs.drives_in_error_state[i]
                     == expected_drive_error_state
                 )
 

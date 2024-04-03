@@ -19,13 +19,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["ApscsStatus", "CURRENT_PER_MOTOR", "NUM_SHUTTERS"]
+__all__ = [
+    "ApscsStatus",
+    "CLOSED_POSITION",
+    "CURRENT_PER_MOTOR",
+    "NUM_MOTORS_PER_SHUTTER",
+    "NUM_SHUTTERS",
+    "OPEN_POSITION",
+    "SHUTTER_SPEED",
+]
 
 import logging
+import math
 
 import numpy as np
 from lsst.ts.xml.enums.MTDome import MotionState
 
+from ..enums import InternalMotionState
 from ..power_management.power_draw_constants import APS_POWER_DRAW
 from .base_mock_llc import (
     DEFAULT_MESSAGES,
@@ -33,19 +43,45 @@ from .base_mock_llc import (
     FAULT_MESSAGES,
     BaseMockStatus,
 )
-from .mock_motion.shutter_motion import (
-    CLOSED_POSITION,
-    NUM_MOTORS_PER_SHUTTER,
-    OPEN_POSITION,
-    ShutterMotion,
-)
 
 NUM_SHUTTERS = 2
+# The number of motors per shutter.
+NUM_MOTORS_PER_SHUTTER = 2
+
+# The shutter is 0% open.
+CLOSED_POSITION = 0.0
+# The shutter is 100% open.
+OPEN_POSITION = 100.0
+# The shutter speed (%/s). This is an assumed value such that the shutter opens
+# or closes in 10 seconds.
+SHUTTER_SPEED = 10.0
 
 # Current per motor drawn by the Aperture Shutter [A].
 CURRENT_PER_MOTOR = (
     APS_POWER_DRAW / NUM_SHUTTERS / NUM_MOTORS_PER_SHUTTER / DOME_VOLTAGE
 )
+
+
+def get_duration(start_position: float, end_position: float, max_speed: float) -> float:
+    """Determines the duration of the move using the distance of the move
+    and the maximum speed, or zero in case of a crawl.
+
+    Parameters
+    ----------
+    start_position : `float`
+        The start position [%].
+    end_position : `float`
+        The end position [%].
+    max_speed : `float`
+        The maximum speed [%/s].
+
+    Returns
+    -------
+    duration : `float`
+        The duration of the move [s].
+    """
+    duration = math.fabs(end_position - start_position) / max_speed
+    return duration
 
 
 class ApscsStatus(BaseMockStatus):
@@ -64,17 +100,12 @@ class ApscsStatus(BaseMockStatus):
         super().__init__()
         self.log = logging.getLogger("MockApscsStatus")
 
-        # Keep track of the state of the mock Shutter motions, one per shutter.
-        self.shutter_motion = [
-            ShutterMotion(start_position=CLOSED_POSITION, start_tai=start_tai),
-            ShutterMotion(start_position=CLOSED_POSITION, start_tai=start_tai),
-        ]
+        # Variables for the motion of the mock Aperture Shutter.
+        self.start_position = np.zeros(NUM_SHUTTERS, dtype=float)
+        self.start_tai = np.zeros(NUM_SHUTTERS, dtype=float)
+        self.end_tai = np.zeros(NUM_SHUTTERS, dtype=float)
 
-        # Keep the end TAI time as a reference for unit tests
-        self.end_tai = 0.0
-
-        # Variables holding the status of the mock Aperture Shutter
-        self.status = np.full(NUM_SHUTTERS, MotionState.CLOSED, dtype=object)
+        # Variables holding the status of the mock Aperture Shutter.
         self.messages = DEFAULT_MESSAGES
         self.position_actual = np.zeros(NUM_SHUTTERS, dtype=float)
         self.position_commanded = np.zeros(NUM_SHUTTERS, dtype=float)
@@ -98,41 +129,266 @@ class ApscsStatus(BaseMockStatus):
         )
         self.power_draw = 0.0
 
+        # State machine related attributes.
+        self.current_state = [MotionState.CLOSED.name, MotionState.CLOSED.name]
+        self.start_state = [MotionState.CLOSED.name, MotionState.CLOSED.name]
+        self.target_state = [MotionState.CLOSED.name, MotionState.CLOSED.name]
+
+        # Error state related attributes.
+        self.drives_in_error_state = [[False] * NUM_MOTORS_PER_SHUTTER] * NUM_SHUTTERS
+
+    async def evaluate_state(self, current_tai: float, shutter_id: int) -> None:
+        """Evaluate the state and perform a state transition if necessary.
+
+        Parameters
+        ----------
+        current_tai : `float`
+            The current time, in UNIX TAI seconds.
+        shutter_id : `int`
+            The shutter id.
+        """
+        match self.target_state[shutter_id]:
+            case (
+                MotionState.OPEN.name
+                | MotionState.CLOSED.name
+                | MotionState.UNDETERMINED.name
+                | InternalMotionState.STATIONARY.name
+            ):
+                await self._handle_open_or_close_or_stationary(current_tai, shutter_id)
+            case MotionState.STOPPED.name:
+                await self._handle_stopped(shutter_id)
+            case _:
+                await self._warn_invalid_state(shutter_id)
+
+    async def _warn_invalid_state(self, shutter_id: int) -> None:
+        self.log.warning(
+            f"Not handling invalid target state {self.target_state[shutter_id]}"
+        )
+
+    async def _handle_open_or_close_or_stationary(
+        self, current_tai: float, shutter_id: int
+    ) -> None:
+        match self.current_state[shutter_id]:
+            case InternalMotionState.STATIONARY.name:
+                await self._handle_stationary(shutter_id)
+            case MotionState.CLOSED.name:
+                await self._handle_closed(shutter_id)
+            case MotionState.OPEN.name:
+                await self._handle_open(shutter_id)
+            case MotionState.LP_DISENGAGING.name:
+                self.current_state[shutter_id] = MotionState.LP_DISENGAGED.name
+            case MotionState.LP_DISENGAGED.name:
+                self.current_state[shutter_id] = MotionState.ENABLING_MOTOR_POWER.name
+            case MotionState.ENABLING_MOTOR_POWER.name:
+                self.current_state[shutter_id] = MotionState.MOTOR_POWER_ON.name
+            case MotionState.MOTOR_POWER_ON.name:
+                self.current_state[shutter_id] = MotionState.GO_NORMAL.name
+            case MotionState.GO_NORMAL.name:
+                self.current_state[shutter_id] = MotionState.DISENGAGING_BRAKES.name
+            case MotionState.DISENGAGING_BRAKES.name:
+                self.current_state[shutter_id] = MotionState.BRAKES_DISENGAGED.name
+            case MotionState.BRAKES_DISENGAGED.name:
+                await self._handle_brakes_disengaged(shutter_id)
+            case MotionState.OPENING.name:
+                await self._handle_opening_or_closing(current_tai, shutter_id)
+            case MotionState.PROXIMITY_OPEN_LS_ENGAGED.name:
+                await self._handle_proximity_open_ls_engaged(shutter_id)
+            case MotionState.FINAL_UP_OPEN_LS_ENGAGED.name:
+                await self._handle_final_up_open_ls_engaged(shutter_id)
+            case MotionState.FINAL_DOWN_OPEN_LS_ENGAGED.name:
+                self.current_state[shutter_id] = MotionState.STOPPING.name
+            case MotionState.CLOSING.name:
+                await self._handle_opening_or_closing(current_tai, shutter_id)
+            case MotionState.PROXIMITY_CLOSED_LS_ENGAGED.name:
+                await self._handle_proximity_closed_ls_engaged(shutter_id)
+            case MotionState.FINAL_UP_CLOSE_LS_ENGAGED.name:
+                await self._handle_final_up_close_ls_engaged(shutter_id)
+            case MotionState.FINAL_DOWN_CLOSE_LS_ENGAGED.name:
+                self.current_state[shutter_id] = MotionState.STOPPING.name
+            case MotionState.STOPPING.name:
+                self.current_state[shutter_id] = MotionState.STOPPED.name
+            case MotionState.STOPPED.name:
+                await self._handle_stopped(shutter_id)
+            case MotionState.ENGAGING_BRAKES.name:
+                self.current_state[shutter_id] = MotionState.BRAKES_ENGAGED.name
+            case MotionState.BRAKES_ENGAGED.name:
+                self.current_state[shutter_id] = MotionState.GO_STATIONARY.name
+            case MotionState.GO_STATIONARY.name:
+                await self._handle_go_stationary(shutter_id)
+            case MotionState.LP_ENGAGING.name:
+                self.current_state[shutter_id] = MotionState.LP_ENGAGED.name
+            case MotionState.LP_ENGAGED.name:
+                self.current_state[shutter_id] = MotionState.DISABLING_MOTOR_POWER.name
+            case MotionState.DISABLING_MOTOR_POWER.name:
+                self.current_state[shutter_id] = MotionState.MOTOR_POWER_OFF.name
+            case MotionState.MOTOR_POWER_OFF.name:
+                await self._handle_motor_power_off(shutter_id)
+
+    async def _handle_stationary(self, shutter_id: int) -> None:
+        if self.start_state[shutter_id] in [
+            MotionState.OPENING.name,
+            MotionState.CLOSING.name,
+        ]:
+            self.current_state[shutter_id] = MotionState.ENABLING_MOTOR_POWER.name
+        else:
+            await self._warn_invalid_state(shutter_id)
+
+    async def _handle_closed(self, shutter_id: int) -> None:
+        if self.start_state[shutter_id] in [
+            MotionState.OPENING.name,
+            InternalMotionState.STATIONARY.name,
+        ]:
+            self.current_state[shutter_id] = MotionState.LP_DISENGAGING.name
+        else:
+            await self._warn_invalid_state(shutter_id)
+
+    async def _handle_open(self, shutter_id: int) -> None:
+        if self.start_state[shutter_id] in [
+            MotionState.CLOSING.name,
+            InternalMotionState.STATIONARY.name,
+        ]:
+            self.current_state[shutter_id] = MotionState.LP_DISENGAGING.name
+        else:
+            await self._warn_invalid_state(shutter_id)
+
+    async def _handle_opening_or_closing(
+        self, current_tai: float, shutter_id: int
+    ) -> None:
+        if self.start_state[shutter_id] in [
+            MotionState.STOPPING.name,
+            MotionState.GO_STATIONARY.name,
+        ]:
+            self.current_state[shutter_id] = MotionState.STOPPING.name
+        else:
+            await self._handle_moving(current_tai, shutter_id)
+
+    async def _handle_proximity_open_ls_engaged(self, shutter_id: int) -> None:
+        if self.start_state[shutter_id] == MotionState.STOPPING.name:
+            self.current_state[shutter_id] = MotionState.STOPPING.name
+        else:
+            self.current_state[shutter_id] = MotionState.FINAL_UP_OPEN_LS_ENGAGED.name
+
+    async def _handle_final_up_open_ls_engaged(self, shutter_id: int) -> None:
+        if self.start_state[shutter_id] == MotionState.STOPPING.name:
+            self.current_state[shutter_id] = MotionState.STOPPING.name
+        else:
+            self.current_state[shutter_id] = MotionState.FINAL_DOWN_OPEN_LS_ENGAGED.name
+
+    async def _handle_proximity_closed_ls_engaged(self, shutter_id: int) -> None:
+        if self.start_state[shutter_id] == MotionState.STOPPING.name:
+            self.current_state[shutter_id] = MotionState.STOPPING.name
+        else:
+            self.current_state[shutter_id] = MotionState.FINAL_UP_CLOSE_LS_ENGAGED.name
+
+    async def _handle_final_up_close_ls_engaged(self, shutter_id: int) -> None:
+        if self.start_state[shutter_id] == MotionState.STOPPING.name:
+            self.current_state[shutter_id] = MotionState.STOPPING.name
+        else:
+            self.current_state[shutter_id] = (
+                MotionState.FINAL_DOWN_CLOSE_LS_ENGAGED.name
+            )
+
+    async def _handle_brakes_disengaged(self, shutter_id: int) -> None:
+        if self.start_state[shutter_id] == MotionState.OPENING.name:
+            self.current_state[shutter_id] = MotionState.OPENING.name
+        elif self.start_state[shutter_id] == MotionState.CLOSING.name:
+            self.current_state[shutter_id] = MotionState.CLOSING.name
+        else:
+            await self._warn_invalid_state(shutter_id)
+
+    async def _handle_go_stationary(self, shutter_id: int) -> None:
+        if self.start_state[shutter_id] in [
+            MotionState.OPENING.name,
+            MotionState.CLOSING.name,
+        ]:
+            self.current_state[shutter_id] = MotionState.LP_ENGAGING.name
+        else:
+            self.current_state[shutter_id] = MotionState.DISABLING_MOTOR_POWER.name
+
+    async def _handle_motor_power_off(self, shutter_id: int) -> None:
+        if self.start_state[shutter_id] == MotionState.OPENING.name:
+            self.start_state[shutter_id] = MotionState.OPEN.name
+            self.current_state[shutter_id] = MotionState.OPEN.name
+            self.target_state[shutter_id] = MotionState.OPEN.name
+        elif self.start_state[shutter_id] == MotionState.CLOSING.name:
+            self.start_state[shutter_id] = MotionState.CLOSED.name
+            self.current_state[shutter_id] = MotionState.CLOSED.name
+            self.target_state[shutter_id] = MotionState.CLOSED.name
+        else:
+            self.start_state[shutter_id] = InternalMotionState.STATIONARY.name
+            self.current_state[shutter_id] = InternalMotionState.STATIONARY.name
+            self.target_state[shutter_id] = InternalMotionState.STATIONARY.name
+
+    async def _handle_moving(self, current_tai: float, shutter_id: int) -> None:
+        if current_tai >= self.end_tai[shutter_id]:
+            self.position_actual[shutter_id] = self.position_commanded[shutter_id]
+            if self.start_state[shutter_id] == MotionState.OPENING.name:
+                self.current_state[shutter_id] = (
+                    MotionState.PROXIMITY_OPEN_LS_ENGAGED.name
+                )
+            elif self.start_state[shutter_id] == MotionState.CLOSING.name:
+                self.current_state[shutter_id] = (
+                    MotionState.PROXIMITY_CLOSED_LS_ENGAGED.name
+                )
+            else:
+                await self._warn_invalid_state(shutter_id)
+        elif current_tai < self.start_tai[shutter_id]:
+            raise ValueError(
+                f"TAI {current_tai} is smaller than start TAI {self.start_tai[shutter_id]}."
+            )
+        else:
+            frac_time = (current_tai - self.start_tai[shutter_id]) / (
+                self.end_tai[shutter_id] - self.start_tai[shutter_id]
+            )
+            distance = (
+                self.position_commanded[shutter_id] - self.start_position[shutter_id]
+            )
+            self.position_actual[shutter_id] = (
+                self.start_position[shutter_id] + distance * frac_time
+            )
+
+    async def _handle_stopped(self, shutter_id: int) -> None:
+        if self.current_state[shutter_id] == MotionState.STOPPING.name:
+            self.current_state[shutter_id] = MotionState.STOPPED.name
+        elif self.current_state[
+            shutter_id
+        ] == MotionState.STOPPING.name and self.target_state[shutter_id] in [
+            MotionState.OPENING.name,
+            MotionState.CLOSING.name,
+            MotionState.GO_STATIONARY.name,
+        ]:
+            self.current_state[shutter_id] = MotionState.ENGAGING_BRAKES.name
+
     async def determine_status(self, current_tai: float) -> None:
         """Determine the status of the Lower Level Component and store it in
         the llc_status `dict`.
         """
-
         # Loop over all doors to collect their states.
-        for index in range(NUM_SHUTTERS):
-            shutter_motion = self.shutter_motion[index]
-            (
-                position,
-                velocity,
-                motion_state,
-            ) = shutter_motion.get_position_velocity_and_motion_state(tai=current_tai)
-            self.position_actual[index] = position
-            self.status[index] = motion_state
+        for shutter_id in range(NUM_SHUTTERS):
+            await self.evaluate_state(current_tai, shutter_id)
 
             # Determine the current drawn by the aperture shutter.
-            if motion_state == MotionState.MOVING:
+            if self.current_state[shutter_id] in [
+                MotionState.OPENING.name,
+                MotionState.CLOSING.name,
+            ]:
                 self.drive_current_actual[
-                    index
-                    * NUM_MOTORS_PER_SHUTTER : (index + 1)
+                    shutter_id
+                    * NUM_MOTORS_PER_SHUTTER : (shutter_id + 1)
                     * NUM_MOTORS_PER_SHUTTER
                 ] = CURRENT_PER_MOTOR
                 self.power_draw = APS_POWER_DRAW
             else:
                 self.drive_current_actual[
-                    index
-                    * NUM_MOTORS_PER_SHUTTER : (index + 1)
+                    shutter_id
+                    * NUM_MOTORS_PER_SHUTTER : (shutter_id + 1)
                     * NUM_MOTORS_PER_SHUTTER
                 ] = 0.0
                 self.power_draw = 0.0
         self.llc_status = {
             "status": {
                 "messages": self.messages,
-                "status": [s.name for s in self.status],
+                "status": self.current_state,
                 "operationalMode": self.operational_mode.name,
             },
             "positionActual": self.position_actual.tolist(),
@@ -163,16 +419,22 @@ class ApscsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        self.position_commanded = np.full(NUM_SHUTTERS, OPEN_POSITION, dtype=float)
-        durations = []
-        for i in range(NUM_SHUTTERS):
-            durations.append(
-                self.shutter_motion[i].set_target_position_and_velocity(
-                    start_tai=start_tai,
-                    end_position=self.position_commanded[i],
-                    motion_state=MotionState.MOVING,
+        durations = [0.0, 0.0]
+        for shutter_id in range(NUM_SHUTTERS):
+            if not math.isclose(self.position_actual[shutter_id], OPEN_POSITION):
+                self.start_position[shutter_id] = self.position_actual[shutter_id]
+                self.position_commanded[shutter_id] = OPEN_POSITION
+                self.start_state[shutter_id] = MotionState.OPENING.name
+                self.target_state[shutter_id] = MotionState.OPEN.name
+                self.start_tai[shutter_id] = start_tai
+                durations[shutter_id] = get_duration(
+                    start_position=self.position_actual[shutter_id],
+                    end_position=OPEN_POSITION,
+                    max_speed=SHUTTER_SPEED,
                 )
-            )
+                self.end_tai[shutter_id] = (
+                    durations[shutter_id] + self.start_tai[shutter_id]
+                )
         return max(durations)
 
     async def closeShutter(self, start_tai: float) -> float:
@@ -190,16 +452,22 @@ class ApscsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        self.position_commanded = np.full(NUM_SHUTTERS, CLOSED_POSITION, dtype=float)
-        durations = []
-        for i in range(NUM_SHUTTERS):
-            durations.append(
-                self.shutter_motion[i].set_target_position_and_velocity(
-                    start_tai=start_tai,
-                    end_position=self.position_commanded[i],
-                    motion_state=MotionState.MOVING,
+        durations = [0.0, 0.0]
+        for shutter_id in range(NUM_SHUTTERS):
+            if not math.isclose(self.position_actual[shutter_id], CLOSED_POSITION):
+                self.start_position[shutter_id] = self.position_actual[shutter_id]
+                self.position_commanded[shutter_id] = CLOSED_POSITION
+                self.start_state[shutter_id] = MotionState.CLOSING.name
+                self.target_state[shutter_id] = MotionState.CLOSED.name
+                self.start_tai[shutter_id] = start_tai
+                durations[shutter_id] = get_duration(
+                    start_position=self.position_actual[shutter_id],
+                    end_position=CLOSED_POSITION,
+                    max_speed=SHUTTER_SPEED,
                 )
-            )
+                self.end_tai[shutter_id] = (
+                    durations[shutter_id] + self.start_tai[shutter_id]
+                )
         return max(durations)
 
     async def stopShutter(self, start_tai: float) -> float:
@@ -217,12 +485,19 @@ class ApscsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        durations = []
-        for i in range(NUM_SHUTTERS):
-            durations.append(self.shutter_motion[i].stop(start_tai))
-        duration = max(durations)
-        self.end_tai = start_tai + duration
-        return duration
+        for shutter_id in range(NUM_SHUTTERS):
+            if self.current_state[shutter_id] not in [
+                MotionState.STOPPED.name,
+                MotionState.STOPPING.name,
+            ]:
+                await self._handle_moving(start_tai, shutter_id)
+                self.start_state[shutter_id] = MotionState.STOPPING.name
+                self.current_state[shutter_id] = MotionState.STOPPING.name
+                self.target_state[shutter_id] = MotionState.STOPPED.name
+                self.start_tai[shutter_id] = start_tai
+                self.start_position[shutter_id] = self.position_actual[shutter_id]
+                self.end_tai[shutter_id] = start_tai
+        return 0.0
 
     async def go_stationary(self, start_tai: float) -> float:
         """Stop shutter motion and engage the brakes.
@@ -239,11 +514,23 @@ class ApscsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        durations = []
-        for i in range(NUM_SHUTTERS):
-            durations.append(self.shutter_motion[i].go_stationary(start_tai))
+        durations = [0.0, 0.0]
+        for shutter_id in range(NUM_SHUTTERS):
+            if self.current_state[shutter_id] != InternalMotionState.STATIONARY.name:
+                await self._handle_moving(start_tai, shutter_id)
+                self.start_position[shutter_id] = self.position_actual[shutter_id]
+                self.start_state[shutter_id] = MotionState.GO_STATIONARY.name
+                self.target_state[shutter_id] = InternalMotionState.STATIONARY.name
+                self.start_tai[shutter_id] = start_tai
+                durations[shutter_id] = get_duration(
+                    start_position=self.position_actual[shutter_id],
+                    end_position=OPEN_POSITION,
+                    max_speed=SHUTTER_SPEED,
+                )
+                self.end_tai[shutter_id] = (
+                    durations[shutter_id] + self.start_tai[shutter_id]
+                )
         duration = max(durations)
-        self.end_tai = start_tai + duration
         return duration
 
     async def search_zero_shutter(self, start_tai: float) -> float:
@@ -265,8 +552,7 @@ class ApscsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        duration = await self.closeShutter(start_tai)
-        return duration
+        return await self.closeShutter(start_tai)
 
     async def exit_fault(self, start_tai: float) -> float:
         """Clear the fault state.
@@ -283,13 +569,23 @@ class ApscsStatus(BaseMockStatus):
         `float`
             The expected duration of the command [s].
         """
-        durations = []
-        for i in range(NUM_SHUTTERS):
-            durations.append(self.shutter_motion[i].exit_fault(start_tai))
-        duration = max(durations)
-        self.end_tai = start_tai + duration
+        for shutter_id in range(NUM_SHUTTERS):
+            if any(self.drives_in_error_state[shutter_id]):
+                raise RuntimeError(
+                    "Make sure to reset drives before exiting from fault."
+                )
+
+        for shutter_id in range(NUM_SHUTTERS):
+            self.start_position[shutter_id] = self.position_actual[shutter_id]
+            if self.current_state[shutter_id] == MotionState.ERROR.name:
+                self.start_state[shutter_id] = InternalMotionState.STATIONARY.name
+                self.current_state[shutter_id] = InternalMotionState.STATIONARY.name
+                self.target_state[shutter_id] = InternalMotionState.STATIONARY.name
+                self.start_tai = np.full(NUM_SHUTTERS, start_tai, dtype=float)
+                self.start_tai[shutter_id] = start_tai
+                self.end_tai[shutter_id] = start_tai
         self.messages = DEFAULT_MESSAGES
-        return duration
+        return 0.0
 
     async def reset_drives_shutter(self, start_tai: float, reset: list[int]) -> float:
         """Reset one or more Aperture Shutter drives.
@@ -325,17 +621,18 @@ class ApscsStatus(BaseMockStatus):
                 f"The length of 'reset' should be {NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER} "
                 f"but is {len(reset)}."
             )
-        durations = []
-        for i in range(NUM_SHUTTERS):
-            durations.append(
-                self.shutter_motion[i].reset_drives(
-                    start_tai,
-                    reset[i * NUM_SHUTTERS : i * NUM_SHUTTERS + NUM_MOTORS_PER_SHUTTER],
-                )
-            )
-        duration = max(durations)
-        self.end_tai = start_tai + duration
-        return duration
+        for shutter_id in range(NUM_SHUTTERS):
+            for i, val in enumerate(
+                reset[
+                    shutter_id * NUM_SHUTTERS : shutter_id * NUM_SHUTTERS
+                    + NUM_MOTORS_PER_SHUTTER
+                ]
+            ):
+                if val == 1:
+                    self.drives_in_error_state[shutter_id][i] = False
+            self.start_tai[shutter_id] = start_tai
+            self.end_tai[shutter_id] = start_tai
+        return 0.0
 
     async def set_fault(self, start_tai: float, drives_in_error: list[int]) -> None:
         """Set the MotionState of ApSCS to fault and set the drives in
@@ -367,11 +664,16 @@ class ApscsStatus(BaseMockStatus):
                 f"The length of 'drives_in_error' should be {NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER}"
                 f" but is {len(drives_in_error)}."
             )
-        for i in range(NUM_SHUTTERS):
-            self.shutter_motion[i].set_fault(
-                start_tai,
+        for shutter_id in range(NUM_SHUTTERS):
+            await self._handle_moving(start_tai, shutter_id)
+            for i, val in enumerate(
                 drives_in_error[
-                    i * NUM_SHUTTERS : i * NUM_SHUTTERS + NUM_MOTORS_PER_SHUTTER
-                ],
-            )
+                    shutter_id * NUM_SHUTTERS : shutter_id * NUM_SHUTTERS
+                    + NUM_MOTORS_PER_SHUTTER
+                ]
+            ):
+                self.drives_in_error_state[shutter_id][i] = val == 1
+            self.start_state[shutter_id] = MotionState.ERROR.name
+            self.current_state[shutter_id] = MotionState.ERROR.name
+            self.target_state[shutter_id] = MotionState.ERROR.name
         self.messages = FAULT_MESSAGES

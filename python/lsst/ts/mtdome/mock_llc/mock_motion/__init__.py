@@ -21,4 +21,3 @@
 
 from .azimuth_motion import AzimuthMotion
 from .elevation_motion import ElevationMotion
-from .shutter_motion import ShutterMotion
