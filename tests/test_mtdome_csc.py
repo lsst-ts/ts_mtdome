@@ -42,7 +42,6 @@ from lsst.ts.xml.enums.MTDome import (
 
 STD_TIMEOUT = 10  # standard command and event timeout (sec)
 SHORT_TIMEOUT = 1  # short command and event timeout (sec)
-START_MOTORS_ADD_DURATION = 5.5  # (sec)
 COMMANDS_REPLIED_PERIOD = 0.2  # (sec)
 
 CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
@@ -79,7 +78,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         mock_ctrl = mtdome.MockMTDomeController(
             port=port,
             log=logging.getLogger("CscTestCase"),
-            include_command_id=include_command_id,
         )
         mock_ctrl.determine_current_tai = self.determine_current_tai
         await asyncio.wait_for(mock_ctrl.start_task, timeout=STD_TIMEOUT)
@@ -247,9 +245,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Set the TAI time in the mock controller for easier control
             self.csc.mock_ctrl.current_tai = utils.current_tai()
-            # Set the mock device status TAI time to the mock controller time
-            # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
+            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -271,9 +267,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
             # Give some time to the mock device to move.
-            self.csc.mock_ctrl.current_tai = (
-                self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
-            )
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
 
             # Now also check the azMotion event.
             await self.csc.statusAMCS()
@@ -284,72 +278,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 state=MotionState.MOVING,
                 inPosition=False,
             )
-
-    async def verify_one_moveAz_execution(self, desired_position: float) -> None:
-        desired_velocity = 0.0
-        await self.remote.cmd_moveAz.set_start(
-            position=desired_position,
-            velocity=desired_velocity,
-            timeout=STD_TIMEOUT,
-        )
-        data = await self.assert_next_sample(
-            topic=self.remote.evt_azTarget,
-            position=desired_position,
-            timeout=SHORT_TIMEOUT,
-        )
-        await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
-        assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
-
-        # Give some time to the mock device to move.
-        self.csc.mock_ctrl.current_tai = (
-            self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
-        )
-
-        # Now also check the azMotion event.
-        await self.csc.statusAMCS()
-        amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
-        assert amcs_status["status"]["status"] == MotionState.MOVING.name
-        await self.assert_next_sample(
-            topic=self.remote.evt_azMotion,
-            state=MotionState.MOVING,
-            inPosition=False,
-            timeout=SHORT_TIMEOUT,
-        )
-        for _ in range(5):
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 2.0
-            await asyncio.sleep(0.2)
-        # The mock device should be stopped and in position now.
-        await self.csc.statusAMCS()
-        await self.assert_next_sample(
-            topic=self.remote.evt_azMotion,
-            state=MotionState.STOPPED,
-            inPosition=True,
-            timeout=SHORT_TIMEOUT,
-        )
-
-    async def test_do_moveAz_twice_with_zero_velocity(self) -> None:
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY,
-            config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
-        ):
-            await self.set_csc_to_enabled()
-
-            # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = utils.current_tai()
-            # Set the mock device status TAI time to the mock controller time
-            # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
-
-            await self.assert_next_sample(
-                topic=self.remote.evt_azMotion,
-                state=MotionState.PARKED,
-                inPosition=True,
-                timeout=SHORT_TIMEOUT,
-            )
-
-            await self.verify_one_moveAz_execution(desired_position=340.0)
-            await self.verify_one_moveAz_execution(desired_position=0.0)
 
     async def test_do_moveEl(self) -> None:
         async with self.make_csc(
@@ -400,9 +328,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Set the TAI time in the mock controller for easier control
             self.csc.mock_ctrl.current_tai = utils.current_tai()
-            # Set the mock device status TAI time to the mock controller time
-            # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.csc.statusAMCS()
             await self.assert_next_sample(
@@ -420,9 +345,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 timeout=STD_TIMEOUT,
             )
 
-            self.csc.mock_ctrl.current_tai = (
-                self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
-            )
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
 
             await self.csc.statusAMCS()
             await self.assert_next_sample(
@@ -464,9 +388,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 timeout=STD_TIMEOUT,
             )
 
-            self.csc.mock_ctrl.current_tai = (
-                self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
-            )
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
 
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
@@ -485,9 +407,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Set the TAI time in the mock controller for easier control
             self.csc.mock_ctrl.current_tai = utils.current_tai()
-            # Set the mock device status TAI time to the mock controller time
-            # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -504,9 +423,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 timeout=STD_TIMEOUT,
             )
 
-            self.csc.mock_ctrl.current_tai = (
-                self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
-            )
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
             await self.csc.statusAMCS()
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -553,9 +471,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Set the TAI time in the mock controller for easier control
             self.csc.mock_ctrl.current_tai = utils.current_tai()
-            # Set the mock device status TAI time to the mock controller time
-            # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
+            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -576,9 +492,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
             # Give some time to the mock device to move.
-            self.csc.mock_ctrl.current_tai = (
-                self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
-            )
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
 
             # Now also check the azMotion event.
             await self.csc.statusAMCS()
@@ -778,9 +692,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Set the TAI time in the mock controller for easier control
             self.csc.mock_ctrl.current_tai = utils.current_tai()
-            # Set the mock device status TAI time to the mock controller time
-            # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             # This event gets emitted as soon as the CSC has started.
             await self.assert_next_sample(
@@ -810,9 +721,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Set the TAI time in the mock controller for easier control
             self.csc.mock_ctrl.current_tai = utils.current_tai()
-            # Set the mock device status TAI time to the mock controller time
-            # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -829,9 +737,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 timeout=STD_TIMEOUT,
             )
 
-            self.csc.mock_ctrl.current_tai = (
-                self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
-            )
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
             await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
 
             sub_system_ids = (
@@ -854,10 +761,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # Now also check the azMotion event.
             await self.csc.statusAMCS()
             amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
-            assert (
-                amcs_status["status"]["status"]
-                == mtdome.InternalMotionState.STATIONARY.name
-            )
+            assert amcs_status["status"]["status"] == MotionState.STOPPED.name
 
     async def test_do_setTemperature(self) -> None:
         async with self.make_csc(
@@ -1158,9 +1062,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Set the TAI time in the mock controller for easier control
             self.csc.mock_ctrl.current_tai = utils.current_tai()
-            # Set the mock device status TAI time to the mock controller time
-            # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.csc.statusAMCS()
             await self.assert_next_sample(
@@ -1179,9 +1080,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
 
-            self.csc.mock_ctrl.current_tai = (
-                self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
-            )
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
 
             await self.csc.statusAMCS()
             await self.assert_next_sample(
@@ -1298,9 +1198,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Set the TAI time in the mock controller for easier control
             self.csc.mock_ctrl.current_tai = utils.current_tai()
-            # Set the mock device status TAI time to the mock controller time
-            # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -1325,9 +1222,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
             # Give some time to the mock device to move.
-            self.csc.mock_ctrl.current_tai = (
-                self.csc.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 0.1
-            )
+            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
 
             # Now also check the azMotion event.
             await self.csc.statusAMCS()

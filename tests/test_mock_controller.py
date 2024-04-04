@@ -23,7 +23,6 @@ import contextlib
 import logging
 import math
 import typing
-from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -32,7 +31,6 @@ from lsst.ts.mtdome.mock_llc.apscs import NUM_SHUTTERS
 from lsst.ts.xml.enums.MTDome import MotionState, OnOff, OperationalMode
 
 _CURRENT_TAI = 100001
-START_MOTORS_ADD_DURATION = 5.5
 
 # Default timeout for reads
 DEFAULT_TIMEOUT = 1.0
@@ -57,12 +55,9 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         pass
 
     @contextlib.asynccontextmanager
-    async def create_mtdome_controller(
-        self, include_command_id: bool = True
-    ) -> typing.AsyncGenerator[None, None]:
+    async def create_mtdome_controller(self) -> typing.AsyncGenerator[None, None]:
         async with self.create_server(
             connect_callback=self.connect_callback,
-            include_command_id=include_command_id,
         ) as self.mock_ctrl:
             # Replace the determine_current_tai method with a mock method so
             # that the start_tai value on the mock_ctrl object can be set to
@@ -157,9 +152,9 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         # Set the TAI time in the mock controller for easier control
         assert self.mock_ctrl is not None
         self.mock_ctrl.current_tai = _CURRENT_TAI
-        self.mock_ctrl.amcs.azimuth_motion._start_tai = self.mock_ctrl.current_tai
-        self.mock_ctrl.amcs.azimuth_motion._start_position = start_position
-        self.mock_ctrl.amcs.azimuth_motion._end_position = start_position
+        self.mock_ctrl.amcs.start_tai = self.mock_ctrl.current_tai
+        self.mock_ctrl.amcs.position_actual = start_position
+        self.mock_ctrl.amcs.current_state = MotionState.MOVING.name
         await self.write(
             command=mtdome.CommandName.MOVE_AZ,
             parameters={"position": target_position, "velocity": target_velocity},
@@ -222,11 +217,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
             # Make the amcs rotate and check both status and position at the
             # specified times
-            await self.verify_amcs_move(
-                START_MOTORS_ADD_DURATION + 1.0,
-                MotionState.MOVING,
-                math.radians(1.5),
-            )
+            await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(1.5))
             await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(3.0))
             await self.verify_amcs_move(
                 5.0,
@@ -251,11 +242,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
             # Make the amcs rotate to the first target position and check both
             # status and position at the specified times
-            await self.verify_amcs_move(
-                START_MOTORS_ADD_DURATION + 1.0,
-                MotionState.MOVING,
-                math.radians(1.5),
-            )
+            await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(1.5))
             await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(3.0))
             await self.verify_amcs_move(
                 2.0,
@@ -297,11 +284,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
             # Make the amcs rotate and check both status and position at the
             # specified times
-            await self.verify_amcs_move(
-                START_MOTORS_ADD_DURATION + 1.0,
-                MotionState.MOVING,
-                math.radians(1.5),
-            )
+            await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(1.5))
             await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(3.0))
             await self.verify_amcs_move(
                 5.0,
@@ -326,11 +309,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
             # Make the amcs rotate and check both status and position at the
             # specified times
-            await self.verify_amcs_move(
-                START_MOTORS_ADD_DURATION + 1.0,
-                MotionState.MOVING,
-                math.radians(1.5),
-            )
+            await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(1.5))
             await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(3.0))
             await self.verify_amcs_move(
                 5.0,
@@ -354,11 +333,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
             # Make the amcs rotate and check both status and position at the
             # specified times
-            await self.verify_amcs_move(
-                START_MOTORS_ADD_DURATION + 1.0,
-                MotionState.MOVING,
-                math.radians(18.5),
-            )
+            await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(18.5))
             await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(17.0))
             await self.verify_amcs_move(
                 5.0,
@@ -382,11 +357,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
             # Make the amcs rotate and check both status and position at the
             # specified times
-            await self.verify_amcs_move(
-                START_MOTORS_ADD_DURATION + 1.0,
-                MotionState.MOVING,
-                math.radians(18.5),
-            )
+            await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(18.5))
             await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(17.0))
             await self.verify_amcs_move(
                 5.0,
@@ -409,11 +380,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
             # Make the amcs rotate and check both status and position at the
             # specified times
-            await self.verify_amcs_move(
-                START_MOTORS_ADD_DURATION + 1.0,
-                MotionState.MOVING,
-                math.radians(18.5),
-            )
+            await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(18.5))
             await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(17.0))
             await self.verify_amcs_move(
                 5.0,
@@ -461,6 +428,8 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # Set the mock device status TAI time to the mock controller time
             # for easier control.
             self.mock_ctrl.amcs.command_time_tai = self.mock_ctrl.current_tai
+            self.mock_ctrl.amcs.start_tai = self.mock_ctrl.current_tai
+            self.mock_ctrl.amcs.current_state = MotionState.MOVING.name
             target_velocity = math.radians(0.1)
             await self.write(
                 command=mtdome.CommandName.CRAWL_AZ,
@@ -473,9 +442,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             )
 
             # Give some time to the mock device to move.
-            self.mock_ctrl.current_tai = (
-                self.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + 1.0
-            )
+            self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 1.0
 
             await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
@@ -495,11 +462,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                 target_velocity,
             )
 
-            await self.verify_amcs_move(
-                START_MOTORS_ADD_DURATION + 1.0,
-                MotionState.MOVING,
-                math.radians(1.5),
-            )
+            await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(1.5))
 
             await self.write(command=mtdome.CommandName.STOP_AZ, parameters={})
             # Give some time to the mock device to stop moving.
@@ -1097,6 +1060,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             # Set the mock device statuses TAI time to the mock controller time
             # for easier control.
             self.mock_ctrl.amcs.command_time_tai = self.mock_ctrl.current_tai
+            self.mock_ctrl.amcs.current_state = MotionState.MOVING.name
             target_position = math.radians(1)
             target_velocity = math.radians(0.1)
             await self.write(
@@ -1111,19 +1075,12 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
             # Give some time to the mock device to move.
             wait_time = 0.2
-            self.mock_ctrl.current_tai = (
-                self.mock_ctrl.current_tai + START_MOTORS_ADD_DURATION + wait_time
-            )
+            self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + wait_time
 
             await self.write(command=mtdome.CommandName.PARK, parameters={})
             self.data = await self.read()
             assert self.data["response"] == mtdome.ResponseCode.OK
-            assert self.data["timeout"] == pytest.approx(
-                self.mock_ctrl.amcs.end_tai
-                - _CURRENT_TAI
-                - START_MOTORS_ADD_DURATION
-                - wait_time
-            )
+            assert math.isclose(self.data["timeout"], 0.0)
 
             # Give some time to the mock device to park.
             self.mock_ctrl.current_tai = self.mock_ctrl.current_tai + 5.0
@@ -1131,7 +1088,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
             self.data = await self.read()
             amcs_status = self.data[mtdome.LlcName.AMCS.value]
-            assert amcs_status["status"]["status"] == MotionState.PARKED.name
+            assert amcs_status["status"]["status"] == MotionState.STOPPED.name
             assert amcs_status["positionActual"] == mtdome.mock_llc.PARK_POSITION
             assert amcs_status["positionCommanded"] == mtdome.mock_llc.PARK_POSITION
 
@@ -1279,39 +1236,29 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
     async def test_az_reset_drives(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
-            assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is False
-
             drives_in_error = [1, 1, 0, 0, 0]
             expected_drive_error_state = [True, True, False, False, False]
             await self.mock_ctrl.amcs.set_fault(0.0, drives_in_error=drives_in_error)
             assert (
-                self.mock_ctrl.amcs.azimuth_motion.drives_in_error_state
-                == expected_drive_error_state
+                self.mock_ctrl.amcs.drives_in_error_state == expected_drive_error_state
             )
-            assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is True
 
             expected_drive_error_state = [False, True, False, False, False]
             reset = [1, 0, 0, 0, 0]
             await self.mock_ctrl.reset_drives_az(reset=reset)
             assert (
-                self.mock_ctrl.amcs.azimuth_motion.drives_in_error_state
-                == expected_drive_error_state
+                self.mock_ctrl.amcs.drives_in_error_state == expected_drive_error_state
             )
-            assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is True
 
             expected_drive_error_state = [False, False, False, False, False]
             reset = [1, 1, 0, 0, 0]
             await self.mock_ctrl.reset_drives_az(reset=reset)
             assert (
-                self.mock_ctrl.amcs.azimuth_motion.drives_in_error_state
-                == expected_drive_error_state
+                self.mock_ctrl.amcs.drives_in_error_state == expected_drive_error_state
             )
-            assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is True
 
     async def test_shutter_reset_drives(self) -> None:
         async with self.create_mtdome_controller(), self.create_client():
-            for i in range(NUM_SHUTTERS):
-                assert self.mock_ctrl.apscs.motion_state_in_error[i] is False
 
             drives_in_error = [0, 1, 0, 1]
             expected_drive_error_state = [False, True]
@@ -1321,7 +1268,6 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                     self.mock_ctrl.apscs.drives_in_error_state[i]
                     == expected_drive_error_state
                 )
-                assert self.mock_ctrl.apscs.motion_state_in_error[i] is True
 
     async def test_az_exit_fault_and_reset_drives(self) -> None:
         """Test recovering AZ from an ERROR state."""
@@ -1337,11 +1283,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
             # Make the amcs rotate and check both status and position at the
             # specified times
-            await self.verify_amcs_move(
-                START_MOTORS_ADD_DURATION + 1.0,
-                MotionState.MOVING,
-                math.radians(1.5),
-            )
+            await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(1.5))
             await self.verify_amcs_move(0.5, MotionState.MOVING, math.radians(2.25))
 
             # This sets the status of the AZ state machine to ERROR.
@@ -1350,10 +1292,8 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             current_tai = self.mock_ctrl.current_tai + 0.1
             await self.mock_ctrl.amcs.set_fault(current_tai, drives_in_error)
             assert (
-                self.mock_ctrl.amcs.azimuth_motion.drives_in_error_state
-                == expected_drive_error_state
+                self.mock_ctrl.amcs.drives_in_error_state == expected_drive_error_state
             )
-            assert self.mock_ctrl.amcs.azimuth_motion.motion_state_in_error is True
             await self.verify_amcs_move(0.5, MotionState.ERROR, math.radians(2.40))
 
             # Now call exit_fault. This will fail because there still are
@@ -1367,8 +1307,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             reset = [1, 1, 0, 0, 0]
             await self.mock_ctrl.reset_drives_az(reset=reset)
             assert (
-                self.mock_ctrl.amcs.azimuth_motion.drives_in_error_state
-                == expected_drive_error_state
+                self.mock_ctrl.amcs.drives_in_error_state == expected_drive_error_state
             )
 
             # Now call exit_fault which will not fail because the drives have
@@ -1390,7 +1329,6 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
                     self.mock_ctrl.apscs.drives_in_error_state[i]
                     == expected_drive_error_state
                 )
-                assert self.mock_ctrl.apscs.motion_state_in_error[i] is True
             await self.validate_apscs(status=MotionState.ERROR)
 
             # Now call exit_fault. This will fail because there still are
@@ -1427,11 +1365,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
 
             # Make the amcs rotate and check both status and position at the
             # specified times.
-            await self.verify_amcs_move(
-                START_MOTORS_ADD_DURATION + 1.0,
-                MotionState.MOVING,
-                math.radians(1.5),
-            )
+            await self.verify_amcs_move(1.0, MotionState.MOVING, math.radians(1.5))
 
             # Cannot set the zero position while AMCS is MOVING.
             await self.write(command=mtdome.CommandName.SET_ZERO_AZ, parameters={})
@@ -1490,51 +1424,33 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
             assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
             assert self.data["timeout"] == -1
 
-    # TODO DM-39564: Remove this test as soon as the MTDome control software
-    #   always includes a commandId in its data.
-    async def test_no_command_id(self) -> None:
-        async with self.create_mtdome_controller(
-            include_command_id=False
-        ), self.create_client():
-            await self.write(
-                command=mtdome.CommandName.MOVE_AZ,
-                parameters={"position": 0.1, "velocity": 0.1},
-            )
-            self.data = await self.read(assert_command_id=False)
-            assert self.data["response"] == mtdome.ResponseCode.INCORRECT_PARAMETERS
-            assert self.data["timeout"] == -1
-
     async def test_start_stop_thermal_control(self) -> None:
-        with patch(
-            "lsst.ts.mtdome.mock_llc.mock_motion.AzimuthMotion.get_position_velocity_and_motion_state",
-            MagicMock(),
-        ) as mock:
-            async with self.create_mtdome_controller(), self.create_client():
-                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
-                self.data = await self.read()
-                thcs_status = self.data[mtdome.LlcName.THCS.value]
-                assert thcs_status["status"]["status"] == MotionState.DISABLED.name
+        async with self.create_mtdome_controller(), self.create_client():
+            await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+            self.data = await self.read()
+            thcs_status = self.data[mtdome.LlcName.THCS.value]
+            assert thcs_status["status"]["status"] == MotionState.DISABLED.name
 
-                mock.return_value = (0.0, 0.0, MotionState.STARTING_MOTOR_COOLING)
-                await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
-                await self.read()
-                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
-                self.data = await self.read()
-                thcs_status = self.data[mtdome.LlcName.THCS.value]
-                assert thcs_status["status"]["status"] == MotionState.ENABLING.name
-                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
-                self.data = await self.read()
-                thcs_status = self.data[mtdome.LlcName.THCS.value]
-                assert thcs_status["status"]["status"] == MotionState.ENABLED.name
+            self.mock_ctrl.amcs.current_state = MotionState.DEFLATED.name
+            await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
+            await self.read()
+            await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+            self.data = await self.read()
+            thcs_status = self.data[mtdome.LlcName.THCS.value]
+            assert thcs_status["status"]["status"] == MotionState.ENABLING.name
+            await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+            self.data = await self.read()
+            thcs_status = self.data[mtdome.LlcName.THCS.value]
+            assert thcs_status["status"]["status"] == MotionState.ENABLED.name
 
-                mock.return_value = (0.0, 0.0, MotionState.STOPPING_MOTOR_COOLING)
-                await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
-                await self.read()
-                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
-                self.data = await self.read()
-                thcs_status = self.data[mtdome.LlcName.THCS.value]
-                assert thcs_status["status"]["status"] == MotionState.DISABLING.name
-                await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
-                self.data = await self.read()
-                thcs_status = self.data[mtdome.LlcName.THCS.value]
-                assert thcs_status["status"]["status"] == MotionState.DISABLED.name
+            self.mock_ctrl.amcs.current_state = MotionState.MOTOR_POWER_OFF.name
+            await self.write(command=mtdome.CommandName.STATUS_AMCS, parameters={})
+            await self.read()
+            await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+            self.data = await self.read()
+            thcs_status = self.data[mtdome.LlcName.THCS.value]
+            assert thcs_status["status"]["status"] == MotionState.DISABLING.name
+            await self.write(command=mtdome.CommandName.STATUS_THCS, parameters={})
+            self.data = await self.read()
+            thcs_status = self.data[mtdome.LlcName.THCS.value]
+            assert thcs_status["status"]["status"] == MotionState.DISABLED.name
