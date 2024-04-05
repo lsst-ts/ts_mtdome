@@ -25,17 +25,65 @@ import logging
 import math
 
 import numpy as np
+from lsst.ts import utils
 from lsst.ts.xml.enums.MTDome import MotionState
 
+from ..enums import InternalMotionState
 from ..llc_configuration_limits.lwscs_limits import LwscsLimits
 from ..power_management.power_draw_constants import LWS_POWER_DRAW
 from .base_mock_llc import DOME_VOLTAGE, BaseMockStatus
-from .mock_motion.elevation_motion import ElevationMotion
 
 NUM_MOTORS = 2
 
+MIN_POSITION = 0.0
+MAX_POSITION = math.pi / 2.0
+
 # Current drawn per motor by the Light Wind Screen [A].
 CURRENT_PER_MOTOR = LWS_POWER_DRAW / NUM_MOTORS / DOME_VOLTAGE
+
+
+def get_distance(start_position: float, end_position: float) -> float:
+    """Determines the smallest distance [rad] between the initial and
+    target positions assuming motion around a circle.
+
+    Parameters
+    ----------
+    start_position : `float`
+        The start position [rad].
+    end_position : `float`
+        The end position [rad].
+
+    Returns
+    -------
+    distance: `float`
+        The smallest distance [rad] between the initial and target positions.
+    """
+    distance = utils.angle_diff(
+        math.degrees(end_position), math.degrees(start_position)
+    ).rad
+    return distance
+
+
+def get_duration(start_position: float, end_position: float, max_speed: float) -> float:
+    """Determines the duration of the move using the distance of the move
+    and the maximum speed, or zero in case of a crawl.
+
+    Parameters
+    ----------
+    start_position : `float`
+        The start position.
+    end_position : `float`
+        The end position.
+    max_speed : `float`
+        The maximum speed.
+
+    Returns
+    -------
+    duration : `float`
+        The duration of the move, or zero in case of a crawl.
+    """
+    duration = math.fabs(get_distance(start_position, end_position)) / max_speed
+    return duration
 
 
 class LwscsStatus(BaseMockStatus):
@@ -62,21 +110,17 @@ class LwscsStatus(BaseMockStatus):
         self.vmax = self.lwscs_limits.vmax
 
         # Variables helping with the state of the mock EL motion
-        self.elevation_motion = ElevationMotion(
-            start_position=0.0,
-            min_position=0.0,
-            max_position=math.pi,
-            max_speed=math.fabs(self.vmax),
-            start_tai=start_tai,
-        )
-
-        # Keep the end TAI time as a reference for unit tests
+        self.start_position = 0.0
+        self.crawl_velocity = 0.0
+        self.start_tai = 0.0
         self.end_tai = 0.0
 
         # Variables holding the status of the mock EL motion
         self.status = MotionState.STOPPED
         self.messages = [{"code": 0, "description": "No Errors"}]
+        self.position_actual = 0.0
         self.position_commanded = 0.0
+        self.velocity_actual = 0.0
         self.velocity_commanded = 0.0
         self.drive_torque_actual = np.zeros(NUM_MOTORS, dtype=float)
         self.drive_torque_commanded = np.zeros(NUM_MOTORS, dtype=float)
@@ -87,6 +131,87 @@ class LwscsStatus(BaseMockStatus):
         self.resolver_raw = np.zeros(NUM_MOTORS, dtype=float)
         self.resolver_calibrated = np.zeros(NUM_MOTORS, dtype=float)
         self.power_draw = 0.0
+
+        # State machine related attributes.
+        self.current_state = MotionState.PARKED.name
+        self.target_state = MotionState.PARKED.name
+
+    async def evaluate_state(self, current_tai: float) -> None:
+        """Evaluate the state and perform a state transition if necessary.
+
+        Parameters
+        ----------
+        current_tai : `float`
+            The current time, in UNIX TAI seconds.
+        """
+        # No state machine yet.
+        await self._handle_motion(current_tai)
+
+    async def _handle_motion(self, current_tai: float) -> None:
+        # No state machine yet.
+        await self._handle_moving_or_crawling(current_tai)
+
+    async def _handle_moving_or_crawling(self, current_tai: float) -> None:
+        distance = get_distance(self.start_position, self.position_commanded)
+        if current_tai >= self.end_tai:
+            await self._handle_past_end_tai(current_tai)
+        elif current_tai < self.start_tai:
+            raise ValueError(
+                f"Encountered TAI {current_tai} which is smaller than start TAI {self.start_tai}."
+            )
+        else:
+            frac_time = (current_tai - self.start_tai) / (self.end_tai - self.start_tai)
+            self.position_actual = self.start_position + distance * frac_time
+            self.velocity_actual = self.vmax
+            if distance < 0.0:
+                self.velocity_actual = -self.vmax
+            if self.target_state == MotionState.STOPPED.name:
+                self.current_state = MotionState.STOPPED.name
+                self.velocity_actual = 0.0
+            elif self.target_state == InternalMotionState.STATIONARY.name:
+                self.current_state = InternalMotionState.STATIONARY.name
+                self.velocity_actual = 0.0
+            else:
+                self.current_state = MotionState.MOVING.name
+
+        self.position_actual = utils.angle_wrap_nonnegative(
+            math.degrees(self.position_actual)
+        ).rad
+
+    async def _handle_past_end_tai(self, current_tai: float) -> None:
+        if self.target_state in [
+            MotionState.STOPPED.name,
+            MotionState.MOVING.name,
+        ]:
+            self.current_state = MotionState.STOPPED.name
+            self.position_actual = self.position_commanded
+            self.velocity_actual = 0.0
+        elif self.target_state == InternalMotionState.STATIONARY.name:
+            self.current_state = InternalMotionState.STATIONARY.name
+            self.position_actual = self.position_commanded
+            self.velocity_actual = 0.0
+        else:
+            diff_since_crawl_started = current_tai - self.end_tai
+            self.position_actual = (
+                self.start_position + self.crawl_velocity * diff_since_crawl_started
+            )
+            self.current_state = MotionState.CRAWLING.name
+            self.velocity_actual = self.crawl_velocity
+            if self.position_actual >= MAX_POSITION:
+                self.position_actual = MAX_POSITION
+                self.current_state = MotionState.STOPPED.name
+                self.velocity_actual = 0.0
+            elif self.position_actual <= MIN_POSITION:
+                self.position_actual = MIN_POSITION
+                self.current_state = MotionState.STOPPED.name
+                self.velocity_actual = 0.0
+            if math.isclose(self.crawl_velocity, 0.0):
+                if self.target_state == MotionState.STOPPED.name:
+                    self.current_state = MotionState.STOPPED.name
+                elif self.target_state == InternalMotionState.STATIONARY.name:
+                    self.current_state = InternalMotionState.STATIONARY.name
+
+                self.velocity_actual = 0.0
 
     async def determine_status(self, current_tai: float) -> None:
         """Determine the status of the Lower Level Component and store it in
@@ -99,17 +224,12 @@ class LwscsStatus(BaseMockStatus):
             model the real dome, this should be the current time. However, for
             unit tests it can be convenient to use other values.
         """
-        (
-            position,
-            velocity,
-            motion_state,
-        ) = self.elevation_motion.get_position_velocity_and_motion_state(
-            tai=current_tai
-        )
+        await self.evaluate_state(current_tai)
+
         # Determine the current drawn by the light wind screen motors. Here
         # fixed current values are assumed while in reality they vary depending
         # on the speed and the inclination of the light wind screen.
-        if motion_state in [MotionState.CRAWLING, MotionState.MOVING]:
+        if self.current_state in [MotionState.CRAWLING.name, MotionState.MOVING.name]:
             self.drive_current_actual = np.full(
                 NUM_MOTORS, CURRENT_PER_MOTOR, dtype=float
             )
@@ -120,12 +240,12 @@ class LwscsStatus(BaseMockStatus):
         self.llc_status = {
             "status": {
                 "messages": self.messages,
-                "status": motion_state.name,
+                "status": self.current_state,
                 "operationalMode": self.operational_mode.name,
             },
-            "positionActual": position,
+            "positionActual": self.position_actual,
             "positionCommanded": self.position_commanded,
-            "velocityActual": velocity,
+            "velocityActual": self.velocity_actual,
             "velocityCommanded": self.velocity_commanded,
             "driveTorqueActual": self.drive_torque_actual.tolist(),
             "driveTorqueCommanded": self.drive_torque_commanded.tolist(),
@@ -151,21 +271,28 @@ class LwscsStatus(BaseMockStatus):
         Parameters
         ----------
         position: `float`
-            The position (rad) to move to. 0 means point to the horizon and
+            The position [rad] to move to. 0 means point to the horizon and
             pi/2 point to the zenith. These limits are not checked.
         start_tai: `float`
             The TAI time, unix seconds, when the command was issued. To model
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
         """
+        if not (MIN_POSITION <= position <= MAX_POSITION):
+            raise ValueError(
+                f"The target position {position} is outside of the "
+                f"range [{MIN_POSITION, MAX_POSITION}]"
+            )
+
         self.position_commanded = position
-        duration = self.elevation_motion.set_target_position_and_velocity(
-            start_tai=start_tai,
-            end_position=position,
-            crawl_velocity=0,
-            motion_state=MotionState.MOVING,
+        self.start_position = self.position_actual
+        self.crawl_velocity = 0.0
+        self.start_tai = start_tai
+        duration = get_duration(
+            self.position_actual, self.position_commanded, self.vmax
         )
         self.end_tai = start_tai + duration
+        self.target_state = MotionState.MOVING.name
         return duration
 
     async def crawlEl(self, velocity: float, start_tai: float) -> float:
@@ -175,7 +302,7 @@ class LwscsStatus(BaseMockStatus):
         Parameters
         ----------
         velocity: `float`
-            The velocity (deg/s) at which to crawl. The velocity is not checked
+            The velocity [rad/s] at which to crawl. The velocity is not checked
             against the velocity limits for the light and wind screen.
         start_tai: `float`
             The TAI time, unix seconds, when the command was issued. To model
@@ -188,14 +315,14 @@ class LwscsStatus(BaseMockStatus):
         if velocity < 0:
             self.position_commanded = 0
 
-        duration = self.elevation_motion.set_target_position_and_velocity(
-            start_tai=start_tai,
-            end_position=self.position_commanded,
-            crawl_velocity=velocity,
-            motion_state=MotionState.CRAWLING,
-        )
-        self.end_tai = start_tai + duration
-        return duration
+        self.start_position = self.position_actual
+        self.crawl_velocity = velocity
+        self.vmax = velocity
+        self.start_tai = start_tai
+        self.end_tai = start_tai
+        self.target_state = MotionState.CRAWLING.name
+        self.end_tai = start_tai
+        return 0.0
 
     async def stopEl(self, start_tai: float) -> float:
         """Stop moving the light and wind screen.
@@ -208,9 +335,14 @@ class LwscsStatus(BaseMockStatus):
             tests it can be convenient to use other values.
 
         """
-        duration = self.elevation_motion.stop(start_tai)
-        self.end_tai = start_tai + duration
-        return duration
+        await self._handle_moving_or_crawling(start_tai)
+        self.start_position = self.position_actual
+        self.position_commanded = self.position_actual
+        self.start_tai = start_tai
+        self.end_tai = start_tai
+        self.target_state = MotionState.STOPPED.name
+        self.end_tai = start_tai
+        return 0.0
 
     async def go_stationary(self, start_tai: float) -> float:
         """Stop elevation motion and engage the brakes. Also disengage the
@@ -224,9 +356,14 @@ class LwscsStatus(BaseMockStatus):
             tests it can be convenient to use other values.
 
         """
-        duration = self.elevation_motion.go_stationary(start_tai)
-        self.end_tai = start_tai + duration
-        return duration
+        await self._handle_moving_or_crawling(start_tai)
+        self.start_position = self.position_actual
+        self.position_commanded = self.position_actual
+        self.start_tai = start_tai
+        self.end_tai = start_tai
+        self.target_state = InternalMotionState.STATIONARY.name
+        self.end_tai = start_tai
+        return 0.0
 
     async def exit_fault(self, start_tai: float) -> float:
         """Clear the fault state.
@@ -238,7 +375,12 @@ class LwscsStatus(BaseMockStatus):
             the real dome, this should be the current time. However, for unit
             tests it can be convenient to use other values.
         """
-        self.elevation_motion.exit_fault(start_tai)
-        duration = 0.0
+        # self.elevation_motion.exit_fault(start_tai)
+        await self._handle_moving_or_crawling(start_tai)
+        self.start_position = self.position_actual
+        self.position_commanded = self.position_actual
+        self.start_tai = start_tai
         self.end_tai = start_tai
-        return duration
+        self.target_state = InternalMotionState.STATIONARY.name
+        self.end_tai = start_tai
+        return 0.0

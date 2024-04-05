@@ -88,4 +88,4 @@ class CscsStatus(BaseMockStatus):
             "powerDraw": self.power_draw,
             "timestampUTC": current_tai,
         }
-        self.log.debug(f"lwscs_state = {self.llc_status}")
+        self.log.debug(f"cscs_state = {self.llc_status}")

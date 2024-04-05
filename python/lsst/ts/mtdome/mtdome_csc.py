@@ -131,21 +131,6 @@ COMMANDS_DISABLED_FOR_COMMISSIONING = {
 }
 REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
 
-# All methods and the intervals at which they are executed. The boolean
-# indicates whther they are used for commissioning (True) or not. Note that all
-# methods always are used for unit testing.
-ALL_METHODS_AND_INTERVALS = {
-    CommandName.STATUS_AMCS: (_AMCS_STATUS_PERIOD, True),
-    CommandName.STATUS_APSCS: (_APSCS_STATUS_PERIOD, True),
-    CommandName.STATUS_CSCS: (_CSCS_STATUS_PERIOD, True),
-    CommandName.STATUS_LCS: (_LCS_STATUS_PERIOD, False),
-    CommandName.STATUS_LWSCS: (_LWSCS_STATUS_PERIOD, False),
-    CommandName.STATUS_MONCS: (_MONCS_STATUS_PERIOD, False),
-    CommandName.STATUS_RAD: (_RAD_STATUS_PERIOD, True),
-    CommandName.STATUS_THCS: (_THCS_STATUS_PERIOD, False),
-    "check_all_commands_have_replies": (_COMMANDS_REPLIED_PERIOD, True),
-}
-
 ALL_OPERATIONAL_MODE_COMMANDS = {
     SubSystemId.AMCS: {
         OperationalMode.NORMAL.name: CommandName.SET_NORMAL_AZ,
@@ -254,6 +239,21 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     enable_cmdline_state = True
     valid_simulation_modes = set([v.value for v in ValidSimulationMode])
     version = __version__
+
+    # All methods and the intervals at which they are executed. The boolean
+    # indicates whther they are used for commissioning (True) or not. Note that
+    # all methods always are disabled for unit testing.
+    all_methods_and_intervals = {
+        CommandName.STATUS_AMCS: (_AMCS_STATUS_PERIOD, True),
+        CommandName.STATUS_APSCS: (_APSCS_STATUS_PERIOD, True),
+        CommandName.STATUS_CSCS: (_CSCS_STATUS_PERIOD, True),
+        CommandName.STATUS_LCS: (_LCS_STATUS_PERIOD, False),
+        CommandName.STATUS_LWSCS: (_LWSCS_STATUS_PERIOD, False),
+        CommandName.STATUS_MONCS: (_MONCS_STATUS_PERIOD, False),
+        CommandName.STATUS_RAD: (_RAD_STATUS_PERIOD, True),
+        CommandName.STATUS_THCS: (_THCS_STATUS_PERIOD, False),
+        "check_all_commands_have_replies": (_COMMANDS_REPLIED_PERIOD, True),
+    }
 
     def __init__(
         self,
@@ -418,7 +418,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def start_periodic_tasks(self) -> None:
         """Start all periodic tasks."""
         await self.cancel_periodic_tasks()
-        for method, interval_and_execute in ALL_METHODS_AND_INTERVALS.items():
+        for method, interval_and_execute in self.all_methods_and_intervals.items():
             interval, execute = interval_and_execute
             if (
                 self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS
@@ -526,11 +526,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Command data.
         """
         await super().end_enable(data)
-
-        if self.simulation_mode != ValidSimulationMode.NORMAL_OPERATIONS:
-            # For backward compatibility with XML 12.0, we always send the
-            # searchZeroShutter command.
-            await self.write_then_read_reply(command=CommandName.SEARCH_ZERO_SHUTTER)
 
         assert self.config is not None
         if (
