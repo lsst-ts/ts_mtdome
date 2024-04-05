@@ -6,6 +6,20 @@
 Version History
 ###############
 
+v1.15.7
+=======
+* Fix a bug in the louvers state machine.
+* Implement the aperture shutter and azimuth rotation state machines.
+* Consolidate remaining mock_motion code into existing code.
+
+Requires:
+
+* ts_salobj 7
+* ts_idl
+* ts_tcpip 2.0
+* ts_utils 1.2
+* ts_xml 20.2
+
 v1.15.6
 =======
 * Make sure that the shutter position cannot exceed 100%.
