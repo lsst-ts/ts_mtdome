@@ -92,7 +92,6 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         port: int,
         log: logging.Logger,
         connect_callback: None | tcpip.ConnectCallbackType = None,
-        include_command_id: bool = True,
     ) -> None:
         super().__init__(
             port=port,
@@ -166,10 +165,6 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         # Keep track of the command ID.
         self._command_id = -1
 
-        # TODO DM-39564: Remove this bool and the use of it once the MTDome
-        #  control software always includes a commandId in its data.
-        self._include_command_id = include_command_id
-
         # Variables for the lower level components.
         self.amcs: AmcsStatus | None = None
         self.apscs: ApscsStatus | None = None
@@ -215,10 +210,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         data:
             The data to write.
         """
-        # TODO DM-39564: Remove this if completely once the MTDome control
-        #  software always includes a commandId in its data.
-        if self._include_command_id:
-            data = {"commandId": self._command_id, **data}
+        data = {"commandId": self._command_id, **data}
         await self.write_json(data)
 
     async def read_and_dispatch(self) -> None:
@@ -235,7 +227,11 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             self.log.warning(
                 f"Ignoring command {data} because it has incorrect schema."
             )
+            if "commandId" in data:
+                self._command_id = data["commandId"]
             response = ResponseCode.INCORRECT_PARAMETERS
+            await self.write_reply(response=response, timeout=-1)
+            return
 
         self._command_id = data["commandId"]
         try:

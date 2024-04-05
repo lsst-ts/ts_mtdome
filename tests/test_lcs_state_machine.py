@@ -28,56 +28,58 @@ from lsst.ts.xml.enums.MTDome import MotionState
 
 class LcsStateMachineTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_handle_moving_open(self) -> None:
-        index = 0
+        louver_id = 0
         lcs = mtdome.mock_llc.LcsStatus()
-        lcs.current_state[index] = MotionState.MOVING.name
-        lcs.target_state[index] = MotionState.OPEN.name
-        lcs.position_commanded[index] = 100
+        lcs.current_state[louver_id] = MotionState.MOVING.name
+        lcs.target_state[louver_id] = mtdome.InternalMotionState.STATIONARY.name
+        lcs.position_commanded[louver_id] = 100
 
         for i in range(30):
-            lcs.current_tai = i
-            await lcs.handle_moving(index)
-            assert lcs.current_state[index] == MotionState.MOVING.name
-            assert lcs.position_actual[index] != lcs.position_commanded[index]
+            current_tai = i
+            await lcs.evaluate_state(current_tai, louver_id)
+            assert lcs.current_state[louver_id] == MotionState.MOVING.name
+            assert lcs.position_actual[louver_id] != lcs.position_commanded[louver_id]
 
-        lcs.current_tai = 31
-        await lcs.handle_moving(index)
-        assert lcs.current_state[index] == MotionState.STOPPING.name
-        assert lcs.position_actual[index] == pytest.approx(
-            lcs.position_commanded[index]
+        current_tai = 31
+        await lcs.evaluate_state(current_tai, louver_id)
+        assert lcs.current_state[louver_id] == MotionState.STOPPING.name
+        assert lcs.position_actual[louver_id] == pytest.approx(
+            lcs.position_commanded[louver_id]
         )
 
     async def test_handle_moving_close(self) -> None:
-        index = 0
+        louver_id = 0
         lcs = mtdome.mock_llc.LcsStatus()
-        lcs.current_state[index] = MotionState.MOVING.name
-        lcs.target_state[index] = MotionState.CLOSED.name
-        lcs.position_actual[index] = 100
-        lcs.start_position[index] = 100
-        lcs.position_commanded[index] = 0
+        lcs.current_state[louver_id] = MotionState.MOVING.name
+        lcs.target_state[louver_id] = mtdome.InternalMotionState.STATIONARY.name
+        lcs.position_actual[louver_id] = 100
+        lcs.start_position[louver_id] = 100
+        lcs.position_commanded[louver_id] = 0
         for i in range(30):
-            lcs.current_tai = i
-            await lcs.handle_moving(index)
-            assert lcs.current_state[index] == MotionState.MOVING.name
-            assert lcs.position_actual[index] != lcs.position_commanded[index]
+            current_tai = i
+            await lcs.evaluate_state(current_tai, louver_id)
+            assert lcs.current_state[louver_id] == MotionState.MOVING.name
+            assert lcs.position_actual[louver_id] != lcs.position_commanded[louver_id]
 
-        lcs.current_tai = 31
-        await lcs.handle_moving(index)
-        assert lcs.current_state[index] == MotionState.STOPPING.name
-        assert lcs.position_actual[index] == pytest.approx(
-            lcs.position_commanded[index]
+        current_tai = 31
+        await lcs.evaluate_state(current_tai, louver_id)
+        assert lcs.current_state[louver_id] == MotionState.STOPPING.name
+        assert lcs.position_actual[louver_id] == pytest.approx(
+            lcs.position_commanded[louver_id]
         )
 
     async def test_full_state_cycle(self) -> None:
-        index = 0
+        louver_id = 0
         lcs = mtdome.mock_llc.LcsStatus()
-        await lcs.evaluate_state(current_tai=30.0)
-        assert lcs.current_state[index] == mtdome.InternalMotionState.STATIONARY.name
+        await lcs.evaluate_state(current_tai=30.0, louver_id=louver_id)
+        assert (
+            lcs.current_state[louver_id] == mtdome.InternalMotionState.STATIONARY.name
+        )
 
-        lcs.target_state[index] = MotionState.OPEN.name
-        lcs.position_commanded[index] = 100
+        lcs.start_state[louver_id] = MotionState.OPENING.name
+        lcs.target_state[louver_id] = mtdome.InternalMotionState.STATIONARY.name
+        lcs.position_commanded[louver_id] = 100
         state: MotionState | mtdome.InternalMotionState
-        i = 0.0
         for state in [
             MotionState.ENABLING_MOTOR_POWER.name,
             MotionState.MOTOR_POWER_ON.name,
@@ -87,47 +89,57 @@ class LcsStateMachineTestCase(unittest.IsolatedAsyncioTestCase):
             MotionState.MOVING.name,
             MotionState.STOPPING.name,
             MotionState.STOPPED.name,
-        ]:
-            i = i + 0.01
-            await lcs.evaluate_state(current_tai=30.0 + i)
-            assert lcs.current_state[index] == state
-
-        # Repeat the check a few times to ensure that the state remains the
-        # same.
-        for c in range(3):
-            await lcs.evaluate_state(current_tai=30.0 + c * 0.01)
-            assert lcs.start_state[index] == MotionState.OPEN.name
-            assert lcs.current_state[index] == MotionState.STOPPED.name
-
-        lcs.target_state[index] = MotionState.CLOSED.name
-        lcs.position_commanded[index] = 0
-        for state in [
-            MotionState.MOVING.name,
-            MotionState.STOPPING.name,
-            MotionState.STOPPED.name,
-        ]:
-            await lcs.evaluate_state(current_tai=60)
-            assert lcs.current_state[index] == state
-
-        lcs.target_state[index] = mtdome.InternalMotionState.STATIONARY.name
-        i = 0.0
-        for state in [
             MotionState.ENGAGING_BRAKES.name,
             MotionState.BRAKES_ENGAGED.name,
             MotionState.GO_STATIONARY.name,
             MotionState.DISABLING_MOTOR_POWER.name,
             MotionState.MOTOR_POWER_OFF.name,
-            mtdome.InternalMotionState.STATIONARY.name,
         ]:
-            i = i + 0.01
-            await lcs.evaluate_state(60.0 + i)
-            assert lcs.current_state[index] == state
+            await lcs.evaluate_state(current_tai=30.0, louver_id=louver_id)
+            assert lcs.current_state[louver_id] == state
+            assert lcs.start_state[louver_id] == MotionState.OPENING.name
 
         # Repeat the check a few times to ensure that the state remains the
         # same.
-        for c in range(3):
-            await lcs.evaluate_state(current_tai=61.0 + c * 0.01)
+        for _ in range(3):
+            await lcs.evaluate_state(current_tai=30.0, louver_id=louver_id)
             assert (
-                lcs.current_state[index] == mtdome.InternalMotionState.STATIONARY.name
+                lcs.start_state[louver_id] == mtdome.InternalMotionState.STATIONARY.name
             )
-            assert lcs.start_state[index] == mtdome.InternalMotionState.STATIONARY.name
+            assert (
+                lcs.current_state[louver_id]
+                == mtdome.InternalMotionState.STATIONARY.name
+            )
+
+        lcs.start_state[louver_id] = MotionState.CLOSING.name
+        lcs.target_state[louver_id] = mtdome.InternalMotionState.STATIONARY.name
+        lcs.position_commanded[louver_id] = 0
+        for state in [
+            MotionState.ENABLING_MOTOR_POWER.name,
+            MotionState.MOTOR_POWER_ON.name,
+            MotionState.GO_NORMAL.name,
+            MotionState.DISENGAGING_BRAKES.name,
+            MotionState.BRAKES_DISENGAGED.name,
+            MotionState.MOVING.name,
+            MotionState.STOPPING.name,
+            MotionState.STOPPED.name,
+            MotionState.ENGAGING_BRAKES.name,
+            MotionState.BRAKES_ENGAGED.name,
+            MotionState.GO_STATIONARY.name,
+            MotionState.DISABLING_MOTOR_POWER.name,
+            MotionState.MOTOR_POWER_OFF.name,
+        ]:
+            await lcs.evaluate_state(current_tai=60.0, louver_id=louver_id)
+            assert lcs.current_state[louver_id] == state
+
+        # Repeat the check a few times to ensure that the state remains the
+        # same.
+        for _ in range(3):
+            await lcs.evaluate_state(current_tai=60.0, louver_id=louver_id)
+            assert (
+                lcs.current_state[louver_id]
+                == mtdome.InternalMotionState.STATIONARY.name
+            )
+            assert (
+                lcs.start_state[louver_id] == mtdome.InternalMotionState.STATIONARY.name
+            )

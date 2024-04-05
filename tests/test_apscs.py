@@ -21,12 +21,14 @@
 
 import unittest
 
+import numpy as np
 import pytest
 from lsst.ts import mtdome
-from lsst.ts.mtdome.mock_llc.apscs import CURRENT_PER_MOTOR, NUM_SHUTTERS
-from lsst.ts.mtdome.mock_llc.mock_motion.shutter_motion import (
+from lsst.ts.mtdome.mock_llc.apscs import (
     CLOSED_POSITION,
+    CURRENT_PER_MOTOR,
     NUM_MOTORS_PER_SHUTTER,
+    NUM_SHUTTERS,
     OPEN_POSITION,
     SHUTTER_SPEED,
 )
@@ -37,26 +39,23 @@ START_TAI = 10001.0
 
 
 class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
-    async def prepare_apscs(self, start_position: float, start_tai: float) -> None:
+    async def prepare_apscs(
+        self, start_position: float, start_tai: float, current_state: MotionState
+    ) -> None:
         """Prepare the ApSCS for future commands.
 
         Parameters
         ----------
-        start_position: `float`
+        start_position : `float`
             The start position of the azimuth motion.
-        start_tai: `float`
+        start_tai : `float`
             The start TAI time.
+        current_state : `MotionState`
+            The current MotionState.
         """
         self.apscs = mtdome.mock_llc.ApscsStatus(start_tai=start_tai)
-        shutter_motion = [
-            mtdome.mock_llc.ShutterMotion(
-                start_position=start_position, start_tai=start_tai
-            ),
-            mtdome.mock_llc.ShutterMotion(
-                start_position=start_position, start_tai=start_tai
-            ),
-        ]
-        self.apscs.shutter_motion = shutter_motion
+        self.apscs.position_actual = np.asarray([start_position, start_position])
+        self.apscs.current_state = [current_state] * NUM_SHUTTERS
 
     async def verify_apscs(
         self,
@@ -86,10 +85,7 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
             [0.0] * NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER
         )
         expected_power_draw = 0.0
-        if expected_motion_state in [
-            MotionState.CRAWLING,
-            MotionState.MOVING,
-        ]:
+        if expected_motion_state in [MotionState.OPENING, MotionState.CLOSING]:
             expected_drive_current = (
                 [CURRENT_PER_MOTOR] * NUM_SHUTTERS * NUM_MOTORS_PER_SHUTTER
             )
@@ -103,19 +99,23 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
         target_position = OPEN_POSITION
         start_tai = START_TAI
         expected_duration = (target_position - start_position) / SHUTTER_SPEED
-        await self.prepare_apscs(start_position=start_position, start_tai=start_tai)
+        await self.prepare_apscs(
+            start_position=start_position,
+            start_tai=start_tai,
+            current_state=MotionState.OPENING.name,
+        )
         duration = await self.apscs.openShutter(start_tai=start_tai)
         assert expected_duration == duration
         for i in range(10):
             await self.verify_apscs(
                 tai=start_tai + i,
                 expected_position=SHUTTER_SPEED * i,
-                expected_motion_state=MotionState.MOVING,
+                expected_motion_state=MotionState.OPENING,
             )
         await self.verify_apscs(
             tai=start_tai + 10,
             expected_position=OPEN_POSITION,
-            expected_motion_state=MotionState.STOPPED,
+            expected_motion_state=MotionState.PROXIMITY_OPEN_LS_ENGAGED,
         )
 
     async def test_close_shutter(self) -> None:
@@ -124,19 +124,23 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
         target_position = CLOSED_POSITION
         start_tai = START_TAI
         expected_duration = -(target_position - start_position) / SHUTTER_SPEED
-        await self.prepare_apscs(start_position=start_position, start_tai=start_tai)
+        await self.prepare_apscs(
+            start_position=start_position,
+            start_tai=start_tai,
+            current_state=MotionState.CLOSING.name,
+        )
         duration = await self.apscs.closeShutter(start_tai=start_tai)
         assert expected_duration == duration
         for i in range(10):
             await self.verify_apscs(
                 tai=start_tai + i,
                 expected_position=OPEN_POSITION - SHUTTER_SPEED * i,
-                expected_motion_state=MotionState.MOVING,
+                expected_motion_state=MotionState.CLOSING,
             )
         await self.verify_apscs(
             tai=start_tai + 10,
             expected_position=CLOSED_POSITION,
-            expected_motion_state=MotionState.STOPPED,
+            expected_motion_state=MotionState.PROXIMITY_CLOSED_LS_ENGAGED,
         )
 
     async def test_stop_shutter(self) -> None:
@@ -145,14 +149,18 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
         target_position = OPEN_POSITION
         start_tai = START_TAI
         expected_duration = (target_position - start_position) / SHUTTER_SPEED
-        await self.prepare_apscs(start_position=start_position, start_tai=start_tai)
+        await self.prepare_apscs(
+            start_position=start_position,
+            start_tai=start_tai,
+            current_state=MotionState.CLOSING.name,
+        )
         duration = await self.apscs.openShutter(start_tai=start_tai)
         assert expected_duration == duration
         for i in range(6):
             await self.verify_apscs(
                 tai=start_tai + i,
                 expected_position=SHUTTER_SPEED * i,
-                expected_motion_state=MotionState.MOVING,
+                expected_motion_state=MotionState.CLOSING,
             )
         await self.apscs.stopShutter(start_tai=start_tai + 7)
         await self.verify_apscs(
@@ -167,20 +175,24 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
         target_position = OPEN_POSITION
         start_tai = START_TAI
         expected_duration = (target_position - start_position) / SHUTTER_SPEED
-        await self.prepare_apscs(start_position=start_position, start_tai=start_tai)
+        await self.prepare_apscs(
+            start_position=start_position,
+            start_tai=start_tai,
+            current_state=MotionState.CLOSING.name,
+        )
         duration = await self.apscs.openShutter(start_tai=start_tai)
         assert expected_duration == duration
         for i in range(6):
             await self.verify_apscs(
                 tai=start_tai + i,
                 expected_position=SHUTTER_SPEED * i,
-                expected_motion_state=MotionState.MOVING,
+                expected_motion_state=MotionState.CLOSING,
             )
         await self.apscs.go_stationary(start_tai=start_tai + 7)
         await self.verify_apscs(
             tai=start_tai + 7.1,
             expected_position=70.0,
-            expected_motion_state=mtdome.InternalMotionState.STATIONARY,
+            expected_motion_state=MotionState.STOPPING,
         )
 
     async def test_exit_fault(self) -> None:
@@ -189,13 +201,17 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
         target_position = OPEN_POSITION
         start_tai = START_TAI
         expected_duration = (target_position - start_position) / SHUTTER_SPEED
-        await self.prepare_apscs(start_position=start_position, start_tai=start_tai)
+        await self.prepare_apscs(
+            start_position=start_position,
+            start_tai=start_tai,
+            current_state=MotionState.CLOSING.name,
+        )
         duration = await self.apscs.openShutter(start_tai=start_tai)
         assert expected_duration == duration
         await self.verify_apscs(
             tai=START_TAI + 1.0,
             expected_position=10.0,
-            expected_motion_state=MotionState.MOVING,
+            expected_motion_state=MotionState.CLOSING,
         )
 
         # This sets the status of the state machine to ERROR.
@@ -203,9 +219,9 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
         expected_drive_error_state = [False, True]
         current_tai = START_TAI + 1.1
         await self.apscs.set_fault(current_tai, drives_in_error)
-        for i in range(NUM_SHUTTERS):
+        for shutter_id in range(NUM_SHUTTERS):
             assert (
-                self.apscs.shutter_motion[i].drives_in_error_state
+                self.apscs.drives_in_error_state[shutter_id]
                 == expected_drive_error_state
             )
         await self.verify_apscs(
@@ -225,9 +241,9 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
         expected_drive_error_state = [False, False]
         reset = [0, 1, 0, 1]
         await self.apscs.reset_drives_shutter(current_tai, reset)
-        for i in range(NUM_SHUTTERS):
+        for shutter_id in range(NUM_SHUTTERS):
             assert (
-                self.apscs.shutter_motion[i].drives_in_error_state
+                self.apscs.drives_in_error_state[shutter_id]
                 == expected_drive_error_state
             )
 
@@ -239,9 +255,8 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
             expected_position=11.0,
             expected_motion_state=mtdome.InternalMotionState.STATIONARY,
         )
-        for i in range(NUM_SHUTTERS):
+        for shutter_id in range(NUM_SHUTTERS):
             assert (
-                self.apscs.shutter_motion[i].drives_in_error_state
+                self.apscs.drives_in_error_state[shutter_id]
                 == expected_drive_error_state
             )
-        # assert self.apscs.motion_state_in_error is False
