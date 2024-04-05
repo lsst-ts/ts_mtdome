@@ -499,7 +499,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         # Set the TAI time in the mock controller for easier control
         assert self.mock_ctrl is not None
         self.mock_ctrl.current_tai = _CURRENT_TAI
-        self.mock_ctrl.lwscs.elevation_motion._start_position = start_position
+        self.mock_ctrl.lwscs.position_actual = start_position
         await self.write(
             command=mtdome.CommandName.MOVE_EL, parameters={"position": target_position}
         )
@@ -652,7 +652,7 @@ class MockControllerTestCase(tcpip.BaseOneClientServerTestCase):
         # Set the TAI time in the mock controller for easier control.
         assert self.mock_ctrl is not None
         self.mock_ctrl.current_tai = _CURRENT_TAI
-        self.mock_ctrl.lwscs.elevation_motion._start_position = start_position
+        self.mock_ctrl.lwscs.position_actual = start_position
         await self.write(
             command=mtdome.CommandName.CRAWL_EL,
             parameters={"velocity": target_velocity},

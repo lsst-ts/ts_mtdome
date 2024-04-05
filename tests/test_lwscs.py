@@ -59,14 +59,9 @@ class LwscsTestCase(unittest.IsolatedAsyncioTestCase):
             The current TAI time.
         """
         self.lwscs = mtdome.mock_llc.LwscsStatus(start_tai=start_tai)
-        elevation_motion = mtdome.mock_llc.ElevationMotion(
-            start_position=math.radians(start_position),
-            min_position=math.radians(min_position),
-            max_position=math.radians(max_position),
-            max_speed=math.radians(max_speed),
-            start_tai=start_tai,
-        )
-        self.lwscs.elevation_motion = elevation_motion
+        self.lwscs.position_actual = math.radians(start_position)
+        self.lwscs.vmax = math.radians(max_speed)
+        self.lwscs.start_tai = start_tai
 
     async def verify_lwscs_state(
         self,
