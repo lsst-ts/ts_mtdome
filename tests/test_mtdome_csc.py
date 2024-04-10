@@ -40,6 +40,13 @@ from lsst.ts.xml.enums.MTDome import (
     SubSystemId,
 )
 
+# TODO DM-43840: Merge import from lsst.ts.xml with import above as soon as a
+#  newer XML than 20.3 is released.
+try:
+    from lsst.ts.xml.MTDome import PowerManagementMode
+except ImportError:
+    from lsst.ts.mtdome.enums import PowerManagementMode
+
 STD_TIMEOUT = 10  # standard command and event timeout (sec)
 SHORT_TIMEOUT = 1  # short command and event timeout (sec)
 COMMANDS_REPLIED_PERIOD = 0.2  # (sec)
@@ -115,11 +122,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     mtdome.CommandName.FANS,
                     mtdome.CommandName.INFLATE,
                     mtdome.CommandName.EXIT_FAULT,
-                    "setOperationalMode",
-                    mtdome.CommandName.RESET_DRIVES_AZ,
-                    "setZeroAz",
-                    mtdome.CommandName.RESET_DRIVES_SHUTTER,
                     "home",
+                    mtdome.CommandName.SET_ZERO_AZ,
+                    mtdome.CommandName.RESET_DRIVES_AZ,
+                    mtdome.CommandName.RESET_DRIVES_SHUTTER,
+                    "setOperationalMode",
+                    mtdome.CommandName.SET_POWER_MANAGEMENT_MODE,
                 ),
             )
 
@@ -1431,6 +1439,52 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.validate_operational_mode(
                 operational_mode=operational_mode, sub_system_ids=sub_system_ids
             )
+
+    async def test_do_setPowerManagementMode(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+        ):
+            await self.set_csc_to_enabled()
+
+            # TODO DM-43840: Remove this "if" as soon as an XML newer than 20.3
+            #  is released.
+            if not hasattr(self.csc, "evt_powerManagementMode"):
+                # XML version too old so no need to execute this test case.
+                return
+
+            current_power_management_mode = PowerManagementMode.NO_POWER_MANAGEMENT
+            await self.assert_next_sample(
+                topic=self.remote.evt_powerManagementMode,
+                mode=current_power_management_mode,
+            )
+            assert self.csc.power_management_mode == current_power_management_mode
+
+            self.csc.power_management_handler.command_queue.put_nowait(
+                (1, mtdome.CommandName.OPEN_SHUTTER)
+            )
+            new_power_management_mode = PowerManagementMode.OPERATIONS
+            await self.remote.cmd_setPowerManagementMode.set_start(
+                mode=new_power_management_mode
+            )
+            await self.assert_next_sample(
+                topic=self.remote.evt_powerManagementMode,
+                mode=new_power_management_mode,
+            )
+            assert self.csc.power_management_mode == new_power_management_mode
+            assert self.csc.power_management_handler.command_queue.empty()
+
+            self.csc.power_management_handler.command_queue.put_nowait(
+                (1, mtdome.CommandName.OPEN_SHUTTER)
+            )
+            assert not self.csc.power_management_handler.command_queue.empty()
+            with pytest.raises(salobj.base.AckError):
+                await self.remote.cmd_setPowerManagementMode.set_start(
+                    mode=PowerManagementMode.NO_POWER_MANAGEMENT
+                )
+            assert self.csc.summary_state == salobj.State.ENABLED
+            assert not self.csc.power_management_handler.command_queue.empty()
 
     async def test_slow_network(self) -> None:
         async with self.make_csc(

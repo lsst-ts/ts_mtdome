@@ -9,6 +9,7 @@ Version History
 v1.16.0
 =======
 * Remove backward compatibility with ts_xml 20.2.
+* Add do_setPowerManagementMode command.
 
 Requires:
 
