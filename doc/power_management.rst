@@ -67,12 +67,12 @@ Since not all systems are managed by the cRIO, the power management takes the fo
 
 Apart from that, the electronic devices only require 1kW of power and are always on.
 
-Power Draw Modes
-================
+Power Management Modes
+======================
 
 The observatory, in general, and the dome, in particular, will be used for different purposes depending on the time of day and whether the sky is clear or not.
 These different purposes have different impacts on the power draw.
-Therefore several power draw modes are implemented.
+Therefore several power management modes are implemented.
 
 Operations
 ----------
@@ -234,8 +234,18 @@ Emergency
 For the emergency mode, the hard limit means that the fans need to be switched off and the LWS needs to be stopped.
 That will leave enough power to operate the AS and louvers at the same time to seal the dome.
 
-Pending items
--------------
+Changing Power Management Mode
+------------------------------
+
+In order to change power management mode, the `do_setPowerManagementMode` command can be used.
+This command takes one argument: the new Power Management Mode wich is a value from the PowerManagementMode enum defined in ts_xml.
+The command does not allow changing to NO_POWER_MANAGEMENT since that would put the MTDome hardware, most notably the slip ring(s), at risk.
+For any other Power Management Mode the current queue of commands is emptied so they don't interfere with new commands entering the queue.
+Any command that currently is being executed will continue.
+The Power Management Mode priorities will make sure that any command that draws power from the slip rings will be stopped if they have a lower priority than newly scheduled commands.
+
+Pending Items
+=============
 
 The most important pending item concerns allowing power drawn up to 100 kW for up to 6 minutes for the maintenance mode.
 The current conservative approach may at times limit the freedom of using the dome systems.
@@ -244,13 +254,6 @@ It would also help to have an estimate of how often the need for more power than
 
 It also needs to be decided how to change PowerManagementMode.
 For this, new command definitions in ts_xml may be needed.
-
-PowerManagementMode transition conditions need to be defined.
-Possible conditions may be
-
-- AS, LWS and louvers need to be stopped.
-- AS and louvers need to be closed.
-- The fans need to be stopped.
 
 Completely different conditions may be needed instead.
 

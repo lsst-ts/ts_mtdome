@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 
 from lsst.ts import salobj, tcpip, utils
+from lsst.ts.xml.component_info import ComponentInfo
 from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
@@ -45,7 +46,6 @@ from .enums import (
     LlcNameDict,
     MaxValueConfigType,
     MaxValuesConfigType,
-    PowerManagementMode,
     ResponseCode,
     ScheduledCommand,
     ValidSimulationMode,
@@ -60,6 +60,13 @@ from .power_management import (
     PowerManagementHandler,
     command_priorities,
 )
+
+# TODO DM-43840: Merge import from lsst.ts.xml with import above as soon as a
+#  newer XML than 20.3 is released.
+try:
+    from lsst.ts.xml.MTDome import PowerManagementMode
+except ImportError:
+    from .enums import PowerManagementMode
 
 # Timeout [sec] used when creating a Client, a mock controller or when waiting
 # for a reply when sending a command to the controller.
@@ -268,6 +275,20 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # mock controller, or None if not constructed
         self.mock_ctrl: MockMTDomeController | None = None
 
+        # TODO DM-43840: Remove as soon as an XML newer than 20.3 is released.
+        additional_commands = ["setPowerManagementMode"]
+
+        component_info = ComponentInfo("MTDome", topic_subname="sal")
+
+        for additional_command in additional_commands:
+            if f"cmd_{additional_command}" in component_info.topics:
+                setattr(
+                    self,
+                    f"do_{additional_command}",
+                    getattr(self, f"_do_{additional_command}"),
+                )
+        # End TODO
+
         super().__init__(
             name="MTDome",
             index=0,
@@ -327,7 +348,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.commands_without_reply: dict[int, CommandTime] = {}
 
         # Power management attributes.
-        self.power_management_state = PowerManagementMode.NO_POWER_MANAGEMENT
+        self.power_management_mode = PowerManagementMode.NO_POWER_MANAGEMENT
         self.power_management_handler = PowerManagementHandler(
             self.log, command_priorities
         )
@@ -390,6 +411,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.evt_interlocks.set_write(interlocks=0)
         await self.evt_lockingPinsEngaged.set_write(engaged=0)
 
+        # TODO DM-43840: Remove as soon as an XML newer than 20.3 is released.
+        if hasattr(self, "evt_powerManagementMode"):
+            await self.evt_powerManagementMode.set_write(
+                mode=self.power_management_mode
+            )
+
         # Start polling for the status of the lower level components
         # periodically.
         await self.start_periodic_tasks()
@@ -430,15 +457,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 asyncio.create_task(self.one_periodic_task(func, interval))
             )
 
-        # This next task is only needed if the dome power management is active.
-        if self.power_management_state != PowerManagementMode.NO_POWER_MANAGEMENT:
-            self.periodic_tasks.append(
-                asyncio.create_task(
-                    self.one_periodic_task(
-                        self.process_command_queue, _COMMAND_QUEUE_PERIOD
-                    )
+        self.periodic_tasks.append(
+            asyncio.create_task(
+                self.one_periodic_task(
+                    self.process_command_queue, _COMMAND_QUEUE_PERIOD
                 )
             )
+        )
 
     async def one_periodic_task(self, method: typing.Callable, interval: float) -> None:
         """Run one method forever at the specified interval.
@@ -554,7 +579,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         # All commands, that help reduce the power draw, are scheduled. It is
         # up to the dome lower level control system to execute them or not.
-        if self.power_management_state == PowerManagementMode.NO_POWER_MANAGEMENT:
+        if self.power_management_mode == PowerManagementMode.NO_POWER_MANAGEMENT:
             await self.write_then_read_reply(command=command, **params)
         else:
             scheduled_command = ScheduledCommand(command=command, params=params)
@@ -569,6 +594,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         power for the rotating part of the dome. If a command can be issued
         then it is removed from the queue, otherwise not.
         """
+
+        if self.power_management_mode == PowerManagementMode.NO_POWER_MANAGEMENT:
+            # This is only needed if the dome power management is active.
+            return
+
         current_power_draw = await self._get_current_power_draw_for_llcs()
         total_current_power_draw = sum([p for k, p in current_power_draw.items()])
         power_available = (
@@ -1183,6 +1213,50 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.write_then_read_reply(
             command=CommandName.INFLATE, action=data.action
         )
+
+    # TODO DM-43840: Rename as soon as an XML newer than 20.3 is released.
+    async def _do_setPowerManagementMode(self, data: salobj.BaseMsgType) -> None:
+        """Set the power management mode.
+
+        Parameters
+        ----------
+        data : `salobj.BaseMsgType`
+            Contains the data as defined in the SAL XML file.
+
+        Raises
+        ------
+        salobj.ExpectedError
+            In case data.mode is equal to NO_POWER_MANAGEMENT.
+
+        Notes
+        -----
+        In case data.mode is equal to the current mode, a warning is logged and
+        the new mode is ignored.
+        """
+        self.assert_enabled()
+
+        new_mode = PowerManagementMode(data.mode)
+
+        if new_mode == PowerManagementMode.NO_POWER_MANAGEMENT:
+            raise salobj.ExpectedError(
+                "Will not set PowerManagementMode to NO_POWER_MANAGEMENT."
+            )
+
+        elif new_mode == self.power_management_mode:
+            self.log.warning(
+                "New PowerManagementMode is equal to current mode. Ignoring."
+            )
+
+        else:
+            self.log.debug(
+                f"setPowerManagementMode: {data.mode}. Clearing command queue."
+            )
+            while not self.power_management_handler.command_queue.empty():
+                self.power_management_handler.command_queue.get_nowait()
+            self.power_management_mode = new_mode
+            await self.evt_powerManagementMode.set_write(
+                mode=self.power_management_mode
+            )
 
     async def statusAMCS(self) -> None:
         """AMCS status command not to be executed by SAL.

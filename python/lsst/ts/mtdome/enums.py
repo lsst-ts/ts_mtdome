@@ -95,13 +95,14 @@ class CommandName(enum.StrEnum):
     SET_DEGRADED_SHUTTER = "setDegradedShutter"
     SET_DEGRADED_MONITORING = "setDegradedMonitoring"
     SET_DEGRADED_THERMAL = "setDegradedThermal"
+    SET_LOUVERS = "setLouvers"
     SET_NORMAL_AZ = "setNormalAz"
     SET_NORMAL_EL = "setNormalEl"
     SET_NORMAL_LOUVERS = "setNormalLouvers"
     SET_NORMAL_SHUTTER = "setNormalShutter"
     SET_NORMAL_MONITORING = "setNormalMonitoring"
     SET_NORMAL_THERMAL = "setNormalThermal"
-    SET_LOUVERS = "setLouvers"
+    SET_POWER_MANAGEMENT_MODE = "setPowerManagementMode"
     SET_TEMPERATURE = "setTemperature"
     SET_ZERO_AZ = "setZeroAz"
     STATUS_AMCS = "statusAMCS"
@@ -132,6 +133,7 @@ class LlcName(enum.StrEnum):
     THCS = "ThCS"
 
 
+# TODO DM-43840: Remove this enum as soon as a newer XML than 20.3 is released.
 class PowerManagementMode(enum.IntEnum):
     """Power management modes for the CSC."""
 
