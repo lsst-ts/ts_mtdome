@@ -37,9 +37,6 @@ requirements:
     - python {{ python }}
     - setuptools_scm
     - setuptools
-    - ts-conda-build =0.3
-    - ts-tcpip
-    - ts-utils
   run:
     - python {{ python }}
     - setuptools

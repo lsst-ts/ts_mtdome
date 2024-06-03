@@ -56,29 +56,13 @@ class InternalMotionState(enum.IntEnum):
     These get translated into IDL MotionState instances by the CSC.
     """
 
-    # TODO DM-42701: Remove all values except STATIONARY as soon as XML 20.3.0
-    #  has been released.
-    BRAKE_DISENGAGED = enum.auto()
-    BRAKE_ENGAGED = enum.auto()
-    DISENGAGING_BRAKE = enum.auto()
-    ENGAGING_BRAKE = enum.auto()
-    INCLINED = enum.auto()
     STATIONARY = enum.auto()
-    VERTICAL = enum.auto()
 
 
 # Dict holding translations from motion states, that the lower level
 # controllers can have, to MotionState.
 motion_state_translations = {
-    # TODO DM-42701: Remove all values except STATIONARY as soon as XML 20.3.0
-    #  has been released.
-    InternalMotionState.BRAKE_DISENGAGED.name: MotionState.BRAKES_DISENGAGED,
-    InternalMotionState.BRAKE_ENGAGED.name: MotionState.BRAKES_ENGAGED,
-    InternalMotionState.DISENGAGING_BRAKE.name: MotionState.DISENGAGING_BRAKES,
-    InternalMotionState.ENGAGING_BRAKE.name: MotionState.ENGAGING_BRAKES,
-    InternalMotionState.INCLINED.name: MotionState.OPEN,
     InternalMotionState.STATIONARY.name: MotionState.STOPPED_BRAKED,
-    InternalMotionState.VERTICAL.name: MotionState.CLOSED,
 }
 
 
@@ -111,13 +95,14 @@ class CommandName(enum.StrEnum):
     SET_DEGRADED_SHUTTER = "setDegradedShutter"
     SET_DEGRADED_MONITORING = "setDegradedMonitoring"
     SET_DEGRADED_THERMAL = "setDegradedThermal"
+    SET_LOUVERS = "setLouvers"
     SET_NORMAL_AZ = "setNormalAz"
     SET_NORMAL_EL = "setNormalEl"
     SET_NORMAL_LOUVERS = "setNormalLouvers"
     SET_NORMAL_SHUTTER = "setNormalShutter"
     SET_NORMAL_MONITORING = "setNormalMonitoring"
     SET_NORMAL_THERMAL = "setNormalThermal"
-    SET_LOUVERS = "setLouvers"
+    SET_POWER_MANAGEMENT_MODE = "setPowerManagementMode"
     SET_TEMPERATURE = "setTemperature"
     SET_ZERO_AZ = "setZeroAz"
     STATUS_AMCS = "statusAMCS"
@@ -148,6 +133,7 @@ class LlcName(enum.StrEnum):
     THCS = "ThCS"
 
 
+# TODO DM-43840: Remove this enum as soon as a newer XML than 20.3 is released.
 class PowerManagementMode(enum.IntEnum):
     """Power management modes for the CSC."""
 
