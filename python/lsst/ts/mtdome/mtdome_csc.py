@@ -28,11 +28,11 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 
 from lsst.ts import salobj, tcpip, utils
-from lsst.ts.xml.component_info import ComponentInfo
 from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
     OperationalMode,
+    PowerManagementMode,
     SubSystemId,
 )
 
@@ -60,13 +60,6 @@ from .power_management import (
     PowerManagementHandler,
     command_priorities,
 )
-
-# TODO DM-43840: Merge import from lsst.ts.xml with import above as soon as a
-#  newer XML than 20.3 is released.
-try:
-    from lsst.ts.xml.MTDome import PowerManagementMode
-except ImportError:
-    from .enums import PowerManagementMode
 
 # Timeout [sec] used when creating a Client, a mock controller or when waiting
 # for a reply when sending a command to the controller.
@@ -275,20 +268,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # mock controller, or None if not constructed
         self.mock_ctrl: MockMTDomeController | None = None
 
-        # TODO DM-43840: Remove as soon as an XML newer than 20.3 is released.
-        additional_commands = ["setPowerManagementMode"]
-
-        component_info = ComponentInfo("MTDome", topic_subname="sal")
-
-        for additional_command in additional_commands:
-            if f"cmd_{additional_command}" in component_info.topics:
-                setattr(
-                    self,
-                    f"do_{additional_command}",
-                    getattr(self, f"_do_{additional_command}"),
-                )
-        # End TODO
-
         super().__init__(
             name="MTDome",
             index=0,
@@ -411,11 +390,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.evt_interlocks.set_write(interlocks=0)
         await self.evt_lockingPinsEngaged.set_write(engaged=0)
 
-        # TODO DM-43840: Remove as soon as an XML newer than 20.3 is released.
-        if hasattr(self, "evt_powerManagementMode"):
-            await self.evt_powerManagementMode.set_write(
-                mode=self.power_management_mode
-            )
+        await self.evt_powerManagementMode.set_write(mode=self.power_management_mode)
 
         # Start polling for the status of the lower level components
         # periodically.
@@ -1214,8 +1189,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=CommandName.INFLATE, action=data.action
         )
 
-    # TODO DM-43840: Rename as soon as an XML newer than 20.3 is released.
-    async def _do_setPowerManagementMode(self, data: salobj.BaseMsgType) -> None:
+    async def do_setPowerManagementMode(self, data: salobj.BaseMsgType) -> None:
         """Set the power management mode.
 
         Parameters

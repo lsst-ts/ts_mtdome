@@ -37,15 +37,9 @@ from lsst.ts.xml.enums.MTDome import (
     MotionState,
     OnOff,
     OperationalMode,
+    PowerManagementMode,
     SubSystemId,
 )
-
-# TODO DM-43840: Merge import from lsst.ts.xml with import above as soon as a
-#  newer XML than 20.3 is released.
-try:
-    from lsst.ts.xml.MTDome import PowerManagementMode
-except ImportError:
-    from lsst.ts.mtdome.enums import PowerManagementMode
 
 STD_TIMEOUT = 10  # standard command and event timeout (sec)
 SHORT_TIMEOUT = 1  # short command and event timeout (sec)
@@ -1447,12 +1441,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
-
-            # TODO DM-43840: Remove this "if" as soon as an XML newer than 20.3
-            #  is released.
-            if not hasattr(self.csc, "evt_powerManagementMode"):
-                # XML version too old so no need to execute this test case.
-                return
 
             current_power_management_mode = PowerManagementMode.NO_POWER_MANAGEMENT
             await self.assert_next_sample(
