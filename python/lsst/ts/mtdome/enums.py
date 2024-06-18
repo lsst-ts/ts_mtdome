@@ -34,7 +34,6 @@ __all__ = [
     "LlcNameDict",
     "MaxValueConfigType",
     "MaxValuesConfigType",
-    "PowerManagementMode",
     "ResponseCode",
     "ScheduledCommand",
     "SlipRingState",
@@ -131,16 +130,6 @@ class LlcName(enum.StrEnum):
     OBC = "OBC"
     RAD = "RAD"
     THCS = "ThCS"
-
-
-# TODO DM-43840: Remove this enum as soon as a newer XML than 20.3 is released.
-class PowerManagementMode(enum.IntEnum):
-    """Power management modes for the CSC."""
-
-    NO_POWER_MANAGEMENT = enum.auto()
-    OPERATIONS = enum.auto()
-    EMERGENCY = enum.auto()
-    MAINTENANCE = enum.auto()
 
 
 class ResponseCode(enum.IntEnum):

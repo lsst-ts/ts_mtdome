@@ -24,7 +24,7 @@ import unittest
 from dataclasses import dataclass
 
 from lsst.ts import mtdome
-from lsst.ts.xml.enums.MTDome import OnOff
+from lsst.ts.xml.enums.MTDome import OnOff, PowerManagementMode
 
 CLOSE_SHUTTER = mtdome.ScheduledCommand(
     command=mtdome.CommandName.CLOSE_SHUTTER, params={}
@@ -49,8 +49,8 @@ class PmTestData:
     exp_cmd_in_queue: list[mtdome.CommandName]
 
 
-ALL_PM_TEST_DATA: dict[mtdome.PowerManagementMode, list[PmTestData]] = {
-    mtdome.PowerManagementMode.OPERATIONS: [
+ALL_PM_TEST_DATA: dict[PowerManagementMode, list[PmTestData]] = {
+    PowerManagementMode.OPERATIONS: [
         PmTestData(
             command_to_schedule=FANS_ON,
             current_power_draw={
@@ -108,7 +108,7 @@ ALL_PM_TEST_DATA: dict[mtdome.PowerManagementMode, list[PmTestData]] = {
             exp_cmd_in_queue=[],
         ),
     ],
-    mtdome.PowerManagementMode.NO_POWER_MANAGEMENT: [
+    PowerManagementMode.NO_POWER_MANAGEMENT: [
         PmTestData(
             command_to_schedule=OPEN_SHUTTER,
             current_power_draw={
@@ -124,7 +124,7 @@ ALL_PM_TEST_DATA: dict[mtdome.PowerManagementMode, list[PmTestData]] = {
             exp_cmd_in_queue=[],
         ),
     ],
-    mtdome.PowerManagementMode.MAINTENANCE: [
+    PowerManagementMode.MAINTENANCE: [
         PmTestData(
             command_to_schedule=OPEN_SHUTTER,
             current_power_draw={
@@ -140,7 +140,7 @@ ALL_PM_TEST_DATA: dict[mtdome.PowerManagementMode, list[PmTestData]] = {
             exp_cmd_in_queue=[],
         ),
     ],
-    mtdome.PowerManagementMode.EMERGENCY: [
+    PowerManagementMode.EMERGENCY: [
         PmTestData(
             command_to_schedule=OPEN_SHUTTER,
             current_power_draw={
@@ -220,7 +220,7 @@ class PowerManagementHandlerTestCase(unittest.IsolatedAsyncioTestCase):
             assert scheduled_command == exp_cmd_in_queue[i]
 
     async def test_get_next_command(self) -> None:
-        for pmm in mtdome.PowerManagementMode:
+        for pmm in PowerManagementMode:
             self.pmh.power_management_mode = pmm
             pm_test_data = ALL_PM_TEST_DATA[self.pmh.power_management_mode]
             for data in pm_test_data:
