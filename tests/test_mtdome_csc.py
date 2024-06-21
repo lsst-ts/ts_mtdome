@@ -1022,6 +1022,14 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 == [0.0] * mtdome.mock_llc.thcs.NUM_THERMO_SENSORS
             )
 
+            await self.csc.statusRAD()
+            rad_status = self.csc.lower_level_status[mtdome.LlcName.RAD.value]
+            assert (
+                rad_status["status"]["status"]
+                == [MotionState.CLOSED.name] * mtdome.mock_llc.rad.NUM_DOORS
+            )
+            assert rad_status["positionActual"] == [0.0] * mtdome.mock_llc.rad.NUM_DOORS
+
     async def test_status_error(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -1308,8 +1316,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 name = mtdome.LlcNameDict[sub_system_id]
                 await func()
                 status = self.csc.lower_level_status[name]
-                assert status["status"]["operationalMode"] == operational_mode.name
-                events_to_check.append(sub_system_id.value)
+                # Not all statuses contain an operationalMode.
+                if "operationalMode" in status["status"]:
+                    assert status["status"]["operationalMode"] == operational_mode.name
+                    events_to_check.append(sub_system_id.value)
 
         events_recevied = []
         for _ in range(len(events_to_check)):
