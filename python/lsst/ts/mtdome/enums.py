@@ -106,6 +106,7 @@ class CommandName(enum.StrEnum):
     SET_ZERO_AZ = "setZeroAz"
     STATUS_AMCS = "statusAMCS"
     STATUS_APSCS = "statusApSCS"
+    STATUS_CBCS = "statusCBCS"
     STATUS_CSCS = "statusCSCS"
     STATUS_LCS = "statusLCS"
     STATUS_LWSCS = "statusLWSCS"
@@ -123,6 +124,7 @@ class LlcName(enum.StrEnum):
 
     AMCS = "AMCS"
     APSCS = "ApSCS"
+    CBCS = "CBCS"
     CSCS = "CSCS"
     LCS = "LCS"
     LWSCS = "LWSCS"
@@ -181,7 +183,13 @@ class ValidSimulationMode(enum.IntEnum):
 
 
 # Dictionary to look up which LlcName is associated with which sub-system.
-LlcNameDict = {getattr(SubSystemId, enum.name): enum.value for enum in LlcName}
+# TODO DM-44946 Remove the if but leave the rest as soon as XML 22.0 is
+#  released.
+LlcNameDict = {
+    getattr(SubSystemId, enum.name): enum.value
+    for enum in LlcName
+    if hasattr(SubSystemId, enum.name)
+}
 
 # Custom types used for configurable maximum values.
 MaxValueConfigType = dict[str, str | list[float]]
