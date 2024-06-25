@@ -95,6 +95,7 @@ DOME_AZIMUTH_OFFSET = 32.0
 # Polling periods [sec] for the lower level components.
 _AMCS_STATUS_PERIOD = 0.2
 _APSCS_STATUS_PERIOD = 0.5
+_CBCS_STATUS_PERIOD = 0.5
 _CSCS_STATUS_PERIOD = 0.5
 _LCS_STATUS_PERIOD = 0.5
 _LWSCS_STATUS_PERIOD = 0.5
@@ -246,6 +247,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     all_methods_and_intervals = {
         CommandName.STATUS_AMCS: (_AMCS_STATUS_PERIOD, True),
         CommandName.STATUS_APSCS: (_APSCS_STATUS_PERIOD, True),
+        CommandName.STATUS_CBCS: (_CBCS_STATUS_PERIOD, True),
         CommandName.STATUS_CSCS: (_CSCS_STATUS_PERIOD, True),
         CommandName.STATUS_LCS: (_LCS_STATUS_PERIOD, False),
         CommandName.STATUS_LWSCS: (_LWSCS_STATUS_PERIOD, False),
@@ -1249,6 +1251,19 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.request_and_send_llc_status(
             LlcName.APSCS.value, self.tel_apertureShutter
         )
+
+    async def statusCBCS(self) -> None:
+        """CBCS status command not to be executed by SAL.
+
+        This command will be used to request the full status of the CBCS lower
+        level component.
+        """
+        # TODO DM-44946 Remove the if but leave the rest as soon as XML 22.0 is
+        #  released.
+        if hasattr(self, "evt_capacitorBanks"):
+            await self.request_and_send_llc_status(
+                LlcName.CBCS.value, self.evt_capacitorBanks
+            )
 
     async def statusCSCS(self) -> None:
         """CSCS status command not to be executed by SAL.

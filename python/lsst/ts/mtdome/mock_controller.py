@@ -34,6 +34,7 @@ from .mock_llc import (
     AmcsStatus,
     ApscsStatus,
     BaseMockStatus,
+    CbcsStatus,
     CscsStatus,
     LcsStatus,
     LwscsStatus,
@@ -141,6 +142,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
             CommandName.SET_ZERO_AZ: self.set_zero_az,
             CommandName.STATUS_AMCS: self.status_amcs,
             CommandName.STATUS_APSCS: self.status_apscs,
+            CommandName.STATUS_CBCS: self.status_cbcs,
             CommandName.STATUS_CSCS: self.status_cscs,
             CommandName.STATUS_LCS: self.status_lcs,
             CommandName.STATUS_LWSCS: self.status_lwscs,
@@ -168,6 +170,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         # Variables for the lower level components.
         self.amcs: AmcsStatus | None = None
         self.apscs: ApscsStatus | None = None
+        self.cbcs: CbcsStatus | None = None
         self.cscs: CscsStatus | None = None
         self.lcs: LcsStatus | None = None
         self.lwscs: LwscsStatus | None = None
@@ -192,6 +195,7 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         self.log.info("Starting LLCs")
         self.amcs = AmcsStatus(start_tai=self.current_tai)
         self.apscs = ApscsStatus(start_tai=self.current_tai)
+        self.cbcs = CbcsStatus()
         self.cscs = CscsStatus(start_tai=self.current_tai)
         self.lcs = LcsStatus()
         self.lwscs = LwscsStatus(start_tai=self.current_tai)
@@ -288,6 +292,13 @@ class MockMTDomeController(tcpip.OneClientReadLoopServer):
         """
         assert self.apscs is not None
         await self.request_and_send_status(self.apscs, LlcName.APSCS.value)
+
+    async def status_cbcs(self) -> None:
+        """Request the status from the CBCS lower level component and write it
+        in reply.
+        """
+        assert self.cbcs is not None
+        await self.request_and_send_status(self.cbcs, LlcName.CBCS.value)
 
     async def status_cscs(self) -> None:
         """Request the status from the Calibration Screen and write it in

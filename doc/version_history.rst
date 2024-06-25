@@ -6,9 +6,11 @@
 Version History
 ###############
 
-v1.16.1
+v1.17.0
 =======
 * Remove backward compatibility with ts_xml 20.3.
+* Remove "operationalMode" from the mock RAD status.
+* Add support for the capacitor banks state event.
 
 Requires:
 

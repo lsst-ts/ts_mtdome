@@ -74,7 +74,6 @@ class RadStatus(BaseMockStatus):
             "status": {
                 "messages": self.messages,
                 "status": [s for s in self.status],
-                "operationalMode": self.operational_mode.name,
             },
             "positionActual": self.position_actual.tolist(),
             "positionCommanded": self.position_commanded.tolist(),
