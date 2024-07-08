@@ -222,13 +222,13 @@ class ScheduledCommand:
 
     Parameters
     ----------
-    command : `str`
+    command : `CommandName`
         The command that may need to be scheduled.
     params : `dict`[`str`, `typing.Any`]
         The parameters for the command. Defaults to None.
     """
 
-    command: str
+    command: CommandName
     params: dict[str, typing.Any]
 
 

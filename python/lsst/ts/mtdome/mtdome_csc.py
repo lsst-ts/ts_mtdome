@@ -193,14 +193,14 @@ class CommandTime:
 
     Attributes
     ----------
-    command : `str`
+    command : `CommandName`
         The command issued.
     tai : `float`
         TAI time as unix seconds, e.g. the time returned by CLOCK_TAI
         on linux systems.
     """
 
-    command: str
+    command: CommandName
     tai: float
 
 
@@ -540,7 +540,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             self.log.info("Not setting AMCS maximum velocity, acceleration and jerk.")
 
     async def schedule_command_if_power_management_active(
-        self, command: str, **params: typing.Any
+        self, command: CommandName, **params: typing.Any
     ) -> None:
         """Schedule the provided command if power management is active.
 
@@ -549,7 +549,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        command : `str`
+        command : `CommandName`
             The command to schedule or execute immediately.
         params : `typing.Any`
             The parameters to pass along with the command. This may be empty.
@@ -622,13 +622,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         return current_power_draw
 
     async def write_then_read_reply(
-        self, command: str, **params: typing.Any
+        self, command: CommandName, **params: typing.Any
     ) -> dict[str, typing.Any]:
         """Write the cmd string and then read the reply to the command.
 
         Parameters
         ----------
-        command: `str`
+        command: `CommandName`
             The command to write.
         **params:
             The parameters for the command. This may be empty.
@@ -683,6 +683,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 data = REPLY_DATA_FOR_DISABLED_COMMANDS
             response = data["response"]
 
+            # TODO DM-45143 Generally improve error logging.
             if response != ResponseCode.OK:
                 self.log.error(f"Received ERROR {data}.")
                 error_suffix = {
@@ -692,7 +693,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     ResponseCode.ROTATING_PART_NOT_RECEIVED: "was not received by the rotating part.",
                     ResponseCode.ROTATING_PART_NOT_REPLIED: "was not replied to by the rotating part.",
                 }.get(response, "is not supported.")
-                raise ValueError(f"{command=} {error_suffix}")
+                raise ValueError(f"Command {command.name} {error_suffix}")
 
             return data
 
@@ -1340,6 +1341,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if self.amcs_message != status_message:
             self.amcs_message = status_message
             self.log.info(f"AMCS status message now is {self.amcs_message}")
+
+        # TODO DM-45143 Generally improve error logging.
         if len(messages) != 1 or codes[0] != 0:
             await self.evt_azEnabled.set_write(
                 state=EnabledState.FAULT, faultCode=status_message
@@ -1448,7 +1451,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The SAL topic to publish the telemetry to.
 
         """
-        command = f"status{llc_name}"
+        command = CommandName(f"status{llc_name}")
         status: dict[str, typing.Any] = await self.write_then_read_reply(
             command=command
         )
