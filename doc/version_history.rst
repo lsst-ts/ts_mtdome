@@ -11,6 +11,7 @@ v1.17.0
 * Remove backward compatibility with ts_xml 20.3.
 * Remove "operationalMode" from the mock RAD status.
 * Add support for the capacitor banks state event.
+* Improve notifying of duplicate commands.
 
 Requires:
 
@@ -18,7 +19,7 @@ Requires:
 * ts_idl
 * ts_tcpip 2.0
 * ts_utils 1.2
-* ts_xml 21.0
+* ts_xml 22.0
 
 v1.16.0
 =======
