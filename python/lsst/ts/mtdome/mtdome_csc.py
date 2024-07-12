@@ -28,11 +28,11 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 
 from lsst.ts import salobj, tcpip, utils
-from lsst.ts.xml.component_info import ComponentInfo
 from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
     OperationalMode,
+    PowerManagementMode,
     SubSystemId,
 )
 
@@ -60,13 +60,6 @@ from .power_management import (
     PowerManagementHandler,
     command_priorities,
 )
-
-# TODO DM-43840: Merge import from lsst.ts.xml with import above as soon as a
-#  newer XML than 20.3 is released.
-try:
-    from lsst.ts.xml.MTDome import PowerManagementMode
-except ImportError:
-    from .enums import PowerManagementMode
 
 # Timeout [sec] used when creating a Client, a mock controller or when waiting
 # for a reply when sending a command to the controller.
@@ -102,6 +95,7 @@ DOME_AZIMUTH_OFFSET = 32.0
 # Polling periods [sec] for the lower level components.
 _AMCS_STATUS_PERIOD = 0.2
 _APSCS_STATUS_PERIOD = 0.5
+_CBCS_STATUS_PERIOD = 0.5
 _CSCS_STATUS_PERIOD = 0.5
 _LCS_STATUS_PERIOD = 0.5
 _LWSCS_STATUS_PERIOD = 0.5
@@ -199,14 +193,14 @@ class CommandTime:
 
     Attributes
     ----------
-    command : `str`
+    command : `CommandName`
         The command issued.
     tai : `float`
         TAI time as unix seconds, e.g. the time returned by CLOCK_TAI
         on linux systems.
     """
 
-    command: str
+    command: CommandName
     tai: float
 
 
@@ -253,6 +247,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     all_methods_and_intervals = {
         CommandName.STATUS_AMCS: (_AMCS_STATUS_PERIOD, True),
         CommandName.STATUS_APSCS: (_APSCS_STATUS_PERIOD, True),
+        CommandName.STATUS_CBCS: (_CBCS_STATUS_PERIOD, True),
         CommandName.STATUS_CSCS: (_CSCS_STATUS_PERIOD, True),
         CommandName.STATUS_LCS: (_LCS_STATUS_PERIOD, False),
         CommandName.STATUS_LWSCS: (_LWSCS_STATUS_PERIOD, False),
@@ -274,20 +269,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # mock controller, or None if not constructed
         self.mock_ctrl: MockMTDomeController | None = None
-
-        # TODO DM-43840: Remove as soon as an XML newer than 20.3 is released.
-        additional_commands = ["setPowerManagementMode"]
-
-        component_info = ComponentInfo("MTDome", topic_subname="sal")
-
-        for additional_command in additional_commands:
-            if f"cmd_{additional_command}" in component_info.topics:
-                setattr(
-                    self,
-                    f"do_{additional_command}",
-                    getattr(self, f"_do_{additional_command}"),
-                )
-        # End TODO
 
         super().__init__(
             name="MTDome",
@@ -391,31 +372,17 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.fault(code=3, report=f"Connection to server failed: {e}.")
             raise
 
-        # DM-26374: Send enabled events for az and el since they are always
-        # enabled.
-        # DM-35794: Also send enabled event for Aperture Shutter.
         await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
         await self.evt_elEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
-        # Check supported event to make sure of backward compatibility with
-        # XML 12.0.
-        if hasattr(self, "evt_shutterEnabled"):
-            await self.evt_shutterEnabled.set_write(
-                state=EnabledState.ENABLED, faultCode=""
-            )
+        await self.evt_shutterEnabled.set_write(
+            state=EnabledState.ENABLED, faultCode=""
+        )
 
-        # DM-26374: Send events for the brakes, interlocks and locking pins
-        # with a default value of 0 (meaning nothing engaged) until the
-        # corresponding enums have been defined. This will be done in
-        # DM-26863.
         await self.evt_brakesEngaged.set_write(brakes=0)
         await self.evt_interlocks.set_write(interlocks=0)
         await self.evt_lockingPinsEngaged.set_write(engaged=0)
 
-        # TODO DM-43840: Remove as soon as an XML newer than 20.3 is released.
-        if hasattr(self, "evt_powerManagementMode"):
-            await self.evt_powerManagementMode.set_write(
-                mode=self.power_management_mode
-            )
+        await self.evt_powerManagementMode.set_write(mode=self.power_management_mode)
 
         # Start polling for the status of the lower level components
         # periodically.
@@ -563,7 +530,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             self.log.info("Not setting AMCS maximum velocity, acceleration and jerk.")
 
     async def schedule_command_if_power_management_active(
-        self, command: str, **params: typing.Any
+        self, command: CommandName, **params: typing.Any
     ) -> None:
         """Schedule the provided command if power management is active.
 
@@ -572,7 +539,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        command : `str`
+        command : `CommandName`
             The command to schedule or execute immediately.
         params : `typing.Any`
             The parameters to pass along with the command. This may be empty.
@@ -645,15 +612,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         return current_power_draw
 
     async def write_then_read_reply(
-        self, command: str, **params: typing.Any
+        self, command: CommandName, **params: typing.Any
     ) -> dict[str, typing.Any]:
         """Write the cmd string and then read the reply to the command.
 
         Parameters
         ----------
-        command: `str`
+        command : `CommandName`
             The command to write.
-        **params:
+        **params : `typing.Any`
             The parameters for the command. This may be empty.
 
         Returns
@@ -661,7 +628,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         data : `dict`
             A dict of the form {"response": ResponseCode, "timeout":
             TimeoutValue} where "response" can be zero for "OK" or non-zero
-            for "ERROR".
+            for any other situation.
         """
         command_id = next(self._index_iter)
         self.commands_without_reply[command_id] = CommandTime(
@@ -707,7 +674,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             response = data["response"]
 
             if response != ResponseCode.OK:
-                self.log.error(f"Received ERROR {data}.")
                 error_suffix = {
                     ResponseCode.INCORRECT_PARAMETERS: "has incorrect parameters.",
                     ResponseCode.INCORRECT_SOURCE: "was sent from an incorrect source.",
@@ -715,7 +681,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     ResponseCode.ROTATING_PART_NOT_RECEIVED: "was not received by the rotating part.",
                     ResponseCode.ROTATING_PART_NOT_REPLIED: "was not replied to by the rotating part.",
                 }.get(response, "is not supported.")
-                raise ValueError(f"{command=} {error_suffix}")
+                raise ValueError(f"Command {command.name} {error_suffix}")
 
             return data
 
@@ -796,13 +762,18 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 position=math.radians(position),
                 velocity=math.radians(data.velocity),
             )
+            await self.evt_azEnabled.set_write(
+                state=EnabledState.ENABLED,
+                faultCode="",
+            )
             await self.evt_azTarget.set_write(
                 position=data.position, velocity=data.velocity
             )
         else:
-            self.log.warning(
-                f"Ignoring moveAz command for position={data.position} and "
-                f"velocity={data.velocity} because it is a duplicate command."
+            await self.evt_azEnabled.set_write(
+                state=EnabledState.FAULT,
+                faultCode=f"Ignoring moveAz command for position={data.position} and "
+                f"velocity={data.velocity} because it is a duplicate command.",
             )
 
     async def do_moveEl(self, data: salobj.BaseMsgType) -> None:
@@ -1214,8 +1185,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=CommandName.INFLATE, action=data.action
         )
 
-    # TODO DM-43840: Rename as soon as an XML newer than 20.3 is released.
-    async def _do_setPowerManagementMode(self, data: salobj.BaseMsgType) -> None:
+    async def do_setPowerManagementMode(self, data: salobj.BaseMsgType) -> None:
         """Set the power management mode.
 
         Parameters
@@ -1275,6 +1245,19 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.request_and_send_llc_status(
             LlcName.APSCS.value, self.tel_apertureShutter
         )
+
+    async def statusCBCS(self) -> None:
+        """CBCS status command not to be executed by SAL.
+
+        This command will be used to request the full status of the CBCS lower
+        level component.
+        """
+        # TODO DM-44946 Remove the if but leave the rest as soon as XML 22.0 is
+        #  released.
+        if hasattr(self, "evt_capacitorBanks"):
+            await self.request_and_send_llc_status(
+                LlcName.CBCS.value, self.evt_capacitorBanks
+            )
 
     async def statusCSCS(self) -> None:
         """CSCS status command not to be executed by SAL.
@@ -1351,6 +1334,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if self.amcs_message != status_message:
             self.amcs_message = status_message
             self.log.info(f"AMCS status message now is {self.amcs_message}")
+
         if len(messages) != 1 or codes[0] != 0:
             await self.evt_azEnabled.set_write(
                 state=EnabledState.FAULT, faultCode=status_message
@@ -1459,7 +1443,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The SAL topic to publish the telemetry to.
 
         """
-        command = f"status{llc_name}"
+        command = CommandName(f"status{llc_name}")
         status: dict[str, typing.Any] = await self.write_then_read_reply(
             command=command
         )

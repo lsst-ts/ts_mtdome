@@ -34,7 +34,6 @@ __all__ = [
     "LlcNameDict",
     "MaxValueConfigType",
     "MaxValuesConfigType",
-    "PowerManagementMode",
     "ResponseCode",
     "ScheduledCommand",
     "SlipRingState",
@@ -107,6 +106,7 @@ class CommandName(enum.StrEnum):
     SET_ZERO_AZ = "setZeroAz"
     STATUS_AMCS = "statusAMCS"
     STATUS_APSCS = "statusApSCS"
+    STATUS_CBCS = "statusCBCS"
     STATUS_CSCS = "statusCSCS"
     STATUS_LCS = "statusLCS"
     STATUS_LWSCS = "statusLWSCS"
@@ -124,6 +124,7 @@ class LlcName(enum.StrEnum):
 
     AMCS = "AMCS"
     APSCS = "ApSCS"
+    CBCS = "CBCS"
     CSCS = "CSCS"
     LCS = "LCS"
     LWSCS = "LWSCS"
@@ -131,16 +132,6 @@ class LlcName(enum.StrEnum):
     OBC = "OBC"
     RAD = "RAD"
     THCS = "ThCS"
-
-
-# TODO DM-43840: Remove this enum as soon as a newer XML than 20.3 is released.
-class PowerManagementMode(enum.IntEnum):
-    """Power management modes for the CSC."""
-
-    NO_POWER_MANAGEMENT = enum.auto()
-    OPERATIONS = enum.auto()
-    EMERGENCY = enum.auto()
-    MAINTENANCE = enum.auto()
 
 
 class ResponseCode(enum.IntEnum):
@@ -192,7 +183,13 @@ class ValidSimulationMode(enum.IntEnum):
 
 
 # Dictionary to look up which LlcName is associated with which sub-system.
-LlcNameDict = {getattr(SubSystemId, enum.name): enum.value for enum in LlcName}
+# TODO DM-44946 Remove the if but leave the rest as soon as XML 22.0 is
+#  released.
+LlcNameDict = {
+    getattr(SubSystemId, enum.name): enum.value
+    for enum in LlcName
+    if hasattr(SubSystemId, enum.name)
+}
 
 # Custom types used for configurable maximum values.
 MaxValueConfigType = dict[str, str | list[float]]
@@ -225,13 +222,13 @@ class ScheduledCommand:
 
     Parameters
     ----------
-    command : `str`
+    command : `CommandName`
         The command that may need to be scheduled.
     params : `dict`[`str`, `typing.Any`]
         The parameters for the command. Defaults to None.
     """
 
-    command: str
+    command: CommandName
     params: dict[str, typing.Any]
 
 
@@ -276,5 +273,5 @@ STOP_SHUTTER = StopCommand(
     LlcName.APSCS,
 )
 
-# These LLCs are not cointrolled by the cRIO.
+# These LLCs are not controlled by the cRIO.
 UNCONTROLLED_LLCS = [LlcName.RAD, LlcName.CSCS, LlcName.OBC]

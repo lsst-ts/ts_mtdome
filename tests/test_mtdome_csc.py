@@ -37,15 +37,9 @@ from lsst.ts.xml.enums.MTDome import (
     MotionState,
     OnOff,
     OperationalMode,
+    PowerManagementMode,
     SubSystemId,
 )
-
-# TODO DM-43840: Merge import from lsst.ts.xml with import above as soon as a
-#  newer XML than 20.3 is released.
-try:
-    from lsst.ts.xml.MTDome import PowerManagementMode
-except ImportError:
-    from lsst.ts.mtdome.enums import PowerManagementMode
 
 STD_TIMEOUT = 10  # standard command and event timeout (sec)
 SHORT_TIMEOUT = 1  # short command and event timeout (sec)
@@ -198,6 +192,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         await self.assert_next_sample(
             topic=self.remote.evt_lockingPinsEngaged, engaged=0
         )
+
         self.csc.mock_ctrl.determine_current_tai = self.determine_current_tai
         sub_system_ids = (
             SubSystemId.AMCS
@@ -209,6 +204,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             | SubSystemId.RAD
             | SubSystemId.CSCS
         )
+        # TODO Remove the if and include the OR in de declaration right above
+        #  this line as soon as XML 22.0 is released.
+        if hasattr(SubSystemId, "CBCS"):
+            sub_system_ids = sub_system_ids | SubSystemId.CBCS
         await self.validate_operational_mode(
             operational_mode=OperationalMode.NORMAL, sub_system_ids=sub_system_ids
         )
@@ -1028,6 +1027,24 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 == [0.0] * mtdome.mock_llc.thcs.NUM_THERMO_SENSORS
             )
 
+            await self.csc.statusRAD()
+            rad_status = self.csc.lower_level_status[mtdome.LlcName.RAD.value]
+            assert (
+                rad_status["status"]["status"]
+                == [MotionState.CLOSED.name] * mtdome.mock_llc.rad.NUM_DOORS
+            )
+            assert rad_status["positionActual"] == [0.0] * mtdome.mock_llc.rad.NUM_DOORS
+
+            await self.csc.statusCBCS()
+            # TODO Remove the if and keep the rest as soon as XML 22.0 is
+            #  released.
+            if mtdome.LlcName.CBCS.value in self.csc.lower_level_status:
+                cbcs_status = self.csc.lower_level_status[mtdome.LlcName.CBCS.value]
+                assert (
+                    cbcs_status["fuseIntervention"]
+                    == [False] * mtdome.mock_llc.cbcs.NUM_CAPACITOR_BANKS
+                )
+
     async def test_status_error(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -1307,6 +1324,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             SubSystemId.RAD: self.csc.statusRAD,
             SubSystemId.THCS: self.csc.statusThCS,
         }
+        # TODO Remove the if and include the OR in de declaration right above
+        #  this line as soon as XML 22.0 is released.
+        if hasattr(SubSystemId, "CBCS"):
+            status_dict[SubSystemId.CBCS] = self.csc.statusCBCS
         events_to_check = []
         for sub_system_id in SubSystemId:
             if sub_system_id & sub_system_ids:
@@ -1315,8 +1336,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 name = mtdome.LlcNameDict[sub_system_id]
                 await func()
                 status = self.csc.lower_level_status[name]
-                assert status["status"]["operationalMode"] == operational_mode.name
-                events_to_check.append(sub_system_id.value)
+                # Not all statuses contain an operationalMode.
+                if "operationalMode" in status["status"]:
+                    assert status["status"]["operationalMode"] == operational_mode.name
+                    events_to_check.append(sub_system_id.value)
 
         events_recevied = []
         for _ in range(len(events_to_check)):
@@ -1448,12 +1471,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
-
-            # TODO DM-43840: Remove this "if" as soon as an XML newer than 20.3
-            #  is released.
-            if not hasattr(self.csc, "evt_powerManagementMode"):
-                # XML version too old so no need to execute this test case.
-                return
 
             current_power_management_mode = PowerManagementMode.NO_POWER_MANAGEMENT
             await self.assert_next_sample(
