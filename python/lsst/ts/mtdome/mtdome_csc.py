@@ -193,14 +193,14 @@ class CommandTime:
 
     Attributes
     ----------
-    command : `str`
+    command : `CommandName`
         The command issued.
     tai : `float`
         TAI time as unix seconds, e.g. the time returned by CLOCK_TAI
         on linux systems.
     """
 
-    command: str
+    command: CommandName
     tai: float
 
 
@@ -372,22 +372,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.fault(code=3, report=f"Connection to server failed: {e}.")
             raise
 
-        # DM-26374: Send enabled events for az and el since they are always
-        # enabled.
-        # DM-35794: Also send enabled event for Aperture Shutter.
         await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
         await self.evt_elEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
-        # Check supported event to make sure of backward compatibility with
-        # XML 12.0.
-        if hasattr(self, "evt_shutterEnabled"):
-            await self.evt_shutterEnabled.set_write(
-                state=EnabledState.ENABLED, faultCode=""
-            )
+        await self.evt_shutterEnabled.set_write(
+            state=EnabledState.ENABLED, faultCode=""
+        )
 
-        # DM-26374: Send events for the brakes, interlocks and locking pins
-        # with a default value of 0 (meaning nothing engaged) until the
-        # corresponding enums have been defined. This will be done in
-        # DM-26863.
         await self.evt_brakesEngaged.set_write(brakes=0)
         await self.evt_interlocks.set_write(interlocks=0)
         await self.evt_lockingPinsEngaged.set_write(engaged=0)
@@ -540,7 +530,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             self.log.info("Not setting AMCS maximum velocity, acceleration and jerk.")
 
     async def schedule_command_if_power_management_active(
-        self, command: str, **params: typing.Any
+        self, command: CommandName, **params: typing.Any
     ) -> None:
         """Schedule the provided command if power management is active.
 
@@ -549,7 +539,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        command : `str`
+        command : `CommandName`
             The command to schedule or execute immediately.
         params : `typing.Any`
             The parameters to pass along with the command. This may be empty.
@@ -622,15 +612,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         return current_power_draw
 
     async def write_then_read_reply(
-        self, command: str, **params: typing.Any
+        self, command: CommandName, **params: typing.Any
     ) -> dict[str, typing.Any]:
         """Write the cmd string and then read the reply to the command.
 
         Parameters
         ----------
-        command: `str`
+        command : `CommandName`
             The command to write.
-        **params:
+        **params : `typing.Any`
             The parameters for the command. This may be empty.
 
         Returns
@@ -638,7 +628,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         data : `dict`
             A dict of the form {"response": ResponseCode, "timeout":
             TimeoutValue} where "response" can be zero for "OK" or non-zero
-            for "ERROR".
+            for any other situation.
         """
         command_id = next(self._index_iter)
         self.commands_without_reply[command_id] = CommandTime(
@@ -684,7 +674,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             response = data["response"]
 
             if response != ResponseCode.OK:
-                self.log.error(f"Received ERROR {data}.")
                 error_suffix = {
                     ResponseCode.INCORRECT_PARAMETERS: "has incorrect parameters.",
                     ResponseCode.INCORRECT_SOURCE: "was sent from an incorrect source.",
@@ -692,7 +681,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     ResponseCode.ROTATING_PART_NOT_RECEIVED: "was not received by the rotating part.",
                     ResponseCode.ROTATING_PART_NOT_REPLIED: "was not replied to by the rotating part.",
                 }.get(response, "is not supported.")
-                raise ValueError(f"{command=} {error_suffix}")
+                raise ValueError(f"Command {command.name} {error_suffix}")
 
             return data
 
@@ -773,13 +762,18 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 position=math.radians(position),
                 velocity=math.radians(data.velocity),
             )
+            await self.evt_azEnabled.set_write(
+                state=EnabledState.ENABLED,
+                faultCode="",
+            )
             await self.evt_azTarget.set_write(
                 position=data.position, velocity=data.velocity
             )
         else:
-            self.log.warning(
-                f"Ignoring moveAz command for position={data.position} and "
-                f"velocity={data.velocity} because it is a duplicate command."
+            await self.evt_azEnabled.set_write(
+                state=EnabledState.FAULT,
+                faultCode=f"Ignoring moveAz command for position={data.position} and "
+                f"velocity={data.velocity} because it is a duplicate command.",
             )
 
     async def do_moveEl(self, data: salobj.BaseMsgType) -> None:
@@ -1340,6 +1334,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if self.amcs_message != status_message:
             self.amcs_message = status_message
             self.log.info(f"AMCS status message now is {self.amcs_message}")
+
         if len(messages) != 1 or codes[0] != 0:
             await self.evt_azEnabled.set_write(
                 state=EnabledState.FAULT, faultCode=status_message
@@ -1448,7 +1443,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The SAL topic to publish the telemetry to.
 
         """
-        command = f"status{llc_name}"
+        command = CommandName(f"status{llc_name}")
         status: dict[str, typing.Any] = await self.write_then_read_reply(
             command=command
         )
