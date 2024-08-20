@@ -11,6 +11,7 @@ v1.18.0
 =======
 * Remove backward compatibility with XML 21.0.
 * Remove duplicate moveAz command check.
+* Correctly stop background tasks.
 
 Requires:
 
