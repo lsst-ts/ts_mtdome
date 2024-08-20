@@ -181,13 +181,7 @@ class ValidSimulationMode(enum.IntEnum):
 
 
 # Dictionary to look up which LlcName is associated with which sub-system.
-# TODO DM-44946 Remove the if but leave the rest as soon as XML 22.0 is
-#  released.
-LlcNameDict = {
-    getattr(SubSystemId, enum.name): enum.value
-    for enum in LlcName
-    if hasattr(SubSystemId, enum.name)
-}
+LlcNameDict = {getattr(SubSystemId, enum.name): enum.value for enum in LlcName}
 
 # Custom types used for configurable maximum values.
 MaxValueConfigType = dict[str, str | list[float]]

@@ -1163,12 +1163,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the CBCS lower
         level component.
         """
-        # TODO DM-44946 Remove the if but leave the rest as soon as XML 22.0 is
-        #  released.
-        if hasattr(self, "evt_capacitorBanks"):
-            await self.request_and_send_llc_status(
-                LlcName.CBCS.value, self.evt_capacitorBanks
-            )
+        await self.request_and_send_llc_status(
+            LlcName.CBCS.value, self.evt_capacitorBanks
+        )
 
     async def statusCSCS(self) -> None:
         """CSCS status command not to be executed by SAL.

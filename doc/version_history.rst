@@ -6,8 +6,10 @@
 Version History
 ###############
 
-v1.17.1
 =======
+v1.18.0
+=======
+* Remove backward compatibility with XML 21.0.
 * Remove duplicate moveAz command check.
 
 Requires:
@@ -31,7 +33,7 @@ Requires:
 * ts_idl
 * ts_tcpip 2.0
 * ts_utils 1.2
-* ts_xml 22.0
+* ts_xml 21.0
 
 v1.16.0
 =======
