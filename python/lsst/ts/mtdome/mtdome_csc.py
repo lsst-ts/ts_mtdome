@@ -383,7 +383,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def cancel_periodic_tasks(self) -> None:
         """Cancel all periodic tasks."""
         while self.periodic_tasks:
-            self.periodic_tasks.pop().cancel()
+            periodic_task = self.periodic_tasks.pop()
+            periodic_task.cancel()
+            await periodic_task
 
     async def start_periodic_tasks(self) -> None:
         """Start all periodic tasks."""
@@ -423,10 +425,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             while True:
                 await method()
                 await asyncio.sleep(interval)
-        except Exception as e:
-            self.log.exception(
-                f"one_periodic_task({method}) failed because of {e!r}. The task has stopped."
-            )
+        # Need to catch BaseException because of asyncio.CancelledError
+        except BaseException:
+            self.log.exception(f"one_periodic_task({method}) has stopped.")
 
     async def disconnect(self) -> None:
         """Disconnect from the TCP/IP controller, if connected, and stop the
