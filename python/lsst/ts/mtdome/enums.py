@@ -21,13 +21,11 @@
 
 __all__ = [
     "POWER_MANAGEMENT_COMMANDS",
-    "POSITION_TOLERANCE",
     "STOP_EL",
     "STOP_FANS",
     "STOP_LOUVERS",
     "STOP_SHUTTER",
     "UNCONTROLLED_LLCS",
-    "ZERO_VELOCITY_TOLERANCE",
     "CommandName",
     "InternalMotionState",
     "LlcName",
@@ -206,10 +204,6 @@ POWER_MANAGEMENT_COMMANDS = [
     CommandName.SEARCH_ZERO_SHUTTER,
     CommandName.SET_LOUVERS,
 ]
-
-# Tolerances for the azimuth motion. The position tolerance is from LTS-97.
-POSITION_TOLERANCE = 0.25  # deg
-ZERO_VELOCITY_TOLERANCE = 1e-7  # deg /sec
 
 
 @dataclass(order=True)
