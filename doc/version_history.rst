@@ -6,6 +6,18 @@
 Version History
 ###############
 
+v1.17.1
+=======
+* Remove duplicate moveAz command check.
+
+Requires:
+
+* ts_salobj 7
+* ts_idl
+* ts_tcpip 2.0
+* ts_utils 1.2
+* ts_xml 22.0
+
 v1.17.0
 =======
 * Remove backward compatibility with ts_xml 20.3.
