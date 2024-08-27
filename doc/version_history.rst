@@ -6,6 +6,21 @@
 Version History
 ###############
 
+=======
+v1.18.0
+=======
+* Remove backward compatibility with XML 21.0.
+* Remove duplicate moveAz command check.
+* Correctly stop background tasks.
+
+Requires:
+
+* ts_salobj 7
+* ts_idl
+* ts_tcpip 2.0
+* ts_utils 1.2
+* ts_xml 22.0
+
 v1.17.0
 =======
 * Remove backward compatibility with ts_xml 20.3.
@@ -19,7 +34,7 @@ Requires:
 * ts_idl
 * ts_tcpip 2.0
 * ts_utils 1.2
-* ts_xml 22.0
+* ts_xml 21.0
 
 v1.16.0
 =======

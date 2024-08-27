@@ -137,41 +137,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 subsystemVersions="",
             )
 
-    async def test_is_moveAz_same_as_current(self) -> None:
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY,
-            config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
-        ):
-            # The first call always returns False since the reference position
-            # and velocity are initialized to math.nan.
-            assert not self.csc.is_moveAz_same_as_current(
-                position=360.0 - mtdome.DOME_AZIMUTH_OFFSET, velocity=0.0
-            )
-            assert self.csc.is_moveAz_same_as_current(
-                position=360.0 - mtdome.DOME_AZIMUTH_OFFSET, velocity=0.0
-            )
-            assert self.csc.is_moveAz_same_as_current(
-                position=360.0 - mtdome.DOME_AZIMUTH_OFFSET - 0.2, velocity=0.0
-            )
-            assert self.csc.is_moveAz_same_as_current(
-                position=360.0 - mtdome.DOME_AZIMUTH_OFFSET,
-                velocity=mtdome.ZERO_VELOCITY_TOLERANCE / 10.0,
-            )
-            for position, velocity in [
-                (360.0 - mtdome.DOME_AZIMUTH_OFFSET, 0.1),
-                (360.0 - mtdome.DOME_AZIMUTH_OFFSET - 0.3, 0.0),
-                (
-                    360.0 - mtdome.DOME_AZIMUTH_OFFSET,
-                    mtdome.ZERO_VELOCITY_TOLERANCE * 10.0,
-                ),
-                (0.0, 0.0),
-                (0.0, 0.1),
-            ]:
-                assert not self.csc.is_moveAz_same_as_current(
-                    position=position, velocity=velocity
-                )
-
     async def determine_current_tai(self) -> None:
         # Deliberately left empty.
         pass
@@ -203,11 +168,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             | SubSystemId.MONCS
             | SubSystemId.RAD
             | SubSystemId.CSCS
+            | SubSystemId.CBCS
         )
-        # TODO Remove the if and include the OR in de declaration right above
-        #  this line as soon as XML 22.0 is released.
-        if hasattr(SubSystemId, "CBCS"):
-            sub_system_ids = sub_system_ids | SubSystemId.CBCS
         await self.validate_operational_mode(
             operational_mode=OperationalMode.NORMAL, sub_system_ids=sub_system_ids
         )
@@ -1036,14 +998,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert rad_status["positionActual"] == [0.0] * mtdome.mock_llc.rad.NUM_DOORS
 
             await self.csc.statusCBCS()
-            # TODO Remove the if and keep the rest as soon as XML 22.0 is
-            #  released.
-            if mtdome.LlcName.CBCS.value in self.csc.lower_level_status:
-                cbcs_status = self.csc.lower_level_status[mtdome.LlcName.CBCS.value]
-                assert (
-                    cbcs_status["fuseIntervention"]
-                    == [False] * mtdome.mock_llc.cbcs.NUM_CAPACITOR_BANKS
-                )
+            cbcs_status = self.csc.lower_level_status[mtdome.LlcName.CBCS.value]
+            assert (
+                cbcs_status["fuseIntervention"]
+                == [False] * mtdome.mock_llc.cbcs.NUM_CAPACITOR_BANKS
+            )
 
     async def test_status_error(self) -> None:
         async with self.make_csc(
@@ -1323,11 +1282,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             SubSystemId.MONCS: self.csc.statusMonCS,
             SubSystemId.RAD: self.csc.statusRAD,
             SubSystemId.THCS: self.csc.statusThCS,
+            SubSystemId.CBCS: self.csc.statusCBCS,
         }
-        # TODO Remove the if and include the OR in de declaration right above
-        #  this line as soon as XML 22.0 is released.
-        if hasattr(SubSystemId, "CBCS"):
-            status_dict[SubSystemId.CBCS] = self.csc.statusCBCS
         events_to_check = []
         for sub_system_id in SubSystemId:
             if sub_system_id & sub_system_ids:

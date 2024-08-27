@@ -39,8 +39,6 @@ from lsst.ts.xml.enums.MTDome import (
 from . import __version__
 from .config_schema import CONFIG_SCHEMA
 from .enums import (
-    POSITION_TOLERANCE,
-    ZERO_VELOCITY_TOLERANCE,
     CommandName,
     LlcName,
     LlcNameDict,
@@ -169,22 +167,6 @@ OPERATIONAL_MODE_COMMANDS_FOR_COMMISSIONING = {
 
 def run_mtdome() -> None:
     asyncio.run(MTDomeCsc.amain(index=None))
-
-
-@dataclass
-class MoveAzCommandData:
-    """Class representing the data for a moveAz command.
-
-    Attributes
-    ----------
-    position : `float`
-        The position to move to [deg].
-    velocity : `float`
-        The velocity at which the target position is moving [deg/sec].
-    """
-
-    position: float = math.nan
-    velocity: float = math.nan
 
 
 @dataclass
@@ -317,12 +299,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             SubSystemId.APSCS: CommandName.SEARCH_ZERO_SHUTTER,
         }
 
-        # Keep track of the parameters of the current moveAz command issued so
-        # repetition of the same command can be avoided. This is necessary in
-        # case the dome repeatedly is instructed to move to the same position
-        # with velocity == 0.0 since that may introduce large oscillations.
-        self.current_moveAz_command = MoveAzCommandData()
-
         # Keep track of the commands that have been sent and that haven't been
         # replied to yet. The key of the dict is the commandId for the commands
         # that have been sent.
@@ -407,7 +383,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def cancel_periodic_tasks(self) -> None:
         """Cancel all periodic tasks."""
         while self.periodic_tasks:
-            self.periodic_tasks.pop().cancel()
+            periodic_task = self.periodic_tasks.pop()
+            periodic_task.cancel()
+            await periodic_task
 
     async def start_periodic_tasks(self) -> None:
         """Start all periodic tasks."""
@@ -447,10 +425,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             while True:
                 await method()
                 await asyncio.sleep(interval)
-        except Exception as e:
-            self.log.exception(
-                f"one_periodic_task({method}) failed because of {e!r}. The task has stopped."
-            )
+        # Need to catch BaseException because of asyncio.CancelledError
+        except BaseException:
+            self.log.exception(f"one_periodic_task({method}) has stopped.")
 
     async def disconnect(self) -> None:
         """Disconnect from the TCP/IP controller, if connected, and stop the
@@ -503,7 +480,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.info(f"handle_summary_state {self.summary_state.name}")
         if self.disabled_or_enabled:
             if not self.connected:
-                self.current_moveAz_command = MoveAzCommandData()
                 await self.connect()
         else:
             await self.disconnect()
@@ -685,61 +661,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
             return data
 
-    def is_moveAz_same_as_current(self, position: float, velocity: float) -> bool:
-        """Is the received moveAz command the same as the current moveAz
-        command or not.
-
-        Parameters
-        ----------
-        position : `float`
-            The target position to move to.
-        velocity : `float`
-            The velocity at which the target position is moving.
-
-        Returns
-        -------
-        bool
-            True if the issues moveAz command is the same as the current moveAz
-            command or False otherwise.
-
-        Notes
-        -----
-        The moveAz command is regarded to be the same as the current one if and
-        only if the position is the same and the velocity is 0.0. In all other
-        cases the command is regarded not to be the same. This is important
-        because, if the velocity != 0.0, the dome is following a moving target
-        and the chance of it being at exactly the commanded position with the
-        commanded velocity can be considered zero and therefore the moveAz
-        command has to be sent to the dome.
-
-        The very first moveAz command, when connecting to the low-level
-        controller, always is executed, even if the position matches the
-        current position of the dome. The risk of causing vibrations in this
-        case is so low that it doesn't warrant the hassle of reading the
-        telemetry and determining if it is safe to execute the moveAz command.
-
-        The tolerance for the position is 0.25 deg as specified in LTS-97. The
-        tolerance for the velocity is set to a small but non-zero value. See
-        `lsst.ts.mtdome.enums` for more information.
-        """
-        if (
-            math.isclose(velocity, 0.0, abs_tol=ZERO_VELOCITY_TOLERANCE)
-            and math.isclose(
-                position,
-                self.current_moveAz_command.position,
-                abs_tol=POSITION_TOLERANCE,
-            )
-            and math.isclose(
-                velocity,
-                self.current_moveAz_command.velocity,
-                abs_tol=ZERO_VELOCITY_TOLERANCE,
-            )
-        ):
-            return True
-        self.current_moveAz_command.position = position
-        self.current_moveAz_command.velocity = velocity
-        return False
-
     async def do_moveAz(self, data: salobj.BaseMsgType) -> None:
         """Move AZ.
 
@@ -754,27 +675,18 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         position = utils.angle_wrap_nonnegative(
             data.position + DOME_AZIMUTH_OFFSET
         ).degree
-        if not self.is_moveAz_same_as_current(
+        await self.write_then_read_reply(
+            command=CommandName.MOVE_AZ,
+            position=math.radians(position),
+            velocity=math.radians(data.velocity),
+        )
+        await self.evt_azEnabled.set_write(
+            state=EnabledState.ENABLED,
+            faultCode="",
+        )
+        await self.evt_azTarget.set_write(
             position=data.position, velocity=data.velocity
-        ):
-            await self.write_then_read_reply(
-                command=CommandName.MOVE_AZ,
-                position=math.radians(position),
-                velocity=math.radians(data.velocity),
-            )
-            await self.evt_azEnabled.set_write(
-                state=EnabledState.ENABLED,
-                faultCode="",
-            )
-            await self.evt_azTarget.set_write(
-                position=data.position, velocity=data.velocity
-            )
-        else:
-            await self.evt_azEnabled.set_write(
-                state=EnabledState.FAULT,
-                faultCode=f"Ignoring moveAz command for position={data.position} and "
-                f"velocity={data.velocity} because it is a duplicate command.",
-            )
+        )
 
     async def do_moveEl(self, data: salobj.BaseMsgType) -> None:
         """Move El.
@@ -1252,12 +1164,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the CBCS lower
         level component.
         """
-        # TODO DM-44946 Remove the if but leave the rest as soon as XML 22.0 is
-        #  released.
-        if hasattr(self, "evt_capacitorBanks"):
-            await self.request_and_send_llc_status(
-                LlcName.CBCS.value, self.evt_capacitorBanks
-            )
+        await self.request_and_send_llc_status(
+            LlcName.CBCS.value, self.evt_capacitorBanks
+        )
 
     async def statusCSCS(self) -> None:
         """CSCS status command not to be executed by SAL.
