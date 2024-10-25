@@ -223,20 +223,20 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     valid_simulation_modes = set([v.value for v in ValidSimulationMode])
     version = __version__
 
-    # All methods and the intervals at which they are executed. The boolean
-    # indicates whther they are used for commissioning (True) or not. Note that
-    # all methods always are disabled for unit testing.
+    # All methods and the intervals at which they are executed. Note that all
+    # methods are disabled for unit testing unless the specific test case
+    # reqiures one of more to be available.
     all_methods_and_intervals = {
-        CommandName.STATUS_AMCS: (_AMCS_STATUS_PERIOD, True),
-        CommandName.STATUS_APSCS: (_APSCS_STATUS_PERIOD, True),
-        CommandName.STATUS_CBCS: (_CBCS_STATUS_PERIOD, True),
-        CommandName.STATUS_CSCS: (_CSCS_STATUS_PERIOD, True),
-        CommandName.STATUS_LCS: (_LCS_STATUS_PERIOD, False),
-        CommandName.STATUS_LWSCS: (_LWSCS_STATUS_PERIOD, False),
-        CommandName.STATUS_MONCS: (_MONCS_STATUS_PERIOD, False),
-        CommandName.STATUS_RAD: (_RAD_STATUS_PERIOD, True),
-        CommandName.STATUS_THCS: (_THCS_STATUS_PERIOD, False),
-        "check_all_commands_have_replies": (_COMMANDS_REPLIED_PERIOD, True),
+        CommandName.STATUS_AMCS: _AMCS_STATUS_PERIOD,
+        CommandName.STATUS_APSCS: _APSCS_STATUS_PERIOD,
+        CommandName.STATUS_CBCS: _CBCS_STATUS_PERIOD,
+        CommandName.STATUS_CSCS: _CSCS_STATUS_PERIOD,
+        CommandName.STATUS_LCS: _LCS_STATUS_PERIOD,
+        CommandName.STATUS_LWSCS: _LWSCS_STATUS_PERIOD,
+        CommandName.STATUS_MONCS: _MONCS_STATUS_PERIOD,
+        CommandName.STATUS_RAD: _RAD_STATUS_PERIOD,
+        CommandName.STATUS_THCS: _THCS_STATUS_PERIOD,
+        "check_all_commands_have_replies": _COMMANDS_REPLIED_PERIOD,
     }
 
     def __init__(
@@ -391,11 +391,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """Start all periodic tasks."""
         await self.cancel_periodic_tasks()
         for method, interval_and_execute in self.all_methods_and_intervals.items():
-            interval, execute = interval_and_execute
-            if (
-                self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS
-                and execute is False
-            ):
+            interval = interval_and_execute
+            if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
                 continue
             func = getattr(self, method)
             self.periodic_tasks.append(
@@ -1357,6 +1354,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             command=command
         )
 
+        # If a status command doesn't return an LLC status, skip.
+        if llc_name not in status:
+            # TODO send an event that indicates that the status is not
+            #  available.
+            return
+
         await self._send_operational_mode_event(llc_name=llc_name, status=status)
 
         # Send appliedConfiguration event for AMCS. This needs to be sent every
@@ -1372,6 +1375,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_azConfigurationApplied.set_write(
                 jmax=jmax, amax=amax, vmax=vmax
             )
+
+        # TODO send an event that indicates that the status is available.
+
+        # TODO send a brakes event.
+
+        # TODO send a locking pins event.
+
+        # TODO send an interlocks event.
 
         # Store the status for reference.
         self.lower_level_status[llc_name] = status[llc_name]
