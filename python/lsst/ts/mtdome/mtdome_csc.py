@@ -645,6 +645,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             response = data["response"]
 
             if response != ResponseCode.OK:
+                self.log.debug(f"Response != OK -> {data=}")
                 error_suffix = {
                     ResponseCode.INCORRECT_PARAMETERS: "has incorrect parameters.",
                     ResponseCode.INCORRECT_SOURCE: "was sent from an incorrect source.",
@@ -1348,17 +1349,22 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         """
         command = CommandName(f"status{llc_name}")
-        status: dict[str, typing.Any] = await self.write_then_read_reply(
-            command=command
-        )
-
-        self.log.debug(f"Received for {llc_name=} -> {status=!r}")
-
-        # If a status command doesn't return an LLC status, skip.
-        if llc_name not in status:
+        try:
+            status: dict[str, typing.Any] = await self.write_then_read_reply(
+                command=command
+            )
+        except ValueError:
             # TODO send an event that indicates that the status is not
             #  available.
             return
+
+        # TODO send an event that indicates that the status is available.
+
+        # TODO send a brakes event.
+
+        # TODO send a locking pins event.
+
+        # TODO send an interlocks event.
 
         await self._send_operational_mode_event(llc_name=llc_name, status=status)
 
@@ -1375,14 +1381,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_azConfigurationApplied.set_write(
                 jmax=jmax, amax=amax, vmax=vmax
             )
-
-        # TODO send an event that indicates that the status is available.
-
-        # TODO send a brakes event.
-
-        # TODO send a locking pins event.
-
-        # TODO send an interlocks event.
 
         # Store the status for reference.
         self.lower_level_status[llc_name] = status[llc_name]
