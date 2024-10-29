@@ -390,10 +390,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def start_periodic_tasks(self) -> None:
         """Start all periodic tasks."""
         await self.cancel_periodic_tasks()
-        for method, interval_and_execute in self.all_methods_and_intervals.items():
-            interval = interval_and_execute
-            if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
-                continue
+        for method, interval in self.all_methods_and_intervals.items():
             func = getattr(self, method)
             self.periodic_tasks.append(
                 asyncio.create_task(self.one_periodic_task(func, interval))
@@ -418,6 +415,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The interval (sec) at which to run the status method.
 
         """
+        self.log.debug(f"Starting periodic task {method=} with {interval=}")
         try:
             while True:
                 await method()
@@ -1353,6 +1351,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         status: dict[str, typing.Any] = await self.write_then_read_reply(
             command=command
         )
+
+        self.log.debug(f"Received for {llc_name=} -> {status=!r}")
 
         # If a status command doesn't return an LLC status, skip.
         if llc_name not in status:
