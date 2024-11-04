@@ -420,8 +420,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             while True:
                 await method()
                 await asyncio.sleep(interval)
-        # Need to catch BaseException because of asyncio.CancelledError
-        except BaseException:
+        except asyncio.CancelledError:
+            # Ignore because the task was canceled on purpose.
+            pass
+        except Exception:
             self.log.exception(f"one_periodic_task({method}) has stopped.")
 
     async def disconnect(self) -> None:
