@@ -607,7 +607,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.commands_without_reply[command_id] = CommandTime(
             command=command, tai=utils.current_tai()
         )
-        command_dict = dict(commandId=command_id, command=command, parameters=params)
+        command_name = command.value
+        command_dict = dict(
+            commandId=command_id, command=command_name, parameters=params
+        )
         async with self.communication_lock:
             if self.client is None:
                 await self.fault(
@@ -622,10 +625,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
             if command not in disabled_commands:
                 try:
+                    if "status" not in command_name:
+                        self.log.debug(f"Sending {command_dict=}.")
                     await self.client.write_json(data=command_dict)
                     data = await asyncio.wait_for(
                         self.client.read_json(), timeout=_TIMEOUT
                     )
+                    if "status" not in command_name:
+                        self.log.debug(f"Received {command_name=}, {data=}.")
                 except Exception as e:
                     await self.fault(
                         code=3,
@@ -633,7 +640,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     )
                     raise
                 if "commandId" not in data:
-                    self.log.error(f"No 'commandId' in reply for {command=}")
+                    self.log.error(f"No 'commandId' in reply for {command_name=}")
                 else:
                     received_command_id = data["commandId"]
                     if received_command_id in self.commands_without_reply:
@@ -647,7 +654,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             response = data["response"]
 
             if response != ResponseCode.OK:
-                self.log.debug(f"Response != OK -> {data=}")
+                self.log.debug(f"Response != OK -> {command_name=}, {data=}")
                 error_suffix = {
                     ResponseCode.INCORRECT_PARAMETERS: "has incorrect parameters.",
                     ResponseCode.INCORRECT_SOURCE: "was sent from an incorrect source.",
@@ -655,7 +662,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     ResponseCode.ROTATING_PART_NOT_RECEIVED: "was not received by the rotating part.",
                     ResponseCode.ROTATING_PART_NOT_REPLIED: "was not replied to by the rotating part.",
                 }.get(response, "is not supported.")
-                raise ValueError(f"Command {command.name} {error_suffix}")
+                raise ValueError(f"Command {command_name} {error_suffix}")
 
             return data
 
