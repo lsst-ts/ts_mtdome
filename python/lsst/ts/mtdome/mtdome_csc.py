@@ -345,7 +345,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             )
             await asyncio.wait_for(fut=self.client.start_task, timeout=_TIMEOUT)
         except ConnectionError as e:
-            await self.fault(code=3, report=f"Connection to server failed: {e}.")
+            await self.fault(code=3, report=f"Connection to server failed: {e!r}.")
             raise
 
         await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
@@ -458,7 +458,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
 
         except Exception as e:
-            await self.fault(code=3, report=f"Could not start mock controller: {e}")
+            await self.fault(code=3, report=f"Could not start mock controller: {e!r}")
             raise
 
     async def stop_mock_ctrl(self) -> None:
@@ -629,7 +629,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 except Exception as e:
                     await self.fault(
                         code=3,
-                        report=f"Error reading reply to command {command_dict}: {e}.",
+                        report=f"Error reading reply to command {command_dict}: {e!r}.",
                     )
                     raise
                 if "commandId" not in data:
