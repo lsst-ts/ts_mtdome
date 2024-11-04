@@ -622,10 +622,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
             if command not in disabled_commands:
                 try:
+                    self.log.debug(f"Sending {command_dict=!r}.")
                     await self.client.write_json(data=command_dict)
                     data = await asyncio.wait_for(
                         self.client.read_json(), timeout=_TIMEOUT
                     )
+                    self.log.debug(f"Received {data=!r}.")
                 except Exception as e:
                     await self.fault(
                         code=3,
