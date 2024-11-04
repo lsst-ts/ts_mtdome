@@ -1374,13 +1374,19 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # values have changed so it is safe to do this without overflowing the
         # EFD with events.
         if llc_name == LlcName.AMCS.value:
-            applied_configuration = status[llc_name]["appliedConfiguration"]
-            jmax = math.degrees(applied_configuration["jmax"])
-            amax = math.degrees(applied_configuration["amax"])
-            vmax = math.degrees(applied_configuration["vmax"])
-            await self.evt_azConfigurationApplied.set_write(
-                jmax=jmax, amax=amax, vmax=vmax
-            )
+            if "appliedConfiguration" in status[llc_name]:
+                applied_configuration = status[llc_name]["appliedConfiguration"]
+                jmax = math.degrees(applied_configuration["jmax"])
+                amax = math.degrees(applied_configuration["amax"])
+                vmax = math.degrees(applied_configuration["vmax"])
+                await self.evt_azConfigurationApplied.set_write(
+                    jmax=jmax, amax=amax, vmax=vmax
+                )
+            else:
+                self.log.warning(
+                    "No 'appliedConfiguration' in AMCS telemetry. "
+                    "Not sending the azConfigurationApplied event."
+                )
 
         # Store the status for reference.
         self.lower_level_status[llc_name] = status[llc_name]
