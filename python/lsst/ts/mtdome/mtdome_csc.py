@@ -622,12 +622,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
             if command not in disabled_commands:
                 try:
-                    self.log.debug(f"Sending {command_dict=!r}.")
+                    self.log.debug(f"Sending {command_dict=}.")
                     await self.client.write_json(data=command_dict)
                     data = await asyncio.wait_for(
                         self.client.read_json(), timeout=_TIMEOUT
                     )
-                    self.log.debug(f"Received {data=!r}.")
+                    self.log.debug(f"Received {command=}, {data=}.")
                 except Exception as e:
                     await self.fault(
                         code=3,
@@ -649,7 +649,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             response = data["response"]
 
             if response != ResponseCode.OK:
-                self.log.debug(f"Response != OK -> {data=}")
+                self.log.debug(f"Response != OK -> {command=}, {data=}")
                 error_suffix = {
                     ResponseCode.INCORRECT_PARAMETERS: "has incorrect parameters.",
                     ResponseCode.INCORRECT_SOURCE: "was sent from an incorrect source.",
