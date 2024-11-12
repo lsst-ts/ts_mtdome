@@ -1375,6 +1375,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # TODO send an interlocks event.
 
+        if llc_name not in status:
+            self.log.warning(
+                f"No telemetry for subsystem {llc_name} Received {status=}."
+            )
+            return
+
         await self._send_operational_mode_event(llc_name=llc_name, status=status)
 
         # Send appliedConfiguration event for AMCS. This needs to be sent every
