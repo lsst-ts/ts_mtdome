@@ -228,14 +228,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     # reqiures one of more to be available.
     all_methods_and_intervals = {
         CommandName.STATUS_AMCS: _AMCS_STATUS_PERIOD,
-        CommandName.STATUS_APSCS: _APSCS_STATUS_PERIOD,
+        # CommandName.STATUS_APSCS: _APSCS_STATUS_PERIOD,
         CommandName.STATUS_CBCS: _CBCS_STATUS_PERIOD,
-        CommandName.STATUS_CSCS: _CSCS_STATUS_PERIOD,
-        CommandName.STATUS_LCS: _LCS_STATUS_PERIOD,
-        CommandName.STATUS_LWSCS: _LWSCS_STATUS_PERIOD,
-        CommandName.STATUS_MONCS: _MONCS_STATUS_PERIOD,
-        CommandName.STATUS_RAD: _RAD_STATUS_PERIOD,
-        CommandName.STATUS_THCS: _THCS_STATUS_PERIOD,
+        # CommandName.STATUS_CSCS: _CSCS_STATUS_PERIOD,
+        # CommandName.STATUS_LCS: _LCS_STATUS_PERIOD,
+        # CommandName.STATUS_LWSCS: _LWSCS_STATUS_PERIOD,
+        # CommandName.STATUS_MONCS: _MONCS_STATUS_PERIOD,
+        # CommandName.STATUS_RAD: _RAD_STATUS_PERIOD,
+        # CommandName.STATUS_THCS: _THCS_STATUS_PERIOD,
         "check_all_commands_have_replies": _COMMANDS_REPLIED_PERIOD,
     }
 
