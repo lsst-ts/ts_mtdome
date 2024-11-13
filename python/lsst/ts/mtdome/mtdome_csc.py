@@ -625,14 +625,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
             if command not in disabled_commands:
                 try:
-                    if "status" not in command_name:
-                        self.log.debug(f"Sending {command_dict=}.")
+                    self.log.debug(f"Sending {command_dict=}.")
                     await self.client.write_json(data=command_dict)
                     data = await asyncio.wait_for(
                         self.client.read_json(), timeout=_TIMEOUT
                     )
-                    if "status" not in command_name:
-                        self.log.debug(f"Received {command_name=}, {data=}.")
+                    self.log.debug(f"Received {command_name=}, {data=}.")
                 except Exception as e:
                     await self.fault(
                         code=3,
@@ -654,7 +652,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             response = data["response"]
 
             if response != ResponseCode.OK:
-                self.log.debug(f"Response != OK -> {command_name=}, {data=}")
                 error_suffix = {
                     ResponseCode.INCORRECT_PARAMETERS: "has incorrect parameters.",
                     ResponseCode.INCORRECT_SOURCE: "was sent from an incorrect source.",
@@ -662,7 +659,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     ResponseCode.ROTATING_PART_NOT_RECEIVED: "was not received by the rotating part.",
                     ResponseCode.ROTATING_PART_NOT_REPLIED: "was not replied to by the rotating part.",
                 }.get(response, "is not supported.")
-                raise ValueError(f"Command {command_name} {error_suffix}")
+                message = f"Command {command_name} {error_suffix}"
+                self.log.debug(f"{message} -> {command_name=}, {data=}")
+                raise ValueError(message)
 
             return data
 
@@ -1363,45 +1362,17 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 command=command
             )
         except ValueError:
-            # TODO send an event that indicates that the status is not
-            #  available.
+            # An error message is logged in `self.write_then_read_reply`.
             return
 
-        # TODO send an event that indicates that the status is available.
-
-        # TODO send a brakes event.
-
-        # TODO send a locking pins event.
-
-        # TODO send an interlocks event.
-
         if llc_name not in status:
-            self.log.warning(
-                f"No telemetry for subsystem {llc_name} Received {status=}."
-            )
+            # Log this in case no ValueError was raised a few lines up but the
+            # `status` still is not what was expected.
+            self.log.debug(f"No telemetry for subsystem {llc_name} Received {status=}.")
             return
 
         await self._send_operational_mode_event(llc_name=llc_name, status=status)
-
-        # Send appliedConfiguration event for AMCS. This needs to be sent every
-        # time the status is read because it can be modified by issuing the
-        # config_llcs command. Fortunately salobj only sends events if the
-        # values have changed so it is safe to do this without overflowing the
-        # EFD with events.
-        if llc_name == LlcName.AMCS.value:
-            if "appliedConfiguration" in status[llc_name]:
-                applied_configuration = status[llc_name]["appliedConfiguration"]
-                jmax = math.degrees(applied_configuration["jmax"])
-                amax = math.degrees(applied_configuration["amax"])
-                vmax = math.degrees(applied_configuration["vmax"])
-                await self.evt_azConfigurationApplied.set_write(
-                    jmax=jmax, amax=amax, vmax=vmax
-                )
-            else:
-                self.log.warning(
-                    "No 'appliedConfiguration' in AMCS telemetry. "
-                    "Not sending the azConfigurationApplied event."
-                )
+        await self.send_applied_configuration_event(llc_name, status)
 
         # Store the status for reference.
         self.lower_level_status[llc_name] = status[llc_name]
@@ -1432,16 +1403,44 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 # No conversion needed since the value does not express an
                 # angle.
                 telemetry_in_degrees[key] = telemetry_in_radians[key]
+
         # Remove some keys because they are not reported in the telemetry.
         telemetry: dict[str, typing.Any] = self.remove_keys_from_dict(
             telemetry_in_degrees
         )
+        # Avoid sending this event 2x per second due to a changing timestamp.
+        if topic == self.evt_capacitorBanks and "timestamp" in telemetry:
+            del telemetry["timestamp"]
+
         # Send the telemetry.
         await topic.set_write(**telemetry)
         llc_status = status[llc_name]["status"]
         await self.check_errors_and_send_events(
             llc_name=llc_name, llc_status=llc_status
         )
+
+    async def send_applied_configuration_event(
+        self, llc_name: str, status: dict[str, typing.Any]
+    ) -> None:
+        # Send appliedConfiguration event for AMCS. This needs to be sent every
+        # time the status is read because it can be modified by issuing the
+        # config_llcs command. Fortunately salobj only sends events if the
+        # values have changed so it is safe to do this without overflowing the
+        # EFD with events.
+        if llc_name == LlcName.AMCS.value:
+            if "appliedConfiguration" in status[llc_name]:
+                applied_configuration = status[llc_name]["appliedConfiguration"]
+                jmax = math.degrees(applied_configuration["jmax"])
+                amax = math.degrees(applied_configuration["amax"])
+                vmax = math.degrees(applied_configuration["vmax"])
+                await self.evt_azConfigurationApplied.set_write(
+                    jmax=jmax, amax=amax, vmax=vmax
+                )
+            else:
+                self.log.warning(
+                    "No 'appliedConfiguration' in AMCS telemetry. "
+                    "Not sending the azConfigurationApplied event."
+                )
 
     async def _send_operational_mode_event(
         self, llc_name: str, status: dict[str, typing.Any]
