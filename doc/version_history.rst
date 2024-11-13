@@ -10,6 +10,11 @@ Version History
 v1.18.1
 =======
 * Fix status command errors.
+* Add check for `appliedConfiguration` key in AMCS telemetry.
+* Avoid exception when canceling status command tasks.
+* Add debug statements.
+* Disable status commands for subsystems on the rotating part.
+* Implement workaround for missing telemetry.
 
 Requires:
 
