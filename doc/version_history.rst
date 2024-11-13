@@ -7,6 +7,24 @@ Version History
 ###############
 
 =======
+v1.18.1
+=======
+* Fix status command errors.
+* Add check for `appliedConfiguration` key in AMCS telemetry.
+* Avoid exception when canceling status command tasks.
+* Add debug statements.
+* Disable status commands for subsystems on the rotating part.
+* Implement workaround for missing telemetry.
+
+Requires:
+
+* ts_salobj 7
+* ts_idl
+* ts_tcpip 2.0
+* ts_utils 1.2
+* ts_xml 22.0
+
+=======
 v1.18.0
 =======
 * Remove backward compatibility with XML 21.0.

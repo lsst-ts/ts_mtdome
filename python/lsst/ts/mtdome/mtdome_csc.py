@@ -223,20 +223,20 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     valid_simulation_modes = set([v.value for v in ValidSimulationMode])
     version = __version__
 
-    # All methods and the intervals at which they are executed. The boolean
-    # indicates whther they are used for commissioning (True) or not. Note that
-    # all methods always are disabled for unit testing.
+    # All methods and the intervals at which they are executed. Note that all
+    # methods are disabled for unit testing unless the specific test case
+    # reqiures one of more to be available.
     all_methods_and_intervals = {
-        CommandName.STATUS_AMCS: (_AMCS_STATUS_PERIOD, True),
-        CommandName.STATUS_APSCS: (_APSCS_STATUS_PERIOD, True),
-        CommandName.STATUS_CBCS: (_CBCS_STATUS_PERIOD, True),
-        CommandName.STATUS_CSCS: (_CSCS_STATUS_PERIOD, True),
-        CommandName.STATUS_LCS: (_LCS_STATUS_PERIOD, False),
-        CommandName.STATUS_LWSCS: (_LWSCS_STATUS_PERIOD, False),
-        CommandName.STATUS_MONCS: (_MONCS_STATUS_PERIOD, False),
-        CommandName.STATUS_RAD: (_RAD_STATUS_PERIOD, True),
-        CommandName.STATUS_THCS: (_THCS_STATUS_PERIOD, False),
-        "check_all_commands_have_replies": (_COMMANDS_REPLIED_PERIOD, True),
+        CommandName.STATUS_AMCS: _AMCS_STATUS_PERIOD,
+        # CommandName.STATUS_APSCS: _APSCS_STATUS_PERIOD,
+        CommandName.STATUS_CBCS: _CBCS_STATUS_PERIOD,
+        # CommandName.STATUS_CSCS: _CSCS_STATUS_PERIOD,
+        # CommandName.STATUS_LCS: _LCS_STATUS_PERIOD,
+        # CommandName.STATUS_LWSCS: _LWSCS_STATUS_PERIOD,
+        # CommandName.STATUS_MONCS: _MONCS_STATUS_PERIOD,
+        # CommandName.STATUS_RAD: _RAD_STATUS_PERIOD,
+        # CommandName.STATUS_THCS: _THCS_STATUS_PERIOD,
+        "check_all_commands_have_replies": _COMMANDS_REPLIED_PERIOD,
     }
 
     def __init__(
@@ -345,7 +345,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             )
             await asyncio.wait_for(fut=self.client.start_task, timeout=_TIMEOUT)
         except ConnectionError as e:
-            await self.fault(code=3, report=f"Connection to server failed: {e}.")
+            await self.fault(code=3, report=f"Connection to server failed: {e!r}.")
             raise
 
         await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
@@ -390,13 +390,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def start_periodic_tasks(self) -> None:
         """Start all periodic tasks."""
         await self.cancel_periodic_tasks()
-        for method, interval_and_execute in self.all_methods_and_intervals.items():
-            interval, execute = interval_and_execute
-            if (
-                self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS
-                and execute is False
-            ):
-                continue
+        for method, interval in self.all_methods_and_intervals.items():
             func = getattr(self, method)
             self.periodic_tasks.append(
                 asyncio.create_task(self.one_periodic_task(func, interval))
@@ -421,12 +415,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The interval (sec) at which to run the status method.
 
         """
+        self.log.debug(f"Starting periodic task {method=} with {interval=}")
         try:
             while True:
                 await method()
                 await asyncio.sleep(interval)
-        # Need to catch BaseException because of asyncio.CancelledError
-        except BaseException:
+        except asyncio.CancelledError:
+            # Ignore because the task was canceled on purpose.
+            pass
+        except Exception:
             self.log.exception(f"one_periodic_task({method}) has stopped.")
 
     async def disconnect(self) -> None:
@@ -461,7 +458,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
 
         except Exception as e:
-            await self.fault(code=3, report=f"Could not start mock controller: {e}")
+            await self.fault(code=3, report=f"Could not start mock controller: {e!r}")
             raise
 
     async def stop_mock_ctrl(self) -> None:
@@ -610,7 +607,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.commands_without_reply[command_id] = CommandTime(
             command=command, tai=utils.current_tai()
         )
-        command_dict = dict(commandId=command_id, command=command, parameters=params)
+        command_name = command.value
+        command_dict = dict(
+            commandId=command_id, command=command_name, parameters=params
+        )
         async with self.communication_lock:
             if self.client is None:
                 await self.fault(
@@ -625,18 +625,20 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
             if command not in disabled_commands:
                 try:
+                    self.log.debug(f"Sending {command_dict=}.")
                     await self.client.write_json(data=command_dict)
                     data = await asyncio.wait_for(
                         self.client.read_json(), timeout=_TIMEOUT
                     )
+                    self.log.debug(f"Received {command_name=}, {data=}.")
                 except Exception as e:
                     await self.fault(
                         code=3,
-                        report=f"Error reading reply to command {command_dict}: {e}.",
+                        report=f"Error reading reply to command {command_dict}: {e!r}.",
                     )
                     raise
                 if "commandId" not in data:
-                    self.log.error(f"No 'commandId' in reply for {command=}")
+                    self.log.error(f"No 'commandId' in reply for {command_name=}")
                 else:
                     received_command_id = data["commandId"]
                     if received_command_id in self.commands_without_reply:
@@ -657,7 +659,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     ResponseCode.ROTATING_PART_NOT_RECEIVED: "was not received by the rotating part.",
                     ResponseCode.ROTATING_PART_NOT_REPLIED: "was not replied to by the rotating part.",
                 }.get(response, "is not supported.")
-                raise ValueError(f"Command {command.name} {error_suffix}")
+                message = f"Command {command_name} {error_suffix}"
+                self.log.debug(f"{message} -> {command_name=}, {data=}")
+                raise ValueError(message)
 
             return data
 
@@ -1353,25 +1357,22 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         """
         command = CommandName(f"status{llc_name}")
-        status: dict[str, typing.Any] = await self.write_then_read_reply(
-            command=command
-        )
+        try:
+            status: dict[str, typing.Any] = await self.write_then_read_reply(
+                command=command
+            )
+        except ValueError:
+            # An error message is logged in `self.write_then_read_reply`.
+            return
+
+        if llc_name not in status:
+            # Log this in case no ValueError was raised a few lines up but the
+            # `status` still is not what was expected.
+            self.log.debug(f"No telemetry for subsystem {llc_name} Received {status=}.")
+            return
 
         await self._send_operational_mode_event(llc_name=llc_name, status=status)
-
-        # Send appliedConfiguration event for AMCS. This needs to be sent every
-        # time the status is read because it can be modified by issuing the
-        # config_llcs command. Fortunately salobj only sends events if the
-        # values have changed so it is safe to do this without overflowing the
-        # EFD with events.
-        if llc_name == LlcName.AMCS.value:
-            applied_configuration = status[llc_name]["appliedConfiguration"]
-            jmax = math.degrees(applied_configuration["jmax"])
-            amax = math.degrees(applied_configuration["amax"])
-            vmax = math.degrees(applied_configuration["vmax"])
-            await self.evt_azConfigurationApplied.set_write(
-                jmax=jmax, amax=amax, vmax=vmax
-            )
+        await self.send_applied_configuration_event(llc_name, status)
 
         # Store the status for reference.
         self.lower_level_status[llc_name] = status[llc_name]
@@ -1402,16 +1403,44 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 # No conversion needed since the value does not express an
                 # angle.
                 telemetry_in_degrees[key] = telemetry_in_radians[key]
+
         # Remove some keys because they are not reported in the telemetry.
         telemetry: dict[str, typing.Any] = self.remove_keys_from_dict(
             telemetry_in_degrees
         )
+        # Avoid sending this event 2x per second due to a changing timestamp.
+        if topic == self.evt_capacitorBanks and "timestamp" in telemetry:
+            del telemetry["timestamp"]
+
         # Send the telemetry.
         await topic.set_write(**telemetry)
         llc_status = status[llc_name]["status"]
         await self.check_errors_and_send_events(
             llc_name=llc_name, llc_status=llc_status
         )
+
+    async def send_applied_configuration_event(
+        self, llc_name: str, status: dict[str, typing.Any]
+    ) -> None:
+        # Send appliedConfiguration event for AMCS. This needs to be sent every
+        # time the status is read because it can be modified by issuing the
+        # config_llcs command. Fortunately salobj only sends events if the
+        # values have changed so it is safe to do this without overflowing the
+        # EFD with events.
+        if llc_name == LlcName.AMCS.value:
+            if "appliedConfiguration" in status[llc_name]:
+                applied_configuration = status[llc_name]["appliedConfiguration"]
+                jmax = math.degrees(applied_configuration["jmax"])
+                amax = math.degrees(applied_configuration["amax"])
+                vmax = math.degrees(applied_configuration["vmax"])
+                await self.evt_azConfigurationApplied.set_write(
+                    jmax=jmax, amax=amax, vmax=vmax
+                )
+            else:
+                self.log.warning(
+                    "No 'appliedConfiguration' in AMCS telemetry. "
+                    "Not sending the azConfigurationApplied event."
+                )
 
     async def _send_operational_mode_event(
         self, llc_name: str, status: dict[str, typing.Any]
