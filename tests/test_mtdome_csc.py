@@ -1490,7 +1490,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             # Make sure that the statusAMCS periodic task runs because the test
             # depends on that.
-            mtdome.MTDomeCsc.all_methods_and_intervals = {"statusAMCS": (0.2, True)}
+            mtdome.MTDomeCsc.all_methods_and_intervals = {"statusAMCS": 0.2}
 
             await self.assert_next_summary_state(salobj.State.STANDBY)
             await salobj.set_summary_state(
@@ -1530,7 +1530,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             # Make sure that the statusAMCS periodic task runs because the test
             # depends on that.
-            mtdome.MTDomeCsc.all_methods_and_intervals = {"statusAMCS": (0.2, True)}
+            mtdome.MTDomeCsc.all_methods_and_intervals = {"statusAMCS": 0.2}
             await self.assert_next_summary_state(salobj.State.STANDBY)
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.DISABLED
