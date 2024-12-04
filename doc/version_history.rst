@@ -7,6 +7,19 @@ Version History
 ###############
 
 =======
+v1.18.2
+=======
+* Ensure that aperture shutter position values cannot be negative.
+
+Requires:
+
+* ts_salobj 7
+* ts_idl
+* ts_tcpip 2.0
+* ts_utils 1.2
+* ts_xml 22.0
+
+=======
 v1.18.1
 =======
 * Fix status command errors.
