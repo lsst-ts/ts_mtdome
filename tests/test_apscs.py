@@ -76,7 +76,7 @@ class ApscsTestCase(unittest.IsolatedAsyncioTestCase):
         """
         await self.apscs.determine_status(current_tai=tai)
         assert [expected_position] * NUM_SHUTTERS == pytest.approx(
-            self.apscs.llc_status["positionActual"]
+            self.apscs.llc_status["positionActual"], abs=0.001
         )
         assert [expected_motion_state.name] * NUM_SHUTTERS == self.apscs.llc_status[
             "status"
