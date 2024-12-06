@@ -638,6 +638,14 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 MotionState.PROXIMITY_CLOSED_LS_ENGAGED.name,
                 MotionState.PROXIMITY_CLOSED_LS_ENGAGED.name,
             ]
+            telemetry = await self.assert_next_sample(
+                topic=self.remote.tel_apertureShutter
+            )
+            assert math.isclose(telemetry.positionActual[0], 0.0)
+            assert math.isclose(telemetry.positionActual[1], 0.0)
+            # Assert there are no -0.0 values.
+            assert math.copysign(1, telemetry.positionActual[0]) > 0
+            assert math.copysign(1, telemetry.positionActual[1]) > 0
 
     async def test_do_stopShutter(self) -> None:
         async with self.make_csc(
@@ -1135,7 +1143,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 mtdome.InternalMotionState.STATIONARY.name,
                 mtdome.InternalMotionState.STATIONARY.name,
             ]
-            assert apscs_status["positionActual"] == [0.0, 0.0]
+            assert math.isclose(apscs_status["positionActual"][0], 0.0, abs_tol=0.001)
+            assert math.isclose(apscs_status["positionActual"][1], 0.0, abs_tol=0.001)
 
             await self.csc.statusLCS()
             lcs_status = self.csc.lower_level_status[mtdome.LlcName.LCS.value]

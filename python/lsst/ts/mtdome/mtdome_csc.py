@@ -85,6 +85,12 @@ _KEYS_IN_RADIANS = {
     "velocityCommanded",
 }.union(_AMCS_KEYS_OFFSET)
 
+_KEYS_TO_ROUND = {
+    LlcName.APSCS.value: {
+        "positionActual": 2,
+    }
+}
+
 # The offset of the dome rotation zero point with respect to azimuth 0º (true
 # north) is 32º west and this needs to be added when commanding the azimuth
 # position, or subtracted when sending the azimuth telemetry.
@@ -1377,14 +1383,43 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # Store the status for reference.
         self.lower_level_status[llc_name] = status[llc_name]
 
-        telemetry_in_degrees: dict[str, typing.Any] = {}
-        telemetry_in_radians: dict[str, typing.Any] = status[llc_name]
-        for key in telemetry_in_radians.keys():
+        pre_processed_telemetry = await self._pre_process_telemetry(llc_name)
+
+        # Avoid sending this event 2x per second due to a changing timestamp.
+        if topic == self.evt_capacitorBanks and "timestamp" in pre_processed_telemetry:
+            del pre_processed_telemetry["timestamp"]
+
+        # Send the telemetry.
+        await topic.set_write(**pre_processed_telemetry)
+        llc_status = status[llc_name]["status"]
+        await self.check_errors_and_send_events(
+            llc_name=llc_name, llc_status=llc_status
+        )
+
+    async def _pre_process_telemetry(self, llc_name: str) -> dict[str, typing.Any]:
+        """Pre-process the telemetry.
+
+        This means converting radians to degrees, rounding off values, and
+        renaming and removing keys.
+
+        Parameters
+        ----------
+        llc_name: `str`
+            The name of the lower level component.
+
+        Returns
+        -------
+        dict[str, typing.Any]
+            The pre-processed telemetry.
+        """
+        pre_processed_telemetry: dict[str, typing.Any] = {}
+        raw_telemetry: dict[str, typing.Any] = self.lower_level_status[llc_name]
+        for key in raw_telemetry.keys():
             if key in _KEYS_IN_RADIANS and llc_name in [
                 LlcName.AMCS.value,
                 LlcName.LWSCS.value,
             ]:
-                telemetry_in_degrees[key] = math.degrees(telemetry_in_radians[key])
+                pre_processed_telemetry[key] = math.degrees(raw_telemetry[key])
                 # Compensate for the dome azimuth offset. This is done here and
                 # not one level higher since angle_wrap_nonnegative only
                 # accepts Angle or a float in degrees and this way the
@@ -1392,32 +1427,51 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 # of code.
                 if key in _AMCS_KEYS_OFFSET and llc_name == LlcName.AMCS.value:
                     offset_value = utils.angle_wrap_nonnegative(
-                        telemetry_in_degrees[key] - DOME_AZIMUTH_OFFSET
+                        pre_processed_telemetry[key] - DOME_AZIMUTH_OFFSET
                     ).degree
-                    telemetry_in_degrees[key] = offset_value
+                    pre_processed_telemetry[key] = offset_value
             elif key == "timestampUTC":
                 # DM-26653: The name of this parameter is still under
                 # discussion.
-                telemetry_in_degrees["timestamp"] = telemetry_in_radians["timestampUTC"]
+                pre_processed_telemetry["timestamp"] = raw_telemetry["timestampUTC"]
             else:
                 # No conversion needed since the value does not express an
                 # angle.
-                telemetry_in_degrees[key] = telemetry_in_radians[key]
+                pre_processed_telemetry[key] = raw_telemetry[key]
+
+        # Round off values.
+        await self._round_telemetry_values(llc_name, pre_processed_telemetry)
 
         # Remove some keys because they are not reported in the telemetry.
-        telemetry: dict[str, typing.Any] = self.remove_keys_from_dict(
-            telemetry_in_degrees
-        )
-        # Avoid sending this event 2x per second due to a changing timestamp.
-        if topic == self.evt_capacitorBanks and "timestamp" in telemetry:
-            del telemetry["timestamp"]
+        pre_processed_telemetry = self.remove_keys_from_dict(pre_processed_telemetry)
+        return pre_processed_telemetry
 
-        # Send the telemetry.
-        await topic.set_write(**telemetry)
-        llc_status = status[llc_name]["status"]
-        await self.check_errors_and_send_events(
-            llc_name=llc_name, llc_status=llc_status
-        )
+    async def _round_telemetry_values(
+        self, llc_name: str, telemetry: dict[str, typing.Any]
+    ) -> None:
+        """Round the values in the telemetry.
+
+        Whether or not a value is rounded and to how many decimals is defined
+        in the _KEYS_TO_ROUND dict.
+
+        Parameters
+        ----------
+        llc_name: `str`
+            The name of the lower level component.
+        telemetry : `dict`[`str`, `typing.Any`]
+            The telemetry which values may be rounded.
+        """
+        keys_to_round = _KEYS_TO_ROUND[llc_name] if llc_name in _KEYS_TO_ROUND else {}
+        for key in telemetry.keys():
+            if key in keys_to_round:
+                if isinstance(telemetry[key], list):
+                    # Add 0.0 to avoid -0.0 values
+                    telemetry[key] = [
+                        round(val, keys_to_round[key]) + 0.0 for val in telemetry[key]
+                    ]
+                else:
+                    # Add 0.0 to avoid -0.0 values
+                    telemetry[key] = round(telemetry[key], keys_to_round[key]) + 0.0
 
     async def send_applied_configuration_event(
         self, llc_name: str, status: dict[str, typing.Any]

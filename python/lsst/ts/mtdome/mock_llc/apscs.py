@@ -31,6 +31,7 @@ __all__ = [
 
 import logging
 import math
+import random
 
 import numpy as np
 from lsst.ts.xml.enums.MTDome import MotionState
@@ -55,6 +56,8 @@ OPEN_POSITION = 100.0
 # The shutter speed (%/s). This is an assumed value such that the shutter opens
 # or closes in 10 seconds.
 SHUTTER_SPEED = 10.0
+# The motors jitter a bit and this defines the jitter range.
+POSITION_JITTER = 2.5e-7
 
 # Current per motor drawn by the Aperture Shutter [A].
 CURRENT_PER_MOTOR = (
@@ -322,6 +325,7 @@ class ApscsStatus(BaseMockStatus):
     async def _handle_moving(self, current_tai: float, shutter_id: int) -> None:
         if current_tai >= self.end_tai[shutter_id]:
             self.position_actual[shutter_id] = self.position_commanded[shutter_id]
+
             if self.start_state[shutter_id] == MotionState.OPENING.name:
                 self.current_state[shutter_id] = (
                     MotionState.PROXIMITY_OPEN_LS_ENGAGED.name
@@ -346,6 +350,11 @@ class ApscsStatus(BaseMockStatus):
             self.position_actual[shutter_id] = (
                 self.start_position[shutter_id] + distance * frac_time
             )
+
+        # Add jitter.
+        self.position_actual[shutter_id] = self.position_actual[
+            shutter_id
+        ] + random.uniform(-POSITION_JITTER, POSITION_JITTER)
 
     async def _handle_stopped(self, shutter_id: int) -> None:
         if self.current_state[shutter_id] == MotionState.STOPPING.name:
