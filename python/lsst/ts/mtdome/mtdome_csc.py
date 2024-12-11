@@ -19,45 +19,31 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["MTDomeCsc", "DOME_AZIMUTH_OFFSET", "CommandTime", "run_mtdome"]
+__all__ = ["MTDomeCsc", "run_mtdome"]
 
 import asyncio
 import math
 import typing
-from dataclasses import dataclass
 from types import SimpleNamespace
 
-from lsst.ts import salobj, tcpip, utils
+from lsst.ts import mtdomecom, salobj
+from lsst.ts.mtdomecom.enums import (
+    CommandName,
+    LlcName,
+    LlcNameDict,
+    MaxValueConfigType,
+    ValidSimulationMode,
+    motion_state_translations,
+)
 from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
     OperationalMode,
     PowerManagementMode,
-    SubSystemId,
 )
 
 from . import __version__
 from .config_schema import CONFIG_SCHEMA
-from .enums import (
-    CommandName,
-    LlcName,
-    LlcNameDict,
-    MaxValueConfigType,
-    MaxValuesConfigType,
-    ResponseCode,
-    ScheduledCommand,
-    ValidSimulationMode,
-    motion_state_translations,
-)
-from .llc_configuration_limits import AmcsLimits, LwscsLimits
-from .mock_controller import MockMTDomeController
-from .power_management import (
-    CONTINUOUS_ELECTRONICS_POWER_DRAW,
-    CONTINUOUS_SLIP_RING_POWER_CAPACITY,
-    FANS_POWER_DRAW,
-    PowerManagementHandler,
-    command_priorities,
-)
 
 # Timeout [sec] used when creating a Client, a mock controller or when waiting
 # for a reply when sending a command to the controller.
@@ -68,33 +54,6 @@ _KEYS_TO_REMOVE = {
     "operationalMode",  # Remove because gets emitted as an event
     "appliedConfiguration",  # Remove because gets emitted as an event
 }
-
-# The values of these keys need to be compensated for the dome azimuth offset
-# in the AMCS status. Note that these keys are shared with LWSCS so they can be
-# added to _KEYS_IN_RADIANS to avoid duplication but this also means that an
-# additional check for the AMCS lower level component needs to be done when
-# applying the offset correction. That is a trade off I can live with.
-_AMCS_KEYS_OFFSET = {
-    "positionActual",
-    "positionCommanded",
-}
-# The values of these keys need to be converted from radians to degrees when
-# the status is recevied and telemetry with these values is sent.
-_KEYS_IN_RADIANS = {
-    "velocityActual",
-    "velocityCommanded",
-}.union(_AMCS_KEYS_OFFSET)
-
-_KEYS_TO_ROUND = {
-    LlcName.APSCS.value: {
-        "positionActual": 2,
-    }
-}
-
-# The offset of the dome rotation zero point with respect to azimuth 0º (true
-# north) is 32º west and this needs to be added when commanding the azimuth
-# position, or subtracted when sending the azimuth telemetry.
-DOME_AZIMUTH_OFFSET = 32.0
 
 # Polling periods [sec] for the lower level components.
 _AMCS_STATUS_PERIOD = 0.2
@@ -107,89 +66,13 @@ _MONCS_STATUS_PERIOD = 0.5
 _RAD_STATUS_PERIOD = 0.5
 _THCS_STATUS_PERIOD = 0.5
 
-# Polling period [sec] for the task that checks if all commands have been
-# replied to.
-_COMMANDS_REPLIED_PERIOD = 600
-
 # Polling period [sec] for the task that checks if any commands are waiting to
 # be issued.
 _COMMAND_QUEUE_PERIOD = 1.0
 
-# These next commands are temporarily disabled in simulation mode 0 because
-# they will be issued during the upcoming TMA pointing test and the EIE LabVIEW
-# code doesn't handle them yet, which will result in an error. As soon as the
-# TMA pointing test is done, they will be reenabled. The name reflects the fact
-# that there probably will be more situations during commissioning in which
-# commands need to be disabled.
-COMMANDS_DISABLED_FOR_COMMISSIONING = {
-    CommandName.CLOSE_LOUVERS,
-    CommandName.CRAWL_EL,
-    CommandName.FANS,
-    CommandName.GO_STATIONARY_EL,
-    CommandName.GO_STATIONARY_LOUVERS,
-    CommandName.INFLATE,
-    CommandName.MOVE_EL,
-    CommandName.SET_LOUVERS,
-    CommandName.SET_TEMPERATURE,
-    CommandName.STOP_EL,
-    CommandName.STOP_LOUVERS,
-}
-REPLY_DATA_FOR_DISABLED_COMMANDS = {"response": 0, "timeout": 0}
-
-ALL_OPERATIONAL_MODE_COMMANDS = {
-    SubSystemId.AMCS: {
-        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_AZ,
-        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_AZ,
-    },
-    SubSystemId.LWSCS: {
-        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_EL,
-        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_EL,
-    },
-    SubSystemId.APSCS: {
-        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_SHUTTER,
-        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_SHUTTER,
-    },
-    SubSystemId.LCS: {
-        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_LOUVERS,
-        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_LOUVERS,
-    },
-    SubSystemId.MONCS: {
-        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_MONITORING,
-        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_MONITORING,
-    },
-    SubSystemId.THCS: {
-        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_THERMAL,
-        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_THERMAL,
-    },
-}
-
-OPERATIONAL_MODE_COMMANDS_FOR_COMMISSIONING = {
-    SubSystemId.AMCS: {
-        OperationalMode.NORMAL.name: CommandName.SET_NORMAL_AZ,
-        OperationalMode.DEGRADED.name: CommandName.SET_DEGRADED_AZ,
-    },
-}
-
 
 def run_mtdome() -> None:
     asyncio.run(MTDomeCsc.amain(index=None))
-
-
-@dataclass
-class CommandTime:
-    """Class representing the TAI time at which a command was issued.
-
-    Attributes
-    ----------
-    command : `CommandName`
-        The command issued.
-    tai : `float`
-        TAI time as unix seconds, e.g. the time returned by CLOCK_TAI
-        on linux systems.
-    """
-
-    command: CommandName
-    tai: float
 
 
 class MTDomeCsc(salobj.ConfigurableCsc):
@@ -224,7 +107,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     and/or debugging the MTDome CSC.
     """
 
-    _index_iter = utils.index_generator()
     enable_cmdline_state = True
     valid_simulation_modes = set([v.value for v in ValidSimulationMode])
     version = __version__
@@ -242,7 +124,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # CommandName.STATUS_MONCS: _MONCS_STATUS_PERIOD,
         # CommandName.STATUS_RAD: _RAD_STATUS_PERIOD,
         # CommandName.STATUS_THCS: _THCS_STATUS_PERIOD,
-        "check_all_commands_have_replies": _COMMANDS_REPLIED_PERIOD,
     }
 
     def __init__(
@@ -252,11 +133,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         simulation_mode: int = ValidSimulationMode.NORMAL_OPERATIONS,
         override: str = "",
     ) -> None:
-        self.client: tcpip.Client | None = None
         self.config: SimpleNamespace | None = None
-
-        # mock controller, or None if not constructed
-        self.mock_ctrl: MockMTDomeController | None = None
 
         super().__init__(
             name="MTDome",
@@ -268,53 +145,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             override=override,
         )
 
-        # Keep the lower level statuses in memory for unit tests.
-        self.lower_level_status: dict[str, typing.Any] = {}
+        # MTDome TCP/IP communicator.
+        self.mtdome_com: mtdomecom.MTDomeCom | None = None
+
         # List of periodic tasks to start.
         self.periodic_tasks: list[asyncio.Future] = []
         # Keep track of the AMCS state for logging one the console.
         self.amcs_state: MotionState | None = None
         # Keep track of the AMCS status message for logging on the console.
         self.amcs_message: str = ""
-
-        # Keep a lock so only one remote command can be executed at a time.
-        self.communication_lock = asyncio.Lock()
-
-        self.amcs_limits = AmcsLimits()
-        self.lwscs_limits = LwscsLimits()
-
-        # Keep track of which stop function to call for which SubSystemId
-        self.stop_function_dict = {
-            SubSystemId.AMCS: self.stop_az,
-            SubSystemId.LWSCS: self.stop_el,
-            SubSystemId.APSCS: self.stop_shutter,
-            SubSystemId.LCS: self.stop_louvers,
-        }
-
-        # Keep track of which command to send to set the operational mode on a
-        # lower level component.
-        self.operational_mode_command_dict = ALL_OPERATIONAL_MODE_COMMANDS
-        if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
-            self.operational_mode_command_dict = (
-                OPERATIONAL_MODE_COMMANDS_FOR_COMMISSIONING
-            )
-
-        # Keep track of which command to send the home command on a lower level
-        # component.
-        self.set_home_command_dict = {
-            SubSystemId.APSCS: CommandName.SEARCH_ZERO_SHUTTER,
-        }
-
-        # Keep track of the commands that have been sent and that haven't been
-        # replied to yet. The key of the dict is the commandId for the commands
-        # that have been sent.
-        self.commands_without_reply: dict[int, CommandTime] = {}
-
-        # Power management attributes.
-        self.power_management_mode = PowerManagementMode.NO_POWER_MANAGEMENT
-        self.power_management_handler = PowerManagementHandler(
-            self.log, command_priorities
-        )
 
         self.log.info("DomeCsc constructed.")
 
@@ -323,34 +162,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Start the mock controller, if simulating.
         """
-        self.log.info("connect")
-        self.log.info(self.config)
-        self.log.info(f"self.simulation_mode = {self.simulation_mode}.")
-        if self.config is None:
-            raise RuntimeError("Not yet configured.")
-        if self.connected:
-            raise RuntimeError("Already connected.")
-        if self.simulation_mode == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER:
-            await self.start_mock_ctrl()
-            assert self.mock_ctrl is not None
-            host = self.mock_ctrl.host
-            port = self.mock_ctrl.port
-        elif (
-            self.simulation_mode
-            == ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER
-        ):
-            host = tcpip.DEFAULT_LOCALHOST
-            port = self.config.port
-        else:
-            host = self.config.host
-            port = self.config.port
+        assert self.config is not None
+        self.mtdome_com = mtdomecom.MTDomeCom(
+            log=self.log, config=self.config, simulation_mode=self.simulation_mode
+        )
         try:
-            self.log.info(f"Connecting to host={host} and port={port}.")
-            self.client = tcpip.Client(
-                host=host, port=port, log=self.log, name="MTDomeClient"
-            )
-            await asyncio.wait_for(fut=self.client.start_task, timeout=_TIMEOUT)
-        except ConnectionError as e:
+            await self.mtdome_com.connect()
+        except Exception as e:
             await self.fault(code=3, report=f"Connection to server failed: {e!r}.")
             raise
 
@@ -364,7 +182,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.evt_interlocks.set_write(interlocks=0)
         await self.evt_lockingPinsEngaged.set_write(engaged=0)
 
-        await self.evt_powerManagementMode.set_write(mode=self.power_management_mode)
+        await self.evt_powerManagementMode.set_write(
+            mode=self.mtdome_com.power_management_mode
+        )
 
         # Start polling for the status of the lower level components
         # periodically.
@@ -384,7 +204,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.info(f"Setting AMCS maximum jerk to {jmax}.")
         jmax_dict: MaxValueConfigType = {"target": "jmax", "setting": [jmax]}
         settings = [vmax_dict, amax_dict, jmax_dict]
-        await self.config_llcs(system=LlcName.AMCS.value, settings=settings)
+        assert self.mtdome_com is not None
+        await self.call_method(
+            method=self.mtdome_com.config_llcs, system=LlcName.AMCS, settings=settings
+        )
 
     async def cancel_periodic_tasks(self) -> None:
         """Cancel all periodic tasks."""
@@ -402,23 +225,39 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 asyncio.create_task(self.one_periodic_task(func, interval))
             )
 
+        assert self.mtdome_com is not None
         self.periodic_tasks.append(
             asyncio.create_task(
                 self.one_periodic_task(
-                    self.process_command_queue, _COMMAND_QUEUE_PERIOD
+                    self.mtdome_com.check_all_commands_have_replies,
+                    mtdomecom.COMMANDS_REPLIED_PERIOD,
+                    True,
                 )
             )
         )
 
-    async def one_periodic_task(self, method: typing.Callable, interval: float) -> None:
+        self.periodic_tasks.append(
+            asyncio.create_task(
+                self.one_periodic_task(
+                    self.mtdome_com.process_command_queue, _COMMAND_QUEUE_PERIOD, True
+                )
+            )
+        )
+
+    async def one_periodic_task(
+        self, method: typing.Callable, interval: float, go_fault: bool = False
+    ) -> None:
         """Run one method forever at the specified interval.
 
         Parameters
         ----------
-        method: coro
+        method : `typing.Callable`
             The periodic method to run.
-        interval: `float`
+        interval : `float`
             The interval (sec) at which to run the status method.
+        go_fault : `bool`
+            Make the CSC go to FAULT state (True) or not (Fault). Defaults to
+            Fault.
 
         """
         self.log.debug(f"Starting periodic task {method=} with {interval=}")
@@ -431,6 +270,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             pass
         except Exception:
             self.log.exception(f"one_periodic_task({method}) has stopped.")
+            if go_fault:
+                await self.go_fault(method)
 
     async def disconnect(self) -> None:
         """Disconnect from the TCP/IP controller, if connected, and stop the
@@ -443,37 +284,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.cancel_periodic_tasks()
 
         if self.connected:
-            assert self.client is not None  # make mypy happy
-            await self.client.close()
-            self.client = None
-        if self.simulation_mode == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER:
-            await self.stop_mock_ctrl()
-
-    async def start_mock_ctrl(self) -> None:
-        """Start the mock controller.
-
-        The simulation mode must be 1.
-        """
-        self.log.info("start_mock_ctrl.")
-        try:
-            assert (
-                self.simulation_mode
-                == ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER.value
-            )
-            self.mock_ctrl = MockMTDomeController(port=0, log=self.log)
-            await asyncio.wait_for(self.mock_ctrl.start(), timeout=_TIMEOUT)
-
-        except Exception as e:
-            await self.fault(code=3, report=f"Could not start mock controller: {e!r}")
-            raise
-
-    async def stop_mock_ctrl(self) -> None:
-        """Stop the mock controller, if running."""
-        self.log.info("stop_mock_ctrl")
-        mock_ctrl = self.mock_ctrl
-        self.mock_ctrl = None
-        if mock_ctrl:
-            await mock_ctrl.close()
+            assert self.mtdome_com is not None
+            await self.mtdome_com.disconnect()
+            self.mtdome_com = None
 
     async def handle_summary_state(self) -> None:
         """Override of the handle_summary_state function to connect or
@@ -508,169 +321,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             self.log.info("Not setting AMCS maximum velocity, acceleration and jerk.")
 
-    async def schedule_command_if_power_management_active(
-        self, command: CommandName, **params: typing.Any
-    ) -> None:
-        """Schedule the provided command if power management is active.
-
-        If power management is not active then the command is executed
-        immediately.
-
-        Parameters
-        ----------
-        command : `CommandName`
-            The command to schedule or execute immediately.
-        params : `typing.Any`
-            The parameters to pass along with the command. This may be empty.
-        """
-        # All commands, that help reduce the power draw, are scheduled. It is
-        # up to the dome lower level control system to execute them or not.
-        if self.power_management_mode == PowerManagementMode.NO_POWER_MANAGEMENT:
-            await self.write_then_read_reply(command=command, **params)
-        else:
-            scheduled_command = ScheduledCommand(command=command, params=params)
-            await self.power_management_handler.schedule_command(scheduled_command)
-
-    async def process_command_queue(self) -> None:
-        """Process the commands in the queue, if there are any.
-
-        Depending on the power management state, certain commands take
-        precedence over others. Whether or not a command actually can be issued
-        depends on the expected power draw for the command and the available
-        power for the rotating part of the dome. If a command can be issued
-        then it is removed from the queue, otherwise not.
-        """
-
-        if self.power_management_mode == PowerManagementMode.NO_POWER_MANAGEMENT:
-            # This is only needed if the dome power management is active.
-            return
-
-        current_power_draw = await self._get_current_power_draw_for_llcs()
-        total_current_power_draw = sum([p for k, p in current_power_draw.items()])
-        power_available = (
-            CONTINUOUS_SLIP_RING_POWER_CAPACITY
-            - CONTINUOUS_ELECTRONICS_POWER_DRAW
-            - total_current_power_draw
-        )
-        self.log.debug(f"{current_power_draw=}, {power_available=}")
-
-        scheduled_command = await self.power_management_handler.get_next_command(
-            current_power_draw
-        )
-        if scheduled_command is not None:
-            await self.write_then_read_reply(
-                command=scheduled_command.command, **scheduled_command.params
-            )
-
-    async def _get_current_power_draw_for_llcs(self) -> dict[str, float]:
-        """Determine the current power draw for each subsystem based on the
-        telemetry sent by them.
-
-        In case of AMCS, the power draw of interest is the one of the fans
-        because that's the only one that contributes to the power draw of the
-        slip ring.
-
-        Returns
-        -------
-        dict[str, float]
-            A dict with the subsystem names as keys and their power draw as
-            values.
-        """
-        current_power_draw: dict[str, float] = {}
-        for llc_name in self.lower_level_status:
-            llc_status = self.lower_level_status[llc_name]
-            if llc_name == LlcName.AMCS:
-                # AMCS doesn't contribute to total power draw, except the fans.
-                if llc_status["status"]["fans"]:
-                    current_power_draw[llc_name] = FANS_POWER_DRAW
-                else:
-                    current_power_draw[llc_name] = 0.0
-            else:
-                if "powerDraw" in llc_status:
-                    current_power_draw[llc_name] = llc_status["powerDraw"]
-        return current_power_draw
-
-    async def write_then_read_reply(
-        self, command: CommandName, **params: typing.Any
-    ) -> dict[str, typing.Any]:
-        """Write the cmd string and then read the reply to the command.
-
-        Parameters
-        ----------
-        command : `CommandName`
-            The command to write.
-        **params : `typing.Any`
-            The parameters for the command. This may be empty.
-
-        Returns
-        -------
-        data : `dict`
-            A dict of the form {"response": ResponseCode, "timeout":
-            TimeoutValue} where "response" can be zero for "OK" or non-zero
-            for any other situation.
-        """
-        command_id = next(self._index_iter)
-        self.commands_without_reply[command_id] = CommandTime(
-            command=command, tai=utils.current_tai()
-        )
-        command_name = command.value
-        command_dict = dict(
-            commandId=command_id, command=command_name, parameters=params
-        )
-        async with self.communication_lock:
-            if self.client is None:
-                await self.fault(
-                    code=3,
-                    report=f"Error writing command {command_dict}: self.client == None.",
-                )
-                raise RuntimeError("self.client == None.")
-
-            disabled_commands: set[CommandName] = set()
-            if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
-                disabled_commands = COMMANDS_DISABLED_FOR_COMMISSIONING
-
-            if command not in disabled_commands:
-                try:
-                    self.log.debug(f"Sending {command_dict=}.")
-                    await self.client.write_json(data=command_dict)
-                    data = await asyncio.wait_for(
-                        self.client.read_json(), timeout=_TIMEOUT
-                    )
-                    self.log.debug(f"Received {command_name=}, {data=}.")
-                except Exception as e:
-                    await self.fault(
-                        code=3,
-                        report=f"Error reading reply to command {command_dict}: {e!r}.",
-                    )
-                    raise
-                if "commandId" not in data:
-                    self.log.error(f"No 'commandId' in reply for {command_name=}")
-                else:
-                    received_command_id = data["commandId"]
-                    if received_command_id in self.commands_without_reply:
-                        self.commands_without_reply.pop(received_command_id)
-                    else:
-                        self.log.warning(
-                            f"Ignoring unknown commandId {received_command_id}."
-                        )
-            else:
-                data = REPLY_DATA_FOR_DISABLED_COMMANDS
-            response = data["response"]
-
-            if response != ResponseCode.OK:
-                error_suffix = {
-                    ResponseCode.INCORRECT_PARAMETERS: "has incorrect parameters.",
-                    ResponseCode.INCORRECT_SOURCE: "was sent from an incorrect source.",
-                    ResponseCode.INCORRECT_STATE: "was sent for an incorrect state.",
-                    ResponseCode.ROTATING_PART_NOT_RECEIVED: "was not received by the rotating part.",
-                    ResponseCode.ROTATING_PART_NOT_REPLIED: "was not replied to by the rotating part.",
-                }.get(response, "is not supported.")
-                message = f"Command {command_name} {error_suffix}"
-                self.log.debug(f"{message} -> {command_name=}, {data=}")
-                raise ValueError(message)
-
-            return data
-
     async def do_moveAz(self, data: salobj.BaseMsgType) -> None:
         """Move AZ.
 
@@ -681,14 +331,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         self.log.debug(f"do_moveAz: {data.position=!s}, {data.velocity=!s}")
-        # Compensate for the dome azimuth offset.
-        position = utils.angle_wrap_nonnegative(
-            data.position + DOME_AZIMUTH_OFFSET
-        ).degree
-        await self.write_then_read_reply(
-            command=CommandName.MOVE_AZ,
-            position=math.radians(position),
-            velocity=math.radians(data.velocity),
+        assert self.mtdome_com is not None
+        await self.call_method(
+            method=self.mtdome_com.move_az,
+            position=data.position,
+            velocity=data.velocity,
         )
         await self.evt_azEnabled.set_write(
             state=EnabledState.ENABLED,
@@ -708,74 +355,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         self.log.debug(f"do_moveEl: {data.position=!s}")
-        await self.schedule_command_if_power_management_active(
-            command=CommandName.MOVE_EL, position=math.radians(data.position)
-        )
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.move_el, position=data.position)
         await self.evt_elTarget.set_write(position=data.position, velocity=0)
-
-    async def stop_az(self, engage_brakes: bool) -> None:
-        """Stop AZ motion and engage the brakes if indicated. Also
-        disengage the locking pins if engaged.
-
-        Parameters
-        ----------
-        engage_brakes : bool
-            Engage the brakes (true) or not (false).
-        """
-        self.log.debug(f"stop_az: {engage_brakes=!s}")
-        self.assert_enabled()
-        if engage_brakes:
-            await self.write_then_read_reply(command=CommandName.GO_STATIONARY_AZ)
-        else:
-            await self.write_then_read_reply(command=CommandName.STOP_AZ)
-
-    async def stop_el(self, engage_brakes: bool) -> None:
-        """Stop EL motion and engage the brakes if indicated. Also
-        disengage the locking pins if engaged.
-
-        Parameters
-        ----------
-        engage_brakes : bool
-            Engage the brakes (true) or not (false).
-        """
-        self.log.debug(f"stop_el: {engage_brakes=!s}")
-        self.assert_enabled()
-        if engage_brakes:
-            await self.write_then_read_reply(command=CommandName.GO_STATIONARY_EL)
-        else:
-            await self.write_then_read_reply(command=CommandName.STOP_EL)
-
-    async def stop_louvers(self, engage_brakes: bool) -> None:
-        """Stop Louvers motion and engage the brakes if indicated.
-        Also disengage the locking pins if engaged.
-
-        Parameters
-        ----------
-        engage_brakes : bool
-            Engage the brakes (true) or not (false).
-        """
-        self.log.debug(f"stop_louvers: {engage_brakes=!s}")
-        self.assert_enabled()
-        if engage_brakes:
-            await self.write_then_read_reply(command=CommandName.GO_STATIONARY_LOUVERS)
-        else:
-            await self.write_then_read_reply(command=CommandName.STOP_LOUVERS)
-
-    async def stop_shutter(self, engage_brakes: bool) -> None:
-        """Stop Shutter motion and engage the brakes if indicated.
-        Also disengage the locking pins if engaged.
-
-        Parameters
-        ----------
-        engage_brakes : bool
-            Engage the brakes (true) or not (false).
-        """
-        self.log.debug(f"stop_shutter: {engage_brakes=!s}")
-        self.assert_enabled()
-        if engage_brakes:
-            await self.write_then_read_reply(command=CommandName.GO_STATIONARY_SHUTTER)
-        else:
-            await self.write_then_read_reply(command=CommandName.STOP_SHUTTER)
 
     async def do_stop(self, data: salobj.BaseMsgType) -> None:
         """Stop all motion and engage the brakes if indicated in the data.
@@ -787,18 +369,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        for sub_system_id in SubSystemId:
-            # Do not nest these two if statements, otherwise a warning will be
-            # logged for each SubsystemId that is not in data.subSystemIds.
-            if sub_system_id & data.subSystemIds:
-                if sub_system_id in self.stop_function_dict:
-                    func = self.stop_function_dict[sub_system_id]
-                    await func(data.engageBrakes)
-                else:
-                    self.log.warning(
-                        f"Subsystem {SubSystemId(sub_system_id).name} doesn't have a "
-                        "stop function. Ignoring."
-                    )
+        assert self.mtdome_com is not None
+        await self.call_method(
+            method=self.mtdome_com.stop_sub_systems,
+            sub_system_ids=data.subSystemIds,
+            engage_brakes=data.engageBrakes,
+        )
 
     async def do_crawlAz(self, data: salobj.BaseMsgType) -> None:
         """Crawl AZ.
@@ -810,9 +386,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug(f"do_crawlAz: {data.velocity=!s}")
         self.assert_enabled()
-        await self.write_then_read_reply(
-            command=CommandName.CRAWL_AZ, velocity=math.radians(data.velocity)
-        )
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.crawl_az, velocity=data.velocity)
         await self.evt_azTarget.set_write(position=float("nan"), velocity=data.velocity)
 
     async def do_crawlEl(self, data: salobj.BaseMsgType) -> None:
@@ -825,9 +400,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug(f"do_crawlEl: {data.velocity=!s}")
         self.assert_enabled()
-        await self.schedule_command_if_power_management_active(
-            command=CommandName.CRAWL_EL, velocity=math.radians(data.velocity)
-        )
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.crawl_el, velocity=data.velocity)
         await self.evt_elTarget.set_write(position=float("nan"), velocity=data.velocity)
 
     async def do_setLouvers(self, data: salobj.BaseMsgType) -> None:
@@ -840,8 +414,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug(f"do_setLouvers: {data.position=!s}")
         self.assert_enabled()
-        await self.schedule_command_if_power_management_active(
-            command=CommandName.SET_LOUVERS, position=data.position
+        assert self.mtdome_com is not None
+        await self.call_method(
+            method=self.mtdome_com.set_louvers, position=data.position
         )
 
     async def do_closeLouvers(self, data: salobj.BaseMsgType) -> None:
@@ -854,9 +429,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug("do_closeLouvers")
         self.assert_enabled()
-        await self.schedule_command_if_power_management_active(
-            command=CommandName.CLOSE_LOUVERS
-        )
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.close_louvers)
 
     async def do_openShutter(self, data: salobj.BaseMsgType) -> None:
         """Open Shutter.
@@ -868,9 +442,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug("do_openShutter")
         self.assert_enabled()
-        await self.schedule_command_if_power_management_active(
-            command=CommandName.OPEN_SHUTTER
-        )
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.open_shutter)
 
     async def do_closeShutter(self, data: salobj.BaseMsgType) -> None:
         """Close Shutter.
@@ -882,9 +455,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug("do_closeShutter")
         self.assert_enabled()
-        await self.schedule_command_if_power_management_active(
-            command=CommandName.CLOSE_SHUTTER
-        )
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.close_shutter)
 
     async def do_park(self, data: salobj.BaseMsgType) -> None:
         """Park, meaning stop all motion and engage the brakes and locking
@@ -897,9 +469,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug("do_park")
         self.assert_enabled()
-        await self.write_then_read_reply(command=CommandName.PARK)
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.park)
         await self.evt_azTarget.set_write(
-            position=360.0 - DOME_AZIMUTH_OFFSET, velocity=0
+            position=360.0 - mtdomecom.DOME_AZIMUTH_OFFSET, velocity=0
         )
 
     async def do_setTemperature(self, data: salobj.BaseMsgType) -> None:
@@ -912,8 +485,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug(f"do_setTemperature: {data.temperature=!s}")
         self.assert_enabled()
-        await self.write_then_read_reply(
-            command=CommandName.SET_TEMPERATURE, temperature=data.temperature
+        assert self.mtdome_com is not None
+        await self.call_method(
+            method=self.mtdome_com.set_temperature, temperature=data.temperature
         )
 
     async def do_exitFault(self, data: salobj.BaseMsgType) -> None:
@@ -926,22 +500,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-
-        # For backward compatibility with XML 12.0, we always send resetDrives
-        # commands.
-        az_reset = [1, 1, 1, 1, 1]
-        self.log.debug(f"resetDrivesAz: {az_reset=!s}")
-        await self.write_then_read_reply(
-            command=CommandName.RESET_DRIVES_AZ, reset=az_reset
-        )
-        if self.simulation_mode != ValidSimulationMode.NORMAL_OPERATIONS:
-            aps_reset = [1, 1, 1, 1]
-            self.log.debug(f"resetDrivesShutter: {aps_reset=!s}")
-            await self.write_then_read_reply(
-                command=CommandName.RESET_DRIVES_SHUTTER, reset=aps_reset
-            )
         self.log.debug("do_exitFault")
-        await self.write_then_read_reply(command=CommandName.EXIT_FAULT)
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.exit_fault)
 
     async def do_setOperationalMode(self, data: salobj.BaseMsgType) -> None:
         """Indicate that one or more sub_systems need to operate in degraded
@@ -954,25 +515,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         operational_mode = OperationalMode(data.operationalMode)
-        sub_system_ids: int = data.subSystemIds
-        for sub_system_id in SubSystemId:
-            if (
-                sub_system_id & sub_system_ids
-                and sub_system_id in self.operational_mode_command_dict
-                and operational_mode.name
-                in self.operational_mode_command_dict[sub_system_id]
-            ):
-                self.log.debug(
-                    f"do_setOperationalMode: sub_system_id={sub_system_id.name}"
-                )
-                command = self.operational_mode_command_dict[sub_system_id][
-                    operational_mode.name
-                ]
-                await self.write_then_read_reply(command=command)
-                await self.evt_operationalMode.set_write(
-                    operationalMode=operational_mode,
-                    subSystemId=sub_system_id,
-                )
+        self.log.debug(f"do_setOperationalMode: {operational_mode=}")
+        assert self.mtdome_com is not None
+        await self.call_method(
+            method=self.mtdome_com.set_operational_mode,
+            operational_mode=operational_mode,
+            sub_system_ids=data.subSystemIds,
+        )
 
     async def do_resetDrivesAz(self, data: salobj.BaseMsgType) -> None:
         """Reset one or more AZ drives. This is necessary when exiting from
@@ -987,9 +536,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         reset_ints = [int(value) for value in data.reset]
         self.log.debug(f"do_resetDrivesAz: reset={reset_ints}")
-        await self.write_then_read_reply(
-            command=CommandName.RESET_DRIVES_AZ, reset=reset_ints
-        )
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.reset_drives_az, reset=reset_ints)
 
     async def do_resetDrivesShutter(self, data: salobj.BaseMsgType) -> None:
         """Reset one or more Aperture Shutter drives. This is necessary when
@@ -1004,8 +552,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         reset_ints = [int(value) for value in data.reset]
         self.log.debug(f"do_resetDrivesShutter: reset={reset_ints}")
-        await self.write_then_read_reply(
-            command=CommandName.RESET_DRIVES_SHUTTER, reset=reset_ints
+        assert self.mtdome_com is not None
+        await self.call_method(
+            method=self.mtdome_com.reset_drives_shutter, reset=reset_ints
         )
 
     async def do_setZeroAz(self, data: salobj.BaseMsgType) -> None:
@@ -1020,7 +569,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.log.debug("do_setZeroAz")
         self.assert_enabled()
-        await self.write_then_read_reply(command=CommandName.SET_ZERO_AZ)
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.set_zero_az)
 
     async def do_home(self, data: salobj.BaseMsgType) -> None:
         """Search the home position of the Aperture Shutter, which is the
@@ -1035,49 +585,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             Contains the data as defined in the SAL XML file.
         """
         self.assert_enabled()
-        sub_system_ids: int = data.subSystemIds
-        for sub_system_id in SubSystemId:
-            self.log.debug(f"do_home: sub_system_id={sub_system_id.name}")
-            if (
-                sub_system_id & sub_system_ids
-                and sub_system_id in self.set_home_command_dict
-            ):
-                command = self.set_home_command_dict[sub_system_id]
-                await self.schedule_command_if_power_management_active(command=command)
-
-    async def config_llcs(self, system: str, settings: MaxValuesConfigType) -> None:
-        """Config command not to be executed by SAL.
-
-        This command will be used to send the values of one or more parameters
-        to configure the lower level components.
-
-        Parameters
-        ----------
-        system: `str`
-            The name of the lower level component to configure.
-        settings : `dict`
-            A dict containing key,value for all the parameters that need to be
-            configured. The structure is::
-
-                "jmax"
-                "amax"
-                "vmax"
-
-        """
-        self.log.debug("config_llcs")
-        if system == LlcName.AMCS.value:
-            converted_settings = self.amcs_limits.validate(settings)
-        elif system == LlcName.LWSCS.value:
-            converted_settings = self.lwscs_limits.validate(settings)
-        else:
-            raise ValueError(f"Encountered unsupported {system=!s}")
-
-        await self.write_then_read_reply(
-            command=CommandName.CONFIG, system=system, settings=converted_settings
+        assert self.mtdome_com is not None
+        await self.call_method(
+            method=self.mtdome_com.home, sub_system_ids=data.subSystemIds
         )
 
     async def restore_llcs(self) -> None:
-        await self.write_then_read_reply(command=CommandName.RESTORE)
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.restore_llcs)
 
     async def do_fans(self, data: salobj.BaseMsgType) -> None:
         """Set the speed of the fans.
@@ -1089,9 +604,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         self.log.debug(f"do_fans: {data.speed=!s}")
-        await self.schedule_command_if_power_management_active(
-            command=CommandName.FANS, speed=data.speed
-        )
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.fans, speed=data.speed)
 
     async def do_inflate(self, data: salobj.BaseMsgType) -> None:
         """Inflate or deflate the inflatable seal.
@@ -1103,9 +617,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         self.log.debug(f"do_inflate: {data.action=!s}")
-        await self.write_then_read_reply(
-            command=CommandName.INFLATE, action=data.action
-        )
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.inflate, action=data.action)
 
     async def do_setPowerManagementMode(self, data: salobj.BaseMsgType) -> None:
         """Set the power management mode.
@@ -1128,27 +641,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
 
         new_mode = PowerManagementMode(data.mode)
-
-        if new_mode == PowerManagementMode.NO_POWER_MANAGEMENT:
-            raise salobj.ExpectedError(
-                "Will not set PowerManagementMode to NO_POWER_MANAGEMENT."
-            )
-
-        elif new_mode == self.power_management_mode:
-            self.log.warning(
-                "New PowerManagementMode is equal to current mode. Ignoring."
-            )
-
-        else:
-            self.log.debug(
-                f"setPowerManagementMode: {data.mode}. Clearing command queue."
-            )
-            while not self.power_management_handler.command_queue.empty():
-                self.power_management_handler.command_queue.get_nowait()
-            self.power_management_mode = new_mode
-            await self.evt_powerManagementMode.set_write(
-                mode=self.power_management_mode
-            )
+        assert self.mtdome_com is not None
+        await self.call_method(
+            method=self.mtdome_com.set_power_management_mode,
+            power_management_mode=new_mode,
+        )
+        await self.evt_powerManagementMode.set_write(
+            mode=self.mtdome_com.power_management_mode
+        )
 
     async def statusAMCS(self) -> None:
         """AMCS status command not to be executed by SAL.
@@ -1156,7 +656,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the AMCS lower
         level component.
         """
-        await self.request_and_send_llc_status(LlcName.AMCS.value, self.tel_azimuth)
+        await self.request_and_send_llc_status(LlcName.AMCS, self.tel_azimuth)
 
     async def statusApSCS(self) -> None:
         """ApSCS status command not to be executed by SAL.
@@ -1164,9 +664,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the ApSCS lower
         level component.
         """
-        await self.request_and_send_llc_status(
-            LlcName.APSCS.value, self.tel_apertureShutter
-        )
+        await self.request_and_send_llc_status(LlcName.APSCS, self.tel_apertureShutter)
 
     async def statusCBCS(self) -> None:
         """CBCS status command not to be executed by SAL.
@@ -1174,9 +672,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the CBCS lower
         level component.
         """
-        await self.request_and_send_llc_status(
-            LlcName.CBCS.value, self.evt_capacitorBanks
-        )
+        await self.request_and_send_llc_status(LlcName.CBCS, self.evt_capacitorBanks)
 
     async def statusCSCS(self) -> None:
         """CSCS status command not to be executed by SAL.
@@ -1184,9 +680,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the CSCS lower
         level component.
         """
-        await self.request_and_send_llc_status(
-            LlcName.CSCS.value, self.tel_calibrationScreen
-        )
+        await self.request_and_send_llc_status(LlcName.CSCS, self.tel_calibrationScreen)
 
     async def statusLCS(self) -> None:
         """LCS status command not to be executed by SAL.
@@ -1194,7 +688,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the LCS lower
         level component.
         """
-        await self.request_and_send_llc_status(LlcName.LCS.value, self.tel_louvers)
+        await self.request_and_send_llc_status(LlcName.LCS, self.tel_louvers)
 
     async def statusLWSCS(self) -> None:
         """LWSCS status command not to be executed by SAL.
@@ -1202,9 +696,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the LWSCS lower
         level component.
         """
-        await self.request_and_send_llc_status(
-            LlcName.LWSCS.value, self.tel_lightWindScreen
-        )
+        await self.request_and_send_llc_status(LlcName.LWSCS, self.tel_lightWindScreen)
 
     async def statusMonCS(self) -> None:
         """MonCS status command not to be executed by SAL.
@@ -1212,7 +704,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the MonCS lower
         level component.
         """
-        await self.request_and_send_llc_status(LlcName.MONCS.value, self.tel_interlocks)
+        await self.request_and_send_llc_status(LlcName.MONCS, self.tel_interlocks)
 
     async def statusRAD(self) -> None:
         """RAD status command not to be executed by SAL.
@@ -1220,9 +712,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the RAD lower
         level component.
         """
-        await self.request_and_send_llc_status(
-            LlcName.RAD.value, self.tel_rearAccessDoor
-        )
+        await self.request_and_send_llc_status(LlcName.RAD, self.tel_rearAccessDoor)
 
     async def statusThCS(self) -> None:
         """ThCS status command not to be executed by SAL.
@@ -1230,7 +720,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         This command will be used to request the full status of the ThCS lower
         level component.
         """
-        await self.request_and_send_llc_status(LlcName.THCS.value, self.tel_thermal)
+        await self.request_and_send_llc_status(LlcName.THCS, self.tel_thermal)
 
     def _translate_motion_state_if_necessary(self, state: str) -> MotionState:
         try:
@@ -1349,41 +839,33 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 )
 
     async def request_and_send_llc_status(
-        self, llc_name: str, topic: SimpleNamespace
+        self, llc_name: LlcName, topic: SimpleNamespace
     ) -> None:
         """Generic method for retrieving the status of a lower level component
         and publish that on the corresponding telemetry topic.
 
         Parameters
         ----------
-        llc_name: `str`
+        llc_name: `LlcName`
             The name of the lower level component.
         topic: SAL topic
             The SAL topic to publish the telemetry to.
 
         """
-        command = CommandName(f"status{llc_name}")
+        assert self.mtdome_com is not None
         try:
-            status: dict[str, typing.Any] = await self.write_then_read_reply(
-                command=command
+            status: dict[str, typing.Any] = await self.call_method(
+                method=self.mtdome_com.request_llc_status, llc_name=llc_name
             )
         except ValueError:
             # An error message is logged in `self.write_then_read_reply`.
             return
 
-        if llc_name not in status:
-            # Log this in case no ValueError was raised a few lines up but the
-            # `status` still is not what was expected.
-            self.log.debug(f"No telemetry for subsystem {llc_name} Received {status=}.")
-            return
-
         await self._send_operational_mode_event(llc_name=llc_name, status=status)
-        await self.send_applied_configuration_event(llc_name, status)
+        await self._send_applied_configuration_event(llc_name, status)
 
-        # Store the status for reference.
-        self.lower_level_status[llc_name] = status[llc_name]
-
-        pre_processed_telemetry = await self._pre_process_telemetry(llc_name)
+        # Remove some keys because they are not reported in the telemetry.
+        pre_processed_telemetry = self._remove_keys_from_dict(status)
 
         # Avoid sending this event 2x per second due to a changing timestamp.
         if topic == self.evt_capacitorBanks and "timestamp" in pre_processed_telemetry:
@@ -1391,89 +873,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # Send the telemetry.
         await topic.set_write(**pre_processed_telemetry)
-        llc_status = status[llc_name]["status"]
-        await self.check_errors_and_send_events(
-            llc_name=llc_name, llc_status=llc_status
+        await self._check_errors_and_send_events(
+            llc_name=llc_name, llc_status=status["status"]
         )
 
-    async def _pre_process_telemetry(self, llc_name: str) -> dict[str, typing.Any]:
-        """Pre-process the telemetry.
-
-        This means converting radians to degrees, rounding off values, and
-        renaming and removing keys.
-
-        Parameters
-        ----------
-        llc_name: `str`
-            The name of the lower level component.
-
-        Returns
-        -------
-        dict[str, typing.Any]
-            The pre-processed telemetry.
-        """
-        pre_processed_telemetry: dict[str, typing.Any] = {}
-        raw_telemetry: dict[str, typing.Any] = self.lower_level_status[llc_name]
-        for key in raw_telemetry.keys():
-            if key in _KEYS_IN_RADIANS and llc_name in [
-                LlcName.AMCS.value,
-                LlcName.LWSCS.value,
-            ]:
-                pre_processed_telemetry[key] = math.degrees(raw_telemetry[key])
-                # Compensate for the dome azimuth offset. This is done here and
-                # not one level higher since angle_wrap_nonnegative only
-                # accepts Angle or a float in degrees and this way the
-                # conversion from radians to degrees only is done in one line
-                # of code.
-                if key in _AMCS_KEYS_OFFSET and llc_name == LlcName.AMCS.value:
-                    offset_value = utils.angle_wrap_nonnegative(
-                        pre_processed_telemetry[key] - DOME_AZIMUTH_OFFSET
-                    ).degree
-                    pre_processed_telemetry[key] = offset_value
-            elif key == "timestampUTC":
-                # DM-26653: The name of this parameter is still under
-                # discussion.
-                pre_processed_telemetry["timestamp"] = raw_telemetry["timestampUTC"]
-            else:
-                # No conversion needed since the value does not express an
-                # angle.
-                pre_processed_telemetry[key] = raw_telemetry[key]
-
-        # Round off values.
-        await self._round_telemetry_values(llc_name, pre_processed_telemetry)
-
-        # Remove some keys because they are not reported in the telemetry.
-        pre_processed_telemetry = self.remove_keys_from_dict(pre_processed_telemetry)
-        return pre_processed_telemetry
-
-    async def _round_telemetry_values(
-        self, llc_name: str, telemetry: dict[str, typing.Any]
-    ) -> None:
-        """Round the values in the telemetry.
-
-        Whether or not a value is rounded and to how many decimals is defined
-        in the _KEYS_TO_ROUND dict.
-
-        Parameters
-        ----------
-        llc_name: `str`
-            The name of the lower level component.
-        telemetry : `dict`[`str`, `typing.Any`]
-            The telemetry which values may be rounded.
-        """
-        keys_to_round = _KEYS_TO_ROUND[llc_name] if llc_name in _KEYS_TO_ROUND else {}
-        for key in telemetry.keys():
-            if key in keys_to_round:
-                if isinstance(telemetry[key], list):
-                    # Add 0.0 to avoid -0.0 values
-                    telemetry[key] = [
-                        round(val, keys_to_round[key]) + 0.0 for val in telemetry[key]
-                    ]
-                else:
-                    # Add 0.0 to avoid -0.0 values
-                    telemetry[key] = round(telemetry[key], keys_to_round[key]) + 0.0
-
-    async def send_applied_configuration_event(
+    async def _send_applied_configuration_event(
         self, llc_name: str, status: dict[str, typing.Any]
     ) -> None:
         # Send appliedConfiguration event for AMCS. This needs to be sent every
@@ -1482,8 +886,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # values have changed so it is safe to do this without overflowing the
         # EFD with events.
         if llc_name == LlcName.AMCS.value:
-            if "appliedConfiguration" in status[llc_name]:
-                applied_configuration = status[llc_name]["appliedConfiguration"]
+            if "appliedConfiguration" in status:
+                applied_configuration = status["appliedConfiguration"]
                 jmax = math.degrees(applied_configuration["jmax"])
                 amax = math.degrees(applied_configuration["amax"])
                 vmax = math.degrees(applied_configuration["vmax"])
@@ -1499,12 +903,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def _send_operational_mode_event(
         self, llc_name: str, status: dict[str, typing.Any]
     ) -> None:
-        if (
-            llc_name not in self.lower_level_status
-            and "operationalMode" in status[llc_name]["status"]
-        ):
+        if "operationalMode" in status["status"]:
             # DM-30807: Send OperationalMode event at start up.
-            current_operational_mode = status[llc_name]["status"]["operationalMode"]
+            current_operational_mode = status["status"]["operationalMode"]
             operatinal_mode = OperationalMode[current_operational_mode]
             sub_system_id = [
                 sid for sid, name in LlcNameDict.items() if name == llc_name
@@ -1514,7 +915,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 subSystemId=sub_system_id,
             )
 
-    async def check_errors_and_send_events(
+    async def _check_errors_and_send_events(
         self, llc_name: str, llc_status: dict[str, typing.Any]
     ) -> None:
         # DM-26374: Check for errors and send the events.
@@ -1525,7 +926,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         elif llc_name == LlcName.APSCS.value:
             await self._check_errors_and_send_events_shutter(llc_status)
 
-    def remove_keys_from_dict(
+    def _remove_keys_from_dict(
         self, dict_with_too_many_keys: dict[str, typing.Any]
     ) -> dict[str, typing.Any]:
         """
@@ -1559,37 +960,49 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def configure(self, config: SimpleNamespace) -> None:
         self.config = config
 
-    async def check_all_commands_have_replies(self) -> None:
-        """Check if all commands have received a reply.
+    async def call_method(
+        self, method: typing.Callable, **kwargs: typing.Any
+    ) -> typing.Any:
+        """Generic method for error handling when calling a method.
 
-        If a command hasn't received a reply after at least
-        _COMMANDS_REPLIED_PERIOD seconds, a warning is logged.
+        Parameters
+        ----------
+        method : `typing.Callable`
+            The method that needs generic error handling.
+        kwargs : `typing.Any`
+            The arguments for the method.
 
-        If a command hasn't received a reply after at least 2 *
-        _COMMANDS_REPLIED_PERIOD seconds, an error is logged and the command
-        is removed from the waiting list.
+        Raises
+        ------
+        ValuesError
+            This is an expected error when calling the method fails. All other
+            errors will lead to the CSC going to FAULT state.
+
         """
-        current_tai = utils.current_tai()
-        commands_to_remove: set[int] = set()
-        for command_id in self.commands_without_reply:
-            command_time = self.commands_without_reply[command_id]
-            if current_tai - command_time.tai >= 2.0 * _COMMANDS_REPLIED_PERIOD:
-                self.log.error(
-                    f"Command {command_time.command} with {command_id=} has not received a "
-                    f"reply during at least {2 * _COMMANDS_REPLIED_PERIOD} seconds. Removing."
-                )
-                commands_to_remove.add(command_id)
-            elif current_tai - command_time.tai >= _COMMANDS_REPLIED_PERIOD:
-                self.log.warning(
-                    f"Command {command_time.command} with {command_id=} has not received a "
-                    f"reply during at least {_COMMANDS_REPLIED_PERIOD} seconds. Still waiting."
-                )
-        for command_id in commands_to_remove:
-            self.commands_without_reply.pop(command_id)
+        try:
+            return await method(**kwargs)
+        except ValueError:
+            raise
+        except Exception:
+            await self.go_fault(method)
+
+    async def go_fault(self, method: typing.Callable) -> None:
+        """Convenience method to go to FAULT state.
+
+        Parameters
+        ----------
+        method : `typing.Callable`
+            The method that causes the FAULT state.
+        """
+        await self.fault(code=3, report=f"Error calling {method=}.")
 
     @property
     def connected(self) -> bool:
-        return self.client is not None and self.client.connected
+        return (
+            self.mtdome_com is not None
+            and self.mtdome_com.client is not None
+            and self.mtdome_com.client.connected
+        )
 
     @staticmethod
     def get_config_pkg() -> str:
