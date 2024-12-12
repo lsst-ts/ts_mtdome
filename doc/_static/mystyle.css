@@ -1,9 +1,0 @@
-@import "theme.css";
-
-table.docutils td {
-    vertical-align: top;
-}
-div.line-block {
-    vertical-align: top;
-    margin-top: 0;
-}
