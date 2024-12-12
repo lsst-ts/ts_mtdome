@@ -6,6 +6,18 @@
 Version History
 ###############
 
+======
+v2.0.0
+======
+* Move all non-CSC code and documentation to `ts_mtdomecom`.
+
+Requires:
+
+* ts_salobj 7
+* ts_idl
+* ts_mtdomecom
+* ts_xml 22.0
+
 =======
 v1.18.2
 =======

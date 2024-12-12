@@ -26,12 +26,11 @@ import math
 import pathlib
 import typing
 import unittest
-from unittest import mock
 
 import numpy as np
 import pytest
 import yaml
-from lsst.ts import mtdome, salobj, tcpip, utils
+from lsst.ts import mtdome, mtdomecom, salobj, tcpip, utils
 from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
@@ -46,10 +45,6 @@ SHORT_TIMEOUT = 1  # short command and event timeout (sec)
 COMMANDS_REPLIED_PERIOD = 0.2  # (sec)
 
 CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
-
-logging.basicConfig(
-    format="%(asctime)s:%(levelname)s:%(name)s:%(message)s", level=logging.DEBUG
-)
 
 
 class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
@@ -76,7 +71,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         port: int,
         include_command_id: bool = True,
     ) -> typing.AsyncGenerator[tcpip.BaseClientOrServer, None]:
-        mock_ctrl = mtdome.MockMTDomeController(
+        mock_ctrl = mtdomecom.MockMTDomeController(
             port=port,
             log=logging.getLogger("CscTestCase"),
         )
@@ -89,39 +84,39 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.check_standard_state_transitions(
                 enabled_commands=(
-                    mtdome.CommandName.MOVE_AZ,
-                    mtdome.CommandName.MOVE_EL,
-                    mtdome.CommandName.STOP_AZ,
-                    mtdome.CommandName.STOP_EL,
+                    mtdomecom.CommandName.MOVE_AZ,
+                    mtdomecom.CommandName.MOVE_EL,
+                    mtdomecom.CommandName.STOP_AZ,
+                    mtdomecom.CommandName.STOP_EL,
                     "stop",
-                    mtdome.CommandName.CRAWL_AZ,
-                    mtdome.CommandName.CRAWL_EL,
-                    mtdome.CommandName.SET_LOUVERS,
-                    mtdome.CommandName.CLOSE_LOUVERS,
-                    mtdome.CommandName.STOP_LOUVERS,
-                    mtdome.CommandName.OPEN_SHUTTER,
-                    mtdome.CommandName.CLOSE_SHUTTER,
-                    mtdome.CommandName.STOP_SHUTTER,
-                    mtdome.CommandName.PARK,
+                    mtdomecom.CommandName.CRAWL_AZ,
+                    mtdomecom.CommandName.CRAWL_EL,
+                    mtdomecom.CommandName.SET_LOUVERS,
+                    mtdomecom.CommandName.CLOSE_LOUVERS,
+                    mtdomecom.CommandName.STOP_LOUVERS,
+                    mtdomecom.CommandName.OPEN_SHUTTER,
+                    mtdomecom.CommandName.CLOSE_SHUTTER,
+                    mtdomecom.CommandName.STOP_SHUTTER,
+                    mtdomecom.CommandName.PARK,
                     "goStationary",
-                    mtdome.CommandName.GO_STATIONARY_AZ,
-                    mtdome.CommandName.GO_STATIONARY_EL,
-                    mtdome.CommandName.GO_STATIONARY_LOUVERS,
-                    mtdome.CommandName.GO_STATIONARY_SHUTTER,
-                    mtdome.CommandName.SET_TEMPERATURE,
-                    mtdome.CommandName.FANS,
-                    mtdome.CommandName.INFLATE,
-                    mtdome.CommandName.EXIT_FAULT,
+                    mtdomecom.CommandName.GO_STATIONARY_AZ,
+                    mtdomecom.CommandName.GO_STATIONARY_EL,
+                    mtdomecom.CommandName.GO_STATIONARY_LOUVERS,
+                    mtdomecom.CommandName.GO_STATIONARY_SHUTTER,
+                    mtdomecom.CommandName.SET_TEMPERATURE,
+                    mtdomecom.CommandName.FANS,
+                    mtdomecom.CommandName.INFLATE,
+                    mtdomecom.CommandName.EXIT_FAULT,
                     "home",
-                    mtdome.CommandName.SET_ZERO_AZ,
-                    mtdome.CommandName.RESET_DRIVES_AZ,
-                    mtdome.CommandName.RESET_DRIVES_SHUTTER,
+                    mtdomecom.CommandName.SET_ZERO_AZ,
+                    mtdomecom.CommandName.RESET_DRIVES_AZ,
+                    mtdomecom.CommandName.RESET_DRIVES_SHUTTER,
                     "setOperationalMode",
-                    mtdome.CommandName.SET_POWER_MANAGEMENT_MODE,
+                    mtdomecom.CommandName.SET_POWER_MANAGEMENT_MODE,
                 ),
             )
 
@@ -129,7 +124,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.assert_next_sample(
                 self.remote.evt_softwareVersions,
@@ -158,7 +153,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             topic=self.remote.evt_lockingPinsEngaged, engaged=0
         )
 
-        self.csc.mock_ctrl.determine_current_tai = self.determine_current_tai
+        self.csc.mtdome_com.mock_ctrl.determine_current_tai = self.determine_current_tai
         sub_system_ids = (
             SubSystemId.AMCS
             | SubSystemId.LWSCS
@@ -197,8 +192,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             len(
                 [
                     key
-                    for key in self.csc.commands_without_reply
-                    if self.csc.commands_without_reply[key].command == cmd
+                    for key in self.csc.mtdome_com.commands_without_reply
+                    if self.csc.mtdome_com.commands_without_reply[key].command == cmd
                 ]
             )
             == 0
@@ -208,13 +203,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = utils.current_tai()
-            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
+            self.csc.mtdome_com.mock_ctrl.amcs.current_state = MotionState.MOVING.name
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -232,15 +227,19 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             data = await self.assert_next_sample(
                 topic=self.remote.evt_azTarget, position=desired_position
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.MOVE_AZ)
             assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
             # Give some time to the mock device to move.
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
 
             # Now also check the azMotion event.
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            amcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.AMCS.value
+            ]
             assert amcs_status["status"]["status"] == MotionState.MOVING.name
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -252,15 +251,17 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = utils.current_tai()
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
-            self.csc.mock_ctrl.lwscs.command_time_tai = self.csc.mock_ctrl.current_tai
+            self.csc.mtdome_com.mock_ctrl.lwscs.command_time_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai
+            )
 
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
@@ -275,11 +276,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.assert_next_sample(
                 topic=self.remote.evt_elTarget, position=desired_position, velocity=0
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_EL)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.MOVE_EL)
 
             # Now also check the elMotion event.
             await self.csc.statusLWSCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
+            amcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.LWSCS.value
+            ]
             assert amcs_status["status"]["status"] == MotionState.MOVING.name
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
@@ -291,12 +294,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = utils.current_tai()
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
 
             await self.csc.statusAMCS()
             await self.assert_next_sample(
@@ -314,8 +317,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 timeout=STD_TIMEOUT,
             )
 
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
-            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
+            self.csc.mtdome_com.mock_ctrl.amcs.current_state = MotionState.MOVING.name
 
             await self.csc.statusAMCS()
             await self.assert_next_sample(
@@ -323,7 +328,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 state=MotionState.MOVING,
                 inPosition=False,
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.MOVE_AZ)
 
             await self.remote.cmd_stop.set_start(
                 engageBrakes=False, subSystemIds=SubSystemId.AMCS
@@ -341,7 +346,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stop.set_start(
@@ -357,25 +362,27 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 timeout=STD_TIMEOUT,
             )
 
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
 
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
                 state=MotionState.STOPPED,
                 inPosition=True,
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_EL)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.MOVE_EL)
 
     async def test_do_stop(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = utils.current_tai()
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -392,14 +399,16 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 timeout=STD_TIMEOUT,
             )
 
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
-            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
+            self.csc.mtdome_com.mock_ctrl.amcs.current_state = MotionState.MOVING.name
             await self.csc.statusAMCS()
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
                 state=MotionState.MOVING,
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.MOVE_AZ)
 
             sub_system_ids = (
                 SubSystemId.AMCS
@@ -414,7 +423,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 subSystemIds=sub_system_ids,
             )
 
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
             await self.csc.statusAMCS()
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -434,13 +445,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = utils.current_tai()
-            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
+            self.csc.mtdome_com.mock_ctrl.amcs.current_state = MotionState.MOVING.name
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -456,16 +467,20 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             data = await self.assert_next_sample(
                 topic=self.remote.evt_azTarget,
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.CRAWL_AZ)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.CRAWL_AZ)
             assert np.isnan(data.position)
             assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
             # Give some time to the mock device to move.
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
 
             # Now also check the azMotion event.
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            amcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.AMCS.value
+            ]
             assert amcs_status["status"]["status"] == MotionState.CRAWLING.name
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -477,15 +492,17 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = 1000
+            self.csc.mtdome_com.mock_ctrl.current_tai = 1000
             # Set the mock device status TAI time to the mock controller time
             # for easier control
-            self.csc.mock_ctrl.lwscs.command_time_tai = self.csc.mock_ctrl.current_tai
+            self.csc.mtdome_com.mock_ctrl.lwscs.command_time_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai
+            )
 
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
@@ -498,17 +515,21 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 velocity=desired_velocity,
                 timeout=STD_TIMEOUT,
             )
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
             data = await self.assert_next_sample(
                 topic=self.remote.evt_elTarget,
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.CRAWL_EL)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.CRAWL_EL)
             assert np.isnan(data.position)
             assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
             # Now also check the elMotion event.
             await self.csc.statusLWSCS()
-            lwscs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
+            lwscs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.LWSCS.value
+            ]
             assert lwscs_status["status"]["status"] == MotionState.CRAWLING.name
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
@@ -520,34 +541,36 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
             louver_id = 5
             target_position = 100
-            desired_position = np.full(mtdome.mock_llc.NUM_LOUVERS, -1.0, dtype=float)
+            desired_position = np.full(
+                mtdomecom.mock_llc.NUM_LOUVERS, -1.0, dtype=float
+            )
             desired_position[louver_id] = target_position
             await self.remote.cmd_setLouvers.set_start(
                 position=desired_position.tolist(),
                 timeout=STD_TIMEOUT,
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.SET_LOUVERS)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.SET_LOUVERS)
 
     async def test_do_closeLouvers(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_closeLouvers.set_start()
-            await self.assert_command_replied(cmd=mtdome.CommandName.CLOSE_LOUVERS)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.CLOSE_LOUVERS)
 
     async def test_do_stopLouvers(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stop.set_start(
@@ -558,30 +581,38 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = 1000
+            self.csc.mtdome_com.mock_ctrl.current_tai = 1000
 
             await self.remote.cmd_openShutter.set_start()
-            await self.assert_command_replied(cmd=mtdome.CommandName.OPEN_SHUTTER)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.OPEN_SHUTTER)
 
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
             await self.csc.statusApSCS()
-            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            apscs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.APSCS.value
+            ]
             assert apscs_status["status"]["status"] == [
                 MotionState.LP_DISENGAGING.name,
                 MotionState.LP_DISENGAGING.name,
             ]
 
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 10.1
-            self.csc.mock_ctrl.apscs.current_state = [
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 10.1
+            )
+            self.csc.mtdome_com.mock_ctrl.apscs.current_state = [
                 MotionState.OPENING.name
-            ] * mtdome.mock_llc.NUM_SHUTTERS
+            ] * mtdomecom.mock_llc.NUM_SHUTTERS
             await self.csc.statusApSCS()
-            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            apscs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.APSCS.value
+            ]
             assert apscs_status["status"]["status"] == [
                 MotionState.PROXIMITY_OPEN_LS_ENGAGED.name,
                 MotionState.PROXIMITY_OPEN_LS_ENGAGED.name,
@@ -591,49 +622,57 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
 
             await self.set_csc_to_enabled()
 
             start_tai = 1000
 
-            self.csc.mock_ctrl.apscs.position_actual = np.full(
-                mtdome.mock_llc.NUM_SHUTTERS, 100.0, dtype=float
+            self.csc.mtdome_com.mock_ctrl.apscs.position_actual = np.full(
+                mtdomecom.mock_llc.NUM_SHUTTERS, 100.0, dtype=float
             )
-            self.csc.mock_ctrl.apscs.start_state = [
+            self.csc.mtdome_com.mock_ctrl.apscs.start_state = [
                 MotionState.OPEN.name,
                 MotionState.OPEN.name,
             ]
-            self.csc.mock_ctrl.apscs.current_state = [
+            self.csc.mtdome_com.mock_ctrl.apscs.current_state = [
                 MotionState.OPEN.name,
                 MotionState.OPEN.name,
             ]
-            self.csc.mock_ctrl.apscs.target_state = [
+            self.csc.mtdome_com.mock_ctrl.apscs.target_state = [
                 MotionState.OPEN.name,
                 MotionState.OPEN.name,
             ]
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = start_tai
+            self.csc.mtdome_com.mock_ctrl.current_tai = start_tai
 
             await self.remote.cmd_closeShutter.set_start()
-            await self.assert_command_replied(cmd=mtdome.CommandName.CLOSE_SHUTTER)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.CLOSE_SHUTTER)
 
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
             await self.csc.statusApSCS()
-            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            apscs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.APSCS.value
+            ]
             assert apscs_status["status"]["status"] == [
                 MotionState.LP_DISENGAGING.name,
                 MotionState.LP_DISENGAGING.name,
             ]
 
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 10.1
-            self.csc.mock_ctrl.apscs.current_state = [
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 10.1
+            )
+            self.csc.mtdome_com.mock_ctrl.apscs.current_state = [
                 MotionState.OPENING.name
-            ] * mtdome.mock_llc.NUM_SHUTTERS
+            ] * mtdomecom.mock_llc.NUM_SHUTTERS
             await self.csc.statusApSCS()
-            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            apscs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.APSCS.value
+            ]
             assert apscs_status["status"]["status"] == [
                 MotionState.PROXIMITY_CLOSED_LS_ENGAGED.name,
                 MotionState.PROXIMITY_CLOSED_LS_ENGAGED.name,
@@ -651,7 +690,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stop.set_start(
@@ -663,12 +702,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = utils.current_tai()
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
 
             # This event gets emitted as soon as the CSC has started.
             await self.assert_next_sample(
@@ -680,10 +719,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.remote.cmd_park.set_start()
             await self.assert_next_sample(
                 topic=self.remote.evt_azTarget,
-                position=360.0 - mtdome.DOME_AZIMUTH_OFFSET,
+                position=360.0 - mtdomecom.DOME_AZIMUTH_OFFSET,
                 velocity=0,
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.PARK)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.PARK)
 
             # No new azMotion event gets emitted since the PARKED event already
             # was emitted and AMCS has not changed status since, so we're done.
@@ -692,12 +731,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = utils.current_tai()
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -714,9 +753,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 timeout=STD_TIMEOUT,
             )
 
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
-            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
-            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
+            self.csc.mtdome_com.mock_ctrl.amcs.current_state = MotionState.MOVING.name
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.MOVE_AZ)
 
             sub_system_ids = (
                 SubSystemId.AMCS
@@ -732,19 +773,23 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             # Give some time to the mock device to move.
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
             await self.assert_command_replied(cmd="stop")
 
             # Now also check the azMotion event.
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            amcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.AMCS.value
+            ]
             assert amcs_status["status"]["status"] == MotionState.STOPPED.name
 
     async def test_do_setTemperature(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
             desired_temperature = 10.0
@@ -752,47 +797,47 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 temperature=desired_temperature,
                 timeout=STD_TIMEOUT,
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.SET_TEMPERATURE)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.SET_TEMPERATURE)
 
     async def test_config(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # All values are below the limits.
-            system = mtdome.LlcName.AMCS.value
+            system = mtdomecom.LlcName.AMCS
             settings = [
                 {"target": "jmax", "setting": [1.0]},
                 {"target": "amax", "setting": [0.5]},
                 {"target": "vmax", "setting": [1.0]},
             ]
-            await self.csc.config_llcs(system, settings)
+            await self.csc.mtdome_com.config_llcs(system, settings)
 
             # The value of AMCS amax is too high.
-            system = mtdome.LlcName.AMCS.value
+            system = mtdomecom.LlcName.AMCS
             settings = [
                 {"target": "jmax", "setting": [1.0]},
                 {"target": "amax", "setting": [1.0]},
                 {"target": "vmax", "setting": [1.0]},
             ]
             with pytest.raises(ValueError):
-                await self.csc.config_llcs(system, settings)
+                await self.csc.mtdome_com.config_llcs(system, settings)
 
             # The value of AMCS amax is too low.
-            system = mtdome.LlcName.AMCS.value
+            system = mtdomecom.LlcName.AMCS
             settings = [
                 {"target": "jmax", "setting": [1.0]},
                 {"target": "amax", "setting": [-0.5]},
                 {"target": "vmax", "setting": [1.0]},
             ]
             with pytest.raises(ValueError):
-                await self.csc.config_llcs(system, settings)
+                await self.csc.mtdome_com.config_llcs(system, settings)
 
             # The param AMCS smax doesn't exist.
-            system = mtdome.LlcName.AMCS.value
+            system = mtdomecom.LlcName.AMCS
             settings = [
                 {"target": "jmax", "setting": [1.0]},
                 {"target": "amax", "setting": [0.5]},
@@ -800,16 +845,16 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 {"target": "smax", "setting": [1.0]},
             ]
             with pytest.raises(KeyError):
-                await self.csc.config_llcs(system, settings)
+                await self.csc.mtdome_com.config_llcs(system, settings)
 
             # No parameter can be missing.
-            system = mtdome.LlcName.AMCS.value
+            system = mtdomecom.LlcName.AMCS
             settings = [
                 {"target": "jmax", "setting": [1.0]},
                 {"target": "amax", "setting": [0.5]},
             ]
             with pytest.raises(KeyError):
-                await self.csc.config_llcs(system, settings)
+                await self.csc.mtdome_com.config_llcs(system, settings)
 
     async def validate_configuration_values(self, config_file: str) -> None:
         if config_file == "_init.yaml":
@@ -821,9 +866,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 remote=self.remote, state=salobj.State.ENABLED, override=config_file
             )
 
-        config_jmax = math.degrees(self.csc.mock_ctrl.amcs.jmax)
-        config_amax = math.degrees(self.csc.mock_ctrl.amcs.amax)
-        config_vmax = math.degrees(self.csc.mock_ctrl.amcs.vmax)
+        config_jmax = math.degrees(self.csc.mtdome_com.mock_ctrl.amcs.jmax)
+        config_amax = math.degrees(self.csc.mtdome_com.mock_ctrl.amcs.amax)
+        config_vmax = math.degrees(self.csc.mtdome_com.mock_ctrl.amcs.vmax)
 
         await self.csc.statusAMCS()
         data = await self.assert_next_sample(
@@ -837,13 +882,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 or config_data["amcs_jmax"] == -1
             ):
                 expected_jmax = math.degrees(
-                    mtdome.llc_configuration_limits.AmcsLimits.jmax
+                    mtdomecom.llc_configuration_limits.AmcsLimits.jmax
                 )
                 expected_amax = math.degrees(
-                    mtdome.llc_configuration_limits.AmcsLimits.amax
+                    mtdomecom.llc_configuration_limits.AmcsLimits.amax
                 )
                 expected_vmax = math.degrees(
-                    mtdome.llc_configuration_limits.AmcsLimits.vmax
+                    mtdomecom.llc_configuration_limits.AmcsLimits.vmax
                 )
             else:
                 expected_jmax = config_data["amcs_jmax"]
@@ -871,7 +916,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.validate_configuration_values(config_file="_init.yaml")
             await self.validate_configuration_values(
@@ -885,26 +930,32 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = utils.current_tai()
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
-
-            await self.csc.write_then_read_reply(
-                command=mtdome.CommandName.FANS, speed=50.0
+            self.csc.mtdome_com.mock_ctrl.amcs.command_time_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.FANS)
+
+            await self.csc.mtdome_com.write_then_read_reply(
+                command=mtdomecom.CommandName.FANS, speed=50.0
+            )
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.FANS)
 
             # Give some time to the mock device to move.
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
 
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            amcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.AMCS.value
+            ]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
             assert amcs_status["status"]["fans"] == pytest.approx(50.0)
 
@@ -912,26 +963,32 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = utils.current_tai()
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
             # Set the mock device status TAI time to the mock controller time
             # for easier control
-            self.csc.mock_ctrl.amcs.command_time_tai = self.csc.mock_ctrl.current_tai
-
-            await self.csc.write_then_read_reply(
-                command=mtdome.CommandName.INFLATE, action=OnOff.ON.value
+            self.csc.mtdome_com.mock_ctrl.amcs.command_time_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.INFLATE)
+
+            await self.csc.mtdome_com.write_then_read_reply(
+                command=mtdomecom.CommandName.INFLATE, action=OnOff.ON.value
+            )
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.INFLATE)
 
             # Give some time to the mock device to move.
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
 
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            amcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.AMCS.value
+            ]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
             assert amcs_status["status"]["inflate"] == OnOff.ON.value
 
@@ -939,7 +996,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             # It should be possible to always execute the status command but
             # the connection with the lower level components only gets made in
@@ -948,7 +1005,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            amcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.AMCS.value
+            ]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
             assert amcs_status["positionActual"] == 0
             await self.assert_next_sample(
@@ -958,7 +1017,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             await self.csc.statusApSCS()
-            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            apscs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.APSCS.value
+            ]
             assert apscs_status["status"]["status"] == [
                 MotionState.CLOSED.name,
                 MotionState.CLOSED.name,
@@ -966,16 +1027,22 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert apscs_status["positionActual"] == [0.0, 0.0]
 
             await self.csc.statusLCS()
-            lcs_status = self.csc.lower_level_status[mtdome.LlcName.LCS.value]
+            lcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.LCS.value
+            ]
             assert (
                 lcs_status["status"]["status"]
-                == [mtdome.InternalMotionState.STATIONARY.name]
-                * mtdome.mock_llc.NUM_LOUVERS
+                == [mtdomecom.InternalMotionState.STATIONARY.name]
+                * mtdomecom.mock_llc.NUM_LOUVERS
             )
-            assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
+            assert (
+                lcs_status["positionActual"] == [0.0] * mtdomecom.mock_llc.NUM_LOUVERS
+            )
 
             await self.csc.statusLWSCS()
-            lwscs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
+            lwscs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.LWSCS.value
+            ]
             assert lwscs_status["status"]["status"] == MotionState.STOPPED.name
             assert lwscs_status["positionActual"] == 0
             await self.assert_next_sample(
@@ -985,38 +1052,48 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             await self.csc.statusMonCS()
-            moncs_status = self.csc.lower_level_status[mtdome.LlcName.MONCS.value]
+            moncs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.MONCS.value
+            ]
             assert moncs_status["status"]["status"] == MotionState.CLOSED.name
-            assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
+            assert moncs_status["data"] == [0.0] * mtdomecom.mock_llc.NUM_MON_SENSORS
 
             await self.csc.statusThCS()
-            thcs_status = self.csc.lower_level_status[mtdome.LlcName.THCS.value]
+            thcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.THCS.value
+            ]
             assert thcs_status["status"]["status"] == MotionState.DISABLED.name
             assert (
                 thcs_status["temperature"]
-                == [0.0] * mtdome.mock_llc.thcs.NUM_THERMO_SENSORS
+                == [0.0] * mtdomecom.mock_llc.thcs.NUM_THERMO_SENSORS
             )
 
             await self.csc.statusRAD()
-            rad_status = self.csc.lower_level_status[mtdome.LlcName.RAD.value]
+            rad_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.RAD.value
+            ]
             assert (
                 rad_status["status"]["status"]
-                == [MotionState.CLOSED.name] * mtdome.mock_llc.rad.NUM_DOORS
+                == [MotionState.CLOSED.name] * mtdomecom.mock_llc.rad.NUM_DOORS
             )
-            assert rad_status["positionActual"] == [0.0] * mtdome.mock_llc.rad.NUM_DOORS
+            assert (
+                rad_status["positionActual"] == [0.0] * mtdomecom.mock_llc.rad.NUM_DOORS
+            )
 
             await self.csc.statusCBCS()
-            cbcs_status = self.csc.lower_level_status[mtdome.LlcName.CBCS.value]
+            cbcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.CBCS.value
+            ]
             assert (
                 cbcs_status["fuseIntervention"]
-                == [False] * mtdome.mock_llc.cbcs.NUM_CAPACITOR_BANKS
+                == [False] * mtdomecom.mock_llc.cbcs.NUM_CAPACITOR_BANKS
             )
 
     async def test_status_error(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
@@ -1032,9 +1109,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     for message in expected_messages
                 ]
             )
-            self.csc.mock_ctrl.amcs.messages = expected_messages
+            self.csc.mtdome_com.mock_ctrl.amcs.messages = expected_messages
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            amcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.AMCS.value
+            ]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
             assert amcs_status["status"]["messages"] == expected_messages
             assert amcs_status["positionActual"] == 0
@@ -1048,12 +1127,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = utils.current_tai()
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
 
             await self.csc.statusAMCS()
             await self.assert_next_sample(
@@ -1070,10 +1149,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 velocity=desired_velocity,
                 timeout=STD_TIMEOUT,
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.MOVE_AZ)
 
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
-            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
+            self.csc.mtdome_com.mock_ctrl.amcs.current_state = MotionState.MOVING.name
 
             await self.csc.statusAMCS()
             await self.assert_next_sample(
@@ -1082,12 +1163,18 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             # Prepare the lower level components
-            current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            current_tai = self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
             az_drives_in_error = [1, 1, 0, 0, 0]
-            await self.csc.mock_ctrl.amcs.set_fault(current_tai, az_drives_in_error)
+            await self.csc.mtdome_com.mock_ctrl.amcs.set_fault(
+                current_tai, az_drives_in_error
+            )
             aps_drives_in_error = [1, 1, 0, 0]
-            await self.csc.mock_ctrl.apscs.set_fault(current_tai, aps_drives_in_error)
-            self.csc.mock_ctrl.amcs._commanded_motion_state = MotionState.ERROR
+            await self.csc.mtdome_com.mock_ctrl.apscs.set_fault(
+                current_tai, aps_drives_in_error
+            )
+            self.csc.mtdome_com.mock_ctrl.amcs._commanded_motion_state = (
+                MotionState.ERROR
+            )
 
             # Make sure that the Enabled events are sent.
             await self.csc.statusAMCS()
@@ -1100,25 +1187,27 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            amcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.AMCS.value
+            ]
             assert amcs_status["status"]["status"] == MotionState.ERROR.name
 
             # Because of backward compatibility with XML 12.0, the exitFault
             # command will also reset the AZ and ApS drives so this next
             # command will not fail.
             await self.remote.cmd_exitFault.set_start()
-            await self.assert_command_replied(cmd=mtdome.CommandName.EXIT_FAULT)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.EXIT_FAULT)
 
             az_reset = [1, 1, 0, 0, 0]
             await self.remote.cmd_resetDrivesAz.set_start(reset=az_reset)
-            await self.assert_command_replied(cmd=mtdome.CommandName.RESET_DRIVES_AZ)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.RESET_DRIVES_AZ)
             aps_reset = [1, 1, 0, 0]
             await self.remote.cmd_resetDrivesShutter.set_start(reset=aps_reset)
             await self.assert_command_replied(
-                cmd=mtdome.CommandName.RESET_DRIVES_SHUTTER
+                cmd=mtdomecom.CommandName.RESET_DRIVES_SHUTTER
             )
             await self.remote.cmd_exitFault.set_start()
-            await self.assert_command_replied(cmd=mtdome.CommandName.EXIT_FAULT)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.EXIT_FAULT)
 
             # Make sure that the Enabled events are sent.
             await self.csc.statusAMCS()
@@ -1131,66 +1220,81 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            amcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.AMCS.value
+            ]
             assert (
                 amcs_status["status"]["status"]
-                == mtdome.InternalMotionState.STATIONARY.name
+                == mtdomecom.InternalMotionState.STATIONARY.name
             )
 
             await self.csc.statusApSCS()
-            apscs_status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            apscs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.APSCS.value
+            ]
             assert apscs_status["status"]["status"] == [
-                mtdome.InternalMotionState.STATIONARY.name,
-                mtdome.InternalMotionState.STATIONARY.name,
+                mtdomecom.InternalMotionState.STATIONARY.name,
+                mtdomecom.InternalMotionState.STATIONARY.name,
             ]
             assert math.isclose(apscs_status["positionActual"][0], 0.0, abs_tol=0.001)
             assert math.isclose(apscs_status["positionActual"][1], 0.0, abs_tol=0.001)
 
             await self.csc.statusLCS()
-            lcs_status = self.csc.lower_level_status[mtdome.LlcName.LCS.value]
+            lcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.LCS.value
+            ]
             assert (
                 lcs_status["status"]["status"]
-                == [mtdome.InternalMotionState.STATIONARY.name]
-                * mtdome.mock_llc.NUM_LOUVERS
+                == [mtdomecom.InternalMotionState.STATIONARY.name]
+                * mtdomecom.mock_llc.NUM_LOUVERS
             )
-            assert lcs_status["positionActual"] == [0.0] * mtdome.mock_llc.NUM_LOUVERS
+            assert (
+                lcs_status["positionActual"] == [0.0] * mtdomecom.mock_llc.NUM_LOUVERS
+            )
 
             await self.csc.statusLWSCS()
-            lwscs_status = self.csc.lower_level_status[mtdome.LlcName.LWSCS.value]
+            lwscs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.LWSCS.value
+            ]
             assert (
                 lwscs_status["status"]["status"]
-                == mtdome.InternalMotionState.STATIONARY.name
+                == mtdomecom.InternalMotionState.STATIONARY.name
             )
             assert lwscs_status["positionActual"] == 0
 
             await self.csc.statusMonCS()
-            moncs_status = self.csc.lower_level_status[mtdome.LlcName.MONCS.value]
+            moncs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.MONCS.value
+            ]
             assert (
                 moncs_status["status"]["status"]
-                == mtdome.InternalMotionState.STATIONARY.name
+                == mtdomecom.InternalMotionState.STATIONARY.name
             )
-            assert moncs_status["data"] == [0.0] * mtdome.mock_llc.NUM_MON_SENSORS
+            assert moncs_status["data"] == [0.0] * mtdomecom.mock_llc.NUM_MON_SENSORS
 
             await self.csc.statusThCS()
-            thcs_status = self.csc.lower_level_status[mtdome.LlcName.THCS.value]
+            thcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.THCS.value
+            ]
             assert (
                 thcs_status["status"]["status"]
-                == mtdome.InternalMotionState.STATIONARY.name
+                == mtdomecom.InternalMotionState.STATIONARY.name
             )
             assert (
-                thcs_status["temperature"] == [0.0] * mtdome.mock_llc.NUM_THERMO_SENSORS
+                thcs_status["temperature"]
+                == [0.0] * mtdomecom.mock_llc.NUM_THERMO_SENSORS
             )
 
     async def test_setZeroAz(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = utils.current_tai()
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
 
             await self.assert_next_sample(
                 topic=self.remote.evt_azMotion,
@@ -1200,7 +1304,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Compensate for the dome azimuth offset.
             desired_position = utils.angle_wrap_nonnegative(
-                2.0 - mtdome.DOME_AZIMUTH_OFFSET
+                2.0 - mtdomecom.DOME_AZIMUTH_OFFSET
             ).degree
             desired_velocity = 0.0
             await self.remote.cmd_moveAz.set_start(
@@ -1208,38 +1312,50 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 velocity=desired_velocity,
                 timeout=STD_TIMEOUT,
             )
-            await self.assert_command_replied(cmd=mtdome.CommandName.MOVE_AZ)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.MOVE_AZ)
             data = await self.assert_next_sample(
                 topic=self.remote.evt_azTarget, position=desired_position
             )
             assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
             # Give some time to the mock device to move.
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
-            self.csc.mock_ctrl.amcs.current_state = MotionState.MOVING.name
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
+            self.csc.mtdome_com.mock_ctrl.amcs.current_state = MotionState.MOVING.name
 
             # Now also check the azMotion event.
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            amcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.AMCS.value
+            ]
             assert amcs_status["status"]["status"] == MotionState.MOVING.name
 
             # Cannot set to zero while AMCS is MOVING
             with salobj.assertRaisesAckError():
                 await self.remote.cmd_setZeroAz.set_start()
-                await self.assert_command_replied(cmd="setZeroAz")
+                # await self.assert_command_replied(cmd="setZeroAz")
 
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 2.0
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 2.0
+            )
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            amcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.AMCS.value
+            ]
             assert amcs_status["positionActual"] == pytest.approx(math.radians(2.0))
             assert amcs_status["status"]["status"] == MotionState.STOPPED.name
 
             await self.remote.cmd_setZeroAz.set_start()
             await self.assert_command_replied(cmd="setZeroAz")
 
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
             await self.csc.statusAMCS()
-            amcs_status = self.csc.lower_level_status[mtdome.LlcName.AMCS.value]
+            amcs_status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.AMCS.value
+            ]
             assert amcs_status["positionActual"] == pytest.approx(0.0)
             assert amcs_status["status"]["status"] == MotionState.STOPPED.name
 
@@ -1247,32 +1363,40 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
             initial_position_actual = np.full(
-                mtdome.mock_llc.NUM_SHUTTERS, 0.0, dtype=float
+                mtdomecom.mock_llc.NUM_SHUTTERS, 0.0, dtype=float
             )
-            self.csc.mock_ctrl.apscs.position_actual = initial_position_actual
+            self.csc.mtdome_com.mock_ctrl.apscs.position_actual = (
+                initial_position_actual
+            )
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mock_ctrl.current_tai = utils.current_tai()
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
 
             await self.csc.statusApSCS()
-            status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.APSCS.value
+            ]
             assert status["positionActual"] == initial_position_actual.tolist()
 
             sub_system_ids = SubSystemId.APSCS
             await self.remote.cmd_home.set_start(subSystemIds=sub_system_ids)
             await self.assert_command_replied(cmd="home")
 
-            self.csc.mock_ctrl.current_tai = self.csc.mock_ctrl.current_tai + 0.1
+            self.csc.mtdome_com.mock_ctrl.current_tai = (
+                self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            )
             await self.csc.statusApSCS()
-            status = self.csc.lower_level_status[mtdome.LlcName.APSCS.value]
+            status = self.csc.mtdome_com.lower_level_status[
+                mtdomecom.LlcName.APSCS.value
+            ]
             assert (
                 status["positionActual"]
-                == np.zeros(mtdome.mock_llc.NUM_SHUTTERS, dtype=float).tolist()
+                == np.zeros(mtdomecom.mock_llc.NUM_SHUTTERS, dtype=float).tolist()
             )
 
     async def validate_operational_mode(
@@ -1297,9 +1421,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         for sub_system_id in SubSystemId:
             if sub_system_id & sub_system_ids:
                 func = status_dict[sub_system_id]
-                name = mtdome.LlcNameDict[sub_system_id]
+                name = mtdomecom.LlcNameDict[sub_system_id]
                 await func()
-                status = self.csc.lower_level_status[name]
+                status = self.csc.mtdome_com.lower_level_status[name]
                 # Not all statuses contain an operationalMode.
                 if "operationalMode" in status["status"]:
                     assert status["status"]["operationalMode"] == operational_mode.name
@@ -1320,7 +1444,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
@@ -1432,7 +1556,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
 
@@ -1441,10 +1565,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 topic=self.remote.evt_powerManagementMode,
                 mode=current_power_management_mode,
             )
-            assert self.csc.power_management_mode == current_power_management_mode
+            assert (
+                self.csc.mtdome_com.power_management_mode
+                == current_power_management_mode
+            )
 
-            self.csc.power_management_handler.command_queue.put_nowait(
-                (1, mtdome.CommandName.OPEN_SHUTTER)
+            self.csc.mtdome_com.power_management_handler.command_queue.put_nowait(
+                (1, mtdomecom.CommandName.OPEN_SHUTTER)
             )
             new_power_management_mode = PowerManagementMode.OPERATIONS
             await self.remote.cmd_setPowerManagementMode.set_start(
@@ -1454,28 +1581,33 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 topic=self.remote.evt_powerManagementMode,
                 mode=new_power_management_mode,
             )
-            assert self.csc.power_management_mode == new_power_management_mode
-            assert self.csc.power_management_handler.command_queue.empty()
-
-            self.csc.power_management_handler.command_queue.put_nowait(
-                (1, mtdome.CommandName.OPEN_SHUTTER)
+            assert (
+                self.csc.mtdome_com.power_management_mode == new_power_management_mode
             )
-            assert not self.csc.power_management_handler.command_queue.empty()
-            with pytest.raises(salobj.base.AckError):
-                await self.remote.cmd_setPowerManagementMode.set_start(
-                    mode=PowerManagementMode.NO_POWER_MANAGEMENT
-                )
+            assert self.csc.mtdome_com.power_management_handler.command_queue.empty()
+
+            self.csc.mtdome_com.power_management_handler.command_queue.put_nowait(
+                (1, mtdomecom.CommandName.OPEN_SHUTTER)
+            )
+            assert (
+                not self.csc.mtdome_com.power_management_handler.command_queue.empty()
+            )
+            await self.remote.cmd_setPowerManagementMode.set_start(
+                mode=PowerManagementMode.NO_POWER_MANAGEMENT
+            )
             assert self.csc.summary_state == salobj.State.ENABLED
-            assert not self.csc.power_management_handler.command_queue.empty()
+            assert (
+                not self.csc.mtdome_com.power_management_handler.command_queue.empty()
+            )
 
     async def test_slow_network(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
-            self.csc.mock_ctrl.enable_slow_network = True
+            self.csc.mtdome_com.mock_ctrl.enable_slow_network = True
 
             desired_position = 40
             desired_velocity = 0.1
@@ -1494,7 +1626,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             # Make sure that the statusAMCS periodic task runs because the test
             # depends on that.
@@ -1509,14 +1641,14 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 remote=self.remote, state=salobj.State.ENABLED
             )
             await self.assert_next_summary_state(salobj.State.ENABLED)
-            self.csc.mock_ctrl.enable_network_interruption = True
+            self.csc.mtdome_com.mock_ctrl.enable_network_interruption = True
             await self.assert_next_summary_state(salobj.State.FAULT)
 
     async def test_no_connection(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
         ):
             await self.assert_next_summary_state(salobj.State.STANDBY)
             with pytest.raises(RuntimeError):
@@ -1534,7 +1666,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ) as mock_ctrl, self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
         ):
             # Make sure that the statusAMCS periodic task runs because the test
             # depends on that.
@@ -1553,33 +1685,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # state.
             await mock_ctrl.close()
             await self.assert_next_summary_state(salobj.State.FAULT)
-
-    @mock.patch(
-        "lsst.ts.mtdome.mtdome_csc._COMMANDS_REPLIED_PERIOD", COMMANDS_REPLIED_PERIOD
-    )
-    async def test_check_all_commands_have_replies(self) -> None:
-        async with self.make_csc(
-            initial_state=salobj.State.DISABLED,
-            config_dir=CONFIG_DIR,
-            simulation_mode=mtdome.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
-        ):
-            # Stop the background tasks to avoid interference with the test.
-            await self.csc.cancel_periodic_tasks()
-            self.csc.commands_without_reply.clear()
-
-            # Mock a command that has not received a reply for a too long time.
-            command_id = 1
-            command = "cmd"
-            tai = utils.current_tai() - 4.0 * COMMANDS_REPLIED_PERIOD
-            assert command_id not in self.csc.commands_without_reply
-
-            self.csc.commands_without_reply[command_id] = mtdome.CommandTime(
-                command=command, tai=tai
-            )
-            assert command_id in self.csc.commands_without_reply
-
-            await self.csc.check_all_commands_have_replies()
-            assert command_id not in self.csc.commands_without_reply
 
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")
