@@ -17,8 +17,7 @@ test:
     - ts-conda-build =0.4
     - ts-idl {{ idl_version }}
     - ts-salobj {{ salobj_version }}
-    - ts-tcpip
-    - ts-utils
+    - ts-mtdomecom
   source_files:
     - python
     - bin
@@ -43,5 +42,4 @@ requirements:
     - setuptools_scm
     - ts-idl {{ idl_version }}
     - ts-salobj {{ salobj_version }}
-    - ts-tcpip
-    - ts-utils
+    - ts-mtdomecom

@@ -3,8 +3,7 @@
 # - Common third-party packages can be assumed to be recursively included by
 #   the "sconsUtils" package.
 setupRequired(ts_salobj)
-setupRequired(ts_tcpip)
-setupRequired(ts_utils)
+setupRequired(ts_mtdomecom)
 setupRequired(ts_config_mttcs)
 
 envPrepend(PATH, ${PRODUCT_DIR}/bin)

@@ -13,14 +13,7 @@ Controller for the Simonyi Survey Telescope dome at Vera C. Rubin Observatory.
 Using lsst.ts.mtdome
 ====================
 
-.. toctree::
-    protocols
-    commands
-    component_statuses
-    configuration_parameters
-    response_codes
-    power_management
-    :maxdepth: 2
+See https://ts-mtdomecom.lsst.io for full documentation.
 
 Build and Test
 --------------
