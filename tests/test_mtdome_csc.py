@@ -546,9 +546,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
             louver_id = 5
             target_position = 100
-            desired_position = np.full(
-                mtdomecom.mock_llc.NUM_LOUVERS, -1.0, dtype=float
-            )
+            desired_position = np.full(mtdomecom.LCS_NUM_LOUVERS, -1.0, dtype=float)
             desired_position[louver_id] = target_position
             await self.remote.cmd_setLouvers.set_start(
                 position=desired_position.tolist(),
@@ -608,7 +606,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             self.csc.mtdome_com.mock_ctrl.apscs.current_state = [
                 MotionState.OPENING.name
-            ] * mtdomecom.mock_llc.NUM_SHUTTERS
+            ] * mtdomecom.APSCS_NUM_SHUTTERS
             await self.csc.statusApSCS()
             apscs_status = self.csc.mtdome_com.lower_level_status[
                 mtdomecom.LlcName.APSCS.value
@@ -630,7 +628,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             start_tai = 1000
 
             self.csc.mtdome_com.mock_ctrl.apscs.position_actual = np.full(
-                mtdomecom.mock_llc.NUM_SHUTTERS, 100.0, dtype=float
+                mtdomecom.APSCS_NUM_SHUTTERS, 100.0, dtype=float
             )
             self.csc.mtdome_com.mock_ctrl.apscs.start_state = [
                 MotionState.OPEN.name,
@@ -668,7 +666,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             self.csc.mtdome_com.mock_ctrl.apscs.current_state = [
                 MotionState.OPENING.name
-            ] * mtdomecom.mock_llc.NUM_SHUTTERS
+            ] * mtdomecom.APSCS_NUM_SHUTTERS
             await self.csc.statusApSCS()
             apscs_status = self.csc.mtdome_com.lower_level_status[
                 mtdomecom.LlcName.APSCS.value
@@ -881,15 +879,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 or config_data["amcs_amax"] == -1
                 or config_data["amcs_jmax"] == -1
             ):
-                expected_jmax = math.degrees(
-                    mtdomecom.llc_configuration_limits.AmcsLimits.jmax
-                )
-                expected_amax = math.degrees(
-                    mtdomecom.llc_configuration_limits.AmcsLimits.amax
-                )
-                expected_vmax = math.degrees(
-                    mtdomecom.llc_configuration_limits.AmcsLimits.vmax
-                )
+                expected_jmax = math.degrees(mtdomecom.AMCS_JMAX)
+                expected_amax = math.degrees(mtdomecom.AMCS_AMAX)
+                expected_vmax = math.degrees(mtdomecom.AMCS_VMAX)
             else:
                 expected_jmax = config_data["amcs_jmax"]
                 expected_amax = config_data["amcs_amax"]
@@ -1033,11 +1025,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert (
                 lcs_status["status"]["status"]
                 == [mtdomecom.InternalMotionState.STATIONARY.name]
-                * mtdomecom.mock_llc.NUM_LOUVERS
+                * mtdomecom.LCS_NUM_LOUVERS
             )
-            assert (
-                lcs_status["positionActual"] == [0.0] * mtdomecom.mock_llc.NUM_LOUVERS
-            )
+            assert lcs_status["positionActual"] == [0.0] * mtdomecom.LCS_NUM_LOUVERS
 
             await self.csc.statusLWSCS()
             lwscs_status = self.csc.mtdome_com.lower_level_status[
@@ -1056,17 +1046,14 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 mtdomecom.LlcName.MONCS.value
             ]
             assert moncs_status["status"]["status"] == MotionState.CLOSED.name
-            assert moncs_status["data"] == [0.0] * mtdomecom.mock_llc.NUM_MON_SENSORS
+            assert moncs_status["data"] == [0.0] * mtdomecom.MON_NUM_SENSORS
 
             await self.csc.statusThCS()
             thcs_status = self.csc.mtdome_com.lower_level_status[
                 mtdomecom.LlcName.THCS.value
             ]
             assert thcs_status["status"]["status"] == MotionState.DISABLED.name
-            assert (
-                thcs_status["temperature"]
-                == [0.0] * mtdomecom.mock_llc.thcs.NUM_THERMO_SENSORS
-            )
+            assert thcs_status["temperature"] == [0.0] * mtdomecom.THCS_NUM_SENSORS
 
             await self.csc.statusRAD()
             rad_status = self.csc.mtdome_com.lower_level_status[
@@ -1074,11 +1061,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             ]
             assert (
                 rad_status["status"]["status"]
-                == [MotionState.CLOSED.name] * mtdomecom.mock_llc.rad.NUM_DOORS
+                == [MotionState.CLOSED.name] * mtdomecom.RAD_NUM_DOORS
             )
-            assert (
-                rad_status["positionActual"] == [0.0] * mtdomecom.mock_llc.rad.NUM_DOORS
-            )
+            assert rad_status["positionActual"] == [0.0] * mtdomecom.RAD_NUM_DOORS
 
             await self.csc.statusCBCS()
             cbcs_status = self.csc.mtdome_com.lower_level_status[
@@ -1086,7 +1071,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             ]
             assert (
                 cbcs_status["fuseIntervention"]
-                == [False] * mtdomecom.mock_llc.cbcs.NUM_CAPACITOR_BANKS
+                == [False] * mtdomecom.CBCS_NUM_CAPACITOR_BANKS
             )
 
     async def test_status_error(self) -> None:
@@ -1246,11 +1231,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert (
                 lcs_status["status"]["status"]
                 == [mtdomecom.InternalMotionState.STATIONARY.name]
-                * mtdomecom.mock_llc.NUM_LOUVERS
+                * mtdomecom.LCS_NUM_LOUVERS
             )
-            assert (
-                lcs_status["positionActual"] == [0.0] * mtdomecom.mock_llc.NUM_LOUVERS
-            )
+            assert lcs_status["positionActual"] == [0.0] * mtdomecom.LCS_NUM_LOUVERS
 
             await self.csc.statusLWSCS()
             lwscs_status = self.csc.mtdome_com.lower_level_status[
@@ -1270,7 +1253,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 moncs_status["status"]["status"]
                 == mtdomecom.InternalMotionState.STATIONARY.name
             )
-            assert moncs_status["data"] == [0.0] * mtdomecom.mock_llc.NUM_MON_SENSORS
+            assert moncs_status["data"] == [0.0] * mtdomecom.MON_NUM_SENSORS
 
             await self.csc.statusThCS()
             thcs_status = self.csc.mtdome_com.lower_level_status[
@@ -1280,10 +1263,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 thcs_status["status"]["status"]
                 == mtdomecom.InternalMotionState.STATIONARY.name
             )
-            assert (
-                thcs_status["temperature"]
-                == [0.0] * mtdomecom.mock_llc.NUM_THERMO_SENSORS
-            )
+            assert thcs_status["temperature"] == [0.0] * mtdomecom.THCS_NUM_SENSORS
 
     async def test_setZeroAz(self) -> None:
         async with self.make_csc(
@@ -1368,7 +1348,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             initial_position_actual = np.full(
-                mtdomecom.mock_llc.NUM_SHUTTERS, 0.0, dtype=float
+                mtdomecom.APSCS_NUM_SHUTTERS, 0.0, dtype=float
             )
             self.csc.mtdome_com.mock_ctrl.apscs.position_actual = (
                 initial_position_actual
@@ -1396,7 +1376,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             ]
             assert (
                 status["positionActual"]
-                == np.zeros(mtdomecom.mock_llc.NUM_SHUTTERS, dtype=float).tolist()
+                == np.zeros(mtdomecom.APSCS_NUM_SHUTTERS, dtype=float).tolist()
             )
 
     async def validate_operational_mode(
