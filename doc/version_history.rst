@@ -7,6 +7,18 @@ Version History
 ###############
 
 ======
+v2.0.1
+======
+* Update the use of LLC constants.
+
+Requires:
+
+* ts_salobj 7
+* ts_idl
+* ts_mtdomecom
+* ts_xml 22.0
+
+======
 v2.0.0
 ======
 * Move all non-CSC code and documentation to `ts_mtdomecom`.
