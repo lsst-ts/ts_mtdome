@@ -179,7 +179,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         command) pair has been removed from the dict, indicating that it has
         been replied to with the correct commandId.
 
-        In general it is unwise to use this method with any of the status
+        In general, it is unwise to use this method with any of the status
         commands, since the CSC sends those in a loop and at any given time
         such a command is likely to have been issued by that loop.
 
@@ -1072,6 +1072,21 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert (
                 cbcs_status["fuseIntervention"]
                 == [False] * mtdomecom.CBCS_NUM_CAPACITOR_BANKS
+            )
+            assert (
+                cbcs_status["smokeDetected"]
+                == [False] * mtdomecom.CBCS_NUM_CAPACITOR_BANKS
+            )
+            assert (
+                cbcs_status["highTemperature"]
+                == [False] * mtdomecom.CBCS_NUM_CAPACITOR_BANKS
+            )
+            assert (
+                cbcs_status["lowResidualVoltage"]
+                == [False] * mtdomecom.CBCS_NUM_CAPACITOR_BANKS
+            )
+            assert (
+                cbcs_status["doorOpen"] == [False] * mtdomecom.CBCS_NUM_CAPACITOR_BANKS
             )
 
     async def test_status_error(self) -> None:
