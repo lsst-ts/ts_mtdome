@@ -502,7 +502,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         self.log.debug("do_exitFault")
         assert self.mtdome_com is not None
-        await self.call_method(method=self.mtdome_com.exit_fault)
+        await self.call_method(
+            method=self.mtdome_com.exit_fault, sub_system_ids=data.subSystemIds
+        )
 
     async def do_setOperationalMode(self, data: salobj.BaseMsgType) -> None:
         """Indicate that one or more sub_systems need to operate in degraded

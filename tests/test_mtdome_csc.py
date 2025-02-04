@@ -1192,11 +1192,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             ]
             assert amcs_status["status"]["status"] == MotionState.ERROR.name
 
-            # Because of backward compatibility with XML 12.0, the exitFault
-            # command will also reset the AZ and ApS drives so this next
-            # command will not fail.
-            await self.remote.cmd_exitFault.set_start()
-            await self.assert_command_replied(cmd=mtdomecom.CommandName.EXIT_FAULT)
+            await self.remote.cmd_exitFault.set_start(
+                subSystemIds=SubSystemId.AMCS | SubSystemId.APSCS
+            )
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.EXIT_FAULT_AZ)
+            await self.assert_command_replied(
+                cmd=mtdomecom.CommandName.EXIT_FAULT_SHUTTER
+            )
 
             az_reset = [1, 1, 0, 0, 0]
             await self.remote.cmd_resetDrivesAz.set_start(reset=az_reset)
@@ -1206,8 +1208,18 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.assert_command_replied(
                 cmd=mtdomecom.CommandName.RESET_DRIVES_SHUTTER
             )
-            await self.remote.cmd_exitFault.set_start()
-            await self.assert_command_replied(cmd=mtdomecom.CommandName.EXIT_FAULT)
+            await self.remote.cmd_exitFault.set_start(
+                subSystemIds=SubSystemId.AMCS
+                | SubSystemId.APSCS
+                | SubSystemId.LWSCS
+                | SubSystemId.MONCS
+                | SubSystemId.LCS
+                | SubSystemId.THCS
+            )
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.EXIT_FAULT_AZ)
+            await self.assert_command_replied(
+                cmd=mtdomecom.CommandName.EXIT_FAULT_SHUTTER
+            )
 
             # Make sure that the Enabled events are sent.
             await self.csc.statusAMCS()
@@ -1264,10 +1276,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             moncs_status = self.csc.mtdome_com.lower_level_status[
                 mtdomecom.LlcName.MONCS.value
             ]
-            assert (
-                moncs_status["status"]["status"]
-                == mtdomecom.InternalMotionState.STATIONARY.name
-            )
+            assert moncs_status["status"]["status"] == MotionState.CLOSED.name
             assert moncs_status["data"] == [0.0] * mtdomecom.MON_NUM_SENSORS
 
             await self.csc.statusThCS()
