@@ -29,7 +29,6 @@ __version__ = "{version}"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-addopts = "-vsx"
 
 [project.optional-dependencies]
 dev = ["documenteer[pipelines]"]
