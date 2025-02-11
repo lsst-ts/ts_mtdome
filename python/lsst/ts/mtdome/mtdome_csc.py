@@ -155,6 +155,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             else callbacks_for_simulation
         )
 
+        # Make sure that the correct port is used.
+        self.config.port = self.config.csc_port
         self.mtdome_com = mtdomecom.MTDomeCom(
             log=self.log,
             config=self.config,

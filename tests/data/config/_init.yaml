@@ -1,5 +1,6 @@
 host: "127.0.0.1"
-port: 5000
+csc_port: 5000
+eui_port: 4998
 connection_timeout: 10
 read_timeout: 10
 amcs_vmax: -1 # This indicates that no vmax should be set for AMCS.
