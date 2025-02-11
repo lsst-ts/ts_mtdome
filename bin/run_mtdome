@@ -33,5 +33,8 @@ logging.basicConfig(
 )
 # Set the log level of the Kafka logger.
 logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore.http11").setLevel(logging.INFO)
+logging.getLogger("httpcore.connection").setLevel(logging.INFO)
 
 mtdome.run_mtdome()

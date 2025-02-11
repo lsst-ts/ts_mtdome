@@ -1,20 +1,20 @@
 [build-system]
-requires = [ "setuptools", "setuptools_scm" ]
+requires = ["setuptools", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "ts_mtdome"
 description = "LSST main telescope dome controller."
 license = { text = "GPL" }
-classifiers = [ "Programming Language :: Python :: 3" ]
+classifiers = ["Programming Language :: Python :: 3"]
 urls = { documentation = "https://ts-mtdome.lsst.io", repository = "https://github.com/lsst-ts/ts_mtdome" }
-dynamic = [ "version" ]
+dynamic = ["version"]
 
 [tool.setuptools.dynamic]
 version = { attr = "setuptools_scm.get_version" }
 
 [tool.setuptools.packages.find]
-where = [ "python" ]
+where = ["python"]
 
 [project.scripts]
 run_mtdome = "lsst.ts.mtdome:run_mtdome"

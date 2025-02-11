@@ -28,7 +28,6 @@ from types import SimpleNamespace
 
 from lsst.ts import mtdomecom, salobj
 from lsst.ts.mtdomecom.enums import (
-    CommandName,
     LlcName,
     LlcNameDict,
     MaxValueConfigType,
@@ -45,30 +44,11 @@ from lsst.ts.xml.enums.MTDome import (
 from . import __version__
 from .config_schema import CONFIG_SCHEMA
 
-# Timeout [sec] used when creating a Client, a mock controller or when waiting
-# for a reply when sending a command to the controller.
-_TIMEOUT = 20
-
 _KEYS_TO_REMOVE = {
     "status",
     "operationalMode",  # Remove because gets emitted as an event
     "appliedConfiguration",  # Remove because gets emitted as an event
 }
-
-# Polling periods [sec] for the lower level components.
-_AMCS_STATUS_PERIOD = 0.2
-_APSCS_STATUS_PERIOD = 0.5
-_CBCS_STATUS_PERIOD = 0.5
-_CSCS_STATUS_PERIOD = 0.5
-_LCS_STATUS_PERIOD = 0.5
-_LWSCS_STATUS_PERIOD = 0.5
-_MONCS_STATUS_PERIOD = 0.5
-_RAD_STATUS_PERIOD = 0.5
-_THCS_STATUS_PERIOD = 0.5
-
-# Polling period [sec] for the task that checks if any commands are waiting to
-# be issued.
-_COMMAND_QUEUE_PERIOD = 1.0
 
 
 def run_mtdome() -> None:
@@ -90,6 +70,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     override : `str`, optional
         Override of settings if ``initial_state`` is `State.DISABLED`
         or `State.ENABLED`.
+    start_periodic_tasks : `bool`
+        Start the periodic tasks or not. Defaults to `True`. Unit tests may set
+        this to `False`.
 
     Notes
     -----
@@ -111,29 +94,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     valid_simulation_modes = set([v.value for v in ValidSimulationMode])
     version = __version__
 
-    # All methods and the intervals at which they are executed. Note that all
-    # methods are disabled for unit testing unless the specific test case
-    # reqiures one of more to be available.
-    all_methods_and_intervals = {
-        CommandName.STATUS_AMCS: _AMCS_STATUS_PERIOD,
-        # CommandName.STATUS_APSCS: _APSCS_STATUS_PERIOD,
-        CommandName.STATUS_CBCS: _CBCS_STATUS_PERIOD,
-        # CommandName.STATUS_CSCS: _CSCS_STATUS_PERIOD,
-        # CommandName.STATUS_LCS: _LCS_STATUS_PERIOD,
-        # CommandName.STATUS_LWSCS: _LWSCS_STATUS_PERIOD,
-        # CommandName.STATUS_MONCS: _MONCS_STATUS_PERIOD,
-        # CommandName.STATUS_RAD: _RAD_STATUS_PERIOD,
-        # CommandName.STATUS_THCS: _THCS_STATUS_PERIOD,
-    }
-
     def __init__(
         self,
         config_dir: str | None = None,
         initial_state: salobj.State = salobj.State.STANDBY,
         simulation_mode: int = ValidSimulationMode.NORMAL_OPERATIONS,
         override: str = "",
+        start_periodic_tasks: bool = True,
     ) -> None:
         self.config: SimpleNamespace | None = None
+        self.start_periodic_tasks = start_periodic_tasks
 
         super().__init__(
             name="MTDome",
@@ -163,8 +133,36 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         Start the mock controller, if simulating.
         """
         assert self.config is not None
+
+        callbacks_for_operations = {
+            LlcName.AMCS: self.status_amcs,
+            LlcName.APSCS: self.status_apscs,
+        }
+
+        callbacks_for_simulation = callbacks_for_operations | {
+            LlcName.CBCS: self.status_cbcs,
+            LlcName.CSCS: self.status_cscs,
+            LlcName.LCS: self.status_lcs,
+            LlcName.LWSCS: self.status_lwscs,
+            LlcName.MONCS: self.status_moncs,
+            LlcName.RAD: self.status_rad,
+            LlcName.THCS: self.status_thcs,
+        }
+
+        telemetry_callbacks = (
+            callbacks_for_operations
+            if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS
+            else callbacks_for_simulation
+        )
+
+        # Make sure that the correct port is used.
+        self.config.port = self.config.csc_port
         self.mtdome_com = mtdomecom.MTDomeCom(
-            log=self.log, config=self.config, simulation_mode=self.simulation_mode
+            log=self.log,
+            config=self.config,
+            simulation_mode=self.simulation_mode,
+            telemetry_callbacks=telemetry_callbacks,
+            start_periodic_tasks=self.start_periodic_tasks,
         )
         try:
             await self.mtdome_com.connect()
@@ -186,10 +184,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             mode=self.mtdome_com.power_management_mode
         )
 
-        # Start polling for the status of the lower level components
-        # periodically.
-        await self.start_periodic_tasks()
-
         self.log.info("connected")
 
     async def _set_maximum_motion_values(self) -> None:
@@ -209,82 +203,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             method=self.mtdome_com.config_llcs, system=LlcName.AMCS, settings=settings
         )
 
-    async def cancel_periodic_tasks(self) -> None:
-        """Cancel all periodic tasks."""
-        while self.periodic_tasks:
-            periodic_task = self.periodic_tasks.pop()
-            periodic_task.cancel()
-            await periodic_task
-
-    async def start_periodic_tasks(self) -> None:
-        """Start all periodic tasks."""
-        await self.cancel_periodic_tasks()
-        for method, interval in self.all_methods_and_intervals.items():
-            func = getattr(self, method)
-            self.periodic_tasks.append(
-                asyncio.create_task(self.one_periodic_task(func, interval))
-            )
-
-        assert self.mtdome_com is not None
-        self.periodic_tasks.append(
-            asyncio.create_task(
-                self.one_periodic_task(
-                    self.mtdome_com.check_all_commands_have_replies,
-                    mtdomecom.COMMANDS_REPLIED_PERIOD,
-                    True,
-                )
-            )
-        )
-
-        self.periodic_tasks.append(
-            asyncio.create_task(
-                self.one_periodic_task(
-                    self.mtdome_com.process_command_queue, _COMMAND_QUEUE_PERIOD, True
-                )
-            )
-        )
-
-    async def one_periodic_task(
-        self, method: typing.Callable, interval: float, go_fault: bool = False
-    ) -> None:
-        """Run one method forever at the specified interval.
-
-        Parameters
-        ----------
-        method : `typing.Callable`
-            The periodic method to run.
-        interval : `float`
-            The interval (sec) at which to run the status method.
-        go_fault : `bool`
-            Make the CSC go to FAULT state (True) or not (Fault). Defaults to
-            Fault.
-
-        """
-        self.log.debug(f"Starting periodic task {method=} with {interval=}")
-        try:
-            while True:
-                await method()
-                await asyncio.sleep(interval)
-        except asyncio.CancelledError:
-            # Ignore because the task was canceled on purpose.
-            pass
-        except Exception:
-            self.log.exception(f"one_periodic_task({method}) has stopped.")
-            if go_fault:
-                await self.go_fault(method)
-
     async def disconnect(self) -> None:
         """Disconnect from the TCP/IP controller, if connected, and stop the
         mock controller, if running.
         """
         self.log.info("disconnect.")
 
-        # Stop all periodic tasks, including polling for the status of the
-        # lower level components.
-        await self.cancel_periodic_tasks()
-
         if self.connected:
             assert self.mtdome_com is not None
+
             await self.mtdome_com.disconnect()
             self.mtdome_com = None
 
@@ -502,7 +429,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         self.log.debug("do_exitFault")
         assert self.mtdome_com is not None
-        await self.call_method(method=self.mtdome_com.exit_fault)
+        await self.call_method(
+            method=self.mtdome_com.exit_fault, sub_system_ids=data.subSystemIds
+        )
 
     async def do_setOperationalMode(self, data: salobj.BaseMsgType) -> None:
         """Indicate that one or more sub_systems need to operate in degraded
@@ -650,84 +579,208 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             mode=self.mtdome_com.power_management_mode
         )
 
-    async def statusAMCS(self) -> None:
-        """AMCS status command not to be executed by SAL.
+    async def status_amcs(self, status: dict[str, typing.Any]) -> None:
+        """AMCS status command.
 
-        This command will be used to request the full status of the AMCS lower
-        level component.
+        Parameters
+        ----------
+        status : `dict`[`str`, `typing.Any`]
+            The status.
         """
-        await self.request_and_send_llc_status(LlcName.AMCS, self.tel_azimuth)
+        if "exception" in status:
+            self.log.error(status["exception"])
+            await self.go_fault(self.status_amcs)
+        else:
+            applied_configuration = status["appliedConfiguration"]
+            jmax = math.degrees(applied_configuration["jmax"])
+            amax = math.degrees(applied_configuration["amax"])
+            vmax = math.degrees(applied_configuration["vmax"])
+            await self.evt_azConfigurationApplied.set_write(
+                jmax=jmax, amax=amax, vmax=vmax
+            )
+            await self.send_llc_status_telemetry_and_events(
+                LlcName.AMCS, status, self.tel_azimuth
+            )
 
-    async def statusApSCS(self) -> None:
-        """ApSCS status command not to be executed by SAL.
+    async def status_apscs(self, status: dict[str, typing.Any]) -> None:
+        """ApSCS status command.
 
-        This command will be used to request the full status of the ApSCS lower
-        level component.
+        Parameters
+        ----------
+        status : `dict`[`str`, `typing.Any`]
+            The status.
         """
-        await self.request_and_send_llc_status(LlcName.APSCS, self.tel_apertureShutter)
+        if "exception" in status:
+            self.log.error(status["exception"])
+            await self.go_fault(self.status_apscs)
+        else:
+            await self.send_llc_status_telemetry_and_events(
+                LlcName.APSCS, status, self.tel_apertureShutter
+            )
 
-    async def statusCBCS(self) -> None:
-        """CBCS status command not to be executed by SAL.
+    async def status_cbcs(self, status: dict[str, typing.Any]) -> None:
+        """CBCS status command.
 
-        This command will be used to request the full status of the CBCS lower
-        level component.
+        Parameters
+        ----------
+        status : `dict`[`str`, `typing.Any`]
+            The status.
         """
-        await self.request_and_send_llc_status(LlcName.CBCS, self.evt_capacitorBanks)
+        if "exception" in status:
+            self.log.error(status["exception"])
+            await self.go_fault(self.status_cbcs)
+        else:
+            await self.send_llc_status_telemetry_and_events(
+                LlcName.CBCS, status, self.evt_capacitorBanks
+            )
 
-    async def statusCSCS(self) -> None:
-        """CSCS status command not to be executed by SAL.
+    async def status_cscs(self, status: dict[str, typing.Any]) -> None:
+        """CSCS status command.
 
-        This command will be used to request the full status of the CSCS lower
-        level component.
+        Parameters
+        ----------
+        status : `dict`[`str`, `typing.Any`]
+            The status.
         """
-        await self.request_and_send_llc_status(LlcName.CSCS, self.tel_calibrationScreen)
+        if "exception" in status:
+            self.log.error(status["exception"])
+            await self.go_fault(self.status_cscs)
+        else:
+            await self.send_llc_status_telemetry_and_events(
+                LlcName.CSCS, status, self.tel_calibrationScreen
+            )
 
-    async def statusLCS(self) -> None:
-        """LCS status command not to be executed by SAL.
+    async def status_lcs(self, status: dict[str, typing.Any]) -> None:
+        """LCS status command.
 
-        This command will be used to request the full status of the LCS lower
-        level component.
+        Parameters
+        ----------
+        status : `dict`[`str`, `typing.Any`]
+            The status.
         """
-        await self.request_and_send_llc_status(LlcName.LCS, self.tel_louvers)
+        if "exception" in status:
+            self.log.error(status["exception"])
+            await self.go_fault(self.status_lcs)
+        else:
+            await self.send_llc_status_telemetry_and_events(
+                LlcName.LCS, status, self.tel_louvers
+            )
 
-    async def statusLWSCS(self) -> None:
-        """LWSCS status command not to be executed by SAL.
+    async def status_lwscs(self, status: dict[str, typing.Any]) -> None:
+        """LWSCS status command.
 
-        This command will be used to request the full status of the LWSCS lower
-        level component.
+        Parameters
+        ----------
+        status : `dict`[`str`, `typing.Any`]
+            The status.
         """
-        await self.request_and_send_llc_status(LlcName.LWSCS, self.tel_lightWindScreen)
+        if "exception" in status:
+            self.log.error(status["exception"])
+            await self.go_fault(self.status_lwscs)
+        else:
+            await self.send_llc_status_telemetry_and_events(
+                LlcName.LWSCS, status, self.tel_lightWindScreen
+            )
 
-    async def statusMonCS(self) -> None:
-        """MonCS status command not to be executed by SAL.
+    async def status_moncs(self, status: dict[str, typing.Any]) -> None:
+        """MonCS status command.
 
-        This command will be used to request the full status of the MonCS lower
-        level component.
+        Parameters
+        ----------
+        status : `dict`[`str`, `typing.Any`]
+            The status.
         """
-        await self.request_and_send_llc_status(LlcName.MONCS, self.tel_interlocks)
+        if "exception" in status:
+            self.log.error(status["exception"])
+            await self.go_fault(self.status_moncs)
+        else:
+            await self.send_llc_status_telemetry_and_events(
+                LlcName.MONCS, status, self.tel_interlocks
+            )
 
-    async def statusRAD(self) -> None:
-        """RAD status command not to be executed by SAL.
+    async def status_rad(self, status: dict[str, typing.Any]) -> None:
+        """RAD status command.
 
-        This command will be used to request the full status of the RAD lower
-        level component.
+        Parameters
+        ----------
+        status : `dict`[`str`, `typing.Any`]
+            The status.
         """
-        await self.request_and_send_llc_status(LlcName.RAD, self.tel_rearAccessDoor)
+        if "exception" in status:
+            self.log.error(status["exception"])
+            await self.go_fault(self.status_rad)
+        else:
+            await self.send_llc_status_telemetry_and_events(
+                LlcName.RAD, status, self.tel_rearAccessDoor
+            )
 
-    async def statusThCS(self) -> None:
-        """ThCS status command not to be executed by SAL.
+    async def status_thcs(self, status: dict[str, typing.Any]) -> None:
+        """ThCS status command.
 
-        This command will be used to request the full status of the ThCS lower
-        level component.
+        Parameters
+        ----------
+        status : `dict`[`str`, `typing.Any`]
+            The status.
         """
-        await self.request_and_send_llc_status(LlcName.THCS, self.tel_thermal)
+        if "exception" in status:
+            self.log.error(status["exception"])
+            await self.go_fault(self.status_thcs)
+        else:
+            await self.send_llc_status_telemetry_and_events(
+                LlcName.THCS, status, self.tel_thermal
+            )
 
-    def _translate_motion_state_if_necessary(self, state: str) -> MotionState:
-        try:
-            motion_state = MotionState[state]
-        except KeyError:
-            motion_state = motion_state_translations[state]
-        return motion_state
+    async def send_llc_status_telemetry_and_events(
+        self, llc_name: LlcName, status: dict[str, typing.Any], topic: SimpleNamespace
+    ) -> None:
+        """Generic method for publishing the telemetry and events of a lower
+        level component.
+
+        Parameters
+        ----------
+        llc_name: `LlcName`
+            The name of the lower level component.
+        status : `dict`[`str`, `typing.Any`]
+            The status.
+        topic: SAL topic
+            The SAL topic to publish the telemetry to.
+        """
+        assert self.mtdome_com is not None
+
+        # Send the operational mode event.
+        await self._send_operational_mode_event(llc_name=llc_name, status=status)
+
+        # Send the telemetry.
+        telemetry = self.mtdome_com.remove_keys_from_dict(status, _KEYS_TO_REMOVE)
+        await topic.set_write(**telemetry)
+        await self._check_errors_and_send_events(
+            llc_name=llc_name, llc_status=status["status"]
+        )
+
+    async def _send_operational_mode_event(
+        self, llc_name: str, status: dict[str, typing.Any]
+    ) -> None:
+        if "operationalMode" in status["status"]:
+            current_operational_mode = status["status"]["operationalMode"]
+            operational_mode = OperationalMode[current_operational_mode]
+            sub_system_id = [
+                sid for sid, name in LlcNameDict.items() if name == llc_name
+            ][0]
+            await self.evt_operationalMode.set_write(
+                operationalMode=operational_mode,
+                subSystemId=sub_system_id,
+            )
+
+    async def _check_errors_and_send_events(
+        self, llc_name: str, llc_status: dict[str, typing.Any]
+    ) -> None:
+        # DM-26374: Check for errors and send the events.
+        if llc_name == LlcName.AMCS.value:
+            await self._check_errors_and_send_events_az(llc_status)
+        elif llc_name == LlcName.LWSCS.value:
+            await self._check_errors_and_send_events_el(llc_status)
+        elif llc_name == LlcName.APSCS.value:
+            await self._check_errors_and_send_events_shutter(llc_status)
 
     async def _check_errors_and_send_events_az(
         self, llc_status: dict[str, typing.Any]
@@ -838,117 +891,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                     state=motion_state, inPosition=in_position
                 )
 
-    async def request_and_send_llc_status(
-        self, llc_name: LlcName, topic: SimpleNamespace
-    ) -> None:
-        """Generic method for retrieving the status of a lower level component
-        and publish that on the corresponding telemetry topic.
-
-        Parameters
-        ----------
-        llc_name: `LlcName`
-            The name of the lower level component.
-        topic: SAL topic
-            The SAL topic to publish the telemetry to.
-
-        """
-        assert self.mtdome_com is not None
+    def _translate_motion_state_if_necessary(self, state: str) -> MotionState:
         try:
-            status: dict[str, typing.Any] = await self.call_method(
-                method=self.mtdome_com.request_llc_status, llc_name=llc_name
-            )
-        except ValueError:
-            # An error message is logged in `self.write_then_read_reply`.
-            return
-
-        await self._send_operational_mode_event(llc_name=llc_name, status=status)
-        await self._send_applied_configuration_event(llc_name, status)
-
-        # Remove some keys because they are not reported in the telemetry.
-        pre_processed_telemetry = self._remove_keys_from_dict(status)
-
-        # Avoid sending this event 2x per second due to a changing timestamp.
-        if topic == self.evt_capacitorBanks and "timestamp" in pre_processed_telemetry:
-            del pre_processed_telemetry["timestamp"]
-
-        # Send the telemetry.
-        await topic.set_write(**pre_processed_telemetry)
-        await self._check_errors_and_send_events(
-            llc_name=llc_name, llc_status=status["status"]
-        )
-
-    async def _send_applied_configuration_event(
-        self, llc_name: str, status: dict[str, typing.Any]
-    ) -> None:
-        # Send appliedConfiguration event for AMCS. This needs to be sent every
-        # time the status is read because it can be modified by issuing the
-        # config_llcs command. Fortunately salobj only sends events if the
-        # values have changed so it is safe to do this without overflowing the
-        # EFD with events.
-        if llc_name == LlcName.AMCS.value:
-            if "appliedConfiguration" in status:
-                applied_configuration = status["appliedConfiguration"]
-                jmax = math.degrees(applied_configuration["jmax"])
-                amax = math.degrees(applied_configuration["amax"])
-                vmax = math.degrees(applied_configuration["vmax"])
-                await self.evt_azConfigurationApplied.set_write(
-                    jmax=jmax, amax=amax, vmax=vmax
-                )
-            else:
-                self.log.warning(
-                    "No 'appliedConfiguration' in AMCS telemetry. "
-                    "Not sending the azConfigurationApplied event."
-                )
-
-    async def _send_operational_mode_event(
-        self, llc_name: str, status: dict[str, typing.Any]
-    ) -> None:
-        if "operationalMode" in status["status"]:
-            # DM-30807: Send OperationalMode event at start up.
-            current_operational_mode = status["status"]["operationalMode"]
-            operatinal_mode = OperationalMode[current_operational_mode]
-            sub_system_id = [
-                sid for sid, name in LlcNameDict.items() if name == llc_name
-            ][0]
-            await self.evt_operationalMode.set_write(
-                operationalMode=operatinal_mode,
-                subSystemId=sub_system_id,
-            )
-
-    async def _check_errors_and_send_events(
-        self, llc_name: str, llc_status: dict[str, typing.Any]
-    ) -> None:
-        # DM-26374: Check for errors and send the events.
-        if llc_name == LlcName.AMCS.value:
-            await self._check_errors_and_send_events_az(llc_status)
-        elif llc_name == LlcName.LWSCS.value:
-            await self._check_errors_and_send_events_el(llc_status)
-        elif llc_name == LlcName.APSCS.value:
-            await self._check_errors_and_send_events_shutter(llc_status)
-
-    def _remove_keys_from_dict(
-        self, dict_with_too_many_keys: dict[str, typing.Any]
-    ) -> dict[str, typing.Any]:
-        """
-        Return a copy of a dict with specified items removed.
-
-        Parameters
-        ----------
-        dict_with_too_many_keys : `dict`
-            The dict where to remove the keys from.
-
-        Returns
-        -------
-        dict_with_keys_removed : `dict`
-            A dict with the same keys as the given dict but with the given keys
-            removed.
-        """
-        dict_with_keys_removed = {
-            x: dict_with_too_many_keys[x]
-            for x in dict_with_too_many_keys
-            if x not in _KEYS_TO_REMOVE
-        }
-        return dict_with_keys_removed
+            motion_state = MotionState[state]
+        except KeyError:
+            motion_state = motion_state_translations[state]
+        return motion_state
 
     async def close_tasks(self) -> None:
         """Disconnect from the TCP/IP controller, if connected, and stop

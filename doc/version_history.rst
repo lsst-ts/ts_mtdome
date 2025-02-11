@@ -7,6 +7,23 @@ Version History
 ###############
 
 ======
+v2.0.2
+======
+* Mute kafka related logging.
+* Add pytest option to pyproject.toml.
+* Make sure that the capacitor banks telemetry has the correct data types.
+* Split up exitFault to one command per subsystem.
+* Move infrastructure to request subsystem statuses regularly to MTDomeCom.
+* Add distinction between ports for CSC and EUI.
+
+Requires:
+
+* ts_salobj 7
+* ts_idl
+* ts_mtdomecom
+* ts_xml 22.0
+
+======
 v2.0.1
 ======
 * Update the use of LLC constants.

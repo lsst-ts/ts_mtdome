@@ -27,7 +27,7 @@ CONFIG_SCHEMA = yaml.safe_load(
     """
     $schema: http://json-schema.org/draft-07/schema#
     $id: https://github.com/lsst-ts/ts_mtdome/blob/main/python/lsst/ts/mtdome/config_schema.py
-    title: MTDome v3
+    title: MTDome v4
     description: Schema for MTDome configuration files.
     type: object
     properties:
@@ -35,8 +35,11 @@ CONFIG_SCHEMA = yaml.safe_load(
         description: IP address of the TCP/IP interface.
         type: string
         format: hostname
-      port:
-        description: Port number of the TCP/IP interface.
+      csc_port:
+        description: Port number of the TCP/IP interface for the CSC.
+        type: integer
+      eui_port:
+        description: Port number of the TCP/IP interface for the EUI.
         type: integer
       connection_timeout:
         description: Time limit for connecting to the TCP/IP interface (sec).
@@ -63,7 +66,8 @@ CONFIG_SCHEMA = yaml.safe_load(
         type: number
     required:
       - host
-      - port
+      - csc_port
+      - eui_port
       - connection_timeout
       - read_timeout
     additionalProperties: false
