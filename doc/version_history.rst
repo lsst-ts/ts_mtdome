@@ -7,6 +7,18 @@ Version History
 ###############
 
 ======
+v2.0.3
+======
+* Fix an issue with calling an unsupported status command when connected to the summit.
+
+Requires:
+
+* ts_salobj 7
+* ts_idl
+* ts_mtdomecom
+* ts_xml 22.0
+
+======
 v2.0.2
 ======
 * Mute kafka related logging.
