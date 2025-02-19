@@ -7,6 +7,11 @@ Version History
 ###############
 
 ======
+v2.0.4
+======
+* Query the status of capacitor bank and aperture shutter.
+
+======
 v2.0.3
 ======
 * Fix an issue with calling an unsupported status command when connected to the summit.

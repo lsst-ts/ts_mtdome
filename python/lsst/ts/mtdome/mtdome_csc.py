@@ -136,11 +136,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         callbacks_for_operations = {
             LlcName.AMCS: self.status_amcs,
+            LlcName.APSCS: self.status_apscs,
+            LlcName.CBCS: self.status_cbcs,
         }
 
         callbacks_for_simulation = callbacks_for_operations | {
-            LlcName.APSCS: self.status_apscs,
-            LlcName.CBCS: self.status_cbcs,
             LlcName.CSCS: self.status_cscs,
             LlcName.LCS: self.status_lcs,
             LlcName.LWSCS: self.status_lwscs,
