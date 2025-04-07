@@ -7,6 +7,11 @@ Version History
 ###############
 
 ======
+v2.0.5
+======
+* Query the status of thermal control.
+
+======
 v2.0.4
 ======
 * Query the status of capacitor bank and aperture shutter.

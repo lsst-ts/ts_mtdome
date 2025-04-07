@@ -138,6 +138,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             LlcName.AMCS: self.status_amcs,
             LlcName.APSCS: self.status_apscs,
             LlcName.CBCS: self.status_cbcs,
+            LlcName.THCS: self.status_thcs,
         }
 
         callbacks_for_simulation = callbacks_for_operations | {
@@ -146,7 +147,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             LlcName.LWSCS: self.status_lwscs,
             LlcName.MONCS: self.status_moncs,
             LlcName.RAD: self.status_rad,
-            LlcName.THCS: self.status_thcs,
         }
 
         telemetry_callbacks = (
