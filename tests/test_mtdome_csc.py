@@ -42,7 +42,6 @@ from lsst.ts.xml.enums.MTDome import (
 
 STD_TIMEOUT = 10  # standard command and event timeout (sec)
 SHORT_TIMEOUT = 1  # short command and event timeout (sec)
-COMMANDS_REPLIED_PERIOD = 0.2  # (sec)
 
 CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
 
@@ -57,7 +56,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         **kwargs: typing.Any,
     ) -> None:
         # Disable all periodic tasks so the unit tests can take full control.
-        mtdome.MTDomeCsc.all_methods_and_intervals = {}
         return mtdome.MTDomeCsc(
             initial_state=initial_state,
             config_dir=config_dir,
@@ -1655,10 +1653,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             config_dir=CONFIG_DIR,
             simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
-            # Make sure that the statusAMCS periodic task runs because the test
-            # depends on that.
-            mtdome.MTDomeCsc.all_methods_and_intervals = {"statusAMCS": 0.2}
-
             await self.assert_next_summary_state(salobj.State.STANDBY)
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.DISABLED
@@ -1696,9 +1690,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             config_dir=CONFIG_DIR,
             simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
         ):
-            # Make sure that the statusAMCS periodic task runs because the test
-            # depends on that.
-            mtdome.MTDomeCsc.all_methods_and_intervals = {"statusAMCS": 0.2}
             await self.assert_next_summary_state(salobj.State.STANDBY)
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.DISABLED
@@ -1716,6 +1707,3 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")
-
-    async def handle_llc_status(self, status: dict[str, typing.Any]) -> None:
-        self.llc_status = status
