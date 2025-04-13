@@ -1646,7 +1646,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
-    @pytest.mark.skip(reason="Need to fix this.")
     async def test_network_interruption(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -1654,14 +1653,19 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.assert_next_summary_state(salobj.State.STANDBY)
+
+            self.csc.start_periodic_tasks = True
+
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.DISABLED
             )
             await self.assert_next_summary_state(salobj.State.DISABLED)
+
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
             await self.assert_next_summary_state(salobj.State.ENABLED)
+
             self.csc.mtdome_com.mock_ctrl.enable_network_interruption = True
             await self.assert_next_summary_state(salobj.State.FAULT)
 
@@ -1678,23 +1682,26 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 )
             await self.assert_next_summary_state(salobj.State.FAULT)
 
-    @pytest.mark.skip(reason="Need to fix this.")
     async def test_connection_lost(self) -> None:
         with open(CONFIG_DIR / "_init.yaml") as f:
             config = yaml.safe_load(f)
 
         async with self.create_mock_controller(
-            port=config["port"]
+            port=config["csc_port"]
         ) as mock_ctrl, self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
             simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
         ):
             await self.assert_next_summary_state(salobj.State.STANDBY)
+
+            self.csc.start_periodic_tasks = True
+
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.DISABLED
             )
             await self.assert_next_summary_state(salobj.State.DISABLED)
+
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
@@ -1703,7 +1710,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # Now stop the MockController and verify that the CSC goes to FAULT
             # state.
             await mock_ctrl.close()
-            await self.assert_next_summary_state(salobj.State.FAULT)
+            await self.assert_next_summary_state(
+                salobj.State.FAULT, timeout=SHORT_TIMEOUT
+            )
 
     async def test_no_repeating_operational_mode_events(self) -> None:
         async with self.make_csc(
