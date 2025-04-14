@@ -7,6 +7,12 @@ Version History
 ###############
 
 ======
+v2.0.6
+======
+* Fix several unit test issues.
+* Suppress superfluous operationalMode events.
+
+======
 v2.0.5
 ======
 * Query the status of thermal control.

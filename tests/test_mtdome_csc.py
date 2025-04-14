@@ -42,7 +42,6 @@ from lsst.ts.xml.enums.MTDome import (
 
 STD_TIMEOUT = 10  # standard command and event timeout (sec)
 SHORT_TIMEOUT = 1  # short command and event timeout (sec)
-COMMANDS_REPLIED_PERIOD = 0.2  # (sec)
 
 CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
 
@@ -57,7 +56,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         **kwargs: typing.Any,
     ) -> None:
         # Disable all periodic tasks so the unit tests can take full control.
-        mtdome.MTDomeCsc.all_methods_and_intervals = {}
         return mtdome.MTDomeCsc(
             initial_state=initial_state,
             config_dir=config_dir,
@@ -1649,26 +1647,26 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
 
-    @pytest.mark.skip(reason="Need to fix this.")
     async def test_network_interruption(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
             simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
-            # Make sure that the statusAMCS periodic task runs because the test
-            # depends on that.
-            mtdome.MTDomeCsc.all_methods_and_intervals = {"statusAMCS": 0.2}
-
             await self.assert_next_summary_state(salobj.State.STANDBY)
+
+            self.csc.start_periodic_tasks = True
+
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.DISABLED
             )
             await self.assert_next_summary_state(salobj.State.DISABLED)
+
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
             await self.assert_next_summary_state(salobj.State.ENABLED)
+
             self.csc.mtdome_com.mock_ctrl.enable_network_interruption = True
             await self.assert_next_summary_state(salobj.State.FAULT)
 
@@ -1685,26 +1683,26 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 )
             await self.assert_next_summary_state(salobj.State.FAULT)
 
-    @pytest.mark.skip(reason="Need to fix this.")
     async def test_connection_lost(self) -> None:
         with open(CONFIG_DIR / "_init.yaml") as f:
             config = yaml.safe_load(f)
 
         async with self.create_mock_controller(
-            port=config["port"]
+            port=config["csc_port"]
         ) as mock_ctrl, self.make_csc(
             initial_state=salobj.State.STANDBY,
             config_dir=CONFIG_DIR,
             simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
         ):
-            # Make sure that the statusAMCS periodic task runs because the test
-            # depends on that.
-            mtdome.MTDomeCsc.all_methods_and_intervals = {"statusAMCS": 0.2}
             await self.assert_next_summary_state(salobj.State.STANDBY)
+
+            self.csc.start_periodic_tasks = True
+
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.DISABLED
             )
             await self.assert_next_summary_state(salobj.State.DISABLED)
+
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.ENABLED
             )
@@ -1713,10 +1711,98 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # Now stop the MockController and verify that the CSC goes to FAULT
             # state.
             await mock_ctrl.close()
-            await self.assert_next_summary_state(salobj.State.FAULT)
+            await self.assert_next_summary_state(
+                salobj.State.FAULT, timeout=SHORT_TIMEOUT
+            )
+
+    async def test_no_repeating_operational_mode_events(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+        ):
+            await self.assert_next_summary_state(salobj.State.STANDBY)
+
+            self.csc.start_periodic_tasks = True
+
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.DISABLED
+            )
+            await self.assert_next_summary_state(salobj.State.DISABLED)
+
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.assert_next_summary_state(salobj.State.ENABLED)
+
+            subsystem_ids = [
+                SubSystemId.AMCS,
+                SubSystemId.APSCS,
+                SubSystemId.CSCS,
+                SubSystemId.LCS,
+                SubSystemId.LWSCS,
+                SubSystemId.MONCS,
+                SubSystemId.THCS,
+            ]
+            await self.assert_operational_mode_event(subsystem_ids)
+            await self.assert_no_repeated_operational_mode_events()
+
+            operational_mode = OperationalMode.DEGRADED
+            sub_system_ids = SubSystemId.AMCS
+            await self.remote.cmd_setOperationalMode.set_start(
+                operationalMode=operational_mode,
+                subSystemIds=sub_system_ids,
+            )
+            subsystem_ids = [SubSystemId.AMCS]
+            await self.assert_operational_mode_event(subsystem_ids)
+            await self.assert_no_repeated_operational_mode_events()
+
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.DISABLED
+            )
+            await self.assert_next_summary_state(salobj.State.DISABLED)
+
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.STANDBY
+            )
+            await self.assert_next_summary_state(salobj.State.STANDBY)
+
+    async def assert_operational_mode_event(
+        self, subsystem_ids: list[SubSystemId]
+    ) -> None:
+        """Assert that operational mode events for the provided SubSystemIds
+        are emitted.
+
+        Parameters
+        ----------
+        subsystem_ids : list[SubSystemId]
+            The SubSystemId of the subsystems to check.
+        """
+        for subsystem_id in subsystem_ids:
+            await self.assert_next_sample(
+                topic=self.remote.evt_operationalMode,
+                timeout=SHORT_TIMEOUT,
+                subSystemId=subsystem_id.value,
+            )
+
+    async def assert_no_repeated_operational_mode_events(self) -> None:
+        """Assert that NO operational mode events for any of the subsystems
+        are emitted."""
+        for subsystem_id in [
+            SubSystemId.AMCS,
+            SubSystemId.APSCS,
+            SubSystemId.CSCS,
+            SubSystemId.LCS,
+            SubSystemId.LWSCS,
+            SubSystemId.MONCS,
+            SubSystemId.THCS,
+        ]:
+            with pytest.raises(TimeoutError):
+                await self.assert_next_sample(
+                    topic=self.remote.evt_operationalMode,
+                    timeout=SHORT_TIMEOUT,
+                    subSystemId=subsystem_id.value,
+                )
 
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")
-
-    async def handle_llc_status(self, status: dict[str, typing.Any]) -> None:
-        self.llc_status = status

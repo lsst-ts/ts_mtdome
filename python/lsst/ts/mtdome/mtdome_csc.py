@@ -120,10 +120,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # List of periodic tasks to start.
         self.periodic_tasks: list[asyncio.Future] = []
-        # Keep track of the AMCS state for logging one the console.
+        # Keep track of the AMCS state for logging on the console.
         self.amcs_state: MotionState | None = None
         # Keep track of the AMCS status message for logging on the console.
         self.amcs_message: str = ""
+        # Keep track of the operational modes of the LLCs to avoid emitting
+        # redundant events.
+        self.llc_operational_modes: dict[LlcName, OperationalMode | None] = {}
 
         self.log.info("DomeCsc constructed.")
 
@@ -758,18 +761,25 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
 
     async def _send_operational_mode_event(
-        self, llc_name: str, status: dict[str, typing.Any]
+        self, llc_name: LlcName, status: dict[str, typing.Any]
     ) -> None:
         if "operationalMode" in status["status"]:
+            self.log.debug(f"Sending operational mode event for {llc_name}.")
+
+            if llc_name not in self.llc_operational_modes:
+                self.llc_operational_modes[llc_name] = None
+
             current_operational_mode = status["status"]["operationalMode"]
             operational_mode = OperationalMode[current_operational_mode]
-            sub_system_id = [
-                sid for sid, name in LlcNameDict.items() if name == llc_name
-            ][0]
-            await self.evt_operationalMode.set_write(
-                operationalMode=operational_mode,
-                subSystemId=sub_system_id,
-            )
+            if self.llc_operational_modes[llc_name] != operational_mode:
+                self.llc_operational_modes[llc_name] = operational_mode
+                sub_system_id = [
+                    sid for sid, name in LlcNameDict.items() if name == llc_name
+                ][0]
+                await self.evt_operationalMode.set_write(
+                    operationalMode=operational_mode,
+                    subSystemId=sub_system_id,
+                )
 
     async def _check_errors_and_send_events(
         self, llc_name: str, llc_status: dict[str, typing.Any]
