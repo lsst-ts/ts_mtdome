@@ -7,6 +7,11 @@ Version History
 ###############
 
 ======
+v2.0.7
+======
+* Handle the capacitor banks dcBusVoltage telemetry item.
+
+======
 v2.0.6
 ======
 * Fix several unit test issues.
