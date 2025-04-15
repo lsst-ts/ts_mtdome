@@ -7,6 +7,11 @@ Version History
 ###############
 
 ======
+v2.0.8
+======
+* Remove ts_idl dependency from conda recipe and add ts_xml.
+
+======
 v2.0.7
 ======
 * Handle the capacitor banks dcBusVoltage telemetry item.
