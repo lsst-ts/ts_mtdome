@@ -634,7 +634,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             # TODO DM-50201: Suppress dcBusVoltage until the capacitorBanks
             #  event supports it.
-            if "dcBusVoltage" not in self.evt_capacitorBanks.topic_info.fields:
+            if (
+                "dcBusVoltage" not in self.evt_capacitorBanks.topic_info.fields
+                and "dcBusVoltage" in status
+            ):
                 dc_bus_voltage = status.pop("dcBusVoltage")
                 # Avoid superfluous logging of the dcBusVoltage value.
                 if self.dc_bus_voltage != dc_bus_voltage:
