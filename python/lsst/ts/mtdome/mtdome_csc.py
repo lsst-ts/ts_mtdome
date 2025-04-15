@@ -127,6 +127,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # Keep track of the operational modes of the LLCs to avoid emitting
         # redundant events.
         self.llc_operational_modes: dict[LlcName, OperationalMode | None] = {}
+        # TODO DM-50201: Keep track of dc_bus_voltage for logging.
+        self.dc_bus_voltage = math.nan
 
         self.log.info("DomeCsc constructed.")
 
@@ -633,6 +635,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             self.log.error(status["exception"])
             await self.go_fault(self.status_cbcs)
         else:
+            # TODO DM-50201: Suppress dcBusVoltage until the capacitorBanks
+            #  event supports it.
+            if "dcBusVoltage" not in self.evt_capacitorBanks.topic_info.fields:
+                dc_bus_voltage = status.pop("dcBusVoltage")
+                # Avoid superfluous logging of the dcBusVoltage value.
+                if self.dc_bus_voltage != dc_bus_voltage:
+                    self.dc_bus_voltage = dc_bus_voltage
+                    self.log.info(f"CBCS reports {dc_bus_voltage=}.")
             await self.send_llc_status_telemetry_and_events(
                 LlcName.CBCS, status, self.evt_capacitorBanks
             )
