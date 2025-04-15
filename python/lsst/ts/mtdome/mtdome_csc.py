@@ -594,7 +594,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             self.log.error(status["exception"])
-            await self.go_fault(self.status_amcs)
         else:
             applied_configuration = status["appliedConfiguration"]
             jmax = math.degrees(applied_configuration["jmax"])
@@ -617,7 +616,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             self.log.error(status["exception"])
-            await self.go_fault(self.status_apscs)
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.APSCS, status, self.tel_apertureShutter
@@ -633,7 +631,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             self.log.error(status["exception"])
-            await self.go_fault(self.status_cbcs)
         else:
             # TODO DM-50201: Suppress dcBusVoltage until the capacitorBanks
             #  event supports it.
@@ -657,7 +654,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             self.log.error(status["exception"])
-            await self.go_fault(self.status_cscs)
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.CSCS, status, self.tel_calibrationScreen
@@ -673,7 +669,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             self.log.error(status["exception"])
-            await self.go_fault(self.status_lcs)
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.LCS, status, self.tel_louvers
@@ -689,7 +684,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             self.log.error(status["exception"])
-            await self.go_fault(self.status_lwscs)
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.LWSCS, status, self.tel_lightWindScreen
@@ -705,7 +699,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             self.log.error(status["exception"])
-            await self.go_fault(self.status_moncs)
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.MONCS, status, self.tel_interlocks
@@ -721,7 +714,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             self.log.error(status["exception"])
-            await self.go_fault(self.status_rad)
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.RAD, status, self.tel_rearAccessDoor
@@ -737,7 +729,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             self.log.error(status["exception"])
-            await self.go_fault(self.status_thcs)
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.THCS, status, self.tel_thermal
