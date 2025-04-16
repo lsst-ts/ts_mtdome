@@ -7,6 +7,13 @@ Version History
 ###############
 
 ======
+v2.0.9
+======
+* Don't FAULT when a status command fails.
+* Avoid KeyError when processing CBCS telemetry.
+* Fix unit tests that should make CSC go FAULT once more.
+
+======
 v2.0.8
 ======
 * Remove ts_idl dependency from conda recipe and add ts_xml.

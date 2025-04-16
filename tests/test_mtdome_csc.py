@@ -1655,8 +1655,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             await self.assert_next_summary_state(salobj.State.STANDBY)
 
-            self.csc.start_periodic_tasks = True
-
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.DISABLED
             )
@@ -1668,6 +1666,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.assert_next_summary_state(salobj.State.ENABLED)
 
             self.csc.mtdome_com.mock_ctrl.enable_network_interruption = True
+
+            with pytest.raises(salobj.base.AckTimeoutError):
+                await self.remote.cmd_moveAz.set_start(
+                    position=0.0,
+                    velocity=0.0,
+                    timeout=SHORT_TIMEOUT,
+                )
             await self.assert_next_summary_state(salobj.State.FAULT)
 
     async def test_no_connection(self) -> None:
@@ -1696,8 +1701,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             await self.assert_next_summary_state(salobj.State.STANDBY)
 
-            self.csc.start_periodic_tasks = True
-
             await salobj.set_summary_state(
                 remote=self.remote, state=salobj.State.DISABLED
             )
@@ -1711,6 +1714,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # Now stop the MockController and verify that the CSC goes to FAULT
             # state.
             await mock_ctrl.close()
+
+            await self.remote.cmd_moveAz.set_start(
+                position=0.0,
+                velocity=0.0,
+                timeout=SHORT_TIMEOUT,
+            )
             await self.assert_next_summary_state(
                 salobj.State.FAULT, timeout=SHORT_TIMEOUT
             )
