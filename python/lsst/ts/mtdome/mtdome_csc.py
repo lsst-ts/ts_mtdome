@@ -218,9 +218,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         if self.connected:
             assert self.mtdome_com is not None
-
             await self.mtdome_com.disconnect()
-            self.mtdome_com = None
+
+        self.mtdome_com = None
 
     async def handle_summary_state(self) -> None:
         """Override of the handle_summary_state function to connect or
