@@ -595,7 +595,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The status.
         """
         if "exception" in status:
-            self.log.error(status["exception"])
+            self.log.exception(status["exception"])
         else:
             applied_configuration = status["appliedConfiguration"]
             jmax = math.degrees(applied_configuration["jmax"])
@@ -617,7 +617,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The status.
         """
         if "exception" in status:
-            self.log.error(status["exception"])
+            self.log.exception(status["exception"])
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.APSCS, status, self.tel_apertureShutter
@@ -632,7 +632,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The status.
         """
         if "exception" in status:
-            self.log.error(status["exception"])
+            self.log.exception(status["exception"])
         else:
             # TODO DM-50201: Suppress dcBusVoltage until the capacitorBanks
             #  event supports it.
@@ -658,7 +658,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The status.
         """
         if "exception" in status:
-            self.log.error(status["exception"])
+            self.log.exception(status["exception"])
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.CSCS, status, self.tel_calibrationScreen
@@ -673,7 +673,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The status.
         """
         if "exception" in status:
-            self.log.error(status["exception"])
+            self.log.exception(status["exception"])
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.LCS, status, self.tel_louvers
@@ -688,7 +688,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The status.
         """
         if "exception" in status:
-            self.log.error(status["exception"])
+            self.log.exception(status["exception"])
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.LWSCS, status, self.tel_lightWindScreen
@@ -703,7 +703,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The status.
         """
         if "exception" in status:
-            self.log.error(status["exception"])
+            self.log.exception(status["exception"])
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.MONCS, status, self.tel_interlocks
@@ -718,7 +718,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The status.
         """
         if "exception" in status:
-            self.log.error(status["exception"])
+            self.log.exception(status["exception"])
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.RAD, status, self.tel_rearAccessDoor
@@ -733,7 +733,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The status.
         """
         if "exception" in status:
-            self.log.error(status["exception"])
+            self.log.exception(status["exception"])
         else:
             await self.send_llc_status_telemetry_and_events(
                 LlcName.THCS, status, self.tel_thermal
