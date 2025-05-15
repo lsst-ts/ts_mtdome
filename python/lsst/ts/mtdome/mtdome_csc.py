@@ -122,6 +122,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.periodic_tasks: list[asyncio.Future] = []
         # Keep track of the AMCS state for logging on the console.
         self.amcs_state: MotionState | None = None
+        # Keep track of the ApSCS state for logging on the console.
+        self.apscs_state: MotionState | None = None
         # Keep track of the AMCS status message for logging on the console.
         self.amcs_message: str = ""
         # Keep track of the operational modes of the LLCs to avoid emitting
@@ -869,6 +871,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     ) -> None:
         messages = llc_status["messages"]
         codes = [message["code"] for message in messages]
+        if self.apscs_state != llc_status["status"]:
+            self.apscs_state = llc_status["status"]
+            self.log.info(f"ApSCS state now is {self.apscs_state}")
         if len(messages) != 1 or codes[0] != 0:
             fault_code = ", ".join(
                 [f"{message['code']}={message['description']}" for message in messages]
