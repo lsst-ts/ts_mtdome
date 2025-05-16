@@ -1,6 +1,8 @@
 name: news_creation
 
-on: push
+on:
+  pull_request:
+    types: [opened, reopened]
 
 jobs:
   call-workflow:
