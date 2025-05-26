@@ -6,6 +6,14 @@
 Version History
 ###############
 
+=======
+v2.0.10
+=======
+* Add GitHub actions.
+* Log ApSCS state for easier debugging.
+* Set mtdome_com to None when disconnecting.
+* Handle internal communication errors.
+
 ======
 v2.0.9
 ======
