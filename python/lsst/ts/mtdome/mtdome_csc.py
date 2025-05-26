@@ -23,6 +23,7 @@ __all__ = ["MTDomeCsc", "run_mtdome"]
 
 import asyncio
 import math
+import traceback
 import typing
 from types import SimpleNamespace
 
@@ -623,12 +624,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         status : `dict`[`str`, `typing.Any`]
             The status.
         """
-        if "exception" in status:
-            await self.log_status_exception(status)
-        else:
-            await self.send_llc_status_telemetry_and_events(
-                LlcName.APSCS, status, self.tel_apertureShutter
-            )
+        self.log.debug("status_apscs")
+        await self.send_llc_status_telemetry_and_events(
+            LlcName.APSCS, status, self.tel_apertureShutter
+        )
 
     async def status_cbcs(self, status: dict[str, typing.Any]) -> None:
         """CBCS status command.
@@ -766,17 +765,21 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # Send the operational mode event.
         await self._send_operational_mode_event(llc_name=llc_name, status=status)
 
-        # Send the telemetry.
-        telemetry = self.mtdome_com.remove_keys_from_dict(status, _KEYS_TO_REMOVE)
-        await topic.set_write(**telemetry)
-        await self._check_errors_and_send_events(
-            llc_name=llc_name, llc_status=status["status"]
-        )
+        if "exception" not in status:
+            # Send the telemetry.
+            telemetry = self.mtdome_com.remove_keys_from_dict(status, _KEYS_TO_REMOVE)
+            await topic.set_write(**telemetry)
+
+            await self._check_errors_and_send_events(
+                llc_name=llc_name, llc_status=status["status"]
+            )
+        else:
+            await self._handle_command_exception(status)
 
     async def _send_operational_mode_event(
         self, llc_name: LlcName, status: dict[str, typing.Any]
     ) -> None:
-        if "operationalMode" in status["status"]:
+        if "status" in status and "operationalMode" in status["status"]:
             self.log.debug(f"Sending operational mode event for {llc_name}.")
 
             if llc_name not in self.llc_operational_modes:
@@ -885,19 +888,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             fault_code = ", ".join(
                 [f"{message['code']}={message['description']}" for message in messages]
             )
-            # Check supported event to make sure of backward compatibility with
-            # XML 12.0.
-            if hasattr(self, "evt_shutterEnabled"):
-                await self.evt_shutterEnabled.set_write(
-                    state=EnabledState.FAULT, faultCode=fault_code
-                )
+            await self.evt_shutterEnabled.set_write(
+                state=EnabledState.FAULT, faultCode=fault_code
+            )
         else:
-            # Check supported event to make sure of backward compatibility with
-            # XML 12.0.
-            if hasattr(self, "evt_shutterEnabled"):
-                await self.evt_shutterEnabled.set_write(
-                    state=EnabledState.ENABLED, faultCode=""
-                )
+            await self.evt_shutterEnabled.set_write(
+                state=EnabledState.ENABLED, faultCode=""
+            )
             statuses = llc_status["status"]
             motion_state: list[str] = []
             in_position: list[bool] = []
@@ -912,10 +909,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         MotionState.STOPPED_BRAKED,
                     ]
                 )
-            if hasattr(self, "evt_shutterMotion"):
-                await self.evt_shutterMotion.set_write(
-                    state=motion_state, inPosition=in_position
-                )
+            await self.evt_shutterMotion.set_write(
+                state=motion_state, inPosition=in_position
+            )
 
     def _translate_motion_state_if_necessary(self, state: str) -> MotionState:
         try:
@@ -955,10 +951,32 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         try:
             return await method(**kwargs)
-        except ValueError:
-            raise
+        except ValueError as ve:
+            tb = traceback.format_exception(ve)
+            # The "exception" is a list of "\n" terminated strings
+            # representing the traceback and we're only interested in the
+            # exceptions coming from the rotating part.
+            if "by the rotating part" in tb[-1]:
+                await self._handle_command_exception({"exception": tb})
+                return None
+            else:
+                raise
         except Exception:
             await self.go_fault(method)
+            return None
+
+    async def _handle_command_exception(self, status: dict[str, typing.Any]) -> None:
+        # Communication with the rotating part of the dome is not possible so
+        # report errors. The "exception" is a list of "\n" terminated strings
+        # representing the traceback so simply joining them with an empty
+        # string is sufficient.
+        fault_code = "".join(status["exception"])
+        await self.evt_elEnabled.set_write(
+            state=EnabledState.FAULT, faultCode=fault_code
+        )
+        await self.evt_shutterEnabled.set_write(
+            state=EnabledState.FAULT, faultCode=fault_code
+        )
 
     async def go_fault(self, method: typing.Callable) -> None:
         """Convenience method to go to FAULT state.

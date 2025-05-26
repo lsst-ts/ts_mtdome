@@ -1337,7 +1337,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # Cannot set to zero while AMCS is MOVING
             with salobj.assertRaisesAckError():
                 await self.remote.cmd_setZeroAz.set_start()
-                # await self.assert_command_replied(cmd="setZeroAz")
 
             self.csc.mtdome_com.mock_ctrl.current_tai = (
                 self.csc.mtdome_com.mock_ctrl.current_tai + 2.0
@@ -1426,11 +1425,14 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 func = status_dict[sub_system_id]
                 name = mtdomecom.LlcNameDict[sub_system_id]
                 await func()
-                status = self.csc.mtdome_com.lower_level_status[name]
-                # Not all statuses contain an operationalMode.
-                if "operationalMode" in status["status"]:
-                    assert status["status"]["operationalMode"] == operational_mode.name
-                    events_to_check.add(sub_system_id.value)
+                if name in self.csc.mtdome_com.lower_level_status:
+                    status = self.csc.mtdome_com.lower_level_status[name]
+                    # Not all statuses contain an operationalMode.
+                    if "operationalMode" in status["status"]:
+                        assert (
+                            status["status"]["operationalMode"] == operational_mode.name
+                        )
+                        events_to_check.add(sub_system_id.value)
 
         events_recevied = set()
         for _ in range(len(events_to_check)):
@@ -1811,6 +1813,63 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     timeout=SHORT_TIMEOUT,
                     subSystemId=subsystem_id.value,
                 )
+
+    async def test_communication_error(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+        ):
+            await self.set_csc_to_enabled()
+            self.csc.mtdome_com.mock_ctrl.communication_error = True
+
+            # Set the TAI time in the mock controller for easier control.
+            self.csc.mtdome_com.mock_ctrl.current_tai = 1000
+
+            try:
+                await self.csc.mtdome_com.status_apscs()
+            except ValueError:
+                # This error is expected.
+                pass
+
+            data = await self.assert_next_sample(
+                topic=self.remote.evt_elEnabled,
+                state=EnabledState.FAULT,
+                timeout=SHORT_TIMEOUT,
+            )
+            assert "was not received by the rotating part." in data.faultCode
+            data = await self.assert_next_sample(
+                topic=self.remote.evt_shutterEnabled,
+                state=EnabledState.FAULT,
+                timeout=SHORT_TIMEOUT,
+            )
+            assert "was not received by the rotating part." in data.faultCode
+
+        # Set up a new CSC so the events get sent.
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+        ):
+            await self.set_csc_to_enabled()
+            self.csc.mtdome_com.mock_ctrl.communication_error = True
+
+            # Set the TAI time in the mock controller for easier control.
+            self.csc.mtdome_com.mock_ctrl.current_tai = 1000
+
+            await self.remote.cmd_openShutter.set_start()
+            data = await self.assert_next_sample(
+                topic=self.remote.evt_elEnabled,
+                state=EnabledState.FAULT,
+                timeout=SHORT_TIMEOUT,
+            )
+            assert "was not received by the rotating part." in data.faultCode
+            data = await self.assert_next_sample(
+                topic=self.remote.evt_shutterEnabled,
+                state=EnabledState.FAULT,
+                timeout=SHORT_TIMEOUT,
+            )
+            assert "was not received by the rotating part." in data.faultCode
 
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")
