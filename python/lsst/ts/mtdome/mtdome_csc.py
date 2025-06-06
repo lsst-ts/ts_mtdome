@@ -901,12 +901,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             # The number of statuses has been validated by the JSON schema. So
             # here it is safe to loop over all statuses.
             for status in statuses:
-                motion_state.append(self._translate_motion_state_if_necessary(status))
+                translated_status = self._translate_motion_state_if_necessary(status)
+                motion_state.append(translated_status)
                 in_position.append(
-                    status
+                    translated_status
                     in [
                         MotionState.STOPPED,
                         MotionState.STOPPED_BRAKED,
+                        MotionState.CLOSED,
+                        MotionState.OPEN,
                     ]
                 )
             await self.evt_shutterMotion.set_write(
