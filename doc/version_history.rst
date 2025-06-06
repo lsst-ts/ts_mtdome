@@ -7,6 +7,11 @@ Version History
 ###############
 
 =======
+v2.0.11
+=======
+* Ensure that aperture shutter InPosition is correct.
+
+=======
 v2.0.10
 =======
 * Add GitHub actions.
