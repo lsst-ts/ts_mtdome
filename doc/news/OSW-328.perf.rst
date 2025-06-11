@@ -1,1 +1,0 @@
-Improve error reporting in case of a WiFi communication error.
