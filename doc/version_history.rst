@@ -6,6 +6,29 @@
 Version History
 ###############
 
+.. towncrier release notes start
+
+v2.0.12 (2025-06-11)
+====================
+
+New Features
+------------
+
+- Switch to towncrier. (`OSW-328 <https://rubinobs.atlassian.net//browse/OSW-328>`_)
+
+
+Bug Fixes
+---------
+
+- Fix version module import. (`OSW-328 <https://rubinobs.atlassian.net//browse/OSW-328>`_)
+
+
+Performance Enhancement
+-----------------------
+
+- Improve error reporting in case of a WiFi communication error. (`OSW-328 <https://rubinobs.atlassian.net//browse/OSW-328>`_)
+
+
 =======
 v2.0.11
 =======
