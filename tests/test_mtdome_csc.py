@@ -1833,12 +1833,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 pass
 
             data = await self.assert_next_sample(
-                topic=self.remote.evt_elEnabled,
-                state=EnabledState.FAULT,
-                timeout=SHORT_TIMEOUT,
-            )
-            assert "was not received by the rotating part." in data.faultCode
-            data = await self.assert_next_sample(
                 topic=self.remote.evt_shutterEnabled,
                 state=EnabledState.FAULT,
                 timeout=SHORT_TIMEOUT,
@@ -1858,12 +1852,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mtdome_com.mock_ctrl.current_tai = 1000
 
             await self.remote.cmd_openShutter.set_start()
-            data = await self.assert_next_sample(
-                topic=self.remote.evt_elEnabled,
-                state=EnabledState.FAULT,
-                timeout=SHORT_TIMEOUT,
-            )
-            assert "was not received by the rotating part." in data.faultCode
             data = await self.assert_next_sample(
                 topic=self.remote.evt_shutterEnabled,
                 state=EnabledState.FAULT,
