@@ -954,13 +954,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         try:
             return await method(**kwargs)
-        except ValueError as ve:
-            tb = traceback.format_exception(ve)
-            # The "exception" is a list of "\n" terminated strings
-            # representing the traceback and we're only interested in the
-            # exceptions coming from the rotating part.
-            if "by the rotating part" in tb[-1]:
-                await self._handle_command_exception({"exception": tb})
+        except ValueError:
+            assert self.mtdome_com is not None
+            response_code = self.mtdome_com.communication_error_report["response_code"]
+            if response_code in [
+                mtdomecom.ResponseCode.ROTATING_PART_NOT_RECEIVED,
+                mtdomecom.ResponseCode.ROTATING_PART_NOT_REPLIED,
+            ]:
+                await self._handle_command_exception(
+                    self.mtdome_com.communication_error_report
+                )
                 return None
             else:
                 raise
@@ -968,18 +971,32 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.go_fault(method)
             return None
 
-    async def _handle_command_exception(self, status: dict[str, typing.Any]) -> None:
-        # Communication with the rotating part of the dome is not possible so
-        # report errors. The "exception" is a list of "\n" terminated strings
-        # representing the traceback so simply joining them with an empty
-        # string is sufficient.
-        fault_code = "".join(status["exception"])
-        await self.evt_elEnabled.set_write(
-            state=EnabledState.FAULT, faultCode=fault_code
-        )
-        await self.evt_shutterEnabled.set_write(
-            state=EnabledState.FAULT, faultCode=fault_code
-        )
+    async def _handle_command_exception(
+        self, communication_error_report: dict[str, typing.Any]
+    ) -> None:
+        """Handle reports for communication errors.
+
+        Parameters
+        ----------
+        communication_error_report : `dict`[`str`, `typing.Any`]
+            The error report to handle.
+        """
+        command_name = communication_error_report["command_name"]
+        exception = communication_error_report["exception"]
+        response_code = communication_error_report["response_code"]
+        tb = traceback.format_exception(exception)
+        fault_code = f"{response_code.name}: " + "".join(tb)
+        self.log.debug(f"{command_name=}, {fault_code=}")
+        if command_name in mtdomecom.EL_COMMANDS:
+            await self.evt_elEnabled.set_write(
+                state=EnabledState.FAULT, faultCode=fault_code
+            )
+        elif command_name in mtdomecom.SHUTTER_COMMANDS:
+            await self.evt_shutterEnabled.set_write(
+                state=EnabledState.FAULT, faultCode=fault_code
+            )
+        else:
+            self.log.error(fault_code)
 
     async def go_fault(self, method: typing.Callable) -> None:
         """Convenience method to go to FAULT state.
