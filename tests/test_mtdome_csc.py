@@ -26,11 +26,13 @@ import math
 import pathlib
 import typing
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 import yaml
 from lsst.ts import mtdome, mtdomecom, salobj, tcpip, utils
+from lsst.ts.xml import sal_enums
 from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
@@ -1116,6 +1118,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
             assert amcs_status["status"]["messages"] == expected_messages
             assert math.isclose(amcs_status["positionActual"], 328.0)
+            await self.remote.evt_azEnabled.next(flush=False, timeout=STD_TIMEOUT)
             await self.assert_next_sample(
                 topic=self.remote.evt_azEnabled,
                 state=EnabledState.FAULT,
@@ -1422,7 +1425,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         events_to_check = set()
         for sub_system_id in SubSystemId:
             if sub_system_id & sub_system_ids:
-                logging.debug(f"WOUTER {sub_system_id=}, {sub_system_ids=}")
                 func = status_dict[sub_system_id]
                 name = mtdomecom.LlcNameDict[sub_system_id]
                 await func()
@@ -1859,6 +1861,42 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 timeout=SHORT_TIMEOUT,
             )
             assert "was not received by the rotating part." in data.faultCode
+
+    @patch("lsst.ts.mtdomecom.mtdome_com._TIMEOUT", 3.0)
+    async def test_timeout_error(self) -> None:
+        # Run twice, each time with a different command.
+        for run_id in [1, 2]:
+            async with self.make_csc(
+                initial_state=salobj.State.STANDBY,
+                config_dir=CONFIG_DIR,
+                simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            ):
+                await self.set_csc_to_enabled()
+                for state in [
+                    sal_enums.State.STANDBY,
+                    sal_enums.State.DISABLED,
+                    sal_enums.State.ENABLED,
+                ]:
+                    await self.assert_next_sample(
+                        topic=self.remote.evt_summaryState,
+                        summaryState=state,
+                        timeout=SHORT_TIMEOUT,
+                    )
+                self.csc.mtdome_com.mock_ctrl.timeout_error = True
+
+                # Set the TAI time in the mock controller for easier control.
+                self.csc.mtdome_com.mock_ctrl.current_tai = 1000
+
+                # Run a different command depending on the run_id.
+                if run_id == 1:
+                    await self.csc.mtdome_com.status_amcs()
+                else:
+                    await self.remote.cmd_park.set_start()
+                await self.assert_next_sample(
+                    topic=self.remote.evt_summaryState,
+                    summaryState=sal_enums.State.FAULT,
+                    timeout=STD_TIMEOUT,
+                )
 
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")

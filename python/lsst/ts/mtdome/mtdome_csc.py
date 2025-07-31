@@ -122,8 +122,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # MTDome TCP/IP communicator.
         self.mtdome_com: mtdomecom.MTDomeCom | None = None
 
-        # List of periodic tasks to start.
-        self.periodic_tasks: list[asyncio.Future] = []
         # Keep track of the AMCS state for logging on the console.
         self.amcs_state: MotionState | None = None
         # Keep track of the ApSCS state for logging on the console.
@@ -612,9 +610,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_azConfigurationApplied.set_write(
                 jmax=jmax, amax=amax, vmax=vmax
             )
-            await self.send_llc_status_telemetry_and_events(
-                LlcName.AMCS, status, self.tel_azimuth
-            )
+        await self.send_llc_status_telemetry_and_events(
+            LlcName.AMCS, status, self.tel_azimuth
+        )
 
     async def status_apscs(self, status: dict[str, typing.Any]) -> None:
         """ApSCS status command.
@@ -625,6 +623,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The status.
         """
         self.log.debug("status_apscs")
+        if "exception" in status:
+            await self.log_status_exception(status)
         await self.send_llc_status_telemetry_and_events(
             LlcName.APSCS, status, self.tel_apertureShutter
         )
@@ -651,9 +651,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 if self.dc_bus_voltage != dc_bus_voltage:
                     self.dc_bus_voltage = dc_bus_voltage
                     self.log.info(f"CBCS reports {dc_bus_voltage=}.")
-            await self.send_llc_status_telemetry_and_events(
-                LlcName.CBCS, status, self.evt_capacitorBanks
-            )
+        await self.send_llc_status_telemetry_and_events(
+            LlcName.CBCS, status, self.evt_capacitorBanks
+        )
 
     async def status_cscs(self, status: dict[str, typing.Any]) -> None:
         """CSCS status command.
@@ -665,10 +665,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        else:
-            await self.send_llc_status_telemetry_and_events(
-                LlcName.CSCS, status, self.tel_calibrationScreen
-            )
+        await self.send_llc_status_telemetry_and_events(
+            LlcName.CSCS, status, self.tel_calibrationScreen
+        )
 
     async def status_lcs(self, status: dict[str, typing.Any]) -> None:
         """LCS status command.
@@ -680,10 +679,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        else:
-            await self.send_llc_status_telemetry_and_events(
-                LlcName.LCS, status, self.tel_louvers
-            )
+        await self.send_llc_status_telemetry_and_events(
+            LlcName.LCS, status, self.tel_louvers
+        )
 
     async def status_lwscs(self, status: dict[str, typing.Any]) -> None:
         """LWSCS status command.
@@ -695,10 +693,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        else:
-            await self.send_llc_status_telemetry_and_events(
-                LlcName.LWSCS, status, self.tel_lightWindScreen
-            )
+        await self.send_llc_status_telemetry_and_events(
+            LlcName.LWSCS, status, self.tel_lightWindScreen
+        )
 
     async def status_moncs(self, status: dict[str, typing.Any]) -> None:
         """MonCS status command.
@@ -710,10 +707,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        else:
-            await self.send_llc_status_telemetry_and_events(
-                LlcName.MONCS, status, self.tel_interlocks
-            )
+        await self.send_llc_status_telemetry_and_events(
+            LlcName.MONCS, status, self.tel_interlocks
+        )
 
     async def status_rad(self, status: dict[str, typing.Any]) -> None:
         """RAD status command.
@@ -725,10 +721,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        else:
-            await self.send_llc_status_telemetry_and_events(
-                LlcName.RAD, status, self.tel_rearAccessDoor
-            )
+        await self.send_llc_status_telemetry_and_events(
+            LlcName.RAD, status, self.tel_rearAccessDoor
+        )
 
     async def status_thcs(self, status: dict[str, typing.Any]) -> None:
         """ThCS status command.
@@ -740,10 +735,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        else:
-            await self.send_llc_status_telemetry_and_events(
-                LlcName.THCS, status, self.tel_thermal
-            )
+        await self.send_llc_status_telemetry_and_events(
+            LlcName.THCS, status, self.tel_thermal
+        )
 
     async def send_llc_status_telemetry_and_events(
         self, llc_name: LlcName, status: dict[str, typing.Any], topic: SimpleNamespace
@@ -812,7 +806,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self, llc_status: dict[str, typing.Any]
     ) -> None:
         messages = llc_status["messages"]
-        codes = [message["code"] for message in messages]
         status_message = ", ".join(
             [f"{message['code']}={message['description']}" for message in messages]
         )
@@ -822,31 +815,23 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if self.amcs_message != status_message:
             self.amcs_message = status_message
             self.log.info(f"AMCS status message now is {self.amcs_message}")
-
-        if len(messages) != 1 or codes[0] != 0:
             await self.evt_azEnabled.set_write(
                 state=EnabledState.FAULT, faultCode=status_message
             )
         else:
             await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
 
-            motion_state = self._translate_motion_state_if_necessary(
-                llc_status["status"]
-            )
-            in_position = False
-            if motion_state in [
-                MotionState.STOPPED,
-                MotionState.STOPPED_BRAKED,
-                MotionState.CRAWLING,
-                MotionState.PARKED,
-            ]:
-                in_position = True
+        motion_state = self._translate_motion_state_if_necessary(llc_status["status"])
+        in_position = False
+        if motion_state in [
+            MotionState.STOPPED,
+            MotionState.STOPPED_BRAKED,
+            MotionState.CRAWLING,
+            MotionState.PARKED,
+        ]:
+            in_position = True
 
-            # In case of some unit tests, this event is expected to be
-            # emitted twice with the same data.
-            await self.evt_azMotion.set_write(
-                state=motion_state, inPosition=in_position
-            )
+        await self.evt_azMotion.set_write(state=motion_state, inPosition=in_position)
 
     async def _check_errors_and_send_events_el(
         self, llc_status: dict[str, typing.Any]
@@ -968,7 +953,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             else:
                 raise
         except Exception:
-            await self.go_fault(method)
+            name = getattr(method, "__name__", repr(method))
+            await self.go_fault(name)
             return None
 
     async def _handle_command_exception(
@@ -995,16 +981,20 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_shutterEnabled.set_write(
                 state=EnabledState.FAULT, faultCode=fault_code
             )
+        elif isinstance(exception, TimeoutError) or isinstance(
+            exception, ConnectionError
+        ):
+            await self.go_fault(command_name)
         else:
             self.log.error(fault_code)
 
-    async def go_fault(self, method: typing.Callable) -> None:
+    async def go_fault(self, method: str) -> None:
         """Convenience method to go to FAULT state.
 
         Parameters
         ----------
-        method : `typing.Callable`
-            The method that causes the FAULT state.
+        method : `str`
+            The name of the method that causes the FAULT state.
         """
         await self.fault(code=3, report=f"Error calling {method=}.")
 
