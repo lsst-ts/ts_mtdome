@@ -1,1 +1,0 @@
-Go to FAULT in case the communication with the cRIO drops.
