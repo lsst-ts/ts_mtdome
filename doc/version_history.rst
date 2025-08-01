@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v2.0.13 (2025-08-01)
+====================
+
+New Features
+------------
+
+- Go to FAULT in case the communication with the cRIO drops. (`OSW-716 <https://rubinobs.atlassian.net//browse/OSW-716>`_)
+
+
 v2.0.12 (2025-06-11)
 ====================
 
