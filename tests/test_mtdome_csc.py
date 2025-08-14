@@ -48,6 +48,7 @@ SHORT_TIMEOUT = 1  # short command and event timeout (sec)
 CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
 
 
+# TODO OSW-862 Remove all references to the old temperature schema.
 class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     def basic_make_csc(
         self,
@@ -55,15 +56,17 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         config_dir: str,
         simulation_mode: int,
         override: str = "",
-        **kwargs: typing.Any,
+        **kwargs: typing.Dict,
     ) -> None:
         # Disable all periodic tasks so the unit tests can take full control.
+        new_thermal_schema = kwargs.get("new_thermal_schema", False)
         return mtdome.MTDomeCsc(
             initial_state=initial_state,
             config_dir=config_dir,
             simulation_mode=simulation_mode,
             override=override,
             start_periodic_tasks=False,
+            new_thermal_schema=new_thermal_schema,
         )
 
     @contextlib.asynccontextmanager
@@ -1897,6 +1900,33 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     summaryState=sal_enums.State.FAULT,
                     timeout=STD_TIMEOUT,
                 )
+
+    async def test_new_thermal_schema(self) -> None:
+        for new_thermal_schema in [False, True]:
+            async with self.make_csc(
+                initial_state=salobj.State.STANDBY,
+                config_dir=CONFIG_DIR,
+                simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+                new_thermal_schema=new_thermal_schema,
+            ):
+                await self.set_csc_to_enabled()
+                await self.csc.mtdome_com.status_amcs()
+                await self.csc.mtdome_com.status_thcs()
+
+                amcs_status = self.csc.mtdome_com.lower_level_status["AMCS"]
+                thcs_status = self.csc.mtdome_com.lower_level_status["ThCS"]
+
+                if not new_thermal_schema:
+                    assert "driveTemperature" in amcs_status
+                else:
+                    assert "driveTemperature" not in amcs_status
+
+                # The MTDome CSC modifies the status dict such that the new
+                # keys are removed and the old one is restored.
+                assert "temperature" in thcs_status
+                assert "driveTemperature" not in thcs_status
+                assert "motorCoilTemperature" not in thcs_status
+                assert "cabinetTemperature" not in thcs_status
 
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")
