@@ -49,6 +49,7 @@ CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
 
 
 # TODO OSW-862 Remove all references to the old temperature schema.
+# TODO OSW-872 Remove all backward compatibility with XML 23.3.
 class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     def basic_make_csc(
         self,
@@ -1057,7 +1058,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 mtdomecom.LlcName.THCS.value
             ]
             assert thcs_status["status"]["status"] == MotionState.DISABLED.name
-            assert thcs_status["temperature"] == [0.0] * mtdomecom.THCS_NUM_SENSORS
+            if self.csc.xml_version == mtdome.XML_23_3:
+                assert thcs_status["temperature"] == [0.0] * mtdomecom.THCS_NUM_SENSORS
+            else:
+                assert (
+                    thcs_status["driveTemperature"]
+                    == [0.0] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
+                )
 
             await self.csc.mtdome_com.status_rad()
             rad_status = self.csc.mtdome_com.lower_level_status[
@@ -1292,7 +1299,13 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 thcs_status["status"]["status"]
                 == mtdomecom.InternalMotionState.STATIONARY.name
             )
-            assert thcs_status["temperature"] == [0.0] * mtdomecom.THCS_NUM_SENSORS
+            if self.csc.xml_version == mtdome.XML_23_3:
+                assert thcs_status["temperature"] == [0.0] * mtdomecom.THCS_NUM_SENSORS
+            else:
+                assert (
+                    thcs_status["driveTemperature"]
+                    == [0.0] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
+                )
 
     async def test_setZeroAz(self) -> None:
         async with self.make_csc(
@@ -1916,17 +1929,21 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 amcs_status = self.csc.mtdome_com.lower_level_status["AMCS"]
                 thcs_status = self.csc.mtdome_com.lower_level_status["ThCS"]
 
-                if not new_thermal_schema:
+                if self.csc.xml_version == mtdome.XML_23_3 and not new_thermal_schema:
                     assert "driveTemperature" in amcs_status
                 else:
                     assert "driveTemperature" not in amcs_status
 
-                # The MTDome CSC modifies the status dict such that the new
-                # keys are removed and the old one is restored.
-                assert "temperature" in thcs_status
-                assert "driveTemperature" not in thcs_status
-                assert "motorCoilTemperature" not in thcs_status
-                assert "cabinetTemperature" not in thcs_status
+                if self.csc.xml_version == mtdome.XML_23_3:
+                    assert "temperature" in thcs_status
+                    assert "driveTemperature" not in thcs_status
+                    assert "motorCoilTemperature" not in thcs_status
+                    assert "cabinetTemperature" not in thcs_status
+                else:
+                    assert "temperature" not in thcs_status
+                    assert "driveTemperature" in thcs_status
+                    assert "motorCoilTemperature" in thcs_status
+                    assert "cabinetTemperature" in thcs_status
 
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")

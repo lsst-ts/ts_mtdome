@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["MTDomeCsc", "run_mtdome"]
+__all__ = ["MTDomeCsc", "run_mtdome", "XML_23_3"]
 
 import asyncio
 import math
@@ -53,12 +53,17 @@ _KEYS_TO_REMOVE = {
 # Time [s] to sleep after an exception in a status command.
 EXCEPTION_SLEEP_TIME = 1.0
 
+# Expected XML versions.
+XML_23_3 = "23.3"
+XML_23_4 = "23.4"
+
 
 def run_mtdome() -> None:
     asyncio.run(MTDomeCsc.amain(index=None))
 
 
 # TODO OSW-862 Remove all references to the old temperature schema.
+# TODO OSW-872 Remove all backward compatibility with XML 23.3.
 class MTDomeCsc(salobj.ConfigurableCsc):
     """Upper level Commandable SAL Component to interface with the Simonyi
     Survey Telescope Dome lower level components.
@@ -131,6 +136,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.mtdome_com: mtdomecom.MTDomeCom | None = None
         # Is the new temperature schema used or not?
         self.new_thermal_schema = new_thermal_schema
+        # Determine the XML version.
+        if "driveTemperature" in self.tel_azimuth.topic_info.fields:
+            self.xml_version = XML_23_3
+        else:
+            self.xml_version = XML_23_4
+            self.new_thermal_schema = True
 
         # Keep track of the AMCS state for logging on the console.
         self.amcs_state: MotionState | None = None
@@ -747,12 +758,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if "exception" in status:
             await self.log_status_exception(status)
         if self.new_thermal_schema:
-            temperature = [0.0] * mtdomecom.AMCS_NUM_MOTOR_TEMPERATURES
-            temperature[:5] = status["motorCoilTemperature"]
-            del status["cabinetTemperature"]
-            del status["driveTemperature"]
-            del status["motorCoilTemperature"]
-            status["temperature"] = temperature
+            if self.xml_version == XML_23_3:
+                temperature = [0.0] * mtdomecom.AMCS_NUM_MOTOR_TEMPERATURES
+                temperature[:5] = status["motorCoilTemperature"]
+                del status["cabinetTemperature"]
+                del status["driveTemperature"]
+                del status["motorCoilTemperature"]
+                status["temperature"] = temperature
         await self.send_llc_status_telemetry_and_events(
             LlcName.THCS, status, self.tel_thermal
         )
