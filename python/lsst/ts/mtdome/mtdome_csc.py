@@ -662,17 +662,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if "exception" in status:
             await self.log_status_exception(status)
         else:
-            # TODO DM-50201: Suppress dcBusVoltage until the capacitorBanks
-            #  event supports it.
-            if (
-                "dcBusVoltage" not in self.evt_capacitorBanks.topic_info.fields
-                and "dcBusVoltage" in status
-            ):
-                dc_bus_voltage = status.pop("dcBusVoltage")
+            dc_bus_voltage = status.pop("dcBusVoltage")
+            if self.xml_version == XML_23_3:
                 # Avoid superfluous logging of the dcBusVoltage value.
                 if self.dc_bus_voltage != dc_bus_voltage:
                     self.dc_bus_voltage = dc_bus_voltage
                     self.log.info(f"CBCS reports {dc_bus_voltage=}.")
+            else:
+                # Send the capacitor banks telemetry.
+                await self.tel_capacitorBanks.set_write(dcBusVoltage=dc_bus_voltage)
         await self.send_llc_status_telemetry_and_events(
             LlcName.CBCS, status, self.evt_capacitorBanks
         )
