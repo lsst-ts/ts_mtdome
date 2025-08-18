@@ -1,0 +1,1 @@
+Added support for the capacitor banks telemetry topic.
