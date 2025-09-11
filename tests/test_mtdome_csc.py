@@ -37,6 +37,7 @@ from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
     OnOff,
+    OpenClose,
     OperationalMode,
     PowerManagementMode,
     SubSystemId,
@@ -1405,7 +1406,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert status["positionActual"] == initial_position_actual.tolist()
 
             sub_system_ids = SubSystemId.APSCS
-            await self.remote.cmd_home.set_start(subSystemIds=sub_system_ids)
+            await self.remote.cmd_home.set_start(
+                subSystemIds=sub_system_ids, direction=OpenClose.CLOSE
+            )
             await self.assert_command_replied(cmd="home")
 
             self.csc.mtdome_com.mock_ctrl.current_tai = (

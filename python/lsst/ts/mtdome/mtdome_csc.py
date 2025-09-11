@@ -533,8 +533,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.call_method(method=self.mtdome_com.set_zero_az)
 
     async def do_home(self, data: salobj.BaseMsgType) -> None:
-        """Search the home position of the Aperture Shutter, which is the
-        closed position.
+        """Search the home position of the Aperture Shutter indicated by the
+        value of `direction` in `data`.
 
         This is necessary in case the ApSCS (Aperture Shutter Control system)
         was shutdown with the Aperture Shutter not fully open or fully closed.
@@ -547,7 +547,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         assert self.mtdome_com is not None
         await self.call_method(
-            method=self.mtdome_com.home, sub_system_ids=data.subSystemIds
+            method=self.mtdome_com.home,
+            sub_system_ids=data.subSystemIds,
+            direction=data.direction,
         )
 
     async def restore_llcs(self) -> None:
