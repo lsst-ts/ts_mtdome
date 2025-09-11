@@ -122,6 +122,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.config: SimpleNamespace | None = None
         self.start_periodic_tasks = start_periodic_tasks
 
+        setattr(self, "do_resetDrivesLouvers", self._do_resetDrivesLouvers)
+
         super().__init__(
             name="MTDome",
             index=0,
@@ -515,6 +517,24 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         assert self.mtdome_com is not None
         await self.call_method(
             method=self.mtdome_com.reset_drives_shutter, reset=reset_ints
+        )
+
+    async def _do_resetDrivesLouvers(self, data: salobj.BaseMsgType) -> None:
+        """Reset one or more Louver drives. This is necessary when
+        exiting from FAULT state without going to Degraded Mode since the
+        drives don't reset themselves.
+
+        Parameters
+        ----------
+        data : `salobj.BaseMsgType`
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        reset_ints = [int(value) for value in data.reset]
+        self.log.debug(f"do_resetDrivesLouvers: reset={reset_ints}")
+        assert self.mtdome_com is not None
+        await self.call_method(
+            method=self.mtdome_com.reset_drives_louvers, reset=reset_ints
         )
 
     async def do_setZeroAz(self, data: salobj.BaseMsgType) -> None:

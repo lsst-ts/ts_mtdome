@@ -120,6 +120,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     "home",
                     mtdomecom.CommandName.SET_ZERO_AZ,
                     mtdomecom.CommandName.RESET_DRIVES_AZ,
+                    mtdomecom.CommandName.RESET_DRIVES_LOUVERS,
                     mtdomecom.CommandName.RESET_DRIVES_SHUTTER,
                     "setOperationalMode",
                     mtdomecom.CommandName.SET_POWER_MANAGEMENT_MODE,
@@ -1206,7 +1207,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert amcs_status["status"]["status"] == MotionState.ERROR.name
 
             await self.remote.cmd_exitFault.set_start(
-                subSystemIds=SubSystemId.AMCS | SubSystemId.APSCS
+                subSystemIds=SubSystemId.AMCS | SubSystemId.APSCS | SubSystemId.LCS
             )
             await self.assert_command_replied(cmd=mtdomecom.CommandName.EXIT_FAULT_AZ)
             await self.assert_command_replied(
