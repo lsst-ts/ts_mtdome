@@ -62,7 +62,6 @@ def run_mtdome() -> None:
     asyncio.run(MTDomeCsc.amain(index=None))
 
 
-# TODO OSW-862 Remove all references to the old temperature schema.
 # TODO OSW-872 Remove all backward compatibility with XML 23.3.
 class MTDomeCsc(salobj.ConfigurableCsc):
     """Upper level Commandable SAL Component to interface with the Simonyi
@@ -82,13 +81,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     start_periodic_tasks : `bool`
         Start the periodic tasks or not. Defaults to `True`. Unit tests may set
         this to `False`.
-    new_thermal_schema : `bool`
-        Is the new thermal schema used (True) or not (False, the default).
-        If True, the temperature values only occur in the ThCS telemetry and
-        are split over their repspective items. If False, all temperatures are
-        reported in one item in both AMCS and ThCS telemetry. This is used by
-        the mock controller but also to pre-process the received AMCS and ThCS
-        telemetry.
 
     Notes
     -----
@@ -117,7 +109,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         simulation_mode: int = ValidSimulationMode.NORMAL_OPERATIONS,
         override: str = "",
         start_periodic_tasks: bool = True,
-        new_thermal_schema: bool = False,
     ) -> None:
         self.config: SimpleNamespace | None = None
         self.start_periodic_tasks = start_periodic_tasks
@@ -136,14 +127,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # MTDome TCP/IP communicator.
         self.mtdome_com: mtdomecom.MTDomeCom | None = None
-        # Is the new temperature schema used or not?
-        self.new_thermal_schema = new_thermal_schema
         # Determine the XML version.
         if "driveTemperature" in self.tel_azimuth.topic_info.fields:
             self.xml_version = XML_23_3
         else:
             self.xml_version = XML_23_4
-            self.new_thermal_schema = True
 
         # Keep track of the AMCS state for logging on the console.
         self.amcs_state: MotionState | None = None
@@ -195,7 +183,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             simulation_mode=self.simulation_mode,
             telemetry_callbacks=telemetry_callbacks,
             start_periodic_tasks=self.start_periodic_tasks,
-            new_thermal_schema=self.new_thermal_schema,
         )
         try:
             await self.mtdome_com.connect()
@@ -654,6 +641,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_azConfigurationApplied.set_write(
                 jmax=jmax, amax=amax, vmax=vmax
             )
+
+        # Fix temperatures until EIE has switched schemas.
+        if "driveTemperature" in status:
+            del status["driveTemperature"]
+
         await self.send_llc_status_telemetry_and_events(
             LlcName.AMCS, status, self.tel_azimuth
         )
@@ -777,14 +769,20 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        if self.new_thermal_schema:
-            if self.xml_version == XML_23_3:
-                temperature = [0.0] * mtdomecom.AMCS_NUM_MOTOR_TEMPERATURES
-                temperature[:5] = status["motorCoilTemperature"]
-                del status["cabinetTemperature"]
-                del status["driveTemperature"]
-                del status["motorCoilTemperature"]
-                status["temperature"] = temperature
+
+        # Fix temperatures until EIE has switched schemas.
+        if "temperature" in status:
+            status["motorCoilTemperature"] = status["temperature"][
+                : mtdomecom.THCS_NUM_MOTOR_COIL_TEMPERATURES
+            ]
+            status["driveTemperature"] = [
+                0.0
+            ] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
+            status["cabinetTemperature"] = [
+                0.0
+            ] * mtdomecom.THCS_NUM_CABINET_TEMPERATURES
+            del status["temperature"]
+
         await self.send_llc_status_telemetry_and_events(
             LlcName.THCS, status, self.tel_thermal
         )
