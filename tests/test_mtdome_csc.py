@@ -1566,7 +1566,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             for llc in [
                 self.csc.mtdome_com.mock_ctrl.amcs,
                 self.csc.mtdome_com.mock_ctrl.apscs,
-                self.csc.mtdome_com.mock_ctrl.lcs,
                 self.csc.mtdome_com.mock_ctrl.lwscs,
                 self.csc.mtdome_com.mock_ctrl.moncs,
                 self.csc.mtdome_com.mock_ctrl.thcs,

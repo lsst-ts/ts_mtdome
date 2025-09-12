@@ -147,6 +147,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.amcs_state: MotionState | None = None
         # Keep track of the ApSCS state for logging on the console.
         self.apscs_state: MotionState | None = None
+        # Keep track of the LCS state for logging on the console.
+        self.lcs_state: MotionState | None = None
         # Keep track of the AMCS status message for logging on the console.
         self.amcs_message: str = ""
         # Keep track of the operational modes of the LLCs to avoid emitting
@@ -206,6 +208,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.evt_shutterEnabled.set_write(
             state=EnabledState.ENABLED, faultCode=""
         )
+        await self._log_louvers_state(state=EnabledState.ENABLED, fault_code="")
 
         await self.evt_brakesEngaged.set_write(brakes=0)
         await self.evt_interlocks.set_write(interlocks=0)
@@ -216,6 +219,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
 
         self.log.info("connected")
+
+    async def _log_louvers_state(self, state: EnabledState, fault_code: str) -> None:
+        self.log.info(f"Louvers state is {state.name} with {fault_code=!r}.")
 
     async def _set_maximum_motion_values(self) -> None:
         assert self.config is not None
@@ -829,6 +835,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self._check_errors_and_send_events_el(llc_status)
         elif llc_name == LlcName.APSCS.value:
             await self._check_errors_and_send_events_shutter(llc_status)
+        elif llc_name == LlcName.LCS.value:
+            await self._check_errors_and_send_events_louvers(llc_status)
 
     async def _check_errors_and_send_events_az(
         self, llc_status: dict[str, typing.Any]
@@ -888,6 +896,42 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_elMotion.set_write(
                 state=motion_state, inPosition=in_position
             )
+
+    async def _check_errors_and_send_events_louvers(
+        self, llc_status: dict[str, typing.Any]
+    ) -> None:
+        messages = llc_status["messages"]
+        codes = [message["code"] for message in messages]
+        if self.lcs_state != llc_status["status"]:
+            self.lcs_state = llc_status["status"]
+            self.log.info(f"LCS state now is {self.lcs_state}")
+        if len(messages) != 1 or codes[0] != 0:
+            fault_code = ", ".join(
+                [f"{message['code']}={message['description']}" for message in messages]
+            )
+            await self._log_louvers_state(
+                state=EnabledState.FAULT, fault_code=fault_code
+            )
+        else:
+            await self._log_louvers_state(state=EnabledState.ENABLED, fault_code="")
+            statuses = llc_status["status"]
+            motion_state: list[str] = []
+            in_position: list[bool] = []
+            # The number of statuses has been validated by the JSON schema. So
+            # here it is safe to loop over all statuses.
+            for status in statuses:
+                translated_status = self._translate_motion_state_if_necessary(status)
+                motion_state.append(translated_status)
+                in_position.append(
+                    translated_status
+                    in [
+                        MotionState.STOPPED,
+                        MotionState.STOPPED_BRAKED,
+                        MotionState.CLOSED,
+                        MotionState.OPEN,
+                    ]
+                )
+            self.log.info(f"louversMotion: {motion_state=}, {in_position=}.")
 
     async def _check_errors_and_send_events_shutter(
         self, llc_status: dict[str, typing.Any]
