@@ -636,6 +636,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             )
 
         # Fix temperatures until EIE has switched schemas.
+        # TODO OSW-1058 Remove workaround.
         if "driveTemperature" in status:
             del status["driveTemperature"]
 
@@ -758,6 +759,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.log_status_exception(status)
 
         # Fix temperatures until EIE has switched schemas.
+        # TODO OSW-1058 Remove workaround.
         if "temperature" in status:
             status["motorCoilTemperature"] = status["temperature"][
                 : mtdomecom.THCS_NUM_MOTOR_COIL_TEMPERATURES
@@ -889,7 +891,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def _check_errors_and_send_events_el(
         self, llc_status: dict[str, typing.Any]
     ) -> None:
-        """Check errors and send events for the light/wind screen.
+        """Check errors and send events for the light/wind screen (elevation
+        direction).
 
         Parameters
         ----------
