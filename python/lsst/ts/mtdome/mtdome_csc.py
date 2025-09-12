@@ -125,6 +125,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # Keep track of the AMCS state for logging on the console.
         self.amcs_state: MotionState | None = None
+        # Keep track of the LCS state for logging on the console.
+        self.lcs_state: MotionState | None = None
         # Keep track of the ApSCS state for logging on the console.
         self.apscs_state: MotionState | None = None
         # Keep track of the AMCS status message for logging on the console.
@@ -180,6 +182,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
         await self.evt_elEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+        await self.evt_louversEnabled.set_write(
+            state=EnabledState.ENABLED, faultCode=""
+        )
         await self.evt_shutterEnabled.set_write(
             state=EnabledState.ENABLED, faultCode=""
         )
@@ -824,6 +829,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def _check_errors_and_send_events(
         self, llc_name: str, llc_status: dict[str, typing.Any]
     ) -> None:
+        """Check errors and send events.
+
+        Parameters
+        ----------
+        llc_name : `str`
+            The name of the lower level component.
+        llc_status : `dict`[`str`, `typing.Any`]
+            The status containing errors and event information.
+        """
         # DM-26374: Check for errors and send the events.
         if llc_name == LlcName.AMCS.value:
             await self._check_errors_and_send_events_az(llc_status)
@@ -831,10 +845,19 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self._check_errors_and_send_events_el(llc_status)
         elif llc_name == LlcName.APSCS.value:
             await self._check_errors_and_send_events_shutter(llc_status)
+        elif llc_name == LlcName.LCS.value:
+            await self._check_errors_and_send_events_louvers(llc_status)
 
     async def _check_errors_and_send_events_az(
         self, llc_status: dict[str, typing.Any]
     ) -> None:
+        """Check errors and send events for the azimuth rotation.
+
+        Parameters
+        ----------
+        llc_status : `dict`[`str`, `typing.Any`]
+            The status containing errors and event information.
+        """
         messages = llc_status["messages"]
         status_message = ", ".join(
             [f"{message['code']}={message['description']}" for message in messages]
@@ -866,6 +889,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def _check_errors_and_send_events_el(
         self, llc_status: dict[str, typing.Any]
     ) -> None:
+        """Check errors and send events for the light/wind screen.
+
+        Parameters
+        ----------
+        llc_status : `dict`[`str`, `typing.Any`]
+            The status containing errors and event information.
+        """
         messages = llc_status["messages"]
         codes = [message["code"] for message in messages]
         if len(messages) != 1 or codes[0] != 0:
@@ -891,9 +921,63 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 state=motion_state, inPosition=in_position
             )
 
+    async def _check_errors_and_send_events_louvers(
+        self, llc_status: dict[str, typing.Any]
+    ) -> None:
+        """Check errors and send events for the louvers.
+
+        Parameters
+        ----------
+        llc_status : `dict`[`str`, `typing.Any`]
+            The status containing errors and event information.
+        """
+        messages = llc_status["messages"]
+        codes = [message["code"] for message in messages]
+        if self.lcs_state != llc_status["status"]:
+            self.lcs_state = llc_status["status"]
+            self.log.info(f"LCS state now is {self.lcs_state}")
+        if len(messages) != 1 or codes[0] != 0:
+            fault_code = ", ".join(
+                [f"{message['code']}={message['description']}" for message in messages]
+            )
+            await self.evt_louversEnabled.set_write(
+                state=EnabledState.FAULT, faultCode=fault_code
+            )
+        else:
+            await self.evt_louversEnabled.set_write(
+                state=EnabledState.ENABLED, faultCode=""
+            )
+            statuses = llc_status["status"]
+            motion_state: list[str] = []
+            in_position: list[bool] = []
+            # The number of statuses has been validated by the JSON schema. So
+            # here it is safe to loop over all statuses.
+            for status in statuses:
+                translated_status = self._translate_motion_state_if_necessary(status)
+                motion_state.append(translated_status)
+                in_position.append(
+                    translated_status
+                    in [
+                        MotionState.STOPPED,
+                        MotionState.STOPPED_BRAKED,
+                        MotionState.CLOSED,
+                        MotionState.OPEN,
+                    ]
+                )
+            await self.evt_louversMotion.set_write(
+                state=motion_state, inPosition=in_position
+            )
+
     async def _check_errors_and_send_events_shutter(
         self, llc_status: dict[str, typing.Any]
     ) -> None:
+        """Check errors and send events for the aperture shutter.
+
+        Parameters
+        ----------
+        llc_status : `dict`[`str`, `typing.Any`]
+            The status containing errors and event information.
+        """
         messages = llc_status["messages"]
         codes = [message["code"] for message in messages]
         if self.apscs_state != llc_status["status"]:
