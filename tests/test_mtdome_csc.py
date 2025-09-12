@@ -49,7 +49,6 @@ SHORT_TIMEOUT = 1  # short command and event timeout (sec)
 CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
 
 
-# TODO OSW-872 Remove all backward compatibility with XML 23.3.
 class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     def basic_make_csc(
         self,
@@ -1057,13 +1056,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 mtdomecom.LlcName.THCS.value
             ]
             assert thcs_status["status"]["status"] == MotionState.DISABLED.name
-            if self.csc.xml_version == mtdome.XML_23_3:
-                assert thcs_status["temperature"] == [0.0] * mtdomecom.THCS_NUM_SENSORS
-            else:
-                assert (
-                    thcs_status["driveTemperature"]
-                    == [0.0] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
-                )
+            assert (
+                thcs_status["driveTemperature"]
+                == [0.0] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
+            )
 
             await self.csc.mtdome_com.status_rad()
             rad_status = self.csc.mtdome_com.lower_level_status[
@@ -1298,13 +1294,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 thcs_status["status"]["status"]
                 == mtdomecom.InternalMotionState.STATIONARY.name
             )
-            if self.csc.xml_version == mtdome.XML_23_3:
-                assert thcs_status["temperature"] == [0.0] * mtdomecom.THCS_NUM_SENSORS
-            else:
-                assert (
-                    thcs_status["driveTemperature"]
-                    == [0.0] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
-                )
+            assert (
+                thcs_status["driveTemperature"]
+                == [0.0] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
+            )
 
     async def test_setZeroAz(self) -> None:
         async with self.make_csc(

@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["MTDomeCsc", "run_mtdome", "XML_23_3"]
+__all__ = ["MTDomeCsc", "run_mtdome"]
 
 import asyncio
 import math
@@ -53,16 +53,11 @@ _KEYS_TO_REMOVE = {
 # Time [s] to sleep after an exception in a status command.
 EXCEPTION_SLEEP_TIME = 1.0
 
-# Expected XML versions.
-XML_23_3 = "23.3"
-XML_23_4 = "23.4"
-
 
 def run_mtdome() -> None:
     asyncio.run(MTDomeCsc.amain(index=None))
 
 
-# TODO OSW-872 Remove all backward compatibility with XML 23.3.
 class MTDomeCsc(salobj.ConfigurableCsc):
     """Upper level Commandable SAL Component to interface with the Simonyi
     Survey Telescope Dome lower level components.
@@ -127,11 +122,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # MTDome TCP/IP communicator.
         self.mtdome_com: mtdomecom.MTDomeCom | None = None
-        # Determine the XML version.
-        if "driveTemperature" in self.tel_azimuth.topic_info.fields:
-            self.xml_version = XML_23_3
-        else:
-            self.xml_version = XML_23_4
 
         # Keep track of the AMCS state for logging on the console.
         self.amcs_state: MotionState | None = None
@@ -142,8 +132,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # Keep track of the operational modes of the LLCs to avoid emitting
         # redundant events.
         self.llc_operational_modes: dict[LlcName, OperationalMode | None] = {}
-        # TODO DM-50201: Keep track of dc_bus_voltage for logging.
-        self.dc_bus_voltage = math.nan
 
         self.log.info("DomeCsc constructed.")
 
@@ -677,14 +665,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.log_status_exception(status)
         else:
             dc_bus_voltage = status.pop("dcBusVoltage")
-            if self.xml_version == XML_23_3:
-                # Avoid superfluous logging of the dcBusVoltage value.
-                if self.dc_bus_voltage != dc_bus_voltage:
-                    self.dc_bus_voltage = dc_bus_voltage
-                    self.log.info(f"CBCS reports {dc_bus_voltage=}.")
-            else:
-                # Send the capacitor banks telemetry.
-                await self.tel_capacitorBanks.set_write(dcBusVoltage=dc_bus_voltage)
+            # Send the capacitor banks telemetry.
+            await self.tel_capacitorBanks.set_write(dcBusVoltage=dc_bus_voltage)
         await self.send_llc_status_telemetry_and_events(
             LlcName.CBCS, status, self.evt_capacitorBanks
         )
