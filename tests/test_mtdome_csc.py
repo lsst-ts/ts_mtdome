@@ -37,6 +37,7 @@ from lsst.ts.xml.enums.MTDome import (
     EnabledState,
     MotionState,
     OnOff,
+    OpenClose,
     OperationalMode,
     PowerManagementMode,
     SubSystemId,
@@ -48,8 +49,6 @@ SHORT_TIMEOUT = 1  # short command and event timeout (sec)
 CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
 
 
-# TODO OSW-862 Remove all references to the old temperature schema.
-# TODO OSW-872 Remove all backward compatibility with XML 23.3.
 class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
     def basic_make_csc(
         self,
@@ -60,14 +59,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         **kwargs: typing.Dict,
     ) -> None:
         # Disable all periodic tasks so the unit tests can take full control.
-        new_thermal_schema = kwargs.get("new_thermal_schema", False)
         return mtdome.MTDomeCsc(
             initial_state=initial_state,
             config_dir=config_dir,
             simulation_mode=simulation_mode,
             override=override,
             start_periodic_tasks=False,
-            new_thermal_schema=new_thermal_schema,
         )
 
     @contextlib.asynccontextmanager
@@ -119,6 +116,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     "home",
                     mtdomecom.CommandName.SET_ZERO_AZ,
                     mtdomecom.CommandName.RESET_DRIVES_AZ,
+                    mtdomecom.CommandName.RESET_DRIVES_LOUVERS,
                     mtdomecom.CommandName.RESET_DRIVES_SHUTTER,
                     "setOperationalMode",
                     mtdomecom.CommandName.SET_POWER_MANAGEMENT_MODE,
@@ -1058,13 +1056,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 mtdomecom.LlcName.THCS.value
             ]
             assert thcs_status["status"]["status"] == MotionState.DISABLED.name
-            if self.csc.xml_version == mtdome.XML_23_3:
-                assert thcs_status["temperature"] == [0.0] * mtdomecom.THCS_NUM_SENSORS
-            else:
-                assert (
-                    thcs_status["driveTemperature"]
-                    == [0.0] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
-                )
+            assert (
+                thcs_status["driveTemperature"]
+                == [0.0] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
+            )
 
             await self.csc.mtdome_com.status_rad()
             rad_status = self.csc.mtdome_com.lower_level_status[
@@ -1205,7 +1200,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert amcs_status["status"]["status"] == MotionState.ERROR.name
 
             await self.remote.cmd_exitFault.set_start(
-                subSystemIds=SubSystemId.AMCS | SubSystemId.APSCS
+                subSystemIds=SubSystemId.AMCS | SubSystemId.APSCS | SubSystemId.LCS
             )
             await self.assert_command_replied(cmd=mtdomecom.CommandName.EXIT_FAULT_AZ)
             await self.assert_command_replied(
@@ -1299,13 +1294,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 thcs_status["status"]["status"]
                 == mtdomecom.InternalMotionState.STATIONARY.name
             )
-            if self.csc.xml_version == mtdome.XML_23_3:
-                assert thcs_status["temperature"] == [0.0] * mtdomecom.THCS_NUM_SENSORS
-            else:
-                assert (
-                    thcs_status["driveTemperature"]
-                    == [0.0] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
-                )
+            assert (
+                thcs_status["driveTemperature"]
+                == [0.0] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
+            )
 
     async def test_setZeroAz(self) -> None:
         async with self.make_csc(
@@ -1405,7 +1397,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert status["positionActual"] == initial_position_actual.tolist()
 
             sub_system_ids = SubSystemId.APSCS
-            await self.remote.cmd_home.set_start(subSystemIds=sub_system_ids)
+            await self.remote.cmd_home.set_start(
+                subSystemIds=sub_system_ids, direction=OpenClose.CLOSE
+            )
             await self.assert_command_replied(cmd="home")
 
             self.csc.mtdome_com.mock_ctrl.current_tai = (
@@ -1914,36 +1908,24 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     timeout=STD_TIMEOUT,
                 )
 
-    async def test_new_thermal_schema(self) -> None:
-        for new_thermal_schema in [False, True]:
-            async with self.make_csc(
-                initial_state=salobj.State.STANDBY,
-                config_dir=CONFIG_DIR,
-                simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
-                new_thermal_schema=new_thermal_schema,
-            ):
-                await self.set_csc_to_enabled()
-                await self.csc.mtdome_com.status_amcs()
-                await self.csc.mtdome_com.status_thcs()
+    async def test_thermal_schema(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+        ):
+            await self.set_csc_to_enabled()
+            await self.csc.mtdome_com.status_amcs()
+            await self.csc.mtdome_com.status_thcs()
 
-                amcs_status = self.csc.mtdome_com.lower_level_status["AMCS"]
-                thcs_status = self.csc.mtdome_com.lower_level_status["ThCS"]
+            amcs_status = self.csc.mtdome_com.lower_level_status["AMCS"]
+            thcs_status = self.csc.mtdome_com.lower_level_status["ThCS"]
 
-                if self.csc.xml_version == mtdome.XML_23_3 and not new_thermal_schema:
-                    assert "driveTemperature" in amcs_status
-                else:
-                    assert "driveTemperature" not in amcs_status
-
-                if self.csc.xml_version == mtdome.XML_23_3:
-                    assert "temperature" in thcs_status
-                    assert "driveTemperature" not in thcs_status
-                    assert "motorCoilTemperature" not in thcs_status
-                    assert "cabinetTemperature" not in thcs_status
-                else:
-                    assert "temperature" not in thcs_status
-                    assert "driveTemperature" in thcs_status
-                    assert "motorCoilTemperature" in thcs_status
-                    assert "cabinetTemperature" in thcs_status
+            assert "driveTemperature" not in amcs_status
+            assert "temperature" not in thcs_status
+            assert "driveTemperature" in thcs_status
+            assert "motorCoilTemperature" in thcs_status
+            assert "cabinetTemperature" in thcs_status
 
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")

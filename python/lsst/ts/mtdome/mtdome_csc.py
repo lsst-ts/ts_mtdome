@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["MTDomeCsc", "run_mtdome", "XML_23_3"]
+__all__ = ["MTDomeCsc", "run_mtdome"]
 
 import asyncio
 import math
@@ -53,17 +53,11 @@ _KEYS_TO_REMOVE = {
 # Time [s] to sleep after an exception in a status command.
 EXCEPTION_SLEEP_TIME = 1.0
 
-# Expected XML versions.
-XML_23_3 = "23.3"
-XML_23_4 = "23.4"
-
 
 def run_mtdome() -> None:
     asyncio.run(MTDomeCsc.amain(index=None))
 
 
-# TODO OSW-862 Remove all references to the old temperature schema.
-# TODO OSW-872 Remove all backward compatibility with XML 23.3.
 class MTDomeCsc(salobj.ConfigurableCsc):
     """Upper level Commandable SAL Component to interface with the Simonyi
     Survey Telescope Dome lower level components.
@@ -82,13 +76,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     start_periodic_tasks : `bool`
         Start the periodic tasks or not. Defaults to `True`. Unit tests may set
         this to `False`.
-    new_thermal_schema : `bool`
-        Is the new thermal schema used (True) or not (False, the default).
-        If True, the temperature values only occur in the ThCS telemetry and
-        are split over their repspective items. If False, all temperatures are
-        reported in one item in both AMCS and ThCS telemetry. This is used by
-        the mock controller but also to pre-process the received AMCS and ThCS
-        telemetry.
 
     Notes
     -----
@@ -117,10 +104,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         simulation_mode: int = ValidSimulationMode.NORMAL_OPERATIONS,
         override: str = "",
         start_periodic_tasks: bool = True,
-        new_thermal_schema: bool = False,
     ) -> None:
         self.config: SimpleNamespace | None = None
         self.start_periodic_tasks = start_periodic_tasks
+
+        setattr(self, "do_resetDrivesLouvers", self._do_resetDrivesLouvers)
 
         super().__init__(
             name="MTDome",
@@ -134,17 +122,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # MTDome TCP/IP communicator.
         self.mtdome_com: mtdomecom.MTDomeCom | None = None
-        # Is the new temperature schema used or not?
-        self.new_thermal_schema = new_thermal_schema
-        # Determine the XML version.
-        if "driveTemperature" in self.tel_azimuth.topic_info.fields:
-            self.xml_version = XML_23_3
-        else:
-            self.xml_version = XML_23_4
-            self.new_thermal_schema = True
 
         # Keep track of the AMCS state for logging on the console.
         self.amcs_state: MotionState | None = None
+        # Keep track of the LCS state for logging on the console.
+        self.lcs_state: MotionState | None = None
         # Keep track of the ApSCS state for logging on the console.
         self.apscs_state: MotionState | None = None
         # Keep track of the AMCS status message for logging on the console.
@@ -152,8 +134,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # Keep track of the operational modes of the LLCs to avoid emitting
         # redundant events.
         self.llc_operational_modes: dict[LlcName, OperationalMode | None] = {}
-        # TODO DM-50201: Keep track of dc_bus_voltage for logging.
-        self.dc_bus_voltage = math.nan
 
         self.log.info("DomeCsc constructed.")
 
@@ -167,13 +147,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         callbacks_for_operations = {
             LlcName.AMCS: self.status_amcs,
             LlcName.APSCS: self.status_apscs,
+            LlcName.LCS: self.status_lcs,
             LlcName.CBCS: self.status_cbcs,
             LlcName.THCS: self.status_thcs,
         }
 
         callbacks_for_simulation = callbacks_for_operations | {
             LlcName.CSCS: self.status_cscs,
-            LlcName.LCS: self.status_lcs,
             LlcName.LWSCS: self.status_lwscs,
             LlcName.MONCS: self.status_moncs,
             LlcName.RAD: self.status_rad,
@@ -193,7 +173,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             simulation_mode=self.simulation_mode,
             telemetry_callbacks=telemetry_callbacks,
             start_periodic_tasks=self.start_periodic_tasks,
-            new_thermal_schema=self.new_thermal_schema,
         )
         try:
             await self.mtdome_com.connect()
@@ -203,6 +182,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
         await self.evt_elEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+        await self.evt_louversEnabled.set_write(
+            state=EnabledState.ENABLED, faultCode=""
+        )
         await self.evt_shutterEnabled.set_write(
             state=EnabledState.ENABLED, faultCode=""
         )
@@ -517,6 +499,24 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             method=self.mtdome_com.reset_drives_shutter, reset=reset_ints
         )
 
+    async def _do_resetDrivesLouvers(self, data: salobj.BaseMsgType) -> None:
+        """Reset one or more Louver drives. This is necessary when
+        exiting from FAULT state without going to Degraded Mode since the
+        drives don't reset themselves.
+
+        Parameters
+        ----------
+        data : `salobj.BaseMsgType`
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        reset_ints = [int(value) for value in data.reset]
+        self.log.debug(f"do_resetDrivesLouvers: reset={reset_ints}")
+        assert self.mtdome_com is not None
+        await self.call_method(
+            method=self.mtdome_com.reset_drives_louvers, reset=reset_ints
+        )
+
     async def do_setZeroAz(self, data: salobj.BaseMsgType) -> None:
         """Take the current position of the dome as zero. This is necessary as
         long as the racks and pinions on the drives have not been installed yet
@@ -533,8 +533,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.call_method(method=self.mtdome_com.set_zero_az)
 
     async def do_home(self, data: salobj.BaseMsgType) -> None:
-        """Search the home position of the Aperture Shutter, which is the
-        closed position.
+        """Search the home position of the Aperture Shutter indicated by the
+        value of `direction` in `data`.
 
         This is necessary in case the ApSCS (Aperture Shutter Control system)
         was shutdown with the Aperture Shutter not fully open or fully closed.
@@ -547,7 +547,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         assert self.mtdome_com is not None
         await self.call_method(
-            method=self.mtdome_com.home, sub_system_ids=data.subSystemIds
+            method=self.mtdome_com.home,
+            sub_system_ids=data.subSystemIds,
+            direction=data.direction,
         )
 
     async def restore_llcs(self) -> None:
@@ -632,6 +634,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_azConfigurationApplied.set_write(
                 jmax=jmax, amax=amax, vmax=vmax
             )
+
+        # Fix temperatures until EIE has switched schemas.
+        # TODO OSW-1058 Remove workaround.
+        if "driveTemperature" in status:
+            del status["driveTemperature"]
+
         await self.send_llc_status_telemetry_and_events(
             LlcName.AMCS, status, self.tel_azimuth
         )
@@ -663,14 +671,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.log_status_exception(status)
         else:
             dc_bus_voltage = status.pop("dcBusVoltage")
-            if self.xml_version == XML_23_3:
-                # Avoid superfluous logging of the dcBusVoltage value.
-                if self.dc_bus_voltage != dc_bus_voltage:
-                    self.dc_bus_voltage = dc_bus_voltage
-                    self.log.info(f"CBCS reports {dc_bus_voltage=}.")
-            else:
-                # Send the capacitor banks telemetry.
-                await self.tel_capacitorBanks.set_write(dcBusVoltage=dc_bus_voltage)
+            # Send the capacitor banks telemetry.
+            await self.tel_capacitorBanks.set_write(dcBusVoltage=dc_bus_voltage)
         await self.send_llc_status_telemetry_and_events(
             LlcName.CBCS, status, self.evt_capacitorBanks
         )
@@ -755,14 +757,21 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        if self.new_thermal_schema:
-            if self.xml_version == XML_23_3:
-                temperature = [0.0] * mtdomecom.AMCS_NUM_MOTOR_TEMPERATURES
-                temperature[:5] = status["motorCoilTemperature"]
-                del status["cabinetTemperature"]
-                del status["driveTemperature"]
-                del status["motorCoilTemperature"]
-                status["temperature"] = temperature
+
+        # Fix temperatures until EIE has switched schemas.
+        # TODO OSW-1058 Remove workaround.
+        if "temperature" in status:
+            status["motorCoilTemperature"] = status["temperature"][
+                : mtdomecom.THCS_NUM_MOTOR_COIL_TEMPERATURES
+            ]
+            status["driveTemperature"] = [
+                0.0
+            ] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
+            status["cabinetTemperature"] = [
+                0.0
+            ] * mtdomecom.THCS_NUM_CABINET_TEMPERATURES
+            del status["temperature"]
+
         await self.send_llc_status_telemetry_and_events(
             LlcName.THCS, status, self.tel_thermal
         )
@@ -822,6 +831,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def _check_errors_and_send_events(
         self, llc_name: str, llc_status: dict[str, typing.Any]
     ) -> None:
+        """Check errors and send events.
+
+        Parameters
+        ----------
+        llc_name : `str`
+            The name of the lower level component.
+        llc_status : `dict`[`str`, `typing.Any`]
+            The status containing errors and event information.
+        """
         # DM-26374: Check for errors and send the events.
         if llc_name == LlcName.AMCS.value:
             await self._check_errors_and_send_events_az(llc_status)
@@ -829,10 +847,19 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self._check_errors_and_send_events_el(llc_status)
         elif llc_name == LlcName.APSCS.value:
             await self._check_errors_and_send_events_shutter(llc_status)
+        elif llc_name == LlcName.LCS.value:
+            await self._check_errors_and_send_events_louvers(llc_status)
 
     async def _check_errors_and_send_events_az(
         self, llc_status: dict[str, typing.Any]
     ) -> None:
+        """Check errors and send events for the azimuth rotation.
+
+        Parameters
+        ----------
+        llc_status : `dict`[`str`, `typing.Any`]
+            The status containing errors and event information.
+        """
         messages = llc_status["messages"]
         status_message = ", ".join(
             [f"{message['code']}={message['description']}" for message in messages]
@@ -864,6 +891,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def _check_errors_and_send_events_el(
         self, llc_status: dict[str, typing.Any]
     ) -> None:
+        """Check errors and send events for the light/wind screen (elevation
+        direction).
+
+        Parameters
+        ----------
+        llc_status : `dict`[`str`, `typing.Any`]
+            The status containing errors and event information.
+        """
         messages = llc_status["messages"]
         codes = [message["code"] for message in messages]
         if len(messages) != 1 or codes[0] != 0:
@@ -889,9 +924,63 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 state=motion_state, inPosition=in_position
             )
 
+    async def _check_errors_and_send_events_louvers(
+        self, llc_status: dict[str, typing.Any]
+    ) -> None:
+        """Check errors and send events for the louvers.
+
+        Parameters
+        ----------
+        llc_status : `dict`[`str`, `typing.Any`]
+            The status containing errors and event information.
+        """
+        messages = llc_status["messages"]
+        codes = [message["code"] for message in messages]
+        if self.lcs_state != llc_status["status"]:
+            self.lcs_state = llc_status["status"]
+            self.log.info(f"LCS state now is {self.lcs_state}")
+        if len(messages) != 1 or codes[0] != 0:
+            fault_code = ", ".join(
+                [f"{message['code']}={message['description']}" for message in messages]
+            )
+            await self.evt_louversEnabled.set_write(
+                state=EnabledState.FAULT, faultCode=fault_code
+            )
+        else:
+            await self.evt_louversEnabled.set_write(
+                state=EnabledState.ENABLED, faultCode=""
+            )
+            statuses = llc_status["status"]
+            motion_state: list[str] = []
+            in_position: list[bool] = []
+            # The number of statuses has been validated by the JSON schema. So
+            # here it is safe to loop over all statuses.
+            for status in statuses:
+                translated_status = self._translate_motion_state_if_necessary(status)
+                motion_state.append(translated_status)
+                in_position.append(
+                    translated_status
+                    in [
+                        MotionState.STOPPED,
+                        MotionState.STOPPED_BRAKED,
+                        MotionState.CLOSED,
+                        MotionState.OPEN,
+                    ]
+                )
+            await self.evt_louversMotion.set_write(
+                state=motion_state, inPosition=in_position
+            )
+
     async def _check_errors_and_send_events_shutter(
         self, llc_status: dict[str, typing.Any]
     ) -> None:
+        """Check errors and send events for the aperture shutter.
+
+        Parameters
+        ----------
+        llc_status : `dict`[`str`, `typing.Any`]
+            The status containing errors and event information.
+        """
         messages = llc_status["messages"]
         codes = [message["code"] for message in messages]
         if self.apscs_state != llc_status["status"]:
