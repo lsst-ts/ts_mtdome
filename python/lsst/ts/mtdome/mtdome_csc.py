@@ -1098,9 +1098,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_shutterEnabled.set_write(
                 state=EnabledState.FAULT, faultCode=fault_code
             )
-        elif isinstance(exception, TimeoutError) or isinstance(
-            exception, ConnectionError
-        ):
+        elif isinstance(exception, (TimeoutError, ConnectionError, EOFError)):
             await self.go_fault(command_name)
         else:
             self.log.error(fault_code)

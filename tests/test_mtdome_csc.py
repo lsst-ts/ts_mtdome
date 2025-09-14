@@ -1738,6 +1738,40 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 salobj.State.FAULT, timeout=SHORT_TIMEOUT
             )
 
+    async def test_connection_lost_with_status(self) -> None:
+        with open(CONFIG_DIR / "_init.yaml") as f:
+            config = yaml.safe_load(f)
+
+        async with self.create_mock_controller(
+            port=config["csc_port"]
+        ) as mock_ctrl, self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITHOUT_MOCK_CONTROLLER,
+        ):
+            await self.assert_next_summary_state(salobj.State.STANDBY)
+
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.DISABLED
+            )
+            await self.assert_next_summary_state(salobj.State.DISABLED)
+
+            await salobj.set_summary_state(
+                remote=self.remote, state=salobj.State.ENABLED
+            )
+            await self.assert_next_summary_state(salobj.State.ENABLED)
+
+            # Now stop the MockController and verify that the CSC goes to FAULT
+            # state.
+            await mock_ctrl.close()
+
+            await self.csc.mtdome_com.status_amcs()
+            await asyncio.sleep(1.0)
+
+            await self.assert_next_summary_state(
+                salobj.State.FAULT, timeout=SHORT_TIMEOUT
+            )
+
     async def test_no_repeating_operational_mode_events(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
