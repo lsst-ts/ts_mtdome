@@ -1,0 +1,1 @@
+Added missing 'direction' parameter to home command.
