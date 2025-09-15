@@ -552,9 +552,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         assert self.mtdome_com is not None
-        await self.call_method(
-            method=self.mtdome_com.home, sub_system_ids=data.subSystemIds
-        )
+        if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
+            await self.call_method(
+                method=self.mtdome_com.home,
+                sub_system_ids=data.subSystemIds,
+                direction=["CLOSED", "CLOSED"],
+            )
+        else:
+            await self.call_method(
+                method=self.mtdome_com.home, sub_system_ids=data.subSystemIds
+            )
 
     async def restore_llcs(self) -> None:
         assert self.mtdome_com is not None
