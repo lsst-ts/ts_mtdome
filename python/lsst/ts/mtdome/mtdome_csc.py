@@ -149,6 +149,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.apscs_state: MotionState | None = None
         # Keep track of the LCS state for logging on the console.
         self.lcs_state: MotionState | None = None
+        self.lcs_enabled: EnabledState | None = None
+        self.lcs_motion_state: list[str] = []
         # Keep track of the AMCS status message for logging on the console.
         self.amcs_message: str = ""
         # Keep track of the operational modes of the LLCs to avoid emitting
@@ -552,16 +554,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         self.assert_enabled()
         assert self.mtdome_com is not None
-        if self.simulation_mode == ValidSimulationMode.NORMAL_OPERATIONS:
-            await self.call_method(
-                method=self.mtdome_com.home,
-                sub_system_ids=data.subSystemIds,
-                direction=["CLOSED", "CLOSED"],
-            )
-        else:
-            await self.call_method(
-                method=self.mtdome_com.home, sub_system_ids=data.subSystemIds
-            )
+        await self.call_method(
+            method=self.mtdome_com.home, sub_system_ids=data.subSystemIds
+        )
 
     async def restore_llcs(self) -> None:
         assert self.mtdome_com is not None
@@ -916,11 +911,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             fault_code = ", ".join(
                 [f"{message['code']}={message['description']}" for message in messages]
             )
-            await self._log_louvers_state(
-                state=EnabledState.FAULT, fault_code=fault_code
-            )
+            if self.lcs_enabled != EnabledState.FAULT:
+                self.lcs_enabled = EnabledState.FAULT
+                await self._log_louvers_state(
+                    state=EnabledState.FAULT, fault_code=fault_code
+                )
         else:
-            await self._log_louvers_state(state=EnabledState.ENABLED, fault_code="")
+            if self.lcs_enabled != EnabledState.ENABLED:
+                self.lcs_enabled = EnabledState.ENABLED
+                await self._log_louvers_state(state=EnabledState.ENABLED, fault_code="")
             statuses = llc_status["status"]
             motion_state: list[str] = []
             in_position: list[bool] = []
@@ -928,7 +927,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             # here it is safe to loop over all statuses.
             for status in statuses:
                 translated_status = self._translate_motion_state_if_necessary(status)
-                motion_state.append(translated_status)
+                motion_state.append(translated_status.name)
                 in_position.append(
                     translated_status
                     in [
@@ -938,7 +937,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         MotionState.OPEN,
                     ]
                 )
-            self.log.info(f"louversMotion: {motion_state=}, {in_position=}.")
+            if self.lcs_motion_state != motion_state:
+                self.log.info(f"louversMotion: {motion_state=}, {in_position=}.")
 
     async def _check_errors_and_send_events_shutter(
         self, llc_status: dict[str, typing.Any]
