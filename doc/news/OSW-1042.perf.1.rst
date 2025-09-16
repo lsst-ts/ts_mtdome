@@ -1,1 +1,0 @@
-Removed all references to XML 23.3.

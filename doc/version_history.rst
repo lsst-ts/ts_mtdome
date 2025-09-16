@@ -8,6 +8,33 @@ Version History
 
 .. towncrier release notes start
 
+v2.1.0 (2025-09-14)
+===================
+
+New Features
+------------
+
+- Added support for the new temperature telemetry schema. (`OSW-331 <https://rubinobs.atlassian.net//browse/OSW-331>`_)
+- Added support for the capacitor banks telemetry topic. (`OSW-331 <https://rubinobs.atlassian.net//browse/OSW-331>`_)
+- Added do_resetDrivesLouvers command. (`OSW-1042 <https://rubinobs.atlassian.net//browse/OSW-1042>`_)
+- Added support for the louvers events. (`OSW-1042 <https://rubinobs.atlassian.net//browse/OSW-1042>`_)
+- Enabled LCS telemetry. (`OSW-1042 <https://rubinobs.atlassian.net//browse/OSW-1042>`_)
+
+
+Bug Fixes
+---------
+
+- Added missing 'direction' parameter to home command. (`OSW-1042 <https://rubinobs.atlassian.net//browse/OSW-1042>`_)
+- Added going to fault when not connected and requesting status. (`OSW-1060 <https://rubinobs.atlassian.net//browse/OSW-1060>`_)
+
+
+Performance Enhancement
+-----------------------
+
+- Removed all references to XML 23.3. (`OSW-1042 <https://rubinobs.atlassian.net//browse/OSW-1042>`_)
+- Removed all references to the old thermal schema. (`OSW-1042 <https://rubinobs.atlassian.net//browse/OSW-1042>`_)
+
+
 v2.0.13 (2025-08-01)
 ====================
 

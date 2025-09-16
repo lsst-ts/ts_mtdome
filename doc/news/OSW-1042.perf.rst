@@ -1,1 +1,0 @@
-Removed all references to the old thermal schema.

@@ -1,1 +1,0 @@
-Added going to fault when not connected and requesting status.
