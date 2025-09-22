@@ -549,7 +549,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.call_method(
             method=self.mtdome_com.home,
             sub_system_ids=data.subSystemIds,
-            direction=data.direction,
+            direction=[data.direction, data.direction],
         )
 
     async def restore_llcs(self) -> None:
