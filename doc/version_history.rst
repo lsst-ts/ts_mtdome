@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v2.1.1 (2025-09-22)
+===================
+
+Bug Fixes
+---------
+
+- Fixed aperture shutter home command direction parameter. (`OSW-1066 <https://rubinobs.atlassian.net//browse/OSW-1066>`_)
+
+
 v2.1.0 (2025-09-14)
 ===================
 
