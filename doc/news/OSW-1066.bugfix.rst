@@ -1,0 +1,1 @@
+Fixed aperture shutter home command direction parameter.
