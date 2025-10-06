@@ -188,6 +188,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.evt_shutterEnabled.set_write(
             state=EnabledState.ENABLED, faultCode=""
         )
+        await self.evt_louversEnabled.set_write(
+            state=EnabledState.ENABLED, faultCode=""
+        )
 
         await self.evt_brakesEngaged.set_write(brakes=0)
         await self.evt_interlocks.set_write(interlocks=0)
@@ -1096,6 +1099,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             )
         elif command_name in mtdomecom.SHUTTER_COMMANDS:
             await self.evt_shutterEnabled.set_write(
+                state=EnabledState.FAULT, faultCode=fault_code
+            )
+        elif command_name in mtdomecom.LOUVERS_COMMANDS:
+            await self.evt_louversEnabled.set_write(
                 state=EnabledState.FAULT, faultCode=fault_code
             )
         elif isinstance(exception, (TimeoutError, ConnectionError, EOFError)):

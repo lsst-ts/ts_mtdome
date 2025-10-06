@@ -1,0 +1,1 @@
+Added handling of failing louvers commands.
