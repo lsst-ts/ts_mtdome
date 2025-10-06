@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v2.1.2 (2025-10-06)
+===================
+
+New Features
+------------
+
+- Added handling of failing louvers commands. (`OSW-1107 <https://rubinobs.atlassian.net//browse/OSW-1107>`_)
+
+
 v2.1.1 (2025-09-22)
 ===================
 
