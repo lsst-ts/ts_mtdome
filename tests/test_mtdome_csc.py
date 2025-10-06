@@ -150,6 +150,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         await self.assert_next_sample(
             topic=self.remote.evt_shutterEnabled, state=EnabledState.ENABLED
         )
+        await self.assert_next_sample(
+            topic=self.remote.evt_louversEnabled, state=EnabledState.ENABLED
+        )
         await self.assert_next_sample(topic=self.remote.evt_brakesEngaged, brakes=0)
         await self.assert_next_sample(topic=self.remote.evt_interlocks, interlocks=0)
         await self.assert_next_sample(
@@ -1862,29 +1865,36 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 )
 
     async def test_communication_error(self) -> None:
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY,
-            config_dir=CONFIG_DIR,
-            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
-        ):
-            await self.set_csc_to_enabled()
-            self.csc.mtdome_com.mock_ctrl.communication_error = True
+        for command, event in {
+            "status_lwscs": "evt_elEnabled",
+            "status_apscs": "evt_shutterEnabled",
+            "status_lcs": "evt_louversEnabled",
+        }.items():
+            async with self.make_csc(
+                initial_state=salobj.State.STANDBY,
+                config_dir=CONFIG_DIR,
+                simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            ):
+                await self.set_csc_to_enabled()
+                self.csc.mtdome_com.mock_ctrl.communication_error = True
 
-            # Set the TAI time in the mock controller for easier control.
-            self.csc.mtdome_com.mock_ctrl.current_tai = 1000
+                # Set the TAI time in the mock controller for easier control.
+                self.csc.mtdome_com.mock_ctrl.current_tai = 1000
 
-            try:
-                await self.csc.mtdome_com.status_apscs()
-            except ValueError:
-                # This error is expected.
-                pass
+                try:
+                    func = getattr(self.csc.mtdome_com, command)
+                    await func()
+                except ValueError:
+                    # This error is expected.
+                    pass
 
-            data = await self.assert_next_sample(
-                topic=self.remote.evt_shutterEnabled,
-                state=EnabledState.FAULT,
-                timeout=SHORT_TIMEOUT,
-            )
-            assert "was not received by the rotating part." in data.faultCode
+                topic = getattr(self.remote, event)
+                data = await self.assert_next_sample(
+                    topic=topic,
+                    state=EnabledState.FAULT,
+                    timeout=SHORT_TIMEOUT,
+                )
+                assert "was not received by the rotating part." in data.faultCode
 
         # Set up a new CSC so the events get sent.
         async with self.make_csc(
