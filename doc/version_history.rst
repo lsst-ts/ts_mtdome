@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v2.1.3 (2025-10-09)
+===================
+
+Performance Enhancement
+-----------------------
+
+- Updated ts-conda-build dependency version and conda build string. (`OSW-1207 <https://rubinobs.atlassian.net//browse/OSW-1207>`_)
+
+
 v2.1.2 (2025-10-06)
 ===================
 
