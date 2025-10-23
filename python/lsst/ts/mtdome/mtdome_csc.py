@@ -182,23 +182,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
         await self.evt_elEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
-        await self.evt_louversEnabled.set_write(
-            state=EnabledState.ENABLED, faultCode=""
-        )
-        await self.evt_shutterEnabled.set_write(
-            state=EnabledState.ENABLED, faultCode=""
-        )
-        await self.evt_louversEnabled.set_write(
-            state=EnabledState.ENABLED, faultCode=""
-        )
+        await self.evt_louversEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+        await self.evt_shutterEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+        await self.evt_louversEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
 
         await self.evt_brakesEngaged.set_write(brakes=0)
         await self.evt_interlocks.set_write(interlocks=0)
         await self.evt_lockingPinsEngaged.set_write(engaged=0)
 
-        await self.evt_powerManagementMode.set_write(
-            mode=self.mtdome_com.power_management_mode
-        )
+        await self.evt_powerManagementMode.set_write(mode=self.mtdome_com.power_management_mode)
 
         self.log.info("connected")
 
@@ -215,9 +207,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         jmax_dict = {"target": "jmax", "setting": [jmax]}
         settings = [vmax_dict, amax_dict, jmax_dict]
         assert self.mtdome_com is not None
-        await self.call_method(
-            method=self.mtdome_com.config_llcs, system=LlcName.AMCS, settings=settings
-        )
+        await self.call_method(method=self.mtdome_com.config_llcs, system=LlcName.AMCS, settings=settings)
 
     async def disconnect(self) -> None:
         """Disconnect from the TCP/IP controller, if connected, and stop the
@@ -255,11 +245,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await super().end_enable(data)
 
         assert self.config is not None
-        if (
-            self.config.amcs_vmax > 0
-            and self.config.amcs_amax > 0
-            and self.config.amcs_jmax > 0
-        ):
+        if self.config.amcs_vmax > 0 and self.config.amcs_amax > 0 and self.config.amcs_jmax > 0:
             await self._set_maximum_motion_values()
         else:
             self.log.info("Not setting AMCS maximum velocity, acceleration and jerk.")
@@ -284,9 +270,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             state=EnabledState.ENABLED,
             faultCode="",
         )
-        await self.evt_azTarget.set_write(
-            position=data.position, velocity=data.velocity
-        )
+        await self.evt_azTarget.set_write(position=data.position, velocity=data.velocity)
 
     async def do_moveEl(self, data: salobj.BaseMsgType) -> None:
         """Move El.
@@ -358,9 +342,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(f"do_setLouvers: {data.position=!s}")
         self.assert_enabled()
         assert self.mtdome_com is not None
-        await self.call_method(
-            method=self.mtdome_com.set_louvers, position=data.position
-        )
+        await self.call_method(method=self.mtdome_com.set_louvers, position=data.position)
 
     async def do_closeLouvers(self, data: salobj.BaseMsgType) -> None:
         """Close Louvers.
@@ -414,9 +396,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         assert self.mtdome_com is not None
         await self.call_method(method=self.mtdome_com.park)
-        await self.evt_azTarget.set_write(
-            position=360.0 - mtdomecom.DOME_AZIMUTH_OFFSET, velocity=0
-        )
+        await self.evt_azTarget.set_write(position=360.0 - mtdomecom.DOME_AZIMUTH_OFFSET, velocity=0)
 
     async def do_setTemperature(self, data: salobj.BaseMsgType) -> None:
         """Set Temperature.
@@ -429,9 +409,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(f"do_setTemperature: {data.temperature=!s}")
         self.assert_enabled()
         assert self.mtdome_com is not None
-        await self.call_method(
-            method=self.mtdome_com.set_temperature, temperature=data.temperature
-        )
+        await self.call_method(method=self.mtdome_com.set_temperature, temperature=data.temperature)
 
     async def do_exitFault(self, data: salobj.BaseMsgType) -> None:
         """Indicate that all hardware errors, leading to fault state, have been
@@ -445,9 +423,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         self.log.debug("do_exitFault")
         assert self.mtdome_com is not None
-        await self.call_method(
-            method=self.mtdome_com.exit_fault, sub_system_ids=data.subSystemIds
-        )
+        await self.call_method(method=self.mtdome_com.exit_fault, sub_system_ids=data.subSystemIds)
 
     async def do_setOperationalMode(self, data: salobj.BaseMsgType) -> None:
         """Indicate that one or more sub_systems need to operate in degraded
@@ -498,9 +474,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         reset_ints = [int(value) for value in data.reset]
         self.log.debug(f"do_resetDrivesShutter: reset={reset_ints}")
         assert self.mtdome_com is not None
-        await self.call_method(
-            method=self.mtdome_com.reset_drives_shutter, reset=reset_ints
-        )
+        await self.call_method(method=self.mtdome_com.reset_drives_shutter, reset=reset_ints)
 
     async def _do_resetDrivesLouvers(self, data: salobj.BaseMsgType) -> None:
         """Reset one or more Louver drives. This is necessary when
@@ -516,9 +490,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         reset_ints = [int(value) for value in data.reset]
         self.log.debug(f"do_resetDrivesLouvers: reset={reset_ints}")
         assert self.mtdome_com is not None
-        await self.call_method(
-            method=self.mtdome_com.reset_drives_louvers, reset=reset_ints
-        )
+        await self.call_method(method=self.mtdome_com.reset_drives_louvers, reset=reset_ints)
 
     async def do_setZeroAz(self, data: salobj.BaseMsgType) -> None:
         """Take the current position of the dome as zero. This is necessary as
@@ -611,9 +583,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             method=self.mtdome_com.set_power_management_mode,
             power_management_mode=new_mode,
         )
-        await self.evt_powerManagementMode.set_write(
-            mode=self.mtdome_com.power_management_mode
-        )
+        await self.evt_powerManagementMode.set_write(mode=self.mtdome_com.power_management_mode)
 
     async def log_status_exception(self, status: dict[str, typing.Any]) -> None:
         self.log.exception(status["exception"])
@@ -634,18 +604,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             jmax = math.degrees(applied_configuration["jmax"])
             amax = math.degrees(applied_configuration["amax"])
             vmax = math.degrees(applied_configuration["vmax"])
-            await self.evt_azConfigurationApplied.set_write(
-                jmax=jmax, amax=amax, vmax=vmax
-            )
+            await self.evt_azConfigurationApplied.set_write(jmax=jmax, amax=amax, vmax=vmax)
 
-        # Fix temperatures until EIE has switched schemas.
-        # TODO OSW-1058 Remove workaround.
-        if "driveTemperature" in status:
-            del status["driveTemperature"]
-
-        await self.send_llc_status_telemetry_and_events(
-            LlcName.AMCS, status, self.tel_azimuth
-        )
+        await self.send_llc_status_telemetry_and_events(LlcName.AMCS, status, self.tel_azimuth)
 
     async def status_apscs(self, status: dict[str, typing.Any]) -> None:
         """ApSCS status command.
@@ -658,9 +619,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug("status_apscs")
         if "exception" in status:
             await self.log_status_exception(status)
-        await self.send_llc_status_telemetry_and_events(
-            LlcName.APSCS, status, self.tel_apertureShutter
-        )
+        await self.send_llc_status_telemetry_and_events(LlcName.APSCS, status, self.tel_apertureShutter)
 
     async def status_cbcs(self, status: dict[str, typing.Any]) -> None:
         """CBCS status command.
@@ -676,9 +635,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             dc_bus_voltage = status.pop("dcBusVoltage")
             # Send the capacitor banks telemetry.
             await self.tel_capacitorBanks.set_write(dcBusVoltage=dc_bus_voltage)
-        await self.send_llc_status_telemetry_and_events(
-            LlcName.CBCS, status, self.evt_capacitorBanks
-        )
+        await self.send_llc_status_telemetry_and_events(LlcName.CBCS, status, self.evt_capacitorBanks)
 
     async def status_cscs(self, status: dict[str, typing.Any]) -> None:
         """CSCS status command.
@@ -690,9 +647,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        await self.send_llc_status_telemetry_and_events(
-            LlcName.CSCS, status, self.tel_calibrationScreen
-        )
+        await self.send_llc_status_telemetry_and_events(LlcName.CSCS, status, self.tel_calibrationScreen)
 
     async def status_lcs(self, status: dict[str, typing.Any]) -> None:
         """LCS status command.
@@ -704,9 +659,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        await self.send_llc_status_telemetry_and_events(
-            LlcName.LCS, status, self.tel_louvers
-        )
+        await self.send_llc_status_telemetry_and_events(LlcName.LCS, status, self.tel_louvers)
 
     async def status_lwscs(self, status: dict[str, typing.Any]) -> None:
         """LWSCS status command.
@@ -718,9 +671,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        await self.send_llc_status_telemetry_and_events(
-            LlcName.LWSCS, status, self.tel_lightWindScreen
-        )
+        await self.send_llc_status_telemetry_and_events(LlcName.LWSCS, status, self.tel_lightWindScreen)
 
     async def status_moncs(self, status: dict[str, typing.Any]) -> None:
         """MonCS status command.
@@ -732,9 +683,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        await self.send_llc_status_telemetry_and_events(
-            LlcName.MONCS, status, self.tel_interlocks
-        )
+        await self.send_llc_status_telemetry_and_events(LlcName.MONCS, status, self.tel_interlocks)
 
     async def status_rad(self, status: dict[str, typing.Any]) -> None:
         """RAD status command.
@@ -746,9 +695,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        await self.send_llc_status_telemetry_and_events(
-            LlcName.RAD, status, self.tel_rearAccessDoor
-        )
+        await self.send_llc_status_telemetry_and_events(LlcName.RAD, status, self.tel_rearAccessDoor)
 
     async def status_thcs(self, status: dict[str, typing.Any]) -> None:
         """ThCS status command.
@@ -761,23 +708,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if "exception" in status:
             await self.log_status_exception(status)
 
-        # Fix temperatures until EIE has switched schemas.
-        # TODO OSW-1058 Remove workaround.
-        if "temperature" in status:
-            status["motorCoilTemperature"] = status["temperature"][
-                : mtdomecom.THCS_NUM_MOTOR_COIL_TEMPERATURES
-            ]
-            status["driveTemperature"] = [
-                0.0
-            ] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
-            status["cabinetTemperature"] = [
-                0.0
-            ] * mtdomecom.THCS_NUM_CABINET_TEMPERATURES
-            del status["temperature"]
-
-        await self.send_llc_status_telemetry_and_events(
-            LlcName.THCS, status, self.tel_thermal
-        )
+        await self.send_llc_status_telemetry_and_events(LlcName.THCS, status, self.tel_thermal)
 
     async def send_llc_status_telemetry_and_events(
         self, llc_name: LlcName, status: dict[str, typing.Any], topic: SimpleNamespace
@@ -804,15 +735,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             telemetry = self.mtdome_com.remove_keys_from_dict(status, _KEYS_TO_REMOVE)
             await topic.set_write(**telemetry)
 
-            await self._check_errors_and_send_events(
-                llc_name=llc_name, llc_status=status["status"]
-            )
+            await self._check_errors_and_send_events(llc_name=llc_name, llc_status=status["status"])
         else:
             await self._handle_command_exception(status)
 
-    async def _send_operational_mode_event(
-        self, llc_name: LlcName, status: dict[str, typing.Any]
-    ) -> None:
+    async def _send_operational_mode_event(self, llc_name: LlcName, status: dict[str, typing.Any]) -> None:
         if "status" in status and "operationalMode" in status["status"]:
             self.log.debug(f"Sending operational mode event for {llc_name}.")
 
@@ -823,17 +750,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             operational_mode = OperationalMode[current_operational_mode]
             if self.llc_operational_modes[llc_name] != operational_mode:
                 self.llc_operational_modes[llc_name] = operational_mode
-                sub_system_id = [
-                    sid for sid, name in LlcNameDict.items() if name == llc_name
-                ][0]
+                sub_system_id = [sid for sid, name in LlcNameDict.items() if name == llc_name][0]
                 await self.evt_operationalMode.set_write(
                     operationalMode=operational_mode,
                     subSystemId=sub_system_id,
                 )
 
-    async def _check_errors_and_send_events(
-        self, llc_name: str, llc_status: dict[str, typing.Any]
-    ) -> None:
+    async def _check_errors_and_send_events(self, llc_name: str, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events.
 
         Parameters
@@ -853,9 +776,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         elif llc_name == LlcName.LCS.value:
             await self._check_errors_and_send_events_louvers(llc_status)
 
-    async def _check_errors_and_send_events_az(
-        self, llc_status: dict[str, typing.Any]
-    ) -> None:
+    async def _check_errors_and_send_events_az(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the azimuth rotation.
 
         Parameters
@@ -864,18 +785,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             The status containing errors and event information.
         """
         messages = llc_status["messages"]
-        status_message = ", ".join(
-            [f"{message['code']}={message['description']}" for message in messages]
-        )
+        status_message = ", ".join([f"{message['code']}={message['description']}" for message in messages])
         if self.amcs_state != llc_status["status"]:
             self.amcs_state = llc_status["status"]
             self.log.info(f"AMCS state now is {self.amcs_state}")
         if self.amcs_message != status_message:
             self.amcs_message = status_message
             self.log.info(f"AMCS status message now is {self.amcs_message}")
-            await self.evt_azEnabled.set_write(
-                state=EnabledState.FAULT, faultCode=status_message
-            )
+            await self.evt_azEnabled.set_write(state=EnabledState.FAULT, faultCode=status_message)
         else:
             await self.evt_azEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
 
@@ -891,9 +808,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         await self.evt_azMotion.set_write(state=motion_state, inPosition=in_position)
 
-    async def _check_errors_and_send_events_el(
-        self, llc_status: dict[str, typing.Any]
-    ) -> None:
+    async def _check_errors_and_send_events_el(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the light/wind screen (elevation
         direction).
 
@@ -905,17 +820,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         messages = llc_status["messages"]
         codes = [message["code"] for message in messages]
         if len(messages) != 1 or codes[0] != 0:
-            fault_code = ", ".join(
-                [f"{message['code']}={message['description']}" for message in messages]
-            )
-            await self.evt_elEnabled.set_write(
-                state=EnabledState.FAULT, faultCode=fault_code
-            )
+            fault_code = ", ".join([f"{message['code']}={message['description']}" for message in messages])
+            await self.evt_elEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
         else:
             await self.evt_elEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
-            motion_state = self._translate_motion_state_if_necessary(
-                llc_status["status"]
-            )
+            motion_state = self._translate_motion_state_if_necessary(llc_status["status"])
             in_position = False
             if motion_state in [
                 MotionState.STOPPED,
@@ -923,13 +832,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 MotionState.CRAWLING,
             ]:
                 in_position = True
-            await self.evt_elMotion.set_write(
-                state=motion_state, inPosition=in_position
-            )
+            await self.evt_elMotion.set_write(state=motion_state, inPosition=in_position)
 
-    async def _check_errors_and_send_events_louvers(
-        self, llc_status: dict[str, typing.Any]
-    ) -> None:
+    async def _check_errors_and_send_events_louvers(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the louvers.
 
         Parameters
@@ -943,16 +848,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             self.lcs_state = llc_status["status"]
             self.log.info(f"LCS state now is {self.lcs_state}")
         if len(messages) != 1 or codes[0] != 0:
-            fault_code = ", ".join(
-                [f"{message['code']}={message['description']}" for message in messages]
-            )
-            await self.evt_louversEnabled.set_write(
-                state=EnabledState.FAULT, faultCode=fault_code
-            )
+            fault_code = ", ".join([f"{message['code']}={message['description']}" for message in messages])
+            await self.evt_louversEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
         else:
-            await self.evt_louversEnabled.set_write(
-                state=EnabledState.ENABLED, faultCode=""
-            )
+            await self.evt_louversEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
             statuses = llc_status["status"]
             motion_state: list[str] = []
             in_position: list[bool] = []
@@ -970,13 +869,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         MotionState.OPEN,
                     ]
                 )
-            await self.evt_louversMotion.set_write(
-                state=motion_state, inPosition=in_position
-            )
+            await self.evt_louversMotion.set_write(state=motion_state, inPosition=in_position)
 
-    async def _check_errors_and_send_events_shutter(
-        self, llc_status: dict[str, typing.Any]
-    ) -> None:
+    async def _check_errors_and_send_events_shutter(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the aperture shutter.
 
         Parameters
@@ -990,16 +885,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             self.apscs_state = llc_status["status"]
             self.log.info(f"ApSCS state now is {self.apscs_state}")
         if len(messages) != 1 or codes[0] != 0:
-            fault_code = ", ".join(
-                [f"{message['code']}={message['description']}" for message in messages]
-            )
-            await self.evt_shutterEnabled.set_write(
-                state=EnabledState.FAULT, faultCode=fault_code
-            )
+            fault_code = ", ".join([f"{message['code']}={message['description']}" for message in messages])
+            await self.evt_shutterEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
         else:
-            await self.evt_shutterEnabled.set_write(
-                state=EnabledState.ENABLED, faultCode=""
-            )
+            await self.evt_shutterEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
             statuses = llc_status["status"]
             motion_state: list[str] = []
             in_position: list[bool] = []
@@ -1017,9 +906,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         MotionState.OPEN,
                     ]
                 )
-            await self.evt_shutterMotion.set_write(
-                state=motion_state, inPosition=in_position
-            )
+            await self.evt_shutterMotion.set_write(state=motion_state, inPosition=in_position)
 
     def _translate_motion_state_if_necessary(self, state: str) -> MotionState:
         try:
@@ -1038,9 +925,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     async def configure(self, config: SimpleNamespace) -> None:
         self.config = config
 
-    async def call_method(
-        self, method: typing.Callable, **kwargs: typing.Any
-    ) -> typing.Any:
+    async def call_method(self, method: typing.Callable, **kwargs: typing.Any) -> typing.Any:
         """Generic method for error handling when calling a method.
 
         Parameters
@@ -1066,9 +951,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 mtdomecom.ResponseCode.ROTATING_PART_NOT_RECEIVED,
                 mtdomecom.ResponseCode.ROTATING_PART_NOT_REPLIED,
             ]:
-                await self._handle_command_exception(
-                    self.mtdome_com.communication_error_report
-                )
+                await self._handle_command_exception(self.mtdome_com.communication_error_report)
                 return None
             else:
                 raise
@@ -1077,9 +960,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.go_fault(name)
             return None
 
-    async def _handle_command_exception(
-        self, communication_error_report: dict[str, typing.Any]
-    ) -> None:
+    async def _handle_command_exception(self, communication_error_report: dict[str, typing.Any]) -> None:
         """Handle reports for communication errors.
 
         Parameters
@@ -1094,17 +975,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         fault_code = f"{response_code.name}: " + "".join(tb)
         self.log.debug(f"{command_name=}, {fault_code=}")
         if command_name in mtdomecom.EL_COMMANDS:
-            await self.evt_elEnabled.set_write(
-                state=EnabledState.FAULT, faultCode=fault_code
-            )
+            await self.evt_elEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
         elif command_name in mtdomecom.SHUTTER_COMMANDS:
-            await self.evt_shutterEnabled.set_write(
-                state=EnabledState.FAULT, faultCode=fault_code
-            )
+            await self.evt_shutterEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
         elif command_name in mtdomecom.LOUVERS_COMMANDS:
-            await self.evt_louversEnabled.set_write(
-                state=EnabledState.FAULT, faultCode=fault_code
-            )
+            await self.evt_louversEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
         elif isinstance(exception, (TimeoutError, ConnectionError, EOFError)):
             await self.go_fault(command_name)
         else:

@@ -1,0 +1,1 @@
+Removed support for old temperature schema.
