@@ -8,6 +8,21 @@ Version History
 
 .. towncrier release notes start
 
+v2.1.4 (2025-10-23)
+===================
+
+Performance Enhancement
+-----------------------
+
+- Removed support for old temperature schema. (`OSW-1058 <https://rubinobs.atlassian.net//browse/OSW-1058>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Formatted code with ruff. (`OSW-1058 <https://rubinobs.atlassian.net//browse/OSW-1058>`_)
+
+
 v2.1.3 (2025-10-09)
 ===================
 
