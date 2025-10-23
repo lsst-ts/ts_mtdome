@@ -1,0 +1,1 @@
+Formatted code with ruff.
