@@ -606,11 +606,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             vmax = math.degrees(applied_configuration["vmax"])
             await self.evt_azConfigurationApplied.set_write(jmax=jmax, amax=amax, vmax=vmax)
 
-        # Fix temperatures until EIE has switched schemas.
-        # TODO OSW-1058 Remove workaround.
-        if "driveTemperature" in status:
-            del status["driveTemperature"]
-
         await self.send_llc_status_telemetry_and_events(LlcName.AMCS, status, self.tel_azimuth)
 
     async def status_apscs(self, status: dict[str, typing.Any]) -> None:
@@ -712,16 +707,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-
-        # Fix temperatures until EIE has switched schemas.
-        # TODO OSW-1058 Remove workaround.
-        if "temperature" in status:
-            status["motorCoilTemperature"] = status["temperature"][
-                : mtdomecom.THCS_NUM_MOTOR_COIL_TEMPERATURES
-            ]
-            status["driveTemperature"] = [0.0] * mtdomecom.THCS_NUM_MOTOR_DRIVE_TEMPERATURES
-            status["cabinetTemperature"] = [0.0] * mtdomecom.THCS_NUM_CABINET_TEMPERATURES
-            del status["temperature"]
 
         await self.send_llc_status_telemetry_and_events(LlcName.THCS, status, self.tel_thermal)
 
