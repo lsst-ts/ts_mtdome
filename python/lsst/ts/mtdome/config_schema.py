@@ -64,6 +64,14 @@ CONFIG_SCHEMA = yaml.safe_load(
           The maximum jerk for the Azimuth Motion Control System (deg/sec3).
           Set to -1 to indicate that this value shouldn't be set.
         type: number
+      louvers_enabled:
+        description: >-
+          List of louver names that currently are enabled.
+          See the ts_xml MTDome Louver enum for valid louver names.
+        type: array
+        minItem: 1
+        items:
+          type: string
     required:
       - host
       - csc_port

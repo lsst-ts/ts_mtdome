@@ -170,6 +170,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.mtdome_com = mtdomecom.MTDomeCom(
             log=self.log,
             config=self.config,
+            config_dir=self.config_dir,
             simulation_mode=self.simulation_mode,
             telemetry_callbacks=telemetry_callbacks,
             start_periodic_tasks=self.start_periodic_tasks,
@@ -809,7 +810,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.evt_azMotion.set_write(state=motion_state, inPosition=in_position)
 
     async def _check_errors_and_send_events_el(self, llc_status: dict[str, typing.Any]) -> None:
-        """Check errors and send events for the light/wind screen (elevation
+        """Check errors and send events for the light/windscreen (elevation
         direction).
 
         Parameters
