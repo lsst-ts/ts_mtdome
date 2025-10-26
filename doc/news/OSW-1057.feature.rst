@@ -1,0 +1,1 @@
+Passing config dir to MTDomecom.
