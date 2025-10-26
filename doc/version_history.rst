@@ -8,6 +8,21 @@ Version History
 
 .. towncrier release notes start
 
+v2.1.5 (2025-10-26)
+===================
+
+New Features
+------------
+
+- Passing config dir to MTDomecom. (`OSW-1057 <https://rubinobs.atlassian.net//browse/OSW-1057>`_)
+
+
+Bug Fixes
+---------
+
+- Fix python package name. (`OSW-1057 <https://rubinobs.atlassian.net//browse/OSW-1057>`_)
+
+
 v2.1.4 (2025-10-23)
 ===================
 
