@@ -1500,9 +1500,14 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             ),
         ):
             await self.assert_next_summary_state(salobj.State.STANDBY)
+            self.csc.start_periodic_tasks = True
+            self.csc.set_mtdomecom_to_none = False
 
             await salobj.set_summary_state(remote=self.remote, state=salobj.State.DISABLED)
             await self.assert_next_summary_state(salobj.State.DISABLED)
+            assert self.csc.mtdome_com is not None
+            assert self.csc.mtdome_com.connected
+            assert len(self.csc.mtdome_com.periodic_tasks) != 0
 
             await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             await self.assert_next_summary_state(salobj.State.ENABLED)
@@ -1515,6 +1520,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(1.0)
 
             await self.assert_next_summary_state(salobj.State.FAULT, timeout=SHORT_TIMEOUT)
+            assert self.csc.mtdome_com is not None
+            assert not self.csc.mtdome_com.connected
+            assert len(self.csc.mtdome_com.periodic_tasks) == 0
 
     async def test_no_repeating_operational_mode_events(self) -> None:
         async with self.make_csc(
