@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v2.1.6 (2025-10-31)
+===================
+
+Bug Fixes
+---------
+
+- Ensured that periodic tasks stop when going to FAULT. (`OSW-1294 <https://rubinobs.atlassian.net//browse/OSW-1294>`_)
+
+
 v2.1.5 (2025-10-26)
 ===================
 
