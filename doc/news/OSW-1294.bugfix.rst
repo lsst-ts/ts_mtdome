@@ -1,0 +1,1 @@
+Ensured that periodic tasks stop when going to FAULT.

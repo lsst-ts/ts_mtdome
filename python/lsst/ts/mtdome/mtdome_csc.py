@@ -135,6 +135,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # redundant events.
         self.llc_operational_modes: dict[LlcName, OperationalMode | None] = {}
 
+        # Unit tests may set this to False for additional checks.
+        self.set_mtdomecom_to_none = True
+
         self.log.info("DomeCsc constructed.")
 
     async def connect(self) -> None:
@@ -220,7 +223,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             assert self.mtdome_com is not None
             await self.mtdome_com.disconnect()
 
-        self.mtdome_com = None
+        if self.set_mtdomecom_to_none:
+            self.mtdome_com = None
 
     async def handle_summary_state(self) -> None:
         """Override of the handle_summary_state function to connect or
@@ -975,14 +979,14 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         tb = traceback.format_exception(exception)
         fault_code = f"{response_code.name}: " + "".join(tb)
         self.log.debug(f"{command_name=}, {fault_code=}")
-        if command_name in mtdomecom.EL_COMMANDS:
+        if isinstance(exception, (TimeoutError, ConnectionError, EOFError)):
+            await self.go_fault(command_name)
+        elif command_name in mtdomecom.EL_COMMANDS:
             await self.evt_elEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
         elif command_name in mtdomecom.SHUTTER_COMMANDS:
             await self.evt_shutterEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
         elif command_name in mtdomecom.LOUVERS_COMMANDS:
             await self.evt_louversEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
-        elif isinstance(exception, (TimeoutError, ConnectionError, EOFError)):
-            await self.go_fault(command_name)
         else:
             self.log.error(fault_code)
 
@@ -994,7 +998,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         method : `str`
             The name of the method that causes the FAULT state.
         """
-        await self.fault(code=3, report=f"Error calling {method=}.")
+        if self.mtdome_com is not None:
+            await self.mtdome_com.disconnect()
+        else:
+            self.log.exception(f"{self.mtdome_com=}: Cannot stop periodic tasks.")
+        await self.fault(code=None, report=f"Error calling {method=}.")
 
     @property
     def connected(self) -> bool:
