@@ -36,6 +36,7 @@ from lsst.ts.mtdomecom.enums import (
 )
 from lsst.ts.xml.enums.MTDome import (
     EnabledState,
+    Louver,
     MotionState,
     OperationalMode,
     PowerManagementMode,
@@ -188,7 +189,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.evt_elEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
         await self.evt_louversEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
         await self.evt_shutterEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
-        await self.evt_louversEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+
+        louvers_motion_state: list[MotionState] = [MotionState.DISABLED] * mtdomecom.LCS_NUM_LOUVERS
+        for louver in self.mtdome_com.louvers_enabled:
+            louvers_motion_state[louver.value - 1] = MotionState.ENABLED
+        await self.evt_louversMotion.set_write(
+            state=louvers_motion_state, inPosition=[True] * mtdomecom.LCS_NUM_LOUVERS
+        )
 
         await self.evt_brakesEngaged.set_write(brakes=0)
         await self.evt_interlocks.set_write(interlocks=0)
@@ -860,10 +867,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             statuses = llc_status["status"]
             motion_state: list[str] = []
             in_position: list[bool] = []
+
             # The number of statuses has been validated by the JSON schema. So
             # here it is safe to loop over all statuses.
-            for status in statuses:
-                translated_status = self._translate_motion_state_if_necessary(status)
+            for i, status in enumerate(statuses):
+                louver = Louver(i + 1)
+                assert self.mtdome_com is not None
+                if louver in self.mtdome_com.louvers_enabled:
+                    translated_status = self._translate_motion_state_if_necessary(status)
+                else:
+                    translated_status = MotionState.DISABLED
                 motion_state.append(translated_status)
                 in_position.append(
                     translated_status
@@ -872,6 +885,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         MotionState.STOPPED_BRAKED,
                         MotionState.CLOSED,
                         MotionState.OPEN,
+                        MotionState.DISABLED,
                     ]
                 )
             await self.evt_louversMotion.set_write(state=motion_state, inPosition=in_position)

@@ -35,6 +35,7 @@ from lsst.ts import mtdome, mtdomecom, salobj, tcpip, utils
 from lsst.ts.xml import sal_enums
 from lsst.ts.xml.enums.MTDome import (
     EnabledState,
+    Louver,
     MotionState,
     OnOff,
     OpenClose,
@@ -1709,6 +1710,44 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert "driveTemperature" in thcs_status
             assert "motorCoilTemperature" in thcs_status
             assert "cabinetTemperature" in thcs_status
+
+    async def test_louvers_enabled(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+        ):
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
+
+            with open(CONFIG_DIR / "louvers_enabled.yaml") as config_file:  # type: ignore
+                config_data = yaml.safe_load(config_file)
+                assert len(config_data["louvers_enabled"]) == len(self.csc.mtdome_com.louvers_enabled)
+
+            await self.validate_louvers_state(expected_state=MotionState.ENABLED)
+
+            await self.csc.mtdome_com.status_lcs()
+            await self.validate_louvers_state(expected_state=MotionState.STOPPED_BRAKED)
+
+        with patch("lsst.ts.mtdomecom.mtdome_com.LOUVERS_ENABLED_FILENAME", "le.yaml"):
+            async with self.make_csc(
+                initial_state=salobj.State.STANDBY,
+                config_dir=CONFIG_DIR,
+                simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+            ):
+                await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
+                assert len(self.csc.mtdome_com.louvers_enabled) == 0
+                await self.validate_louvers_state()
+
+    async def validate_louvers_state(self, expected_state: MotionState | None = None) -> None:
+        data = await self.assert_next_sample(topic=self.remote.evt_louversMotion)
+        louvers_enabled = self.csc.mtdome_com.louvers_enabled
+        for i in range(mtdomecom.LCS_NUM_LOUVERS):
+            louver = Louver(i + 1)
+            if louver in louvers_enabled:
+                assert expected_state is not None
+                assert data.state[i] == expected_state.value
+            else:
+                assert data.state[i] == MotionState.DISABLED.value
 
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")
