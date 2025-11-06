@@ -344,7 +344,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.evt_elTarget.set_write(position=float("nan"), velocity=data.velocity)
 
     async def do_setLouvers(self, data: salobj.BaseMsgType) -> None:
-        """Set Louver.
+        """Set the louver positions.
+
+        This method checks if all commanded louvers are enabled and will
+        reject the command if any are not.
 
         Parameters
         ----------
@@ -354,6 +357,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(f"do_setLouvers: {data.position=!s}")
         self.assert_enabled()
         assert self.mtdome_com is not None
+        disabled_louvers: list[Louver] = []
+        for i, position in enumerate(data.position):
+            louver = Louver(i + 1)
+            if louver not in self.mtdome_com.louvers_enabled and position > 0.0:
+                disabled_louvers.append(louver)
+        if len(disabled_louvers) > 0:
+            raise salobj.ExpectedError(
+                f"The following louvers are not enabled and should not be commanded: {disabled_louvers}"
+            )
         await self.call_method(method=self.mtdome_com.set_louvers, position=data.position)
 
     async def do_closeLouvers(self, data: salobj.BaseMsgType) -> None:

@@ -507,7 +507,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
-            louver_id = 5
+
+            # This will succeed because the louver is enabled.
+            louver_id = 11
             target_position = 100
             desired_position = np.full(mtdomecom.LCS_NUM_LOUVERS, -1.0, dtype=float)
             desired_position[louver_id] = target_position
@@ -516,6 +518,16 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 timeout=STD_TIMEOUT,
             )
             await self.assert_command_replied(cmd=mtdomecom.CommandName.SET_LOUVERS)
+
+            # This will fail because the louver is disabled.
+            louver_id = 5
+            desired_position = np.full(mtdomecom.LCS_NUM_LOUVERS, -1.0, dtype=float)
+            desired_position[louver_id] = target_position
+            with pytest.raises(salobj.AckError):
+                await self.remote.cmd_setLouvers.set_start(
+                    position=desired_position.tolist(),
+                    timeout=STD_TIMEOUT,
+                )
 
     async def test_do_closeLouvers(self) -> None:
         async with self.make_csc(
