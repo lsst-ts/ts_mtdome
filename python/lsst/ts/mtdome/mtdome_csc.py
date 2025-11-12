@@ -36,6 +36,7 @@ from lsst.ts.mtdomecom.enums import (
 )
 from lsst.ts.xml.enums.MTDome import (
     EnabledState,
+    Louver,
     MotionState,
     OperationalMode,
     PowerManagementMode,
@@ -188,7 +189,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.evt_elEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
         await self.evt_louversEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
         await self.evt_shutterEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
-        await self.evt_louversEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+
+        louvers_motion_state: list[MotionState] = [MotionState.DISABLED] * mtdomecom.LCS_NUM_LOUVERS
+        for louver in self.mtdome_com.louvers_enabled:
+            louvers_motion_state[louver.value - 1] = MotionState.ENABLED
+        await self.evt_louversMotion.set_write(
+            state=louvers_motion_state, inPosition=[True] * mtdomecom.LCS_NUM_LOUVERS
+        )
 
         await self.evt_brakesEngaged.set_write(brakes=0)
         await self.evt_interlocks.set_write(interlocks=0)
@@ -337,7 +344,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.evt_elTarget.set_write(position=float("nan"), velocity=data.velocity)
 
     async def do_setLouvers(self, data: salobj.BaseMsgType) -> None:
-        """Set Louver.
+        """Set the louver positions.
+
+        This method checks if all commanded louvers are enabled and will
+        reject the command if any are not.
 
         Parameters
         ----------
@@ -347,6 +357,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.debug(f"do_setLouvers: {data.position=!s}")
         self.assert_enabled()
         assert self.mtdome_com is not None
+        disabled_louvers: list[Louver] = []
+        for i, position in enumerate(data.position):
+            louver = Louver(i + 1)
+            if louver not in self.mtdome_com.louvers_enabled and position > 0.0:
+                disabled_louvers.append(louver)
+        if len(disabled_louvers) > 0:
+            raise salobj.ExpectedError(
+                f"The following louvers are not enabled and should not be commanded: {disabled_louvers}"
+            )
         await self.call_method(method=self.mtdome_com.set_louvers, position=data.position)
 
     async def do_closeLouvers(self, data: salobj.BaseMsgType) -> None:
@@ -860,10 +879,16 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             statuses = llc_status["status"]
             motion_state: list[str] = []
             in_position: list[bool] = []
+
             # The number of statuses has been validated by the JSON schema. So
             # here it is safe to loop over all statuses.
-            for status in statuses:
-                translated_status = self._translate_motion_state_if_necessary(status)
+            for i, status in enumerate(statuses):
+                louver = Louver(i + 1)
+                assert self.mtdome_com is not None
+                if louver in self.mtdome_com.louvers_enabled:
+                    translated_status = self._translate_motion_state_if_necessary(status)
+                else:
+                    translated_status = MotionState.DISABLED
                 motion_state.append(translated_status)
                 in_position.append(
                     translated_status
@@ -872,6 +897,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                         MotionState.STOPPED_BRAKED,
                         MotionState.CLOSED,
                         MotionState.OPEN,
+                        MotionState.DISABLED,
                     ]
                 )
             await self.evt_louversMotion.set_write(state=motion_state, inPosition=in_position)
