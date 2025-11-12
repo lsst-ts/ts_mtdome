@@ -8,6 +8,16 @@ Version History
 
 .. towncrier release notes start
 
+v2.1.7 (2025-11-12)
+===================
+
+New Features
+------------
+
+- Updating louversMotion event values based on the louvers enabled config file. (`OSW-1388 <https://rubinobs.atlassian.net//browse/OSW-1388>`_)
+- Started rejecting setLouvers if disabled louvers commanded. (`OSW-1388 <https://rubinobs.atlassian.net//browse/OSW-1388>`_)
+
+
 v2.1.6 (2025-10-31)
 ===================
 
