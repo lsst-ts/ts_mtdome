@@ -50,11 +50,11 @@ from .config_schema import CONFIG_SCHEMA
 TWENTYFOUR_THREE = "24.3"
 TWENTYFOUR_FOUR = "24.4"
 try:
-    from lsst.ts.xml.enums.MTDome import Brake
+    from lsst.ts.xml.enums.MTDome import Brake, ControlMode
 
     XML_VERSION = TWENTYFOUR_FOUR
 except ImportError:
-    from lsst.ts.mtdomecom import Brake
+    from lsst.ts.mtdomecom import Brake, ControlMode
 
     XML_VERSION = TWENTYFOUR_THREE
 
@@ -177,6 +177,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         }
 
         callbacks_for_simulation = callbacks_for_operations | {
+            LlcName.CONTROL: self.status_control,
             LlcName.CSCS: self.status_cscs,
             LlcName.LWSCS: self.status_lwscs,
             LlcName.MONCS: self.status_moncs,
@@ -643,7 +644,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        status : `dict`[`str`, `typing.Any`]
+        status : `dict` [`str`, `typing.Any`]
             The status.
         """
         if "exception" in status:
@@ -662,7 +663,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        status : `dict`[`str`, `typing.Any`]
+        status : `dict` [`str`, `typing.Any`]
             The status.
         """
         self.log.debug("status_apscs")
@@ -675,7 +676,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        status : `dict`[`str`, `typing.Any`]
+        status : `dict` [`str`, `typing.Any`]
             The status.
         """
         if "exception" in status:
@@ -686,12 +687,28 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.tel_capacitorBanks.set_write(dcBusVoltage=dc_bus_voltage)
         await self.send_llc_status_telemetry_and_events(LlcName.CBCS, status, self.evt_capacitorBanks)
 
+    async def status_control(self, status: dict[str, typing.Any]) -> None:
+        """Control status command.
+
+        Parameters
+        ----------
+        status : `dict` [`str`, `typing.Any`]
+            The status.
+        """
+        if "exception" in status:
+            await self.log_status_exception(status)
+        else:
+            control_mode = ControlMode[status["control_mode"]]
+            # TODO OSW-1491 Remove backward compatibility with XML 24.3
+            if XML_VERSION == TWENTYFOUR_FOUR:
+                await self.evt_controlMode.set_write(mode=control_mode.value)
+
     async def status_cscs(self, status: dict[str, typing.Any]) -> None:
         """CSCS status command.
 
         Parameters
         ----------
-        status : `dict`[`str`, `typing.Any`]
+        status : `dict` [`str`, `typing.Any`]
             The status.
         """
         if "exception" in status:
@@ -703,7 +720,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        status : `dict`[`str`, `typing.Any`]
+        status : `dict` [`str`, `typing.Any`]
             The status.
         """
         if "exception" in status:
@@ -715,7 +732,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        status : `dict`[`str`, `typing.Any`]
+        status : `dict` [`str`, `typing.Any`]
             The status.
         """
         if "exception" in status:
@@ -727,7 +744,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        status : `dict`[`str`, `typing.Any`]
+        status : `dict` [`str`, `typing.Any`]
             The status.
         """
         if "exception" in status:
@@ -739,7 +756,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        status : `dict`[`str`, `typing.Any`]
+        status : `dict` [`str`, `typing.Any`]
             The status.
         """
         if "exception" in status:
@@ -751,7 +768,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        status : `dict`[`str`, `typing.Any`]
+        status : `dict` [`str`, `typing.Any`]
             The status.
         """
         if "exception" in status:
@@ -769,7 +786,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         ----------
         llc_name: `LlcName`
             The name of the lower level component.
-        status : `dict`[`str`, `typing.Any`]
+        status : `dict` [`str`, `typing.Any`]
             The status.
         topic: SAL topic
             The SAL topic to publish the telemetry to.
@@ -812,7 +829,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         ----------
         llc_name : `str`
             The name of the lower level component.
-        llc_status : `dict`[`str`, `typing.Any`]
+        llc_status : `dict` [`str`, `typing.Any`]
             The status containing errors and event information.
         """
         if llc_name == LlcName.AMCS.value:
@@ -833,7 +850,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        llc_status : `dict`[`str`, `typing.Any`]
+        llc_status : `dict` [`str`, `typing.Any`]
             The status containing errors and event information.
         """
         messages = llc_status["messages"]
@@ -868,7 +885,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        llc_status : `dict`[`str`, `typing.Any`]
+        llc_status : `dict` [`str`, `typing.Any`]
             The status containing errors and event information.
         """
         messages = llc_status["messages"]
@@ -896,7 +913,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        llc_status : `dict`[`str`, `typing.Any`]
+        llc_status : `dict` [`str`, `typing.Any`]
             The status containing errors and event information.
         """
         messages = llc_status["messages"]
@@ -944,7 +961,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        llc_status : `dict`[`str`, `typing.Any`]
+        llc_status : `dict` [`str`, `typing.Any`]
             The status containing errors and event information.
         """
         messages = llc_status["messages"]
@@ -989,7 +1006,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        llc_status : `dict`[`str`, `typing.Any`]
+        llc_status : `dict` [`str`, `typing.Any`]
             The status containing errors and event information.
         """
         messages = llc_status["messages"]
@@ -1043,7 +1060,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        llc_status : `dict`[`str`, `typing.Any`]
+        llc_status : `dict` [`str`, `typing.Any`]
             The status containing errors and event information.
         """
         messages = llc_status["messages"]
@@ -1134,7 +1151,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Parameters
         ----------
-        communication_error_report : `dict`[`str`, `typing.Any`]
+        communication_error_report : `dict` [`str`, `typing.Any`]
             The error report to handle.
         """
         command_name = communication_error_report["command_name"]

@@ -994,6 +994,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert cbcs_status["doorOpen"] == [False] * mtdomecom.CBCS_NUM_CAPACITOR_BANKS
             await self.check_brakes_event()
 
+            await self.csc.mtdome_com.status_control()
+            control_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.CONTROL.value]
+            assert control_status["control_mode"] == "Remote"
+
     async def test_status_error(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
