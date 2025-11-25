@@ -908,6 +908,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
             assert amcs_status["status"]["inflate"] == OnOff.ON.value
 
+    async def check_brakes_event(self) -> None:
+        # The fact that the event is sent means that the values of
+        # brakes has changed.
+        await self.assert_next_sample(topic=self.remote.evt_brakesEngaged)
+
     async def test_status(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
@@ -920,6 +925,10 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # ENABLED here.
             await self.set_csc_to_enabled()
 
+            # Reset the brakes engaged bitmask to ensure that the event is
+            # sent every time.
+            self.csc.brakes_engaged_bitmask = 0
+
             await self.csc.mtdome_com.status_amcs()
             amcs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.AMCS.value]
             assert amcs_status["status"]["status"] == MotionState.PARKED.name
@@ -929,6 +938,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 state=MotionState.PARKED,
                 inPosition=True,
             )
+            await self.check_brakes_event()
 
             await self.csc.mtdome_com.status_apscs()
             apscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.APSCS.value]
@@ -937,6 +947,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 MotionState.CLOSED.name,
             ]
             assert apscs_status["positionActual"] == [0.0, 0.0]
+            await self.check_brakes_event()
 
             await self.csc.mtdome_com.status_lcs()
             lcs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.LCS.value]
@@ -945,6 +956,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 == [mtdomecom.InternalMotionState.STATIONARY.name] * mtdomecom.LCS_NUM_LOUVERS
             )
             assert lcs_status["positionActual"] == [0.0] * mtdomecom.LCS_NUM_LOUVERS
+            await self.check_brakes_event()
 
             await self.csc.mtdome_com.status_lwscs()
             lwscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.LWSCS.value]
@@ -955,6 +967,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 state=MotionState.STOPPED,
                 inPosition=True,
             )
+            await self.check_brakes_event()
 
             await self.csc.mtdome_com.status_moncs()
             moncs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.MONCS.value]
@@ -970,6 +983,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             rad_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.RAD.value]
             assert rad_status["status"]["status"] == [MotionState.CLOSED.name] * mtdomecom.RAD_NUM_DOORS
             assert rad_status["positionActual"] == [0.0] * mtdomecom.RAD_NUM_DOORS
+            await self.check_brakes_event()
 
             await self.csc.mtdome_com.status_cbcs()
             cbcs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.CBCS.value]
@@ -978,6 +992,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             assert cbcs_status["highTemperature"] == [False] * mtdomecom.CBCS_NUM_CAPACITOR_BANKS
             assert cbcs_status["lowResidualVoltage"] == [False] * mtdomecom.CBCS_NUM_CAPACITOR_BANKS
             assert cbcs_status["doorOpen"] == [False] * mtdomecom.CBCS_NUM_CAPACITOR_BANKS
+            await self.check_brakes_event()
 
     async def test_status_error(self) -> None:
         async with self.make_csc(

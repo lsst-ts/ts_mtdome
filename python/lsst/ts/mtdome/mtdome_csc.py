@@ -29,6 +29,7 @@ from types import SimpleNamespace
 
 from lsst.ts import mtdomecom, salobj
 from lsst.ts.mtdomecom.enums import (
+    BRAKES_ENGAGED_STATES,
     LlcName,
     LlcNameDict,
     ValidSimulationMode,
@@ -44,6 +45,18 @@ from lsst.ts.xml.enums.MTDome import (
 
 from . import __version__
 from .config_schema import CONFIG_SCHEMA
+
+# TODO OSW-1491 Remove backward compatibility with XML 24.3
+TWENTYFOUR_THREE = "24.3"
+TWENTYFOUR_FOUR = "24.4"
+try:
+    from lsst.ts.xml.enums.MTDome import Brake
+
+    XML_VERSION = TWENTYFOUR_FOUR
+except ImportError:
+    from lsst.ts.mtdomecom import Brake
+
+    XML_VERSION = TWENTYFOUR_THREE
 
 _KEYS_TO_REMOVE = {
     "status",
@@ -130,11 +143,18 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.lcs_state: MotionState | None = None
         # Keep track of the ApSCS state for logging on the console.
         self.apscs_state: MotionState | None = None
+        # Keep track of the RAD state for logging on the console.
+        self.rad_state: MotionState | None = None
+        # Keep track of the CSCS state for logging on the console.
+        self.cscs_state: MotionState | None = None
         # Keep track of the AMCS status message for logging on the console.
         self.amcs_message: str = ""
         # Keep track of the operational modes of the LLCs to avoid emitting
         # redundant events.
         self.llc_operational_modes: dict[LlcName, OperationalMode | None] = {}
+
+        # Keep track of which brakes are engaged.
+        self.brakes_engaged_bitmask = 0
 
         # Unit tests may set this to False for additional checks.
         self.set_mtdomecom_to_none = True
@@ -190,6 +210,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.evt_louversEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
         await self.evt_shutterEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
 
+        # TODO OSW-1491 Remove backward compatibility with XML 24.3
+        if XML_VERSION == TWENTYFOUR_FOUR:
+            await self.evt_radEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+            await self.evt_calibrationScreenEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+
+        # Report ENABLED and DISABLED louvers.
         louvers_motion_state: list[MotionState] = [MotionState.DISABLED] * mtdomecom.LCS_NUM_LOUVERS
         for louver in self.mtdome_com.louvers_enabled:
             louvers_motion_state[louver.value - 1] = MotionState.ENABLED
@@ -197,10 +223,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             state=louvers_motion_state, inPosition=[True] * mtdomecom.LCS_NUM_LOUVERS
         )
 
-        await self.evt_brakesEngaged.set_write(brakes=0)
+        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
         await self.evt_interlocks.set_write(interlocks=0)
         await self.evt_lockingPinsEngaged.set_write(engaged=0)
-
         await self.evt_powerManagementMode.set_write(mode=self.mtdome_com.power_management_mode)
 
         self.log.info("connected")
@@ -790,7 +815,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         llc_status : `dict`[`str`, `typing.Any`]
             The status containing errors and event information.
         """
-        # DM-26374: Check for errors and send the events.
         if llc_name == LlcName.AMCS.value:
             await self._check_errors_and_send_events_az(llc_status)
         elif llc_name == LlcName.LWSCS.value:
@@ -799,6 +823,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self._check_errors_and_send_events_shutter(llc_status)
         elif llc_name == LlcName.LCS.value:
             await self._check_errors_and_send_events_louvers(llc_status)
+        elif llc_name == LlcName.RAD.value:
+            await self._check_errors_and_send_events_rad(llc_status)
+        elif llc_name == LlcName.CSCS.value:
+            await self._check_errors_and_send_events_calibration_screen(llc_status)
 
     async def _check_errors_and_send_events_az(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the azimuth rotation.
@@ -831,6 +859,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             in_position = True
 
         await self.evt_azMotion.set_write(state=motion_state, inPosition=in_position)
+        await self.set_brakes_engaged_bit(motion_state, Brake.AMCS.value)
+        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
 
     async def _check_errors_and_send_events_el(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the light/windscreen (elevation
@@ -848,15 +878,18 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_elEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
         else:
             await self.evt_elEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
-            motion_state = self._translate_motion_state_if_necessary(llc_status["status"])
-            in_position = False
-            if motion_state in [
-                MotionState.STOPPED,
-                MotionState.STOPPED_BRAKED,
-                MotionState.CRAWLING,
-            ]:
-                in_position = True
-            await self.evt_elMotion.set_write(state=motion_state, inPosition=in_position)
+
+        motion_state = self._translate_motion_state_if_necessary(llc_status["status"])
+        in_position = False
+        if motion_state in [
+            MotionState.STOPPED,
+            MotionState.STOPPED_BRAKED,
+            MotionState.CRAWLING,
+        ]:
+            in_position = True
+        await self.evt_elMotion.set_write(state=motion_state, inPosition=in_position)
+        await self.set_brakes_engaged_bit(motion_state, Brake.LWSCS.value)
+        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
 
     async def _check_errors_and_send_events_louvers(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the louvers.
@@ -876,31 +909,35 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_louversEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
         else:
             await self.evt_louversEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
-            statuses = llc_status["status"]
-            motion_state: list[str] = []
-            in_position: list[bool] = []
 
-            # The number of statuses has been validated by the JSON schema. So
-            # here it is safe to loop over all statuses.
-            for i, status in enumerate(statuses):
-                louver = Louver(i + 1)
-                assert self.mtdome_com is not None
-                if louver in self.mtdome_com.louvers_enabled:
-                    translated_status = self._translate_motion_state_if_necessary(status)
-                else:
-                    translated_status = MotionState.DISABLED
-                motion_state.append(translated_status)
-                in_position.append(
-                    translated_status
-                    in [
-                        MotionState.STOPPED,
-                        MotionState.STOPPED_BRAKED,
-                        MotionState.CLOSED,
-                        MotionState.OPEN,
-                        MotionState.DISABLED,
-                    ]
-                )
-            await self.evt_louversMotion.set_write(state=motion_state, inPosition=in_position)
+        statuses = llc_status["status"]
+        motion_state: list[str] = []
+        in_position: list[bool] = []
+
+        # The number of statuses has been validated by the JSON schema. So
+        # here it is safe to loop over all statuses.
+        for i, status in enumerate(statuses):
+            louver = Louver(i + 1)
+            assert self.mtdome_com is not None
+            if louver in self.mtdome_com.louvers_enabled:
+                translated_status = self._translate_motion_state_if_necessary(status)
+            else:
+                translated_status = MotionState.DISABLED
+            motion_state.append(translated_status)
+            in_position.append(
+                translated_status
+                in [
+                    MotionState.STOPPED,
+                    MotionState.STOPPED_BRAKED,
+                    MotionState.CLOSED,
+                    MotionState.OPEN,
+                    MotionState.DISABLED,
+                ]
+            )
+            brake_index = Brake[f"LOUVER_{louver.name}"]
+            await self.set_brakes_engaged_bit(translated_status, brake_index)
+        await self.evt_louversMotion.set_write(state=motion_state, inPosition=in_position)
+        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
 
     async def _check_errors_and_send_events_shutter(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the aperture shutter.
@@ -920,24 +957,125 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.evt_shutterEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
         else:
             await self.evt_shutterEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
-            statuses = llc_status["status"]
-            motion_state: list[str] = []
-            in_position: list[bool] = []
-            # The number of statuses has been validated by the JSON schema. So
-            # here it is safe to loop over all statuses.
-            for status in statuses:
-                translated_status = self._translate_motion_state_if_necessary(status)
-                motion_state.append(translated_status)
-                in_position.append(
-                    translated_status
-                    in [
-                        MotionState.STOPPED,
-                        MotionState.STOPPED_BRAKED,
-                        MotionState.CLOSED,
-                        MotionState.OPEN,
-                    ]
+
+        statuses = llc_status["status"]
+        motion_state: list[str] = []
+        in_position: list[bool] = []
+
+        # The number of statuses has been validated by the JSON schema. So
+        # here it is safe to loop over all statuses.
+        for index, status in enumerate(statuses):
+            translated_status = self._translate_motion_state_if_necessary(status)
+            motion_state.append(translated_status)
+            in_position.append(
+                translated_status
+                in [
+                    MotionState.STOPPED,
+                    MotionState.STOPPED_BRAKED,
+                    MotionState.CLOSED,
+                    MotionState.OPEN,
+                ]
+            )
+            if index == 0:
+                brake_index = Brake.APSCS_LEFT_DOOR
+            else:
+                brake_index = Brake.APSCS_RIGHT_DOOR
+            await self.set_brakes_engaged_bit(translated_status, brake_index)
+        await self.evt_shutterMotion.set_write(state=motion_state, inPosition=in_position)
+        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+
+    async def _check_errors_and_send_events_rad(self, llc_status: dict[str, typing.Any]) -> None:
+        """Check errors and send events for the rear access door.
+
+        Parameters
+        ----------
+        llc_status : `dict`[`str`, `typing.Any`]
+            The status containing errors and event information.
+        """
+        messages = llc_status["messages"]
+        codes = [message["code"] for message in messages]
+        if self.rad_state != llc_status["status"]:
+            self.rad_state = llc_status["status"]
+            self.log.info(f"RAD state now is {self.rad_state}")
+        # TODO OSW-1491 Remove backward compatibility with XML 24.3
+        if XML_VERSION == TWENTYFOUR_FOUR:
+            if len(messages) != 1 or codes[0] != 0:
+                fault_code = ", ".join(
+                    [f"{message['code']}={message['description']}" for message in messages]
                 )
-            await self.evt_shutterMotion.set_write(state=motion_state, inPosition=in_position)
+                await self.evt_radEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
+            else:
+                await self.evt_radEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+
+        statuses = llc_status["status"]
+        motion_state: list[str] = []
+        in_position: list[bool] = []
+
+        # The number of statuses has been validated by the JSON schema. So
+        # here it is safe to loop over all statuses.
+        for index, status in enumerate(statuses):
+            translated_status = self._translate_motion_state_if_necessary(status)
+            motion_state.append(translated_status)
+            in_position.append(
+                translated_status
+                in [
+                    MotionState.STOPPED,
+                    MotionState.STOPPED_BRAKED,
+                    MotionState.CLOSED,
+                    MotionState.OPEN,
+                ]
+            )
+            if index == 0:
+                brake_index = Brake.RAD_LEFT_DOOR
+            else:
+                brake_index = Brake.RAD_RIGHT_DOOR
+            await self.set_brakes_engaged_bit(translated_status, brake_index)
+
+        # TODO OSW-1491 Remove backward compatibility with XML 24.3
+        if XML_VERSION == TWENTYFOUR_FOUR:
+            await self.evt_radMotion.set_write(state=motion_state, inPosition=in_position)
+        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+
+    async def _check_errors_and_send_events_calibration_screen(
+        self, llc_status: dict[str, typing.Any]
+    ) -> None:
+        """Check errors and send events for the calibration screen.
+
+        Parameters
+        ----------
+        llc_status : `dict`[`str`, `typing.Any`]
+            The status containing errors and event information.
+        """
+        messages = llc_status["messages"]
+        codes = [message["code"] for message in messages]
+        if self.cscs_state != llc_status["status"]:
+            self.cscs_state = llc_status["status"]
+            self.log.info(f"Calibration Screen state now is {self.cscs_state}")
+        # TODO OSW-1491 Remove backward compatibility with XML 24.3
+        if XML_VERSION == TWENTYFOUR_FOUR:
+            if len(messages) != 1 or codes[0] != 0:
+                fault_code = ", ".join(
+                    [f"{message['code']}={message['description']}" for message in messages]
+                )
+                await self.evt_calibrationScreenEnabled.set_write(
+                    state=EnabledState.FAULT, faultCode=fault_code
+                )
+            else:
+                await self.evt_calibrationScreenEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+
+        motion_state = self._translate_motion_state_if_necessary(llc_status["status"])
+        in_position = False
+        if motion_state in [
+            MotionState.STOPPED,
+            MotionState.STOPPED_BRAKED,
+        ]:
+            in_position = True
+
+        # TODO OSW-1491 Remove backward compatibility with XML 24.3
+        if XML_VERSION == TWENTYFOUR_FOUR:
+            await self.evt_calibrationScreenMotion.set_write(state=motion_state, inPosition=in_position)
+        await self.set_brakes_engaged_bit(motion_state, Brake.CSCS.value)
+        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
 
     def _translate_motion_state_if_necessary(self, state: str) -> MotionState:
         try:
@@ -1029,6 +1167,21 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         else:
             self.log.exception(f"{self.mtdome_com=}: Cannot stop periodic tasks.")
         await self.fault(code=None, report=f"Error calling {method=}.")
+
+    async def set_brakes_engaged_bit(self, motion_state: MotionState, index: int) -> None:
+        """Set a bit on the brakes engaged bitmask.
+
+        Parameters
+        ----------
+        motion_state : `MotionState`
+            The motion state to determine the bit value with.
+        index : `int`
+            The bit index to update.
+        """
+        if motion_state in BRAKES_ENGAGED_STATES:
+            self.brakes_engaged_bitmask = self.brakes_engaged_bitmask | (1 << index)
+        else:
+            self.brakes_engaged_bitmask = self.brakes_engaged_bitmask & ~(1 << index)
 
     @property
     def connected(self) -> bool:
