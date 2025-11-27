@@ -8,6 +8,16 @@ Version History
 
 .. towncrier release notes start
 
+v2.2.0 (2025-11-27)
+===================
+
+New Features
+------------
+
+- Added sending additional events and the correct brakes bitmask. (`OSW-1408 <https://rubinobs.atlassian.net//browse/OSW-1408>`_)
+- Added support for the statusControl command. (`OSW-1408 <https://rubinobs.atlassian.net//browse/OSW-1408>`_)
+
+
 v2.1.7 (2025-11-12)
 ===================
 
