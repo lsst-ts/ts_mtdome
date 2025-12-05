@@ -8,6 +8,24 @@ Version History
 
 .. towncrier release notes start
 
+v2.2.2 (2025-12-05)
+===================
+
+Other Changes and Additions
+---------------------------
+
+- Fixed unit test. (`OSW-1542 <https://rubinobs.atlassian.net//browse/OSW-1542>`_)
+
+
+v2.2.1 (2025-12-05)
+===================
+
+Other Changes and Additions
+---------------------------
+
+- Added a test to ensure that 64 bit ints are used. (`OSW-1542 <https://rubinobs.atlassian.net//browse/OSW-1542>`_)
+
+
 v2.2.0 (2025-11-27)
 ===================
 
