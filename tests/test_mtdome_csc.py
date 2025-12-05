@@ -35,7 +35,6 @@ import yaml
 from lsst.ts import mtdome, mtdomecom, salobj, tcpip, utils
 from lsst.ts.xml import sal_enums
 from lsst.ts.xml.enums.MTDome import (
-    Brake,
     EnabledState,
     Louver,
     MotionState,
@@ -45,6 +44,12 @@ from lsst.ts.xml.enums.MTDome import (
     PowerManagementMode,
     SubSystemId,
 )
+
+# TODO OSW-1491 Remove backward compatibility with XML 24.3
+try:
+    from lsst.ts.xml.enums.MTDome import Brake
+except ImportError:
+    from lsst.ts.mtdomecom import Brake
 
 STD_TIMEOUT = 10  # standard command and event timeout (sec)
 SHORT_TIMEOUT = 1  # short command and event timeout (sec)
