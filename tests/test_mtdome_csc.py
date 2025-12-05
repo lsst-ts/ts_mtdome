@@ -31,9 +31,11 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 import yaml
+
 from lsst.ts import mtdome, mtdomecom, salobj, tcpip, utils
 from lsst.ts.xml import sal_enums
 from lsst.ts.xml.enums.MTDome import (
+    Brake,
     EnabledState,
     Louver,
     MotionState,
@@ -1779,6 +1781,19 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 assert data.state[i] == expected_state.value
             else:
                 assert data.state[i] == MotionState.DISABLED.value
+
+    async def test_brakes_engaged_bitmask(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+        ):
+            for brake in Brake:
+                self.csc.brakes_engaged_bitmask = self.csc.brakes_engaged_bitmask | (1 << brake.value)
+            await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
+            data = await self.assert_next_sample(topic=self.remote.evt_brakesEngaged)
+            # This assures that Kafka/AVRO doesn't use 32 bit integers.
+            assert data.brakes == self.csc.brakes_engaged_bitmask
 
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")
