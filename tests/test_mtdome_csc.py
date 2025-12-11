@@ -245,6 +245,36 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 inPosition=False,
             )
 
+    async def test_do_moveAz_to_same_position(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+        ):
+            await self.set_csc_to_enabled()
+
+            # Set the TAI time in the mock controller for easier control
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
+
+            desired_position = 40
+            desired_velocity = 0.0
+            await self.remote.cmd_moveAz.set_start(
+                position=desired_position,
+                velocity=desired_velocity,
+                timeout=STD_TIMEOUT,
+            )
+            data = await self.assert_next_sample(topic=self.remote.evt_azTarget, position=desired_position)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.MOVE_AZ)
+            assert math.isclose(desired_velocity, data.velocity, abs_tol=1e-7)
+
+            # Repeat the command, which should fail.
+            with pytest.raises(salobj.AckError):
+                await self.remote.cmd_moveAz.set_start(
+                    position=desired_position,
+                    velocity=desired_velocity,
+                    timeout=STD_TIMEOUT,
+                )
+
     async def test_do_moveEl(self) -> None:
         async with self.make_csc(
             initial_state=salobj.State.STANDBY,
