@@ -1,1 +1,0 @@
-Avoided moveAz to same position again.
