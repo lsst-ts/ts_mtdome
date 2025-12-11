@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v2.2.3 (2025-12-11)
+===================
+
+Performance Enhancement
+-----------------------
+
+- Avoided moveAz to same position again. (`OSW-1544 <https://rubinobs.atlassian.net//browse/OSW-1544>`_)
+
+
 v2.2.2 (2025-12-05)
 ===================
 
