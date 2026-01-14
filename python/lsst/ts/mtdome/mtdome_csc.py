@@ -224,7 +224,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             state=louvers_motion_state, inPosition=[True] * mtdomecom.LCS_NUM_LOUVERS
         )
 
-        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
         await self.evt_interlocks.set_write(interlocks=0)
         await self.evt_lockingPinsEngaged.set_write(engaged=0)
         await self.evt_powerManagementMode.set_write(mode=self.mtdome_com.power_management_mode)
@@ -877,7 +877,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         await self.evt_azMotion.set_write(state=motion_state, inPosition=in_position)
         await self.set_brakes_engaged_bit(motion_state, Brake.AMCS.value)
-        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
 
     async def _check_errors_and_send_events_el(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the light/windscreen (elevation
@@ -906,7 +906,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             in_position = True
         await self.evt_elMotion.set_write(state=motion_state, inPosition=in_position)
         await self.set_brakes_engaged_bit(motion_state, Brake.LWSCS.value)
-        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
 
     async def _check_errors_and_send_events_louvers(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the louvers.
@@ -954,7 +954,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             brake_index = Brake[f"LOUVER_{louver.name}"]
             await self.set_brakes_engaged_bit(translated_status, brake_index)
         await self.evt_louversMotion.set_write(state=motion_state, inPosition=in_position)
-        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
 
     async def _check_errors_and_send_events_shutter(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the aperture shutter.
@@ -999,7 +999,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 brake_index = Brake.APSCS_RIGHT_DOOR
             await self.set_brakes_engaged_bit(translated_status, brake_index)
         await self.evt_shutterMotion.set_write(state=motion_state, inPosition=in_position)
-        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
 
     async def _check_errors_and_send_events_rad(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the rear access door.
@@ -1051,7 +1051,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # TODO OSW-1491 Remove backward compatibility with XML 24.3
         if XML_VERSION == TWENTYFOUR_FOUR:
             await self.evt_radMotion.set_write(state=motion_state, inPosition=in_position)
-        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
 
     async def _check_errors_and_send_events_calibration_screen(
         self, llc_status: dict[str, typing.Any]
@@ -1092,7 +1092,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if XML_VERSION == TWENTYFOUR_FOUR:
             await self.evt_calibrationScreenMotion.set_write(state=motion_state, inPosition=in_position)
         await self.set_brakes_engaged_bit(motion_state, Brake.CSCS.value)
-        await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
 
     def _translate_motion_state_if_necessary(self, state: str) -> MotionState:
         try:
