@@ -1,0 +1,1 @@
+Fixed a typo in an LLC name and its status command name.

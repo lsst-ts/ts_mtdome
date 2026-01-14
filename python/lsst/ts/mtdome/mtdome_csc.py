@@ -177,7 +177,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         }
 
         callbacks_for_simulation = callbacks_for_operations | {
-            LlcName.CONTROL: self.status_control,
+            LlcName.LLC: self.status_llc,
             LlcName.CSCS: self.status_cscs,
             LlcName.LWSCS: self.status_lwscs,
             LlcName.MONCS: self.status_moncs,
@@ -687,8 +687,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.tel_capacitorBanks.set_write(dcBusVoltage=dc_bus_voltage)
         await self.send_llc_status_telemetry_and_events(LlcName.CBCS, status, self.evt_capacitorBanks)
 
-    async def status_control(self, status: dict[str, typing.Any]) -> None:
-        """Control status command.
+    async def status_llc(self, status: dict[str, typing.Any]) -> None:
+        """LLC status command.
 
         Parameters
         ----------
