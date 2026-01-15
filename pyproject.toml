@@ -3,11 +3,11 @@ requires = ["setuptools", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lsst.ts.ts_mtdome"
+name = "ts_mtdome"
 description = "LSST main telescope dome controller."
 license = { text = "GPL" }
 classifiers = ["Programming Language :: Python :: 3"]
-urls = { documentation = "https://ts-mtdome.lsst.io", repository = "https://github.com/lsst-ts/ts_mtdome" }
+urls = { documentation = "https://ts-mtdome.lsst.io", source_code = "https://github.com/lsst-ts/ts_mtdome" }
 dynamic = ["version"]
 
 [tool.setuptools.dynamic]
