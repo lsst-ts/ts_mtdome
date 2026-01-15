@@ -25,7 +25,7 @@ This configuration only affects single-package Sphinx documentation builds.
 """
 
 import lsst.ts.mtdome  # noqa
-from documenteer.conf.pipelinespkg import *  # noqa
+from documenteer.conf.guide import *  # noqa
 
 project = "ts_mtdome"
 html_theme_options["logotext"] = project  # type: ignore # noqa
