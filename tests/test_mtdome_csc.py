@@ -46,10 +46,16 @@ from lsst.ts.xml.enums.MTDome import (
 )
 
 # TODO OSW-1491 Remove backward compatibility with XML 24.3
+TWENTYFOUR_THREE = "24.3"
+TWENTYFOUR_FOUR = "24.4"
 try:
     from lsst.ts.xml.enums.MTDome import Brake
+
+    XML_VERSION = TWENTYFOUR_FOUR
 except ImportError:
     from lsst.ts.mtdomecom import Brake
+
+    XML_VERSION = TWENTYFOUR_THREE
 
 STD_TIMEOUT = 10  # standard command and event timeout (sec)
 SHORT_TIMEOUT = 1  # short command and event timeout (sec)
@@ -153,7 +159,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         await self.assert_next_sample(topic=self.remote.evt_elEnabled, state=EnabledState.ENABLED)
         await self.assert_next_sample(topic=self.remote.evt_shutterEnabled, state=EnabledState.ENABLED)
         await self.assert_next_sample(topic=self.remote.evt_louversEnabled, state=EnabledState.ENABLED)
-        await self.assert_next_sample(topic=self.remote.evt_brakesEngaged, brakes="0")
+        # TODO OSW-1491 Remove backward compatibility with XML 24.3
+        if XML_VERSION == TWENTYFOUR_FOUR:
+            await self.assert_next_sample(topic=self.remote.evt_brakesEngaged, brakes="0")
+        else:
+            await self.assert_next_sample(topic=self.remote.evt_brakesEngaged, brakes=0)
         await self.assert_next_sample(topic=self.remote.evt_interlocks, interlocks=0)
         await self.assert_next_sample(topic=self.remote.evt_lockingPinsEngaged, engaged=0)
 
@@ -1827,7 +1837,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 self.csc.brakes_engaged_bitmask = self.csc.brakes_engaged_bitmask | (1 << brake.value)
             await salobj.set_summary_state(remote=self.remote, state=salobj.State.ENABLED)
             data = await self.assert_next_sample(topic=self.remote.evt_brakesEngaged)
-            assert data.brakes == str(self.csc.brakes_engaged_bitmask)
+            # TODO OSW-1491 Remove backward compatibility with XML 24.3
+            if XML_VERSION == TWENTYFOUR_FOUR:
+                assert data.brakes == str(self.csc.brakes_engaged_bitmask)
+            else:
+                assert data.brakes == self.csc.brakes_engaged_bitmask
 
     async def test_bin_script(self) -> None:
         await self.check_bin_script(name="MTDome", index=None, exe_name="run_mtdome")
