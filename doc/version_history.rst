@@ -8,6 +8,16 @@ Version History
 
 .. towncrier release notes start
 
+v2.2.4 (2026-01-15)
+===================
+
+Performance Enhancement
+-----------------------
+
+- Fixed brakesEngaged data type. (`OSW-1681 <https://rubinobs.atlassian.net//browse/OSW-1681>`_)
+- Fixed a typo in an LLC name and its status command name. (`OSW-1681 <https://rubinobs.atlassian.net//browse/OSW-1681>`_)
+
+
 v2.2.3 (2025-12-11)
 ===================
 
