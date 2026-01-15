@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v2.2.5 (2026-01-15)
+===================
+
+Performance Enhancement
+-----------------------
+
+- Made support for XML data type change for brakesEngaged event backward compatible. (`OSW-1693 <https://rubinobs.atlassian.net//browse/OSW-1693>`_)
+
+
 v2.2.4 (2026-01-15)
 ===================
 
