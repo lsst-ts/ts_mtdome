@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v2.2.6 (2026-01-23)
+===================
+
+Performance Enhancement
+-----------------------
+
+- Suppressed redundant log messages. (`OSW-1724 <https://rubinobs.atlassian.net//browse/OSW-1724>`_)
+
+
 v2.2.5 (2026-01-15)
 ===================
 
