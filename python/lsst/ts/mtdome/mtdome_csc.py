@@ -166,6 +166,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         Start the mock controller, if simulating.
         """
+        self.log.info("connect.")
+
         assert self.config is not None
 
         callbacks_for_operations = {
@@ -240,11 +242,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         vmax = self.config.amcs_vmax
         amax = self.config.amcs_amax
         jmax = self.config.amcs_jmax
-        self.log.info(f"Setting AMCS maximum velocity to {vmax}.")
+        self.log.debug(f"Setting AMCS maximum velocity to {vmax}.")
         vmax_dict = {"target": "vmax", "setting": [vmax]}
-        self.log.info(f"Setting AMCS maximum acceleration to {amax}.")
+        self.log.debug(f"Setting AMCS maximum acceleration to {amax}.")
         amax_dict = {"target": "amax", "setting": [amax]}
-        self.log.info(f"Setting AMCS maximum jerk to {jmax}.")
+        self.log.debug(f"Setting AMCS maximum jerk to {jmax}.")
         jmax_dict = {"target": "jmax", "setting": [jmax]}
         settings = [vmax_dict, amax_dict, jmax_dict]
         assert self.mtdome_com is not None
@@ -268,7 +270,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         disconnect to the lower level components (or the mock_controller) when
         needed.
         """
-        self.log.info(f"handle_summary_state {self.summary_state.name}")
+        self.log.debug(f"handle_summary_state {self.summary_state.name}")
         if self.disabled_or_enabled:
             if not self.connected:
                 await self.connect()
@@ -290,7 +292,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if self.config.amcs_vmax > 0 and self.config.amcs_amax > 0 and self.config.amcs_jmax > 0:
             await self._set_maximum_motion_values()
         else:
-            self.log.info("Not setting AMCS maximum velocity, acceleration and jerk.")
+            self.log.debug("Not setting AMCS maximum velocity, acceleration and jerk.")
 
     async def do_moveAz(self, data: salobj.BaseMsgType) -> None:
         """Move AZ.
@@ -861,7 +863,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         status_message = ", ".join([f"{message['code']}={message['description']}" for message in messages])
         if self.amcs_state != llc_status["status"]:
             self.amcs_state = llc_status["status"]
-            self.log.info(f"AMCS state now is {self.amcs_state}")
+            self.log.debug(f"AMCS state now is {self.amcs_state}")
         if self.amcs_message != status_message:
             self.amcs_message = status_message
             self.log.info(f"AMCS status message now is {self.amcs_message}")
@@ -932,7 +934,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         codes = [message["code"] for message in messages]
         if self.lcs_state != llc_status["status"]:
             self.lcs_state = llc_status["status"]
-            self.log.info(f"LCS state now is {self.lcs_state}")
+            self.log.debug(f"LCS state now is {self.lcs_state}")
         if len(messages) != 1 or codes[0] != 0:
             fault_code = ", ".join([f"{message['code']}={message['description']}" for message in messages])
             await self.evt_louversEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
@@ -984,7 +986,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         codes = [message["code"] for message in messages]
         if self.apscs_state != llc_status["status"]:
             self.apscs_state = llc_status["status"]
-            self.log.info(f"ApSCS state now is {self.apscs_state}")
+            self.log.debug(f"ApSCS state now is {self.apscs_state}")
         if len(messages) != 1 or codes[0] != 0:
             fault_code = ", ".join([f"{message['code']}={message['description']}" for message in messages])
             await self.evt_shutterEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
@@ -1033,7 +1035,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         codes = [message["code"] for message in messages]
         if self.rad_state != llc_status["status"]:
             self.rad_state = llc_status["status"]
-            self.log.info(f"RAD state now is {self.rad_state}")
+            self.log.debug(f"RAD state now is {self.rad_state}")
         # TODO OSW-1491 Remove backward compatibility with XML 24.3
         if XML_VERSION == TWENTYFOUR_FOUR:
             if len(messages) != 1 or codes[0] != 0:
@@ -1091,7 +1093,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         codes = [message["code"] for message in messages]
         if self.cscs_state != llc_status["status"]:
             self.cscs_state = llc_status["status"]
-            self.log.info(f"Calibration Screen state now is {self.cscs_state}")
+            self.log.debug(f"Calibration Screen state now is {self.cscs_state}")
         # TODO OSW-1491 Remove backward compatibility with XML 24.3
         if XML_VERSION == TWENTYFOUR_FOUR:
             if len(messages) != 1 or codes[0] != 0:
