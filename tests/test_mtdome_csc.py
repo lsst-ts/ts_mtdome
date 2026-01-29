@@ -262,6 +262,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
         ):
             await self.set_csc_to_enabled()
+            self.csc.mtdome_com.reject_small_azimuth_motions = True
 
             # Set the TAI time in the mock controller for easier control
             self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
@@ -284,6 +285,15 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     velocity=desired_velocity,
                     timeout=STD_TIMEOUT,
                 )
+
+            # Now disable rejection and the command should not raise an
+            # exception.
+            self.csc.mtdome_com.reject_small_azimuth_motions = False
+            await self.remote.cmd_moveAz.set_start(
+                position=desired_position,
+                velocity=desired_velocity,
+                timeout=STD_TIMEOUT,
+            )
 
     async def test_do_moveEl(self) -> None:
         async with self.make_csc(
