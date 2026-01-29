@@ -156,6 +156,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         # Keep track of which brakes are engaged.
         self.brakes_engaged_bitmask = 0
 
+        self.reject_small_azimuth_motions = False
+
         # Unit tests may set this to False for additional checks.
         self.set_mtdomecom_to_none = True
 
@@ -169,6 +171,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.log.info("connect.")
 
         assert self.config is not None
+        if hasattr(self.config, "reject_small_azimuth_motions"):
+            self.reject_small_azimuth_motions = self.config.reject_small_azimuth_motions
+        self.log.debug(f"Rejecting small azimuth motions? {self.reject_small_azimuth_motions=}")
 
         callbacks_for_operations = {
             LlcName.AMCS: self.status_amcs,
@@ -200,6 +205,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             config_dir=self.config_dir,
             simulation_mode=self.simulation_mode,
             telemetry_callbacks=telemetry_callbacks,
+            reject_small_azimuth_motions=self.reject_small_azimuth_motions,
             start_periodic_tasks=self.start_periodic_tasks,
         )
         try:

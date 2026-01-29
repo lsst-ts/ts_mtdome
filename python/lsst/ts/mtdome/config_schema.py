@@ -72,6 +72,12 @@ CONFIG_SCHEMA = yaml.safe_load(
         minItem: 1
         items:
           type: string
+      reject_small_azimuth_motions:
+        description: >-
+          Reject small azimuth motions or not.
+          Defaults to false, so small azimuth motions are not rejected by the CSC.
+        type: boolean
+        default: false
     required:
       - host
       - csc_port
