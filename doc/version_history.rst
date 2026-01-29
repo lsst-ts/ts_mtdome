@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v2.2.7 (2026-01-29)
+===================
+
+Performance Enhancement
+-----------------------
+
+- Added config option to disable rejection of small azimuth motions. (`OSW-1762 <https://rubinobs.atlassian.net//browse/OSW-1762>`_)
+
+
 v2.2.6 (2026-01-23)
 ===================
 
