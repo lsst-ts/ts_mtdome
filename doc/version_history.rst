@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v2.2.8 (2026-01-30)
+===================
+
+Performance Enhancement
+-----------------------
+
+- Enabled the statusLLC command. (`OSW-1767 <https://rubinobs.atlassian.net//browse/OSW-1767>`_)
+
+
 v2.2.7 (2026-01-29)
 ===================
 
