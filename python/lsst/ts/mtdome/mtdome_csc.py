@@ -36,6 +36,8 @@ from lsst.ts.mtdomecom.enums import (
     motion_state_translations,
 )
 from lsst.ts.xml.enums.MTDome import (
+    Brake,
+    ControlMode,
     EnabledState,
     Louver,
     MotionState,
@@ -45,18 +47,6 @@ from lsst.ts.xml.enums.MTDome import (
 
 from . import __version__
 from .config_schema import CONFIG_SCHEMA
-
-# TODO OSW-1491 Remove backward compatibility with XML 24.3
-TWENTYFOUR_THREE = "24.3"
-TWENTYFOUR_FOUR = "24.4"
-try:
-    from lsst.ts.xml.enums.MTDome import Brake, ControlMode
-
-    XML_VERSION = TWENTYFOUR_FOUR
-except ImportError:
-    from lsst.ts.mtdomecom import Brake, ControlMode
-
-    XML_VERSION = TWENTYFOUR_THREE
 
 _KEYS_TO_REMOVE = {
     "status",
@@ -219,10 +209,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         await self.evt_louversEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
         await self.evt_shutterEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
 
-        # TODO OSW-1491 Remove backward compatibility with XML 24.3
-        if XML_VERSION == TWENTYFOUR_FOUR:
-            await self.evt_radEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
-            await self.evt_calibrationScreenEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+        await self.evt_radEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+        await self.evt_calibrationScreenEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
 
         # Report ENABLED and DISABLED louvers.
         louvers_motion_state: list[MotionState] = [MotionState.DISABLED] * mtdomecom.LCS_NUM_LOUVERS
@@ -232,11 +220,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             state=louvers_motion_state, inPosition=[True] * mtdomecom.LCS_NUM_LOUVERS
         )
 
-        # TODO OSW-1491 Remove backward compatibility with XML 24.3
-        if XML_VERSION == TWENTYFOUR_FOUR:
-            await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
-        else:
-            await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
         await self.evt_interlocks.set_write(interlocks=0)
         await self.evt_lockingPinsEngaged.set_write(engaged=0)
         await self.evt_powerManagementMode.set_write(mode=self.mtdome_com.power_management_mode)
@@ -711,9 +695,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.log_status_exception(status)
         else:
             control_mode = ControlMode[status["control_mode"]]
-            # TODO OSW-1491 Remove backward compatibility with XML 24.3
-            if XML_VERSION == TWENTYFOUR_FOUR:
-                await self.evt_controlMode.set_write(mode=control_mode.value)
+            await self.evt_controlMode.set_write(mode=control_mode.value)
 
     async def status_cscs(self, status: dict[str, typing.Any]) -> None:
         """CSCS status command.
@@ -889,11 +871,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         await self.evt_azMotion.set_write(state=motion_state, inPosition=in_position)
         await self.set_brakes_engaged_bit(motion_state, Brake.AMCS.value)
-        # TODO OSW-1491 Remove backward compatibility with XML 24.3
-        if XML_VERSION == TWENTYFOUR_FOUR:
-            await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
-        else:
-            await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
 
     async def _check_errors_and_send_events_el(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the light/windscreen (elevation
@@ -922,11 +900,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             in_position = True
         await self.evt_elMotion.set_write(state=motion_state, inPosition=in_position)
         await self.set_brakes_engaged_bit(motion_state, Brake.LWSCS.value)
-        # TODO OSW-1491 Remove backward compatibility with XML 24.3
-        if XML_VERSION == TWENTYFOUR_FOUR:
-            await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
-        else:
-            await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
 
     async def _check_errors_and_send_events_louvers(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the louvers.
@@ -974,11 +948,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             brake_index = Brake[f"LOUVER_{louver.name}"]
             await self.set_brakes_engaged_bit(translated_status, brake_index)
         await self.evt_louversMotion.set_write(state=motion_state, inPosition=in_position)
-        # TODO OSW-1491 Remove backward compatibility with XML 24.3
-        if XML_VERSION == TWENTYFOUR_FOUR:
-            await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
-        else:
-            await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
 
     async def _check_errors_and_send_events_shutter(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the aperture shutter.
@@ -1023,11 +993,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 brake_index = Brake.APSCS_RIGHT_DOOR
             await self.set_brakes_engaged_bit(translated_status, brake_index)
         await self.evt_shutterMotion.set_write(state=motion_state, inPosition=in_position)
-        # TODO OSW-1491 Remove backward compatibility with XML 24.3
-        if XML_VERSION == TWENTYFOUR_FOUR:
-            await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
-        else:
-            await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
 
     async def _check_errors_and_send_events_rad(self, llc_status: dict[str, typing.Any]) -> None:
         """Check errors and send events for the rear access door.
@@ -1042,15 +1008,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if self.rad_state != llc_status["status"]:
             self.rad_state = llc_status["status"]
             self.log.debug(f"RAD state now is {self.rad_state}")
-        # TODO OSW-1491 Remove backward compatibility with XML 24.3
-        if XML_VERSION == TWENTYFOUR_FOUR:
-            if len(messages) != 1 or codes[0] != 0:
-                fault_code = ", ".join(
-                    [f"{message['code']}={message['description']}" for message in messages]
-                )
-                await self.evt_radEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
-            else:
-                await self.evt_radEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+
+        if len(messages) != 1 or codes[0] != 0:
+            fault_code = ", ".join([f"{message['code']}={message['description']}" for message in messages])
+            await self.evt_radEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
+        else:
+            await self.evt_radEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
 
         statuses = llc_status["status"]
         motion_state: list[str] = []
@@ -1076,14 +1039,8 @@ class MTDomeCsc(salobj.ConfigurableCsc):
                 brake_index = Brake.RAD_RIGHT_DOOR
             await self.set_brakes_engaged_bit(translated_status, brake_index)
 
-        # TODO OSW-1491 Remove backward compatibility with XML 24.3
-        if XML_VERSION == TWENTYFOUR_FOUR:
-            await self.evt_radMotion.set_write(state=motion_state, inPosition=in_position)
-        # TODO OSW-1491 Remove backward compatibility with XML 24.3
-        if XML_VERSION == TWENTYFOUR_FOUR:
-            await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
-        else:
-            await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_radMotion.set_write(state=motion_state, inPosition=in_position)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
 
     async def _check_errors_and_send_events_calibration_screen(
         self, llc_status: dict[str, typing.Any]
@@ -1100,17 +1057,12 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if self.cscs_state != llc_status["status"]:
             self.cscs_state = llc_status["status"]
             self.log.debug(f"Calibration Screen state now is {self.cscs_state}")
-        # TODO OSW-1491 Remove backward compatibility with XML 24.3
-        if XML_VERSION == TWENTYFOUR_FOUR:
-            if len(messages) != 1 or codes[0] != 0:
-                fault_code = ", ".join(
-                    [f"{message['code']}={message['description']}" for message in messages]
-                )
-                await self.evt_calibrationScreenEnabled.set_write(
-                    state=EnabledState.FAULT, faultCode=fault_code
-                )
-            else:
-                await self.evt_calibrationScreenEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
+
+        if len(messages) != 1 or codes[0] != 0:
+            fault_code = ", ".join([f"{message['code']}={message['description']}" for message in messages])
+            await self.evt_calibrationScreenEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
+        else:
+            await self.evt_calibrationScreenEnabled.set_write(state=EnabledState.ENABLED, faultCode="")
 
         motion_state = self._translate_motion_state_if_necessary(llc_status["status"])
         in_position = False
@@ -1120,15 +1072,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         ]:
             in_position = True
 
-        # TODO OSW-1491 Remove backward compatibility with XML 24.3
-        if XML_VERSION == TWENTYFOUR_FOUR:
-            await self.evt_calibrationScreenMotion.set_write(state=motion_state, inPosition=in_position)
+        await self.evt_calibrationScreenMotion.set_write(state=motion_state, inPosition=in_position)
         await self.set_brakes_engaged_bit(motion_state, Brake.CSCS.value)
-        # TODO OSW-1491 Remove backward compatibility with XML 24.3
-        if XML_VERSION == TWENTYFOUR_FOUR:
-            await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
-        else:
-            await self.evt_brakesEngaged.set_write(brakes=self.brakes_engaged_bitmask)
+        await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
 
     def _translate_motion_state_if_necessary(self, state: str) -> MotionState:
         try:

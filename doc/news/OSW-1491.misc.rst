@@ -1,0 +1,1 @@
+Removed backward compatibility with XML 24.3.
