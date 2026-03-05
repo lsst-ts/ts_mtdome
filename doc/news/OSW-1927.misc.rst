@@ -1,0 +1,1 @@
+Actively cast louver positions to float values.

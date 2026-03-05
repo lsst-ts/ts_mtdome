@@ -376,19 +376,20 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
-        self.log.debug(f"do_setLouvers: {data.position=!s}")
+        position = [float(pos) for pos in data.position]
+        self.log.debug(f"do_setLouvers: {position=!s}")
         self.assert_enabled()
         assert self.mtdome_com is not None
         disabled_louvers: list[Louver] = []
-        for i, position in enumerate(data.position):
+        for i, pos in enumerate(position):
             louver = Louver(i + 1)
-            if louver not in self.mtdome_com.louvers_enabled and position > 0.0:
+            if louver not in self.mtdome_com.louvers_enabled and pos > 0.0:
                 disabled_louvers.append(louver)
         if len(disabled_louvers) > 0:
             raise salobj.ExpectedError(
                 f"The following louvers are not enabled and should not be commanded: {disabled_louvers}"
             )
-        await self.call_method(method=self.mtdome_com.set_louvers, position=data.position)
+        await self.call_method(method=self.mtdome_com.set_louvers, position=position)
 
     async def do_closeLouvers(self, data: salobj.BaseMsgType) -> None:
         """Close Louvers.
