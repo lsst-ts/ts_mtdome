@@ -118,7 +118,9 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     mtdomecom.CommandName.EXIT_FAULT,
                     "home",
                     mtdomecom.CommandName.SET_ZERO_AZ,
+                    mtdomecom.CommandName.CALIBRATE_EL,
                     mtdomecom.CommandName.RESET_DRIVES_AZ,
+                    mtdomecom.CommandName.RESET_DRIVES_EL,
                     mtdomecom.CommandName.RESET_DRIVES_LOUVERS,
                     mtdomecom.CommandName.RESET_DRIVES_SHUTTER,
                     "setOperationalMode",
@@ -1246,6 +1248,59 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             amcs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.AMCS.value]
             assert amcs_status["positionActual"] == pytest.approx(328.0)
             assert amcs_status["status"]["status"] == MotionState.STOPPED.name
+
+    async def test_calibrateEl(self) -> None:
+        async with self.make_csc(
+            initial_state=salobj.State.STANDBY,
+            config_dir=CONFIG_DIR,
+            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+        ):
+            await self.set_csc_to_enabled()
+
+            # TODO OSW-1949 Remove backward compatibility with XML 26.0.
+            if not hasattr(self.csc, "do_calibrateEl"):
+                return
+
+            # Set the TAI time in the mock controller for easier control
+            self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
+
+            await self.assert_next_sample(
+                topic=self.remote.evt_elMotion,
+                state=MotionState.STOPPED,
+                inPosition=True,
+            )
+
+            desired_position = 20.0
+            await self.remote.cmd_moveEl.set_start(
+                position=desired_position,
+                timeout=STD_TIMEOUT,
+            )
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.MOVE_EL)
+            await self.assert_next_sample(topic=self.remote.evt_elTarget, position=desired_position)
+
+            # Give some time to the mock device to move.
+            self.csc.mtdome_com.mock_ctrl.current_tai = self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            self.csc.mtdome_com.mock_ctrl.lwscs.current_state = MotionState.MOVING.name
+
+            # Now also check the elMotion event.
+            await self.csc.mtdome_com.status_lwscs()
+            lwscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.LWSCS.value]
+            assert lwscs_status["status"]["status"] == MotionState.MOVING.name
+
+            self.csc.mtdome_com.mock_ctrl.current_tai = self.csc.mtdome_com.mock_ctrl.current_tai + 12.0
+            await self.csc.mtdome_com.status_lwscs()
+            lwscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.LWSCS.value]
+            assert lwscs_status["positionActual"] == pytest.approx(20.0)
+            assert lwscs_status["status"]["status"] == MotionState.STOPPED.name
+
+            await self.remote.cmd_calibrateEl.set_start()
+            await self.assert_command_replied(cmd="calibrateEl")
+
+            self.csc.mtdome_com.mock_ctrl.current_tai = self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+            await self.csc.mtdome_com.status_lwscs()
+            lwcs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.LWSCS.value]
+            assert lwcs_status["positionActual"] == pytest.approx(0.0)
+            assert lwcs_status["status"]["status"] == mtdomecom.InternalMotionState.STATIONARY.name
 
     async def test_homeShutter(self) -> None:
         async with self.make_csc(

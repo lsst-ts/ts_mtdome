@@ -112,8 +112,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.config: SimpleNamespace | None = None
         self.start_periodic_tasks = start_periodic_tasks
 
-        setattr(self, "do_resetDrivesLouvers", self._do_resetDrivesLouvers)
-
+        # TODO OSW-1949 Remove backward compatibility with XML 26.0.
         super().__init__(
             name="MTDome",
             index=0,
@@ -122,6 +121,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             initial_state=initial_state,
             simulation_mode=simulation_mode,
             override=override,
+            extra_commands={"do_calibrateEl", "do_resetDrivesEl"},
         )
 
         # MTDome TCP/IP communicator.
@@ -376,19 +376,20 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         data : `salobj.BaseMsgType`
             Contains the data as defined in the SAL XML file.
         """
-        self.log.debug(f"do_setLouvers: {data.position=!s}")
+        position = [float(pos) for pos in data.position]
+        self.log.debug(f"do_setLouvers: {position=!s}")
         self.assert_enabled()
         assert self.mtdome_com is not None
         disabled_louvers: list[Louver] = []
-        for i, position in enumerate(data.position):
+        for i, pos in enumerate(position):
             louver = Louver(i + 1)
-            if louver not in self.mtdome_com.louvers_enabled and position > 0.0:
+            if louver not in self.mtdome_com.louvers_enabled and pos > 0.0:
                 disabled_louvers.append(louver)
         if len(disabled_louvers) > 0:
             raise salobj.ExpectedError(
                 f"The following louvers are not enabled and should not be commanded: {disabled_louvers}"
             )
-        await self.call_method(method=self.mtdome_com.set_louvers, position=data.position)
+        await self.call_method(method=self.mtdome_com.set_louvers, position=position)
 
     async def do_closeLouvers(self, data: salobj.BaseMsgType) -> None:
         """Close Louvers.
@@ -492,7 +493,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
     async def do_resetDrivesAz(self, data: salobj.BaseMsgType) -> None:
         """Reset one or more AZ drives. This is necessary when exiting from
-        FAULT state without going to Degraded Mode since the drives don't reset
+        FAULT state without going to DEGRADED_MODE since the drives don't reset
         themselves.
 
         Parameters
@@ -506,9 +507,25 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         assert self.mtdome_com is not None
         await self.call_method(method=self.mtdome_com.reset_drives_az, reset=reset_ints)
 
+    async def do_resetDrivesEl(self, data: salobj.BaseMsgType) -> None:
+        """Reset one or more EL drives. This is necessary when exiting from
+        FAULT state without going to DEGRADED_MODE since the drives don't reset
+        themselves.
+
+        Parameters
+        ----------
+        data : `salobj.BaseMsgType`
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        reset_ints = [int(value) for value in data.reset]
+        self.log.debug(f"do_resetDrivesEl: reset={reset_ints}")
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.reset_drives_el, reset=reset_ints)
+
     async def do_resetDrivesShutter(self, data: salobj.BaseMsgType) -> None:
         """Reset one or more Aperture Shutter drives. This is necessary when
-        exiting from FAULT state without going to Degraded Mode since the
+        exiting from FAULT state without going to DEGRADED_MODE since the
         drives don't reset themselves.
 
         Parameters
@@ -522,9 +539,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         assert self.mtdome_com is not None
         await self.call_method(method=self.mtdome_com.reset_drives_shutter, reset=reset_ints)
 
-    async def _do_resetDrivesLouvers(self, data: salobj.BaseMsgType) -> None:
+    async def do_resetDrivesLouvers(self, data: salobj.BaseMsgType) -> None:
         """Reset one or more Louver drives. This is necessary when
-        exiting from FAULT state without going to Degraded Mode since the
+        exiting from FAULT state without going to DEGRADED_MODE since the
         drives don't reset themselves.
 
         Parameters
@@ -552,6 +569,21 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.assert_enabled()
         assert self.mtdome_com is not None
         await self.call_method(method=self.mtdome_com.set_zero_az)
+
+    async def do_calibrateEl(self, data: salobj.BaseMsgType) -> None:
+        """Move both EL drives towards zero until the limit switches engage.
+
+        This may be necessary to avoid skew in the light/windscreen panels.
+
+        Parameters
+        ----------
+        data : `salobj.BaseMsgType`
+            Contains the data as defined in the SAL XML file.
+        """
+        self.log.debug("do_calibrateEl")
+        self.assert_enabled()
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.calibrate_el)
 
     async def do_home(self, data: salobj.BaseMsgType) -> None:
         """Search the home position of the Aperture Shutter indicated by the
