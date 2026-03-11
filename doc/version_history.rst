@@ -8,6 +8,21 @@ Version History
 
 .. towncrier release notes start
 
+v2.4.0 (2026-03-11)
+===================
+
+New Features
+------------
+
+- Added support for the resetDrivesEl and calibrateEl command. (`OSW-1927 <https://rubinobs.atlassian.net//browse/OSW-1927>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Actively cast louver positions to float values. (`OSW-1927 <https://rubinobs.atlassian.net//browse/OSW-1927>`_)
+
+
 v2.3.0 (2026-02-25)
 ===================
 
