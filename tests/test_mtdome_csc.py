@@ -295,10 +295,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # Set the mock device status TAI time to the mock controller time
             # for easier control
             self.csc.mtdome_com.mock_ctrl.lwscs.command_time_tai = self.csc.mtdome_com.mock_ctrl.current_tai
+            # Set LWSCS state to skip most of the startup states.
+            self.csc.mtdome_com.mock_ctrl.lwscs.current_state = MotionState.MOVING.name
 
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
-                state=MotionState.STOPPED,
+                state=MotionState.STOPPED_BRAKED,
                 inPosition=True,
             )
 
@@ -378,10 +380,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # First the AMCS needs to be moving before it can be stopped.
             desired_position = 40
-            desired_velocity = 0.1
-            await self.remote.cmd_moveAz.set_start(
+            await self.remote.cmd_moveEl.set_start(
                 position=desired_position,
-                velocity=desired_velocity,
                 timeout=STD_TIMEOUT,
             )
 
@@ -389,10 +389,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
-                state=MotionState.STOPPED,
+                state=MotionState.STOPPED_BRAKED,
                 inPosition=True,
             )
             await self.assert_command_replied(cmd=mtdomecom.CommandName.MOVE_EL)
+            await self.assert_command_replied(cmd=mtdomecom.CommandName.STOP_EL)
 
     async def test_do_stop(self) -> None:
         async with self.make_csc(
@@ -454,7 +455,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.csc.mtdome_com.status_lwscs()
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
-                state=MotionState.STOPPED,
+                state=MotionState.STOPPED_BRAKED,
                 inPosition=True,
             )
 
@@ -514,10 +515,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # Set the mock device status TAI time to the mock controller time
             # for easier control
             self.csc.mtdome_com.mock_ctrl.lwscs.command_time_tai = self.csc.mtdome_com.mock_ctrl.current_tai
+            # Set LWSCS state to skip most of the startup states.
+            self.csc.mtdome_com.mock_ctrl.lwscs.current_state = MotionState.MOVING.name
 
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
-                state=MotionState.STOPPED,
+                state=MotionState.STOPPED_BRAKED,
                 inPosition=True,
             )
 
@@ -537,11 +540,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             # Now also check the elMotion event.
             await self.csc.mtdome_com.status_lwscs()
             lwscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.LWSCS.value]
-            assert lwscs_status["status"]["status"] == MotionState.CRAWLING.name
+            assert lwscs_status["status"]["status"] == MotionState.MOVING.name
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
-                state=MotionState.CRAWLING,
-                inPosition=True,
+                state=MotionState.MOVING,
+                inPosition=False,
             )
 
     async def test_do_setLouvers(self) -> None:
@@ -1004,11 +1007,11 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.csc.mtdome_com.status_lwscs()
             lwscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.LWSCS.value]
-            assert lwscs_status["status"]["status"] == MotionState.STOPPED.name
+            assert lwscs_status["status"]["status"] == mtdomecom.InternalMotionState.STATIONARY.name
             assert lwscs_status["positionActual"] == 0
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
-                state=MotionState.STOPPED,
+                state=MotionState.STOPPED_BRAKED,
                 inPosition=True,
             )
             await self.check_brakes_event()
@@ -1263,10 +1266,12 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
             # Set the TAI time in the mock controller for easier control
             self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
+            # Set LWSCS state to skip most of the startup states.
+            self.csc.mtdome_com.mock_ctrl.lwscs.current_state = MotionState.MOVING.name
 
             await self.assert_next_sample(
                 topic=self.remote.evt_elMotion,
-                state=MotionState.STOPPED,
+                state=MotionState.STOPPED_BRAKED,
                 inPosition=True,
             )
 
