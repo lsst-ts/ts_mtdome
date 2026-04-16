@@ -1,0 +1,1 @@
+Adopted unit test cases to the new LWSCS state machine.
