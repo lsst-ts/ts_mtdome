@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v2.4.1 (2026-04-16)
+===================
+
+Performance Enhancement
+-----------------------
+
+- Adopted unit test cases to the new LWSCS state machine. (`OSW-2170 <https://rubinobs.atlassian.net//browse/OSW-2170>`_)
+
+
 v2.4.0 (2026-03-11)
 ===================
 
