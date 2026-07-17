@@ -1262,10 +1262,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         ):
             await self.set_csc_to_enabled()
 
-            # TODO OSW-1949 Remove backward compatibility with XML 26.0.
-            if not hasattr(self.csc, "do_calibrateEl"):
-                return
-
             # Set the TAI time in the mock controller for easier control
             self.csc.mtdome_com.mock_ctrl.current_tai = utils.current_tai()
             # Set LWSCS state to skip most of the startup states.

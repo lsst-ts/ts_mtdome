@@ -35,7 +35,6 @@ from lsst.ts.mtdomecom.enums import (
     ValidSimulationMode,
     motion_state_translations,
 )
-from lsst.ts.xml.component_info import ComponentInfo
 from lsst.ts.xml.enums.MTDome import (
     Brake,
     ControlMode,
@@ -112,13 +111,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     ) -> None:
         self.config: SimpleNamespace | None = None
         self.start_periodic_tasks = start_periodic_tasks
-
-        # TODO OSW-1949 Remove backward compatibility with XML 26.0.
-        component_info = ComponentInfo(name="MTDome", topic_subname=None)
-        if "cmd_calibrateEl" in component_info.topics:
-            self.do_calibrateEl = self._do_calibrateEl
-        if "cmd_resetDrivesEl" in component_info.topics:
-            self.do_resetDrivesEl = self._do_resetDrivesEl
 
         super().__init__(
             name="MTDome",
@@ -513,7 +505,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         assert self.mtdome_com is not None
         await self.call_method(method=self.mtdome_com.reset_drives_az, reset=reset_ints)
 
-    async def _do_resetDrivesEl(self, data: salobj.BaseMsgType) -> None:
+    async def do_resetDrivesEl(self, data: salobj.BaseMsgType) -> None:
         """Reset one or more EL drives. This is necessary when exiting from
         FAULT state without going to DEGRADED_MODE since the drives don't reset
         themselves.
@@ -576,7 +568,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         assert self.mtdome_com is not None
         await self.call_method(method=self.mtdome_com.set_zero_az)
 
-    async def _do_calibrateEl(self, data: salobj.BaseMsgType) -> None:
+    async def do_calibrateEl(self, data: salobj.BaseMsgType) -> None:
         """Move both EL drives towards zero until the limit switches engage.
 
         This may be necessary to avoid skew in the light/windscreen panels.
