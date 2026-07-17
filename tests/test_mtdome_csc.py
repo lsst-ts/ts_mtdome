@@ -53,6 +53,8 @@ CONFIG_DIR = pathlib.Path(__file__).parent / "data" / "config"
 
 
 class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
+    _randomize_topic_subname = True
+
     def basic_make_csc(
         self,
         initial_state: salobj.State,
