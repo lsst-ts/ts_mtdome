@@ -597,105 +597,159 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
             await self.remote.cmd_stop.set_start(engageBrakes=False, subSystemIds=SubSystemId.LCS)
 
-    async def test_do_openShutter(self) -> None:
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY,
-            config_dir=CONFIG_DIR,
-            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
-        ):
-            await self.set_csc_to_enabled()
+    async def _open_shutters(self) -> None:
+        # Set the TAI time in the controller for easier control.
+        self.csc.mtdome_com.mock_ctrl.current_tai = 1000
 
-            # Set the TAI time in the mock controller for easier control
-            self.csc.mtdome_com.mock_ctrl.current_tai = 1000
+        await self.remote.cmd_openShutter.set_start()
+        await self.assert_command_replied(cmd=mtdomecom.CommandName.OPEN_SHUTTER)
 
-            await self.remote.cmd_openShutter.set_start()
-            await self.assert_command_replied(cmd=mtdomecom.CommandName.OPEN_SHUTTER)
+        self.csc.mtdome_com.mock_ctrl.current_tai = self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+        await self.csc.mtdome_com.status_apscs()
+        apscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.APSCS.value]
+        assert apscs_status["status"]["status"] == [
+            MotionState.LP_DISENGAGING.name,
+            MotionState.LP_DISENGAGING.name,
+        ]
+        assert (
+            apscs_status["positionActual"] == [mtdomecom.APSCS_CLOSED_POSITION] * mtdomecom.APSCS_NUM_SHUTTERS
+        )
 
-            self.csc.mtdome_com.mock_ctrl.current_tai = self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
-            await self.csc.mtdome_com.status_apscs()
-            apscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.APSCS.value]
-            assert apscs_status["status"]["status"] == [
-                MotionState.LP_DISENGAGING.name,
-                MotionState.LP_DISENGAGING.name,
-            ]
+    async def _validate_aperture_status_at_time(
+        self, time: float, state_to_set: MotionState, expected_state: MotionState, expected_position: float
+    ) -> None:
+        self.csc.mtdome_com.mock_ctrl.current_tai = self.csc.mtdome_com.mock_ctrl.current_tai + float(time)
+        self.csc.mtdome_com.mock_ctrl.apscs.current_state = [state_to_set.name] * mtdomecom.APSCS_NUM_SHUTTERS
+        await self.csc.mtdome_com.status_apscs()
+        apscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.APSCS.value]
+        assert apscs_status["status"]["status"] == [expected_state.name, expected_state.name]
+        assert apscs_status["positionActual"] == [expected_position] * mtdomecom.APSCS_NUM_SHUTTERS
 
-            self.csc.mtdome_com.mock_ctrl.current_tai = self.csc.mtdome_com.mock_ctrl.current_tai + 10.1
-            self.csc.mtdome_com.mock_ctrl.apscs.current_state = [
-                MotionState.OPENING.name
-            ] * mtdomecom.APSCS_NUM_SHUTTERS
-            await self.csc.mtdome_com.status_apscs()
-            apscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.APSCS.value]
-            assert apscs_status["status"]["status"] == [
-                MotionState.PROXIMITY_OPEN_LS_ENGAGED.name,
-                MotionState.PROXIMITY_OPEN_LS_ENGAGED.name,
-            ]
+    async def test_open_and_close_shutter_with_and_without_power_off(self) -> None:
+        for switch_motors_off in [False, True]:
+            with self.subTest(switch_motors_off=switch_motors_off):
+                async with self.make_csc(
+                    initial_state=salobj.State.STANDBY,
+                    config_dir=CONFIG_DIR,
+                    simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+                ):
+                    await self.set_csc_to_enabled()
+                    await self._open_shutters()
 
-    async def test_do_closeShutter(self) -> None:
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY,
-            config_dir=CONFIG_DIR,
-            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
-        ):
-            await self.set_csc_to_enabled()
+                    await self._validate_aperture_status_at_time(
+                        10.1,
+                        MotionState.OPENING,
+                        MotionState.PROXIMITY_OPEN_LS_ENGAGED,
+                        mtdomecom.APSCS_OPEN_POSITION,
+                    )
 
-            start_tai = 1000
+                    self.csc.mtdome_com.mock_ctrl.current_tai = (
+                        self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
+                    )
+                    for expected_state in [
+                        MotionState.FINAL_UP_OPEN_LS_ENGAGED.name,
+                        MotionState.FINAL_LOW_OPEN_LS_ENGAGED.name,
+                        MotionState.STOPPING.name,
+                        MotionState.STOPPED.name,
+                        MotionState.ENGAGING_BRAKES.name,
+                        MotionState.BRAKES_ENGAGED.name,
+                        MotionState.GO_STATIONARY.name,
+                        MotionState.DISABLING_MOTOR_POWER.name,
+                        MotionState.MOTOR_POWER_OFF.name,
+                        MotionState.OPEN.name,
+                    ]:
+                        await self.csc.mtdome_com.status_apscs()
+                        apscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.APSCS.value]
+                        assert apscs_status["status"]["status"] == [expected_state, expected_state]
+                        assert (
+                            apscs_status["positionActual"]
+                            == [mtdomecom.APSCS_OPEN_POSITION] * mtdomecom.APSCS_NUM_SHUTTERS
+                        )
 
-            self.csc.mtdome_com.mock_ctrl.apscs.position_actual = np.full(
-                mtdomecom.APSCS_NUM_SHUTTERS, 100.0, dtype=float
-            )
-            self.csc.mtdome_com.mock_ctrl.apscs.start_state = [
-                MotionState.OPEN.name,
-                MotionState.OPEN.name,
-            ]
-            self.csc.mtdome_com.mock_ctrl.apscs.current_state = [
-                MotionState.OPEN.name,
-                MotionState.OPEN.name,
-            ]
-            self.csc.mtdome_com.mock_ctrl.apscs.target_state = [
-                MotionState.OPEN.name,
-                MotionState.OPEN.name,
-            ]
+                    assert self.csc.mtdome_com is not None
+                    self.csc.mtdome_com.mock_ctrl.apscs.motors_powered_off = [
+                        switch_motors_off,
+                        switch_motors_off,
+                    ]
 
-            # Set the TAI time in the mock controller for easier control
-            self.csc.mtdome_com.mock_ctrl.current_tai = start_tai
+                    await self.remote.cmd_closeShutter.set_start()
+                    await self.assert_command_replied(cmd=mtdomecom.CommandName.CLOSE_SHUTTER)
 
-            await self.remote.cmd_closeShutter.set_start()
-            await self.assert_command_replied(cmd=mtdomecom.CommandName.CLOSE_SHUTTER)
+                    await self.csc.mtdome_com.status_apscs()
+                    apscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.APSCS.value]
+                    assert apscs_status["status"]["status"] == [
+                        MotionState.ENABLING_MOTOR_POWER.name,
+                        MotionState.ENABLING_MOTOR_POWER.name,
+                    ]
+                    assert (
+                        apscs_status["positionActual"]
+                        == [mtdomecom.APSCS_OPEN_POSITION] * mtdomecom.APSCS_NUM_SHUTTERS
+                    )
 
-            self.csc.mtdome_com.mock_ctrl.current_tai = self.csc.mtdome_com.mock_ctrl.current_tai + 0.1
-            await self.csc.mtdome_com.status_apscs()
-            apscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.APSCS.value]
-            assert apscs_status["status"]["status"] == [
-                MotionState.LP_DISENGAGING.name,
-                MotionState.LP_DISENGAGING.name,
-            ]
+                    # Swtich the motors on in case they were switched off.
+                    self.csc.mtdome_com.mock_ctrl.apscs.motors_powered_off = [False, False]
 
-            self.csc.mtdome_com.mock_ctrl.current_tai = self.csc.mtdome_com.mock_ctrl.current_tai + 10.1
-            self.csc.mtdome_com.mock_ctrl.apscs.current_state = [
-                MotionState.OPENING.name
-            ] * mtdomecom.APSCS_NUM_SHUTTERS
-            await self.csc.mtdome_com.status_apscs()
-            apscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.APSCS.value]
-            assert apscs_status["status"]["status"] == [
-                MotionState.PROXIMITY_CLOSED_LS_ENGAGED.name,
-                MotionState.PROXIMITY_CLOSED_LS_ENGAGED.name,
-            ]
-            telemetry = await self.assert_next_sample(topic=self.remote.tel_apertureShutter)
-            assert math.isclose(telemetry.positionActual[0], 0.0)
-            assert math.isclose(telemetry.positionActual[1], 0.0)
-            # Assert there are no -0.0 values.
-            assert math.copysign(1, telemetry.positionActual[0]) > 0
-            assert math.copysign(1, telemetry.positionActual[1]) > 0
+                    await self._validate_aperture_status_at_time(
+                        10.1,
+                        MotionState.CLOSING,
+                        MotionState.PROXIMITY_CLOSED_LS_ENGAGED,
+                        mtdomecom.APSCS_CLOSED_POSITION,
+                    )
+                    self.csc.mtdome_com.mock_ctrl.current_tai = (
+                        self.csc.mtdome_com.mock_ctrl.current_tai + 10.1
+                    )
+                    self.csc.mtdome_com.mock_ctrl.apscs.current_state = [
+                        MotionState.CLOSING.name
+                    ] * mtdomecom.APSCS_NUM_SHUTTERS
+                    await self.csc.mtdome_com.status_apscs()
+                    apscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.APSCS.value]
+                    assert apscs_status["status"]["status"] == [
+                        MotionState.PROXIMITY_CLOSED_LS_ENGAGED.name,
+                        MotionState.PROXIMITY_CLOSED_LS_ENGAGED.name,
+                    ]
 
-    async def test_do_stopShutter(self) -> None:
-        async with self.make_csc(
-            initial_state=salobj.State.STANDBY,
-            config_dir=CONFIG_DIR,
-            simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
-        ):
-            await self.set_csc_to_enabled()
-            await self.remote.cmd_stop.set_start(engageBrakes=False, subSystemIds=SubSystemId.APSCS)
-            await self.assert_command_replied(cmd="stop")
+                    # Get the latest telemetry values. This way, the telemetry
+                    # doesn't need to be requested via salobj.
+                    telemetry = self.csc.tel_apertureShutter.data
+                    assert math.isclose(telemetry.positionActual[0], mtdomecom.APSCS_CLOSED_POSITION)
+                    assert math.isclose(telemetry.positionActual[1], mtdomecom.APSCS_CLOSED_POSITION)
+                    # Assert there are no -0.0 values.
+                    assert math.copysign(1, telemetry.positionActual[0]) > 0
+                    assert math.copysign(1, telemetry.positionActual[1]) > 0
+
+    async def test_do_stopShutter_with_and_without_power_off(self) -> None:
+        expected_stop_position = 52.0
+        for switch_motors_off in [False, True]:
+            with self.subTest(switch_motors_off=switch_motors_off):
+                async with self.make_csc(
+                    initial_state=salobj.State.STANDBY,
+                    config_dir=CONFIG_DIR,
+                    simulation_mode=mtdomecom.ValidSimulationMode.SIMULATION_WITH_MOCK_CONTROLLER,
+                ):
+                    await self.set_csc_to_enabled()
+                    await self._open_shutters()
+
+                    await self._validate_aperture_status_at_time(
+                        5.1, MotionState.OPENING, MotionState.OPENING, expected_stop_position
+                    )
+
+                    await self.remote.cmd_stop.set_start(engageBrakes=False, subSystemIds=SubSystemId.APSCS)
+                    await self.assert_command_replied(cmd="stop")
+                    await self._validate_aperture_status_at_time(
+                        0.1, MotionState.STOPPED, MotionState.STOPPED, expected_stop_position
+                    )
+
+                    assert self.csc.mtdome_com is not None
+                    self.csc.mtdome_com.mock_ctrl.apscs.motors_powered_off = [
+                        switch_motors_off,
+                        switch_motors_off,
+                    ]
+
+                    await self.remote.cmd_closeShutter.set_start()
+                    await self.assert_command_replied(cmd=mtdomecom.CommandName.CLOSE_SHUTTER)
+                    await self._validate_aperture_status_at_time(
+                        0.0, MotionState.CLOSING, MotionState.CLOSING, expected_stop_position
+                    )
 
     async def test_do_park(self) -> None:
         async with self.make_csc(
