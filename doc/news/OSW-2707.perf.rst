@@ -1,1 +1,0 @@
-Moved code correcting incorrect shutter positions from ts_mtdome to ts_mtdomecom.
