@@ -8,6 +8,22 @@ Version History
 
 .. towncrier release notes start
 
+v2.5.0 (2026-07-20)
+===================
+
+New Features
+------------
+
+- Ensured sensible aperture shutter position values, even if the control software doesn't provide them. (`OSW-2678 <https://rubinobs.atlassian.net//browse/OSW-2678>`_)
+
+
+Performance Enhancement
+-----------------------
+
+- Removed backward compatibility with XML 26.0. (`OSW-2678 <https://rubinobs.atlassian.net//browse/OSW-2678>`_)
+- Ensured random test topic subnames. (`OSW-2678 <https://rubinobs.atlassian.net//browse/OSW-2678>`_)
+
+
 v2.4.1 (2026-04-16)
 ===================
 
