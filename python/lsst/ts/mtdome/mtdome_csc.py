@@ -35,7 +35,6 @@ from lsst.ts.mtdomecom.enums import (
     ValidSimulationMode,
     motion_state_translations,
 )
-from lsst.ts.xml.component_info import ComponentInfo
 from lsst.ts.xml.enums.MTDome import (
     Brake,
     ControlMode,
@@ -57,6 +56,9 @@ _KEYS_TO_REMOVE = {
 
 # Time [s] to sleep after an exception in a status command.
 EXCEPTION_SLEEP_TIME = 1.0
+
+# A slightly smaller than zero threshold taking jitter into account.
+SHUTTER_POSITION_THRESHOLD = -0.001
 
 
 def run_mtdome() -> None:
@@ -113,13 +115,6 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         self.config: SimpleNamespace | None = None
         self.start_periodic_tasks = start_periodic_tasks
 
-        # TODO OSW-1949 Remove backward compatibility with XML 26.0.
-        component_info = ComponentInfo(name="MTDome", topic_subname=None)
-        if "cmd_calibrateEl" in component_info.topics:
-            self.do_calibrateEl = self._do_calibrateEl
-        if "cmd_resetDrivesEl" in component_info.topics:
-            self.do_resetDrivesEl = self._do_resetDrivesEl
-
         super().__init__(
             name="MTDome",
             index=0,
@@ -156,6 +151,9 @@ class MTDomeCsc(salobj.ConfigurableCsc):
 
         # Unit tests may set this to False for additional checks.
         self.set_mtdomecom_to_none = True
+
+        # Keep track of the shutter positions in case they reset to 0.
+        self.last_seen_shutter_positions: list[float] = [0.0, 0.0]
 
         self.log.info("DomeCsc constructed.")
 
@@ -513,7 +511,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         assert self.mtdome_com is not None
         await self.call_method(method=self.mtdome_com.reset_drives_az, reset=reset_ints)
 
-    async def _do_resetDrivesEl(self, data: salobj.BaseMsgType) -> None:
+    async def do_resetDrivesEl(self, data: salobj.BaseMsgType) -> None:
         """Reset one or more EL drives. This is necessary when exiting from
         FAULT state without going to DEGRADED_MODE since the drives don't reset
         themselves.
@@ -576,7 +574,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         assert self.mtdome_com is not None
         await self.call_method(method=self.mtdome_com.set_zero_az)
 
-    async def _do_calibrateEl(self, data: salobj.BaseMsgType) -> None:
+    async def do_calibrateEl(self, data: salobj.BaseMsgType) -> None:
         """Move both EL drives towards zero until the limit switches engage.
 
         This may be necessary to avoid skew in the light/windscreen panels.
@@ -823,19 +821,81 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         topic: SAL topic
             The SAL topic to publish the telemetry to.
         """
-        assert self.mtdome_com is not None
-
         # Send the operational mode event.
         await self._send_operational_mode_event(llc_name=llc_name, status=status)
 
         if "exception" not in status:
+            if llc_name == LlcName.APSCS:
+                status = await self._correct_shutter_positions_if_necessary(status)
+
             # Send the telemetry.
+            assert self.mtdome_com is not None
             telemetry = self.mtdome_com.remove_keys_from_dict(status, _KEYS_TO_REMOVE)
             await topic.set_write(**telemetry)
 
             await self._check_errors_and_send_events(llc_name=llc_name, llc_status=status["status"])
         else:
             await self._handle_command_exception(status)
+
+    async def _correct_shutter_positions_if_necessary(
+        self, status: dict[str, typing.Any]
+    ) -> dict[str, typing.Any]:
+        """Correct the shutter positions in case there is a jump due to motor
+        power loss.
+
+        This will lead to the shutter positions resetting to zero while they
+        should be at the same position as before.
+
+        Parameters
+        ----------
+        status : `dict` [ `str`, `typing.Any` ]
+            A dictionary containing status data, which includes the shutter
+            positions.
+
+        Returns
+        -------
+        dict[str, typing.Any]
+            A dictionary representing the corrected status data.
+        """
+
+        self.log.debug(f"{status['positionActual']=}, {self.last_seen_shutter_positions=}")
+        for i in range(2):
+            if status["status"]["status"][i] in [
+                MotionState.PROXIMITY_OPEN_LS_ENGAGED.name,
+                MotionState.FINAL_UP_OPEN_LS_ENGAGED.name,
+                MotionState.FINAL_LOW_OPEN_LS_ENGAGED.name,
+                MotionState.STOPPING.name,
+                MotionState.STOPPED.name,
+                MotionState.ENGAGING_BRAKES.name,
+                MotionState.BRAKES_ENGAGED.name,
+                MotionState.GO_STATIONARY.name,
+                MotionState.DISABLING_MOTOR_POWER.name,
+                MotionState.MOTOR_POWER_OFF.name,
+                MotionState.OPEN.name,
+            ]:
+                if status["positionActual"][i] > SHUTTER_POSITION_THRESHOLD:
+                    self.last_seen_shutter_positions[i] = status["positionActual"][i]
+        for i in range(2):
+            if (
+                status["status"]["status"][i]
+                in [
+                    MotionState.ENABLING_MOTOR_POWER.name,
+                    MotionState.MOTOR_POWER_ON.name,
+                    MotionState.GO_NORMAL.name,
+                    MotionState.DISENGAGING_BRAKES.name,
+                    MotionState.BRAKES_DISENGAGED.name,
+                    MotionState.CLOSING.name,
+                ]
+                and status["positionActual"][i] == mtdomecom.APSCS_CLOSED_POSITION
+            ) or status["positionActual"][i] < SHUTTER_POSITION_THRESHOLD:
+                # The positionActual here is negative, so we need to subtract
+                # the absolute value.
+                status["positionActual"][i] = self.last_seen_shutter_positions[i] - math.fabs(
+                    status["positionActual"][i]
+                )
+                self.log.debug(f"Corrected positionActual[{i}]={status['positionActual'][i]}")
+
+        return status
 
     async def _send_operational_mode_event(self, llc_name: LlcName, status: dict[str, typing.Any]) -> None:
         if "status" in status and "operationalMode" in status["status"]:

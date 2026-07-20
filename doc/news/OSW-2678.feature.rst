@@ -1,0 +1,1 @@
+Ensured sensible aperture shutter position values, even if the control software doesn't provide them.
