@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v2.5.1 (2026-07-21)
+===================
+
+Performance Enhancement
+-----------------------
+
+- Moved code correcting incorrect shutter positions from ts_mtdome to ts_mtdomecom. (`OSW-2707 <https://rubinobs.atlassian.net//browse/OSW-2707>`_)
+
+
 v2.5.0 (2026-07-20)
 ===================
 
