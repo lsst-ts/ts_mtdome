@@ -36,6 +36,7 @@ from lsst.ts.mtdomecom.enums import (
     ValidSimulationMode,
     motion_state_translations,
 )
+from lsst.ts.xml.component_info import ComponentInfo
 from lsst.ts.xml.enums.MTDome import (
     Brake,
     ControlMode,
@@ -112,6 +113,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     ) -> None:
         self.config: SimpleNamespace | None = None
         self.start_periodic_tasks = start_periodic_tasks
+
+        # TODO OSW-2451 Remove backward compatibility.
+        ci = ComponentInfo("MTDome", "")
+        if "cmd_setPhotocellShutter" in ci.topics:
+            self.do_setPhotocellShutter = self._do_setPhotocellShutter
 
         super().__init__(
             name="MTDome",
@@ -641,6 +647,19 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         assert self.mtdome_com is not None
         await self.call_method(method=self.mtdome_com.inflate, action=data.action)
 
+    async def _do_setPhotocellShutter(self, data: salobj.BaseMsgType) -> None:
+        """Switch on or off the shutter photocell.
+
+        Parameters
+        ----------
+        data : `salobj.BaseMsgType`
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        self.log.debug(f"do_setPhotocellShutter: {data.action=!s}")
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.set_photocell_shutter, action=data.action)
+
     async def do_setPowerManagementMode(self, data: salobj.BaseMsgType) -> None:
         """Set the power management mode.
 
@@ -1049,7 +1068,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if self.apscs_state != llc_status["status"]:
             self.apscs_state = llc_status["status"]
             self.log.debug(f"ApSCS state now is {self.apscs_state}")
-        if len(messages) != 1 or codes[0] != 0:
+        if len(messages) != 1 or codes[0] not in [
+            mtdomecom.ResponseCode.OK,
+            mtdomecom.ResponseCode.PHOTOCELLS_CODE,
+        ]:
             fault_code = ", ".join([f"{message['code']}={message['description']}" for message in messages])
             await self.evt_shutterEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
         else:
