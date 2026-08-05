@@ -108,6 +108,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     mtdomecom.CommandName.OPEN_SHUTTER,
                     mtdomecom.CommandName.CLOSE_SHUTTER,
                     mtdomecom.CommandName.STOP_SHUTTER,
+                    mtdomecom.CommandName.SET_PHOTOCELL_SHUTTER,
                     mtdomecom.CommandName.PARK,
                     "goStationary",
                     mtdomecom.CommandName.GO_STATIONARY_AZ,
@@ -118,7 +119,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                     mtdomecom.CommandName.FANS,
                     mtdomecom.CommandName.INFLATE,
                     mtdomecom.CommandName.EXIT_FAULT,
-                    "home",
+                    mtdomecom.CommandName.HOME,
                     mtdomecom.CommandName.SET_ZERO_AZ,
                     mtdomecom.CommandName.CALIBRATE_EL,
                     mtdomecom.CommandName.RESET_DRIVES_AZ,
@@ -153,8 +154,15 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
         await self.assert_next_sample(topic=self.remote.evt_shutterEnabled, state=EnabledState.ENABLED)
         await self.assert_next_sample(topic=self.remote.evt_louversEnabled, state=EnabledState.ENABLED)
         await self.assert_next_sample(topic=self.remote.evt_brakesEngaged, brakes="0")
-        await self.assert_next_sample(topic=self.remote.evt_interlocks, interlocks=0)
-        await self.assert_next_sample(topic=self.remote.evt_lockingPinsEngaged, engaged=0)
+
+        # TODO OSW-2451 Remove backward compatibility.
+        if hasattr(self.remote, "evt_interlocks"):
+            await self.assert_next_sample(topic=self.remote.evt_interlocks, interlocks=0)
+            await self.assert_next_sample(topic=self.remote.evt_lockingPinsEngaged, engaged=0)
+        else:
+            for evt_name in mtdomecom.MONCS_EVENT_NAMES.keys():
+                evt = getattr(self.remote, f"evt_{evt_name}")
+                await self.assert_next_sample(topic=evt)
 
         self.csc.mtdome_com.mock_ctrl.determine_current_tai = self.determine_current_tai
         sub_system_ids = (
@@ -163,7 +171,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             | SubSystemId.APSCS
             | SubSystemId.LCS
             | SubSystemId.THCS
-            | SubSystemId.MONCS
             | SubSystemId.RAD
             | SubSystemId.CSCS
             | SubSystemId.CBCS
@@ -513,7 +520,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             await self.set_csc_to_enabled()
 
             # Set the TAI time in the mock controller for easier control
-            self.csc.mtdome_com.mock_ctrl.current_tai = 1000
+            self.csc.mtdome_com.mock_ctrl.current_tai = 65000000
             # Set the mock device status TAI time to the mock controller time
             # for easier control
             self.csc.mtdome_com.mock_ctrl.lwscs.command_time_tai = self.csc.mtdome_com.mock_ctrl.current_tai
@@ -599,7 +606,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
 
     async def _open_shutters(self) -> None:
         # Set the TAI time in the controller for easier control.
-        self.csc.mtdome_com.mock_ctrl.current_tai = 1000
+        self.csc.mtdome_com.mock_ctrl.current_tai = 65000000
 
         await self.remote.cmd_openShutter.set_start()
         await self.assert_command_replied(cmd=mtdomecom.CommandName.OPEN_SHUTTER)
@@ -1072,10 +1079,21 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             )
             await self.check_brakes_event()
 
+            # TODO OSW-2451 Remove backward compatibility.
+            if hasattr(self.csc, "evt_interlocksAMCS"):
+                # Reset the MonCS events so they get emitted when requesting
+                # the MonCS status.
+                for evt_name in mtdomecom.MONCS_EVENT_NAMES.keys():
+                    evt = getattr(self.csc, f"evt_{evt_name}")
+                    evt._has_data = False
             await self.csc.mtdome_com.status_moncs()
             moncs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.MONCS.value]
-            assert moncs_status["status"]["status"] == MotionState.CLOSED.name
-            assert moncs_status["data"] == [0.0] * mtdomecom.MON_NUM_SENSORS
+            # TODO OSW-2451 Remove backward compatibility.
+            if hasattr(self.remote, "evt_interlocksAMCS"):
+                assert moncs_status[f"interlocks{mtdomecom.LlcName.AMCS.value}"]["gisA3Active"] is False
+                for evt_name in mtdomecom.MONCS_EVENT_NAMES.keys():
+                    evt = getattr(self.remote, f"evt_{evt_name}")
+                    await self.assert_next_sample(topic=evt)
 
             await self.csc.mtdome_com.status_thcs()
             thcs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.THCS.value]
@@ -1240,11 +1258,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             lwscs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.LWSCS.value]
             assert lwscs_status["status"]["status"] == mtdomecom.InternalMotionState.STATIONARY.name
             assert lwscs_status["positionActual"] == 0
-
-            await self.csc.mtdome_com.status_moncs()
-            moncs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.MONCS.value]
-            assert moncs_status["status"]["status"] == MotionState.CLOSED.name
-            assert moncs_status["data"] == [0.0] * mtdomecom.MON_NUM_SENSORS
 
             await self.csc.mtdome_com.status_thcs()
             thcs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.THCS.value]
@@ -1732,7 +1745,6 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 SubSystemId.CSCS,
                 SubSystemId.LCS,
                 SubSystemId.LWSCS,
-                SubSystemId.MONCS,
                 SubSystemId.THCS,
             ]
             await self.assert_operational_mode_event(subsystem_ids)
@@ -1804,7 +1816,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 self.csc.mtdome_com.mock_ctrl.communication_error = True
 
                 # Set the TAI time in the mock controller for easier control.
-                self.csc.mtdome_com.mock_ctrl.current_tai = 1000
+                self.csc.mtdome_com.mock_ctrl.current_tai = 65000000
 
                 try:
                     func = getattr(self.csc.mtdome_com, command)
@@ -1831,7 +1843,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
             self.csc.mtdome_com.mock_ctrl.communication_error = True
 
             # Set the TAI time in the mock controller for easier control.
-            self.csc.mtdome_com.mock_ctrl.current_tai = 1000
+            self.csc.mtdome_com.mock_ctrl.current_tai = 65000000
 
             await self.remote.cmd_openShutter.set_start()
             data = await self.assert_next_sample(
@@ -1864,7 +1876,7 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 self.csc.mtdome_com.mock_ctrl.timeout_error = True
 
                 # Set the TAI time in the mock controller for easier control.
-                self.csc.mtdome_com.mock_ctrl.current_tai = 1000
+                self.csc.mtdome_com.mock_ctrl.current_tai = 65000000
 
                 # Run a different command depending on the run_id.
                 if run_id == 1:
