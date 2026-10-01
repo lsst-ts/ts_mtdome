@@ -13,11 +13,11 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = ["MTDomeCsc", "run_mtdome"]
 
@@ -30,11 +30,13 @@ from types import SimpleNamespace
 from lsst.ts import mtdomecom, salobj
 from lsst.ts.mtdomecom.enums import (
     BRAKES_ENGAGED_STATES,
+    MONCS_EVENT_NAMES,
     LlcName,
     LlcNameDict,
     ValidSimulationMode,
     motion_state_translations,
 )
+from lsst.ts.xml.component_info import ComponentInfo
 from lsst.ts.xml.enums.MTDome import (
     Brake,
     ControlMode,
@@ -111,6 +113,11 @@ class MTDomeCsc(salobj.ConfigurableCsc):
     ) -> None:
         self.config: SimpleNamespace | None = None
         self.start_periodic_tasks = start_periodic_tasks
+
+        # TODO OSW-2451 Remove backward compatibility.
+        ci = ComponentInfo("MTDome", "")
+        if "cmd_setPhotocellShutter" in ci.topics:
+            self.do_setPhotocellShutter = self._do_setPhotocellShutter
 
         super().__init__(
             name="MTDome",
@@ -219,8 +226,15 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         )
 
         await self.evt_brakesEngaged.set_write(brakes=str(self.brakes_engaged_bitmask))
-        await self.evt_interlocks.set_write(interlocks=0)
-        await self.evt_lockingPinsEngaged.set_write(engaged=0)
+        # TODO OSW-2451 Remove backward compatibility.
+        if hasattr(self, "evt_interlocks"):
+            await self.evt_interlocks.set_write(interlocks=0)
+            await self.evt_lockingPinsEngaged.set_write(engaged=0)
+        else:
+            for evt_name in MONCS_EVENT_NAMES.keys():
+                evt = getattr(self, f"evt_{evt_name}")
+                await evt.set_write()
+
         await self.evt_powerManagementMode.set_write(mode=self.mtdome_com.power_management_mode)
 
         self.log.info("connected")
@@ -633,6 +647,19 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         assert self.mtdome_com is not None
         await self.call_method(method=self.mtdome_com.inflate, action=data.action)
 
+    async def _do_setPhotocellShutter(self, data: salobj.BaseMsgType) -> None:
+        """Switch on or off the shutter photocell.
+
+        Parameters
+        ----------
+        data : `salobj.BaseMsgType`
+            Contains the data as defined in the SAL XML file.
+        """
+        self.assert_enabled()
+        self.log.debug(f"do_setPhotocellShutter: {data.action=!s}")
+        assert self.mtdome_com is not None
+        await self.call_method(method=self.mtdome_com.set_photocell_shutter, action=data.action)
+
     async def do_setPowerManagementMode(self, data: salobj.BaseMsgType) -> None:
         """Set the power management mode.
 
@@ -773,7 +800,56 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         """
         if "exception" in status:
             await self.log_status_exception(status)
-        await self.send_llc_status_telemetry_and_events(LlcName.MONCS, status, self.tel_interlocks)
+
+        # TODO OSW-2451 Remove backward compatibility.
+        elif hasattr(self, "evt_interlocksAMCS"):
+            await self.evt_interlocksAMCS.set_write(**status["interlocksAMCS"])
+            await self.evt_interlocksLWSCS.set_write(**status["interlocksLWSCS"])
+            await self.evt_interlocksApSCS.set_write(**status["interlocksApSCS"])
+            await self.evt_interlocksLCS.set_write(**status["interlocksLCS"])
+            await self.evt_interlocksOBC.set_write(**status["interlocksOBC"])
+            await self.evt_interlocksRAD.set_write(**status["interlocksRAD"])
+            await self.evt_interlocksCSCS.set_write(**status["interlocksCSCS"])
+            await self.evt_interlocksLockingPins.set_write(**status["interlocksLockingPins"])
+            await self.evt_sensorsFixedPartLines24V.set_write(**status["sensorsFixedPartLines24V"])
+            await self.evt_sensorsFixedPartAlarms.set_write(**status["sensorsFixedPartAlarms"])
+            await self.evt_sensorsFixedPartSelectors.set_write(**status["sensorsFixedPartSelectors"])
+            await self.evt_sensorsFixedPartInflatableSeal.set_write(
+                **status["sensorsFixedPartInflatableSeal"]
+            )
+            await self.evt_sensorsFixedPartValves.set_write(**status["sensorsFixedPartValves"])
+            await self.evt_sensorsFixedPart.set_write(**status["sensorsFixedPart"])
+            await self.evt_sensorsRotatingPartLines24V.set_write(**status["sensorsRotatingPartLines24V"])
+            await self.evt_sensorsRotatingPartLockingPins.set_write(
+                **status["sensorsRotatingPartLockingPins"]
+            )
+            await self.evt_sensorsRotatingPartAlarms.set_write(**status["sensorsRotatingPartAlarms"])
+            await self.evt_sensorsRotatingPartDoorsClosed.set_write(
+                **status["sensorsRotatingPartDoorsClosed"]
+            )
+            await self.evt_sensorsRotatingPartCabinetFan.set_write(**status["sensorsRotatingPartCabinetFan"])
+            await self.evt_sensorsRotatingPartLimitSwitches.set_write(
+                **status["sensorsRotatingPartLimitSwitches"]
+            )
+            await self.evt_sensorsRotatingPartSelectors.set_write(**status["sensorsRotatingPartSelectors"])
+            await self.evt_sensorsRotatingPartEmergencyPushbuttons.set_write(
+                **status["sensorsRotatingPartEmergencyPushbuttons"]
+            )
+            await self.evt_sensorsRotatingPartPowerAvailable.set_write(
+                **status["sensorsRotatingPartPowerAvailable"]
+            )
+            await self.evt_sensorsRotatingPartHatches.set_write(**status["sensorsRotatingPartHatches"])
+            await self.evt_sensorsRotatingPartPhotocells.set_write(**status["sensorsRotatingPartPhotocells"])
+            await self.evt_sensorsRotatingPartLightCurtain.set_write(
+                **status["sensorsRotatingPartLightCurtain"]
+            )
+            await self.evt_sensorsRotatingPartOBC.set_write(**status["sensorsRotatingPartOBC"])
+            await self.evt_sensorsRotatingPartAxialFans.set_write(**status["sensorsRotatingPartAxialFans"])
+            await self.evt_sensorsRotatingPartLights.set_write(**status["sensorsRotatingPartLights"])
+            await self.evt_sensorsRotatingPartHeatingCables.set_write(
+                **status["sensorsRotatingPartHeatingCables"]
+            )
+            await self.evt_sensorsRotatingPartBrakes.set_write(**status["sensorsRotatingPartBrakes"])
 
     async def status_rad(self, status: dict[str, typing.Any]) -> None:
         """RAD status command.
@@ -992,7 +1068,10 @@ class MTDomeCsc(salobj.ConfigurableCsc):
         if self.apscs_state != llc_status["status"]:
             self.apscs_state = llc_status["status"]
             self.log.debug(f"ApSCS state now is {self.apscs_state}")
-        if len(messages) != 1 or codes[0] != 0:
+        if len(messages) != 1 or codes[0] not in [
+            mtdomecom.ResponseCode.OK,
+            mtdomecom.ResponseCode.PHOTOCELLS_CODE,
+        ]:
             fault_code = ", ".join([f"{message['code']}={message['description']}" for message in messages])
             await self.evt_shutterEnabled.set_write(state=EnabledState.FAULT, faultCode=fault_code)
         else:
