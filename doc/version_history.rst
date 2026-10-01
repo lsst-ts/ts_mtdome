@@ -8,6 +8,28 @@ Version History
 
 .. towncrier release notes start
 
+v2.5.2 (2026-10-01)
+===================
+
+New Features
+------------
+
+- Added support for the updated MonCS telemetry schema. (`OSW-2706 <https://rubinobs.atlassian.net//browse/OSW-2706>`_)
+- Added support for the setPhotocellShutter command to the simulator. (`OSW-2706 <https://rubinobs.atlassian.net//browse/OSW-2706>`_)
+
+
+Bug Fixes
+---------
+
+- Fixed the conda uploads. (`SSW-3010 <https://rubinobs.atlassian.net//browse/SSW-3010>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Updated all Python license headers. (`OSW-2863 <https://rubinobs.atlassian.net//browse/OSW-2863>`_)
+
+
 v2.5.1 (2026-07-21)
 ===================
 
