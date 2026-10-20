@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v2.6.0 (2026-10-20)
+===================
+
+New Features
+------------
+
+- Enabled the MonCS status command. (`SSW-3086 <https://rubinobs.atlassian.net//browse/SSW-3086>`_)
+
+
 v2.5.2 (2026-10-01)
 ===================
 
