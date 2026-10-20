@@ -1093,7 +1093,8 @@ class CscTestCase(salobj.BaseCscTestCase, unittest.IsolatedAsyncioTestCase):
                 assert moncs_status[f"interlocks{mtdomecom.LlcName.AMCS.value}"]["gisA3Active"] is False
                 for evt_name in mtdomecom.MONCS_EVENT_NAMES.keys():
                     evt = getattr(self.remote, f"evt_{evt_name}")
-                    await self.assert_next_sample(topic=evt)
+                    self.csc.log.debug(f"Waiting for {evt_name=}.")
+                    await evt.aget()
 
             await self.csc.mtdome_com.status_thcs()
             thcs_status = self.csc.mtdome_com.lower_level_status[mtdomecom.LlcName.THCS.value]

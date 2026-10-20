@@ -176,13 +176,13 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             LlcName.CBCS: self.status_cbcs,
             LlcName.LCS: self.status_lcs,
             LlcName.LLC: self.status_llc,
+            LlcName.MONCS: self.status_moncs,
             LlcName.THCS: self.status_thcs,
         }
 
         callbacks_for_simulation = callbacks_for_operations | {
             LlcName.CSCS: self.status_cscs,
             LlcName.LWSCS: self.status_lwscs,
-            LlcName.MONCS: self.status_moncs,
             LlcName.RAD: self.status_rad,
         }
 
@@ -802,7 +802,7 @@ class MTDomeCsc(salobj.ConfigurableCsc):
             await self.log_status_exception(status)
 
         # TODO OSW-2451 Remove backward compatibility.
-        elif hasattr(self, "evt_interlocksAMCS"):
+        elif hasattr(self, "evt_interlocksAMCS") and "interlocks" in status:
             await self.evt_interlocksAMCS.set_write(**status["interlocksAMCS"])
             await self.evt_interlocksLWSCS.set_write(**status["interlocksLWSCS"])
             await self.evt_interlocksApSCS.set_write(**status["interlocksApSCS"])
